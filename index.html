@@ -34,7 +34,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v1.0';
+  const VERSIE='v2.0';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
 
@@ -431,13 +431,14 @@
   '         background="color:#02050c">'+
   '  <a-entity id="rig" position="0 0 0" cosmic>'+
   '    <a-camera id="cam" wasd-controls-enabled="false" far="420">'+
-  '      <a-text id="hudL" value="" align="left"   color="#8fd8ec" width="0.85" position="-0.42 -0.30 -1.2"></a-text>'+
-  '      <a-text id="hudR" value="" align="right"  color="#8fd8ec" width="0.85" position="0.42 -0.30 -1.2"></a-text>'+
-  '      <a-text id="hudC" value="" align="center" color="#ffb03a" width="1.1"  position="0 0.30 -1.3"></a-text>'+
-  '      <a-text id="hudW" value="" align="center" color="#e8f6ff" width="1.0"  position="0 -0.13 -1.25"></a-text>'+
+  '      <a-text id="hudL" value="" align="left"   color="#8fd8ec" width="1.5" position="-0.42 -0.30 -1.2"></a-text>'+
+  '      <a-text id="hudR" value="" align="right"  color="#8fd8ec" width="1.5" position="0.42 -0.30 -1.2"></a-text>'+
+  '      <a-text id="hudC" value="" align="center" color="#ffb03a" width="2.2"  position="0 0.30 -1.3"></a-text>'+
+  '      <a-text id="hudW" value="" align="center" color="#e8f6ff" width="1.9"  position="0 -0.13 -1.25"></a-text>'+
   '      <a-plane id="hurt"  position="0 0 -0.31" width="2.6" height="2.6" material="color:#ff2030;opacity:0;transparent:true;shader:flat"></a-plane>'+
   '      <a-plane id="flits" position="0 0 -0.32" width="2.6" height="2.6" material="color:#dfe8ff;opacity:0;transparent:true;shader:flat"></a-plane>'+
-  '      <a-ring id="richt" visible="false" radius-inner="0.006" radius-outer="0.010" position="0 0 -1"'+
+  '      <a-entity id="touchHand" rotation="45 0 0"></a-entity>'+
+  '      <a-ring id="richt" radius-inner="0.006" radius-outer="0.010" position="0 0 -1"'+
   '              material="color:#35e8ff;shader:flat;opacity:0.8;transparent:true"></a-ring>'+
   '    </a-camera>'+
   '    <a-entity id="leftHand" class="hand" meta-touch-controls="hand: left" oculus-touch-controls="hand: left">'+
@@ -454,40 +455,40 @@
   '      <a-plane id="scan" position="0 1.52 -2.585" width="2.80" height="0.016" material="color:#35e8ff;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
   '      <a-plane position="-1.78 1.42 -2.28" rotation="0 30 0" width="1.02" height="1.42" material="color:#0a2133;shader:flat;opacity:0.9;transparent:true"></a-plane>'+
   '      <a-plane position="1.78 1.42 -2.28"  rotation="0 -30 0" width="1.02" height="1.42" material="color:#0a2133;shader:flat;opacity:0.9;transparent:true"></a-plane>'+
-  '      <a-text position="-1.78 1.90 -2.27" rotation="0 30 0"  value="ART" align="center" color="#2f7c96" width="1.1"></a-text>'+
-  '      <a-text id="artTxt" position="-1.78 1.62 -2.27" rotation="0 30 0" value="scanning..." align="center" color="#6ad1a0" width="1.0"></a-text>'+
-  '      <a-text position="-1.78 1.20 -2.27" rotation="0 30 0" value="Cosmic/art" align="center" color="#2f7c96" width="0.85"></a-text>'+
-  '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="1.1"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v1.0" align="center" color="#ffb03a" width="1.3"></a-text>'+
-  '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="0.85"></a-text>'+
-  '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="3.4"></a-text>'+
-  '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="2.2"></a-text>'+
+  '      <a-text position="-1.78 1.90 -2.27" rotation="0 30 0"  value="ART" align="center" color="#2f7c96" width="2.0"></a-text>'+
+  '      <a-text id="artTxt" position="-1.78 1.62 -2.27" rotation="0 30 0" value="scanning..." align="center" color="#6ad1a0" width="2.0"></a-text>'+
+  '      <a-text position="-1.78 1.20 -2.27" rotation="0 30 0" value="Cosmic/art" align="center" color="#2f7c96" width="1.7"></a-text>'+
+  '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v2.0" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
+  '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
+  '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
   '      <a-plane position="0 1.90 -2.58" width="2.10" height="0.008" material="color:#ffb03a;shader:flat;opacity:0.8;transparent:true"></a-plane>'+
-  '      <a-text position="0 1.76 -2.58" value="TRIGGER HAND" align="center" color="#5f9ab5" width="0.9"></a-text>'+
+  '      <a-text position="0 1.76 -2.58" value="TRIGGER HAND" align="center" color="#5f9ab5" width="1.9"></a-text>'+
   '      <a-plane id="handL" class="menu-btn" position="-0.60 1.55 -2.57" width="1.06" height="0.34" material="color:#0e2c40;shader:flat"></a-plane>'+
-  '      <a-text id="handLt" position="-0.60 1.55 -2.55" value="LEFT" align="center" color="#e8f6ff" width="1.5"></a-text>'+
+  '      <a-text id="handLt" position="-0.60 1.55 -2.55" value="LEFT" align="center" color="#e8f6ff" width="3.4"></a-text>'+
   '      <a-plane id="handR" class="menu-btn" position="0.60 1.55 -2.57" width="1.06" height="0.34" material="color:#0e2c40;shader:flat"></a-plane>'+
-  '      <a-text id="handRt" position="0.60 1.55 -2.55" value="RIGHT" align="center" color="#e8f6ff" width="1.5"></a-text>'+
-  '      <a-text id="handHint" position="0 1.30 -2.55" value="machine gun goes here - the other hand takes weapons" align="center" color="#39708a" width="0.78"></a-text>'+
+  '      <a-text id="handRt" position="0.60 1.55 -2.55" value="RIGHT" align="center" color="#e8f6ff" width="3.4"></a-text>'+
+  '      <a-text id="handHint" position="0 1.30 -2.55" value="machine gun goes here - the other hand takes weapons" align="center" color="#39708a" width="2.4"></a-text>'+
   '      <a-plane id="btnStart" class="menu-btn" position="0 0.98 -2.57" width="1.70" height="0.42" material="color:#123a4e;shader:flat"></a-plane>'+
-  '      <a-text position="0 0.98 -2.55" value="LAUNCH" align="center" color="#35e8ff" width="2.2"></a-text>'+
+  '      <a-text position="0 0.98 -2.55" value="LAUNCH" align="center" color="#35e8ff" width="4.4"></a-text>'+
   '      <a-plane id="btnScores" class="menu-btn" position="-0.52 0.60 -2.57" width="0.80" height="0.26" material="color:#0d2233;shader:flat"></a-plane>'+
-  '      <a-text position="-0.52 0.60 -2.55" value="SCORES" align="center" color="#8fd8ec" width="1.0"></a-text>'+
+  '      <a-text position="-0.52 0.60 -2.55" value="SCORES" align="center" color="#8fd8ec" width="2.4"></a-text>'+
   '      <a-plane id="btnHelp" class="menu-btn" position="0.52 0.60 -2.57" width="0.80" height="0.26" material="color:#0d2233;shader:flat"></a-plane>'+
-  '      <a-text position="0.52 0.60 -2.55" value="CONTROLS" align="center" color="#8fd8ec" width="1.0"></a-text>'+
-  '      <a-text id="scoreLijst" position="0 0.30 -2.55" value="" align="center" color="#9fe4f5" width="0.9"></a-text>'+
+  '      <a-text position="0.52 0.60 -2.55" value="CONTROLS" align="center" color="#8fd8ec" width="2.4"></a-text>'+
+  '      <a-text id="scoreLijst" position="0 0.30 -2.55" value="" align="center" color="#9fe4f5" width="2.2"></a-text>'+
   '    </a-entity>'+
 
   // ---------- PAUZE / GAME OVER ----------
   '    <a-entity id="paneel" visible="false" position="0 0 0">'+
   '      <a-plane position="0 1.55 -2.32" width="2.06" height="1.32" material="color:#35e8ff;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
   '      <a-plane position="0 1.55 -2.30" width="2.00" height="1.26" material="color:#061524;shader:flat;opacity:0.97;transparent:true"></a-plane>'+
-  '      <a-text id="pTitel" position="0 2.02 -2.28" value="PAUSED" align="center" color="#ffb03a" width="2.4"></a-text>'+
-  '      <a-text id="pInfo"  position="0 1.76 -2.28" value="" align="center" color="#8fd8ec" width="1.0"></a-text>'+
+  '      <a-text id="pTitel" position="0 2.02 -2.28" value="PAUSED" align="center" color="#ffb03a" width="4.6"></a-text>'+
+  '      <a-text id="pInfo"  position="0 1.76 -2.28" value="" align="center" color="#8fd8ec" width="2.2"></a-text>'+
   '      <a-plane id="btnGo" class="menu-btn" position="0 1.45 -2.28" width="1.40" height="0.34" material="color:#123a4e;shader:flat"></a-plane>'+
-  '      <a-text id="goTxt" position="0 1.45 -2.26" value="RESUME" align="center" color="#35e8ff" width="1.8"></a-text>'+
+  '      <a-text id="goTxt" position="0 1.45 -2.26" value="RESUME" align="center" color="#35e8ff" width="3.6"></a-text>'+
   '      <a-plane id="btnQuit" class="menu-btn" position="0 1.05 -2.28" width="1.40" height="0.30" material="color:#33141c;shader:flat"></a-plane>'+
-  '      <a-text position="0 1.05 -2.26" value="QUIT TO MENU" align="center" color="#ff8aa6" width="1.4"></a-text>'+
+  '      <a-text position="0 1.05 -2.26" value="QUIT TO MENU" align="center" color="#ff8aa6" width="2.8"></a-text>'+
   '    </a-entity>'+
   '  </a-entity>'+
   '</a-scene>';
@@ -673,7 +674,7 @@
       this.dozen.forEach(function(D){ D.live=false; D.g.visible=false; });
       this.zuigT=0; this.zuig.visible=false; },
 
-    wp:function(h){ return this.wep[h.id]; },
+    wp:function(h){ return this.wep[h.id]||this.wep[this.spec]; },
     isPrim:function(h){ return h.id===this.prim; },
 
     // ---- sprite-plek pakken en het juiste atlasvak instellen ----
@@ -1351,7 +1352,7 @@
     const rig=document.querySelector('#rig'), C=rig&&rig.components&&rig.components.cosmic;
     if(C){ C.reset(); C.over=false; C.klaar=false; C.paneel(false); }
     const m=document.querySelector('#menu'); if(m) m.setAttribute('visible',true);
-    const r=document.querySelector('#richt'); if(r) r.setAttribute('visible',false);
+    const r=document.querySelector('#richt'); if(r) r.setAttribute('visible',true);
     ['#hudL','#hudR','#hudC','#hudW'].forEach(function(id){
       const e=document.querySelector(id); if(e) e.setAttribute('value',''); });
     laserAan(true); toonScores(); }
@@ -1386,11 +1387,29 @@
     if(sc.hasLoaded) klaar();
     else sc.addEventListener('loaded',klaar);
     sc.addEventListener('renderstart',function(){ setTimeout(laadWeg,200); });
-    // muis/vinger buiten VR: ook klikbaar
-    window.addEventListener('mousedown',function(){
-      if(window.PHASE==='menu'||window.PAUSED){
-        const h=document.querySelector('#'+((window.PRIMHAND==='right')?'rightHand':'leftHand'));
-        if(h) menuKlik(h); } });
+    // ---- muis en aanraakscherm: zelfde spel zonder headset ----
+    const C=function(){ const r=document.querySelector('#rig');
+      return r&&r.components&&r.components.cosmic; };
+    const tHand=function(){ return document.querySelector('#touchHand'); };
+    let raakt=false;
+    function aan(ev){
+      const h=tHand(); if(!h||!h.object3D) return;
+      if(window.PHASE==='menu'||window.PAUSED){ menuKlik(h); return; }
+      const c=C(); if(!c) return;
+      if(!raakt){ raakt=true; if(c.held.indexOf(h)<0) c.held.push(h); }
+      c.fire(h); }
+    function uit(){ const h=tHand(), c=C(); raakt=false;
+      if(!h||!c) return; const i=c.held.indexOf(h); if(i>=0) c.held.splice(i,1); }
+    ['mousedown','touchstart'].forEach(function(ev){
+      window.addEventListener(ev,function(e){
+        if(e.target&&e.target.closest&&e.target.closest('.a-enter-vr')) return;   // VR-knop met rust laten
+        aan(e); },{passive:true}); });
+    ['mouseup','touchend','touchcancel','blur'].forEach(function(ev){
+      window.addEventListener(ev,uit,{passive:true}); });
+    // richtkruis is buiten VR je vizier
+    const sc2=document.querySelector('a-scene');
+    if(sc2){ sc2.addEventListener('enter-vr',function(){ window.INVR=true; });
+             sc2.addEventListener('exit-vr',function(){ window.INVR=false; }); }
   }
 
   if(document.readyState==='complete'||document.readyState==='interactive') setTimeout(boot,60);
