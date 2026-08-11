@@ -34,7 +34,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v2.0';
+  const VERSIE='v5.0';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
 
@@ -181,8 +181,58 @@
         navigator.wakeLock.request('screen').then(function(w){ window.WAKE=w; }).catch(function(){}); });
   }catch(e){} }
 
+  // ---- muziek uit Cosmic/music van de repo; namen doen er niet toe, volgorde is alfabetisch ----
+  const MUSBASE='https://raw.githubusercontent.com/umop3p1sdn/VR/main/Cosmic/music/';
+  const MUSAPI='https://api.github.com/repos/umop3p1sdn/VR/contents/Cosmic/music';
+  let PLAY=[], PIDX=0, CUR=null, ANA=null, ANAD=null, MUSBRON=null;
+  function musToon(){ const e=$('#musTxt'); if(!e) return;
+    if(!PLAY.length){ e.setAttribute('value','searching...'); e.setAttribute('color','#c08a5a'); return; }
+    e.setAttribute('value',PLAY.length+' track'+(PLAY.length>1?'s':'')+': '+PLAY[0].n);
+    e.setAttribute('color','#6ad1a0'); }
+  function musScan(){
+    let cache=null;
+    try{ const r=localStorage.getItem('cosmic_music'); if(r) cache=JSON.parse(r); }catch(e){}
+    if(cache&&cache.length){ PLAY=cache.map(function(n){ return {n:n,u:MUSBASE+encodeURIComponent(n)}; }); musToon(); }
+    if(typeof fetch!=='function') return;
+    fetch(MUSAPI).then(function(r){ return r.ok?r.json():null; }).then(function(j){
+      if(!j||!j.length) return;
+      const nm=j.filter(function(f){ return /\.(mp3|m4a|wav|ogg|aac)$/i.test(f.name||''); })
+                .map(function(f){ return f.name; }).sort();
+      if(!nm.length) return;
+      try{ localStorage.setItem('cosmic_music',JSON.stringify(nm)); }catch(e){}
+      PLAY=nm.map(function(n){ return {n:n,u:MUSBASE+encodeURIComponent(n)}; });
+      musToon();
+      if(window.PHASE!=='menu'&&!CUR) playAt(0);      // scan kwam pas na de start binnen
+    }).catch(function(){}); }
+  function playAt(i){
+    if(!PLAY.length) return false;
+    PIDX=((i%PLAY.length)+PLAY.length)%PLAY.length;
+    try{
+      if(CUR){ try{ CUR.pause(); }catch(e){} }
+      CUR=new Audio(); CUR.crossOrigin='anonymous'; CUR.src=PLAY[PIDX].u;
+      CUR.preload='auto'; CUR.volume=1;
+      CUR.addEventListener('ended',function(){ playAt(PIDX+1); });
+      CUR.addEventListener('error',function(){ if(PLAY.length>1) playAt(PIDX+1); else startDrone(); });
+      const a=AC();
+      try{ MUSBRON=a.createMediaElementSource(CUR);
+        ANA=a.createAnalyser(); ANA.fftSize=256; ANAD=new Uint8Array(ANA.frequencyBinCount);
+        MUSBRON.connect(ANA); ANA.connect(MASTER);            // muziek direct op master: schoten drukken hem niet weg
+      }catch(e){ /* geen webaudio-route: gewoon afspelen */ }
+      if(DRONE){ try{ DRONE.gain.linearRampToValueAtTime(0.0001,a.currentTime+2); }catch(e){} }
+      const p=CUR.play(); if(p&&p.catch) p.catch(function(){});
+      const e2=$('#musTxt'); if(e2) e2.setAttribute('value','\u25b6 '+PLAY[PIDX].n);
+      return true;
+    }catch(e){ return false; } }
+  function muziekStart(){ AC(); if(!playAt(0)) startDrone(); }
+  function beat(){ if(!ANA||!ANAD) return 0;
+    try{ ANA.getByteFrequencyData(ANAD);
+      let s=0; for(let i=1;i<7;i++) s+=ANAD[i];
+      return (s/6)/255; }catch(e){ return 0; } }
+
   window.SND={gun:gunSnd,hit:hitSnd,kill:killSnd,boom:boomSnd,alarm:alarmSnd,
-    ratel:ratelAan,zeg:zeg,AC:AC,initSFX:initSFX,drone:startDrone,wake:wakeAan};
+    ratel:ratelAan,zeg:zeg,AC:AC,initSFX:initSFX,drone:startDrone,wake:wakeAan,
+    muziek:muziekStart,scan:musScan,beat:beat,
+    volgende:function(){ if(PLAY.length) playAt(PIDX+1); }};
   prog(12,'AUDIO');
 
   // =========================================================
@@ -435,11 +485,12 @@
   '      <a-text id="hudR" value="" align="right"  color="#8fd8ec" width="1.5" position="0.42 -0.30 -1.2"></a-text>'+
   '      <a-text id="hudC" value="" align="center" color="#ffb03a" width="2.2"  position="0 0.30 -1.3"></a-text>'+
   '      <a-text id="hudW" value="" align="center" color="#e8f6ff" width="1.9"  position="0 -0.13 -1.25"></a-text>'+
-  '      <a-plane id="hurt"  position="0 0 -0.31" width="2.6" height="2.6" material="color:#ff2030;opacity:0;transparent:true;shader:flat"></a-plane>'+
-  '      <a-plane id="flits" position="0 0 -0.32" width="2.6" height="2.6" material="color:#dfe8ff;opacity:0;transparent:true;shader:flat"></a-plane>'+
+  '      <a-text id="diag" value="" align="center" color="#ffb03a" width="1.3"  position="0 -0.42 -1.2"></a-text>'+
+  '      <a-plane id="hurt"  position="0 0 -0.31" width="2.6" height="2.6" material="color:#ff2030;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="flits" position="0 0 -0.32" width="2.6" height="2.6" material="color:#dfe8ff;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-entity id="touchHand" rotation="45 0 0"></a-entity>'+
   '      <a-ring id="richt" radius-inner="0.006" radius-outer="0.010" position="0 0 -1"'+
-  '              material="color:#35e8ff;shader:flat;opacity:0.8;transparent:true"></a-ring>'+
+  '              material="color:#35e8ff;shader:flat;opacity:0.8;transparent:true;depthWrite:false;depthTest:false"></a-ring>'+
   '    </a-camera>'+
   '    <a-entity id="leftHand" class="hand" meta-touch-controls="hand: left" oculus-touch-controls="hand: left">'+
   '      <a-entity class="menu-laser" rotation="-45 0 0" line="start: 0 0 0; end: 0 0 -40; color: #35e8ff; opacity: 1"></a-entity>'+
@@ -455,11 +506,14 @@
   '      <a-plane id="scan" position="0 1.52 -2.585" width="2.80" height="0.016" material="color:#35e8ff;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
   '      <a-plane position="-1.78 1.42 -2.28" rotation="0 30 0" width="1.02" height="1.42" material="color:#0a2133;shader:flat;opacity:0.9;transparent:true"></a-plane>'+
   '      <a-plane position="1.78 1.42 -2.28"  rotation="0 -30 0" width="1.02" height="1.42" material="color:#0a2133;shader:flat;opacity:0.9;transparent:true"></a-plane>'+
-  '      <a-text position="-1.78 1.90 -2.27" rotation="0 30 0"  value="ART" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="artTxt" position="-1.78 1.62 -2.27" rotation="0 30 0" value="scanning..." align="center" color="#6ad1a0" width="2.0"></a-text>'+
-  '      <a-text position="-1.78 1.20 -2.27" rotation="0 30 0" value="Cosmic/art" align="center" color="#2f7c96" width="1.7"></a-text>'+
+  '      <a-text position="-1.78 1.96 -2.27" rotation="0 30 0"  value="ART" align="center" color="#2f7c96" width="2.0"></a-text>'+
+  '      <a-text id="artTxt" position="-1.78 1.74 -2.27" rotation="0 30 0" value="scanning..." align="center" color="#6ad1a0" width="1.9"></a-text>'+
+  '      <a-text position="-1.78 1.42 -2.27" rotation="0 30 0"  value="MUSIC" align="center" color="#2f7c96" width="2.0"></a-text>'+
+  '      <a-text id="musTxt" position="-1.78 1.20 -2.27" rotation="0 30 0" value="searching..." align="center" color="#6ad1a0" width="1.9"></a-text>'+
+  '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
+  '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v2.0" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v5.0" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -522,6 +576,7 @@
   // =========================================================
   const WCOL=[0x9fe4f5,0xff8a3d,0xfff2c0,0x4aa8ff,0xc07dff,0xffe45c];   // 0 basis 1 raket 2 hagel 3 kanon 4 electro 5 mg
   const WNAAM=['','ROCKET','SHOTGUN','CANNON','ELECTRO','MACHINE GUN'];
+  const ROMPKL=[0x35e8ff,0x6ce2a0,0xffb03a,0xb06cff,0xff3d81,0xffe45c,0xff6a3d,0xe8f6ff];
   const CD=[110,760,360,1100,300,60];
   // tp: hp, schaal(m), raakstraal, punten
   const TYPE=[
@@ -566,6 +621,12 @@
         const m=new THREE.Mesh(g,this.bbMat);
         m.visible=false; m.renderOrder=2; this.par.add(m);
         this.bb.push({m:m,g:g,vrij:true}); }
+      this.romp=[];                                  // massieve romp per vijand (diagnose + altijd speelbaar)
+      for(let i=0;i<60;i++){
+        const m=new THREE.Mesh(new THREE.IcosahedronGeometry(1,0),
+          new THREE.MeshBasicMaterial({color:0xffffff,wireframe:false}));
+        m.visible=false; m.renderOrder=1; this.par.add(m);
+        this.romp.push(m); }
       this.enemies=[];
       for(let i=0;i<60;i++) this.enemies.push({live:false,p:new THREE.Vector3(),v:new THREE.Vector3(),
         bb:null,tp:0,hp:0,hpM:0,r:1,sc:1,t:0,cd:0,fase:0,flash:0,dood:0,extra:{}});
@@ -601,7 +662,7 @@
       // ---- bliksem (electro) ----
       this.zapG=new THREE.BufferGeometry();
       this.zapG.setAttribute('position',new THREE.BufferAttribute(new Float32Array(3*40),3));
-      this.zapL=new THREE.Line(this.zapG,new THREE.LineBasicMaterial({color:0xc07dff,transparent:true,opacity:0}));
+      this.zapL=new THREE.Line(this.zapG,new THREE.LineBasicMaterial({color:0xc07dff,transparent:true,opacity:0,depthWrite:false}));
       this.zapL.frustumCulled=false; this.par.add(this.zapL); this.zapT=0;
 
       // ---- dozen ----
@@ -646,6 +707,13 @@
         h.addEventListener('buttondown',function(e){ if(e&&e.detail&&e.detail.id===3) self.pauzeKnop(); });
       });
 
+      // camera-overlays horen ALTIJD bovenop en mogen nooit diepte schrijven
+      setTimeout(function(){ ['#hurt','#flits','#richt'].forEach(function(id){
+        const el=document.querySelector(id); if(!el) return;
+        const m=el.getObject3D&&el.getObject3D('mesh'); if(!m) return;
+        m.renderOrder=999;
+        if(m.material){ m.material.depthWrite=false; m.material.depthTest=false;
+          m.material.needsUpdate=true; } }); },1200);
       this.reset();
       prog(88,'SYSTEMS');
     }catch(e){ this.dead=true; fout('INIT: '+e.message); } },
@@ -667,7 +735,8 @@
       this.prim=prim; this.spec=spec;
       for(const id in this.wep){ const W=this.wep[id];
         W.t=(id===prim)?5:5; W.lvl=1; W.lvlT={5:1}; W.mag={}; W.last=0; W.up=0; W.vorig=0; }
-      this.enemies.forEach(function(e){ e.live=false; });
+      this.enemies.forEach(function(e){ e.live=false;
+        if(e.romp){ e.romp.visible=false; e.romp=null; } });
       this.bb.forEach(function(b){ b.vrij=true; b.m.visible=false; });
       [this.bolts,this.vij,this.rockets,this.balls,this.vonken].forEach(function(P){
         P.forEach(function(o){ o.live=false; o.m.visible=false; }); });
@@ -880,6 +949,7 @@
 
     kill:function(e){
       e.live=false; e.hp=0;
+      if(e.romp){ e.romp.visible=false; e.romp=null; }
       const T=TYPE[e.tp];
       SND.kill(e.p.x*0.02,e.sc/7);
       this.vonk(e.p.x,e.p.y,e.p.z,0xffb03a,18+Math.floor(e.sc),13,1.4);
@@ -926,11 +996,15 @@
         e.sc=T.sc*((opt&&opt.sc)||1); e.r=T.r*((opt&&opt.sc)||1);
         e.t=0; e.cd=0.8+Math.random()*1.6; e.ex={};
         const zij=(Math.random()<0.5)?-1:1;
+        e.romp=this.romp[i];
+        e.romp.visible=!(this.ATLAS&&this.ATLAS.image&&this.ATLAS.image.width);   // terugval zonder plaat
+        e.romp.material.color.setHex(ROMPKL[tp]);
         e.p.set((opt&&opt.x!==undefined)?opt.x:(zij*(6+Math.random()*24)),
                 1.6+(Math.random()*16-6),
                 (opt&&opt.z!==undefined)?opt.z:(-58-Math.random()*22));
         e.v.set(0,0,0);
         bb.m.scale.set(e.sc,e.sc,1); bb.m.position.copy(e.p);
+        e.romp.position.copy(e.p); e.romp.scale.setScalar(e.r*0.45);
         return e; }
       return null; },
 
@@ -1036,6 +1110,7 @@
         this.vonk(e.p.x,e.p.y,e.p.z,0xff4040,6,8,0.8); }
 
       // ---- sprite bijwerken ----
+      if(e.romp){ e.romp.position.copy(e.p); e.romp.rotation.y+=s*1.1; e.romp.rotation.x+=s*0.7; }
       const b=e.bb; if(b){ b.m.position.copy(e.p); b.m.lookAt(eye);
         if(e.flash>0) e.flash-=s;
         b.m.scale.set(e.sc*(1+(e.flash>0?0.12:0)),e.sc*(1+(e.flash>0?0.12:0)),1); } },
@@ -1102,7 +1177,8 @@
         const e=document.querySelector('#hudC'); if(e) e.setAttribute('value',''); } }
       if(this.rood>0){ this.rood=Math.max(0,this.rood-s*1.5);
         const hv=document.querySelector('#hurt');
-        if(hv) hv.setAttribute('material','color:#ff2030;opacity:'+this.rood.toFixed(3)+';transparent:true;shader:flat'); }
+        if(hv) hv.setAttribute('material','color:#ff2030;opacity:'+this.rood.toFixed(3)+
+          ';transparent:true;shader:flat;depthWrite:false;depthTest:false'); }
       if(this.combo&&this.T-this.laatst>2.0) this.combo=0;
       if(this.zapT>0){ this.zapT-=s; this.zapL.material.opacity=Math.max(0,this.zapT*7); }
       if(this.zuigT>0){ this.zuigT-=s;
@@ -1119,7 +1195,8 @@
       let levend=0;
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i]; if(!e.live) continue;
         this.baan(e,s); levend++;
-        if(e.p.z>18){ this.bbVrij(e.bb); e.bb=null; e.live=false; }        // ontsnapt
+        if(e.p.z>18){ this.bbVrij(e.bb); e.bb=null; e.live=false;
+          if(e.romp){ e.romp.visible=false; e.romp=null; } }               // ontsnapt
         if(window.PAUSED) return; }
 
       // ---- eigen kogels ----
@@ -1237,6 +1314,13 @@
         ((this.state==='baas'||this.state==='baaswacht')
           ? 'MOTHERSHIP '+(this.baas?Math.max(0,Math.round(this.baas.hp/this.baas.hpM*100)):0)+'%'
           : 'WAVE '+Math.max(1,this.wave)+'/20');
+      const tex=(this.ATLAS&&this.ATLAS.image&&this.ATLAS.image.width)?'ok':'LEEG';
+      let zicht=0; for(let i=0;i<this.bb.length;i++) if(!this.bb[i].vrij) zicht++;
+      let lev=0; for(let i=0;i<this.enemies.length;i++) if(this.enemies[i].live) lev++;
+      const d='ships '+lev+'  sprites '+zicht+'  wave '+this.wave+' '+this.state+
+        '  tex '+tex+'  art '+((window.ART&&window.ART.vondst)||'-');
+      if(d!==this.diagV){ this.diagV=d;
+        const e=document.querySelector('#diag'); if(e) e.setAttribute('value',d); }
       if(l!==this.hudLv){ this.hudLv=l;
         const e=document.querySelector('#hudL'); if(e) e.setAttribute('value',l); }
       if(r!==this.hudRv){ this.hudRv=r;
@@ -1337,7 +1421,7 @@
 
   function startSpel(){
     if(window.PHASE!=='menu') return;
-    AC(); SND.initSFX(); SND.drone(); SND.wake();
+    AC(); SND.initSFX(); SND.muziek(); SND.wake();
     const m=document.querySelector('#menu'); if(m) m.setAttribute('visible',false);
     const p=document.querySelector('#paneel'); if(p) p.setAttribute('visible',false);
     laserAan(false);
@@ -1369,6 +1453,7 @@
         C=rig&&rig.components&&rig.components.cosmic; if(!C) return;
       if(C.klaar) naarMenu(); else C.verder(); });
     kl('#btnQuit',naarMenu);
+    kl('#btnTrack',function(){ AC(); if(!PLAY.length) return; SND.volgende(); });
     handKleur(); toonScores(); }
 
   // =========================================================
@@ -1381,7 +1466,7 @@
     const klaar=function(){
       knoppen();
       const v=document.querySelector('#verTxt'); if(v) v.setAttribute('value',VERSIE);
-      artScan();
+      artScan(); musScan();
       prog(100,'READY');
       setTimeout(laadWeg,400); };
     if(sc.hasLoaded) klaar();
