@@ -34,7 +34,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v7.2';
+  const VERSIE='v7.4';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
 
@@ -137,6 +137,16 @@
     g.gain.setValueAtTime(0.42,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.26);
     o.connect(g); naar(g,p); o.start(t); o.stop(t+0.28); }
 
+  function lazSnd(p,k,n){ const a=AC(), t=a.currentTime;
+    const o=a.createOscillator(), g=a.createGain(), f=a.createBiquadFilter();
+    o.type='sawtooth';
+    const f0=900+ (k/Math.max(1,n))*1500;                 // kruipt per flits omhoog
+    o.frequency.setValueAtTime(f0,t);
+    o.frequency.exponentialRampToValueAtTime(f0*0.55,t+0.05);
+    f.type='bandpass'; f.frequency.value=f0*1.2; f.Q.value=3.5;
+    g.gain.setValueAtTime(0.10,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.06);
+    o.connect(f).connect(g); naar(g,p); o.start(t); o.stop(t+0.07); }
+
   function alarmSnd(){ const a=AC(), t=a.currentTime;
     for(let k=0;k<2;k++){ const o=a.createOscillator(), g=a.createGain();
       o.type='square'; o.frequency.setValueAtTime(k?300:220,t+k*0.16);
@@ -231,7 +241,7 @@
       let s=0; for(let i=1;i<7;i++) s+=ANAD[i];
       return (s/6)/255; }catch(e){ return 0; } }
 
-  window.SND={gun:gunSnd,hit:hitSnd,kill:killSnd,boom:boomSnd,alarm:alarmSnd,
+  window.SND={gun:gunSnd,hit:hitSnd,kill:killSnd,boom:boomSnd,alarm:alarmSnd,laz:lazSnd,
     ratel:ratelAan,zeg:zeg,AC:AC,initSFX:initSFX,drone:startDrone,wake:wakeAan,
     muziek:muziekStart,beat:beat,
     scan:function(){ padenZoek(function(p){ if(p.music) musScan(p.music); }); },
@@ -552,7 +562,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v7.2" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v7.4" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -613,8 +623,8 @@
   // =========================================================
   //  HET SPEL
   // =========================================================
-  const WCOL=[0x9fe4f5,0xff8a3d,0xfff2c0,0x4aa8ff,0xc07dff,0xffe45c];   // 0 basis 1 raket 2 hagel 3 kanon 4 electro 5 mg
-  const WNAAM=['','ROCKET','SHOTGUN','CANNON','ELECTRO','MACHINE GUN'];
+  const WCOL=[0x9fe4f5,0xff8a3d,0xfff2c0,0x66f0ff,0xc07dff,0xffe45c];   // 0 basis 1 raket 2 hagel 3 kanon 4 electro 5 mg
+  const WNAAM=['','ROCKET','SHOTGUN','LASER','ELECTRO','MACHINE GUN'];
   const ROMPKL=[0x35e8ff,0xffe45c,0x6ce2a0,0xff3d81,0xffb03a,0xff6a3d,0x35e8ff,0x6ce2a0,
                 0xffb03a,0xb06cff,0xff5a3c,0xff3d81,0xffa060,0xff4040,0x4aa8ff,0x9aa8b4,
                 0x2fd8b0,0x8fd84a,0xe8f6ff];
@@ -628,23 +638,23 @@
   //  Bewust ongelijk: een BULWARK houdt zich lang goed en klapt dan snel in,
   //  een SENTINEL raakt al vroeg gehavend en blijft daarna lang doorvechten.
   const TYPE=[
-    {n:'SCOUT',     pl:6, rij:0, br:6,  hp:30,  pt:60,  sp:9,  sal:1, cd:3.0, prof:'strafer', f1:0.70, f2:0.35},
-    {n:'WASP',      pl:6, rij:5, br:5,  hp:25,  pt:55,  sp:14, sal:1, cd:3.2, prof:'sluiper', f1:0.80, f2:0.45},
-    {n:'FIGHTER',   pl:6, rij:1, br:9,  hp:90,  pt:150, sp:8,  sal:2, cd:2.6, prof:'formatie', f1:0.65, f2:0.30},
-    {n:'SAUCER',    pl:6, rij:4, br:13, hp:150, pt:230, sp:6,  sal:1, cd:3.4, prof:'cirkel', f1:0.55, f2:0.22},
-    {n:'BOMBER',    pl:6, rij:2, br:16, hp:200, pt:300, sp:5,  sal:3, cd:4.0, prof:'kruiper', f1:0.72, f2:0.28},
-    {n:'HEAVY',     pl:6, rij:3, br:20, hp:300, pt:420, sp:4,  sal:2, cd:3.0, prof:'drijver', f1:0.78, f2:0.40},
-    {n:'RAZOR',     pl:12,rij:0, br:7,  hp:45,  pt:80,  sp:11, sal:1, cd:2.6, prof:'formatie', f1:0.75, f2:0.40},
-    {n:'VIPER',     pl:12,rij:6, br:6,  hp:40,  pt:75,  sp:15, sal:1, cd:2.4, prof:'duiker', f1:0.85, f2:0.50},
-    {n:'SPINNER',   pl:12,rij:1, br:8,  hp:70,  pt:120, sp:7,  sal:2, cd:3.0, prof:'cirkel', f1:0.60, f2:0.25},
-    {n:'NIGHTBLADE',pl:12,rij:2, br:7,  hp:60,  pt:110, sp:13, sal:1, cd:3.0, prof:'sluiper', f1:0.68, f2:0.34},
-    {n:'REAPER',    pl:12,rij:7, br:11, hp:130, pt:210, sp:9,  sal:1, cd:2.0, prof:'strafer', snel:26, f1:0.50, f2:0.20},
-    {n:'LANCER',    pl:12,rij:9, br:9,  hp:110, pt:190, sp:10, sal:1, cd:3.0, prof:'duiker', f1:0.62, f2:0.38},
-    {n:'WEAVER',    pl:12,rij:10,br:15, hp:190, pt:290, sp:7,  sal:2, cd:3.2, prof:'sluiper', f1:0.66, f2:0.20},
-    {n:'BROOD',     pl:12,rij:4, br:18, hp:220, pt:340, sp:4,  sal:3, cd:5.0, prof:'kruiper', broed:40, f1:0.82, f2:0.45},
-    {n:'SENTINEL',  pl:12,rij:5, br:12, hp:240, pt:330, sp:4,  sal:1, cd:6.0, prof:'kruiper', zwaar:1, f1:0.45, f2:0.18},
-    {n:'BULWARK',   pl:12,rij:8, br:22, hp:340, pt:450, sp:4,  sal:3, cd:3.5, prof:'kruiper', f1:0.85, f2:0.30},
-    {n:'WATCHER',   pl:12,rij:11,br:26, hp:420, pt:560, sp:3,  sal:1, cd:7.0, prof:'drijver', zwaar:1, f1:0.58, f2:0.26},
+    {n:'SCOUT',     pl:6, rij:0, br:6,  hp:14,  pt:60,  sp:9,  sal:1, cd:3.0, prof:'strafer', f1:0.70, f2:0.35},
+    {n:'WASP',      pl:6, rij:5, br:5,  hp:10,  pt:55,  sp:14, sal:1, cd:3.2, prof:'sluiper', f1:0.80, f2:0.45},
+    {n:'FIGHTER',   pl:6, rij:1, br:9,  hp:55,  pt:150, sp:8,  sal:2, cd:2.6, prof:'formatie', f1:0.65, f2:0.30},
+    {n:'SAUCER',    pl:6, rij:4, br:13, hp:110, pt:230, sp:6,  sal:1, cd:3.4, prof:'cirkel', f1:0.55, f2:0.22},
+    {n:'BOMBER',    pl:6, rij:2, br:16, hp:160, pt:300, sp:5,  sal:3, cd:4.0, prof:'kruiper', f1:0.72, f2:0.28},
+    {n:'HEAVY',     pl:6, rij:3, br:20, hp:250, pt:420, sp:4,  sal:2, cd:3.0, prof:'drijver', f1:0.78, f2:0.40},
+    {n:'RAZOR',     pl:12,rij:0, br:7,  hp:20,  pt:80,  sp:11, sal:1, cd:2.6, prof:'formatie', f1:0.75, f2:0.40},
+    {n:'VIPER',     pl:12,rij:6, br:6,  hp:18,  pt:75,  sp:15, sal:1, cd:2.4, prof:'duiker', f1:0.85, f2:0.50},
+    {n:'SPINNER',   pl:12,rij:1, br:8,  hp:45,  pt:120, sp:7,  sal:2, cd:3.0, prof:'cirkel', f1:0.60, f2:0.25},
+    {n:'NIGHTBLADE',pl:12,rij:2, br:7,  hp:30,  pt:110, sp:13, sal:1, cd:3.0, prof:'sluiper', f1:0.68, f2:0.34},
+    {n:'REAPER',    pl:12,rij:7, br:11, hp:90, pt:210, sp:9,  sal:1, cd:2.0, prof:'strafer', snel:26, f1:0.50, f2:0.20},
+    {n:'LANCER',    pl:12,rij:9, br:9,  hp:75, pt:190, sp:10, sal:1, cd:3.0, prof:'duiker', f1:0.62, f2:0.38},
+    {n:'WEAVER',    pl:12,rij:10,br:15, hp:150, pt:290, sp:7,  sal:2, cd:3.2, prof:'sluiper', f1:0.66, f2:0.20},
+    {n:'BROOD',     pl:12,rij:4, br:18, hp:180, pt:340, sp:4,  sal:3, cd:5.0, prof:'kruiper', broed:40, f1:0.82, f2:0.45},
+    {n:'SENTINEL',  pl:12,rij:5, br:12, hp:200, pt:330, sp:4,  sal:1, cd:6.0, prof:'kruiper', zwaar:1, f1:0.45, f2:0.18},
+    {n:'BULWARK',   pl:12,rij:8, br:22, hp:290, pt:450, sp:4,  sal:3, cd:3.5, prof:'kruiper', f1:0.85, f2:0.30},
+    {n:'WATCHER',   pl:12,rij:11,br:26, hp:360, pt:560, sp:3,  sal:1, cd:7.0, prof:'drijver', zwaar:1, f1:0.58, f2:0.26},
     {n:'HAULER',    pl:12,rij:3, br:34, hp:100, pt:700, sp:3,  sal:1, cd:8.0, prof:'drijver', draagt:1, zwaar:1, f1:0.75, f2:0.35},
     {n:'MOTHERSHIP',pl:0, rij:0, br:26, hp:1200,pt:2500,sp:4,  sal:3, cd:2.0, prof:'baas', f1:0.70, f2:0.32}
   ];
@@ -661,7 +671,7 @@
     [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]
   ];
   const LEVELS=NIVEAU.length;
-  const CD=[110,760,360,1100,300,60];
+  const CD=[110,760,360,1400,300,60];
 
   AFRAME.registerComponent('cosmic',{
     init:function(){ try{
@@ -706,11 +716,11 @@
         bb:null,tp:0,hp:0,hpM:0,r:1,sc:1,t:0,cd:0,fase:0,flash:0,dood:0,extra:{}});
 
       // ---- kogels ----
-      this.bolts=[]; this.mkPool(this.bolts,64,function(){
+      this.bolts=[]; this.mkPool(this.bolts,120,function(){
         const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
           new THREE.MeshBasicMaterial({map:self.STREEP,transparent:true,blending:THREE.AdditiveBlending,
             depthWrite:false,color:0xffffff}));
-        m.renderOrder=6; return m; },{o:1,dir:1,d:0,pd:0,md:0,sz:1,tol:0,dmg:1});
+        m.renderOrder=6; return m; },{o:1,dir:1,d:0,pd:0,md:0,sz:1,tol:0,dmg:1,sp:185});
       this.vij=[]; this.mkPool(this.vij,110,function(){
         const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
           new THREE.MeshBasicMaterial({map:self.STREEP,transparent:true,blending:THREE.AdditiveBlending,
@@ -722,11 +732,6 @@
           new THREE.MeshBasicMaterial({map:self.GLOED,transparent:true,blending:THREE.AdditiveBlending,
             depthWrite:false,color:0xff8a3d}));
         m.renderOrder=6; return m; },{o:1,dir:1,d:0,tot:0,zoek:null,rad:4.5,ph:0,swarm:0});
-      this.balls=[]; this.mkPool(this.balls,12,function(){
-        const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
-          new THREE.MeshBasicMaterial({map:self.GLOED,transparent:true,blending:THREE.AdditiveBlending,
-            depthWrite:false,color:0x4aa8ff}));
-        m.renderOrder=6; return m; },{o:1,dir:1,d:0,tot:0,spiraal:0,ph:0,geraakt:null});
       this.vonken=[]; this.mkPool(this.vonken,170,function(){
         const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
           new THREE.MeshBasicMaterial({map:self.GLOED,transparent:true,blending:THREE.AdditiveBlending,
@@ -816,11 +821,12 @@
       const spec=(prim==='leftHand')?'rightHand':'leftHand';
       this.prim=prim; this.spec=spec;
       for(const id in this.wep){ const W=this.wep[id];
-        W.t=(id===prim)?5:5; W.lvl=1; W.lvlT={5:1}; W.mag={}; W.last=0; W.up=0; W.vorig=0; }
+        W.t=(id===prim)?5:5; W.lvl=1; W.lvlT={5:1}; W.mag={}; W.last=0; W.up=0; W.vorig=0;
+        W.laz=null; }
       this.enemies.forEach(function(e){ e.live=false; e.dood=0;
         if(e.romp){ e.romp.visible=false; e.romp=null; } });
       this.bb.forEach(function(b){ b.vrij=true; b.m.visible=false; });
-      [this.bolts,this.vij,this.rockets,this.balls,this.vonken].forEach(function(P){
+      [this.bolts,this.vij,this.rockets,this.vonken].forEach(function(P){
         P.forEach(function(o){ o.live=false; o.m.visible=false; }); });
       this.dozen.forEach(function(D){ D.live=false; D.g.visible=false; });
       this.zuigT=0; this.zuig.visible=false;
@@ -1047,11 +1053,9 @@
             if(bt) dd=bt.p.clone().sub(this.ori).normalize(); }
           this.bolt(this.ori,dd,col,150,0.9,0.6,1); } }
 
-      else if(W.t===3){ SND.gun(this.dir.x*0.7,3); SND.boom(this.dir.x*0.4);
-        for(let i=0;i<this.balls.length;i++){ const R=this.balls[i]; if(R.live) continue;
-          R.o.copy(this.ori); R.dir.copy(this.dir); R.d=0; R.tot=0; R.live=true;
-          R.spiraal=W.up?1:0; R.ph=0; R.dmg=5+lv*2; R.raakt={};
-          R.m.position.copy(this.ori); R.m.visible=true; break; } }
+      else if(W.t===3){                                   // LASER: een streep van losse flitsen
+        W.laz={n:(lv>=2?30:20), k:0, t:0, tel:(lv>=3?2:1), up:W.up?1:0};
+        SND.boom(this.dir.x*0.3); }
 
       else if(W.t===4){ SND.gun(this.dir.x*0.4,4);
         const T=this.doelen(); if(!T.length) return;
@@ -1076,11 +1080,12 @@
       else { SND.ratel('mg'+h.id);
         const dd=this.dir.clone();
         dd.x+=(Math.random()-0.5)*0.035; dd.y+=(Math.random()-0.5)*0.035; dd.normalize();
-        this.bolt(this.ori,dd,col,150,1.0,0.35,1+lv*0.5); } },
+        this.bolt(this.ori,dd,col,150,1.0,0.35,2+lv*1.2); } },
 
-    bolt:function(o,d,col,md,sz,tol,dmg){
+    bolt:function(o,d,col,md,sz,tol,dmg,snel){
       for(let i=0;i<this.bolts.length;i++){ const B=this.bolts[i]; if(B.live) continue;
         B.o.copy(o); B.dir.copy(d); B.d=0; B.pd=0; B.md=md; B.sz=sz; B.tol=tol; B.dmg=dmg||1;
+        B.sp=snel||185;
         B.live=true; B.m.material.color.setHex(col); B.m.visible=true;
         this.richtQuad(B.m,o,d,sz*3.2,sz*0.5); return; } },
 
@@ -1285,6 +1290,7 @@
           const Tv=TYPE[e.tp];
           B.sp=(Tv&&Tv.snel?Tv.snel:13)+Math.random()*4; // rustig genoeg om te zien aankomen
           B.zwaar=(Tv&&Tv.zwaar)?1:0;
+          B.hp=B.zwaar?6:1;                            // zware projectielen kosten meer schoten
           B.dir.copy(eye).sub(e.p).normalize();
           B.dir.x+=(Math.random()-0.5)*(spr||0.06);
           B.dir.y+=(Math.random()-0.5)*(spr||0.06);
@@ -1563,6 +1569,25 @@
         this.zuig.rotation.y+=s*2;
         if(this.zuigT<=0) this.zuig.visible=false; }
 
+      // ---- laserstreep: twintig tot dertig flitsen in een kwart seconde ----
+      for(const hid in this.wep){ const W=this.wep[hid]; if(!W.laz) continue;
+        const H=this.hands[hid]; if(!H||!H.object3D){ W.laz=null; continue; }
+        const L=W.laz, dt=0.25/L.n;
+        L.t-=s;
+        while(L.t<=0&&L.k<L.n){
+          L.t+=dt; L.k++;
+          H.object3D.getWorldPosition(this.ori); H.object3D.getWorldQuaternion(this.q);
+          this.dir.set(0,-0.7071,-0.7071).applyQuaternion(this.q).normalize();
+          if(window.AIM) this.dir.copy(window.AIM).normalize();
+          for(let b=0;b<L.tel;b++){
+            const dd=this.dir.clone();
+            const zij=(L.tel>1)?((b?1:-1)*0.020):0;       // niveau 3: twee stralen naast elkaar
+            dd.x+=zij+(Math.random()-0.5)*0.004;
+            dd.y+=(Math.random()-0.5)*0.004; dd.normalize();
+            this.bolt(this.ori,dd,WCOL[3],170,1.5,0.9,L.up?6:4,300); }
+          SND.laz(this.dir.x*0.5,L.k,L.n); }
+        if(L.k>=L.n) W.laz=null; }
+
       // ---- doorlopend vuren zolang de trigger vast zit ----
       if(this.held.length) for(let i=0;i<this.held.length;i++) this.fire(this.held[i]);
 
@@ -1576,28 +1601,16 @@
 
       // ---- eigen kogels ----
       for(let i=0;i<this.bolts.length;i++){ const B=this.bolts[i]; if(!B.live) continue;
-        B.pd=B.d; B.d+=185*s;
+        B.pd=B.d; B.d+=(B.sp||185)*s;
         const p=kp.copy(B.o).addScaledVector(B.dir,B.d);
-        this.richtQuad(B.m,p,B.dir,B.sz*3.4,B.sz*0.5);
+        this.richtQuad(B.m,p,B.dir,B.sz*(B.sp>200?3.0:3.4),B.sz*(B.sp>200?0.22:0.5));
+        const vg=this.vijTreffer(p,B.dmg,1.3);           // eerst kijken of hij vijandelijk vuur raakt
+        if(vg){ B.live=false; B.m.visible=false; continue; }
         const g=this.treffer(B.o,B.dir,B.pd,B.d,B.tol);
         if(g){ this.raak(g.e,B.dmg,g.x,g.y,g.z);
           this.vonk(g.x,g.y,g.z,B.m.material.color.getHex(),4,8,0.6);
           B.live=false; B.m.visible=false; continue; }
         if(B.d>=B.md){ B.live=false; B.m.visible=false; } }
-
-      // ---- kanonballen: doorborend ----
-      for(let i=0;i<this.balls.length;i++){ const R=this.balls[i]; if(!R.live) continue;
-        const pd=R.d; R.d+=95*s; R.tot+=s;
-        const p=kp.copy(R.o).addScaledVector(R.dir,R.d);
-        if(R.spiraal){ p.x+=Math.cos(R.d*0.22)*2.2; p.y+=Math.sin(R.d*0.22)*2.2; }
-        R.m.position.copy(p); R.m.lookAt(eye); R.m.scale.setScalar(3.4+Math.sin(R.tot*22)*0.4);
-        for(let a=0;a<this.enemies.length;a++){ const e=this.enemies[a];
-          if(!e.live||R.raakt[a]) continue;
-          if(e.p.distanceTo(p)<e.r+2.2){ R.raakt[a]=1;
-            this.raak(e,R.dmg,p.x,p.y,p.z);
-            this.vonk(p.x,p.y,p.z,0x4aa8ff,7,9,0.9);
-            this.zap([p.clone(),e.p.clone()]); } }
-        if(R.d>150){ R.live=false; R.m.visible=false; } }
 
       // ---- raketten ----
       for(let i=0;i<this.rockets.length;i++){ const R=this.rockets[i]; if(!R.live) continue;
@@ -1625,7 +1638,8 @@
           if(bum){ SND.boom(P.x*0.02);
             this.vonk(P.x,P.y,P.z,0xffb03a,14,11,1.2);
             for(let a=0;a<this.enemies.length;a++){ const e=this.enemies[a]; if(!e.live) continue;
-              if(e.p.distanceTo(P)<R.rad+e.r) this.raak(e,6,P.x,P.y,P.z); } }
+              if(e.p.distanceTo(P)<R.rad+e.r) this.raak(e,6,P.x,P.y,P.z); }
+            for(let k=0;k<8;k++) if(!this.vijTreffer(P,9,R.rad)) break; }
           R.live=false; R.m.visible=false; } }
 
       // ---- vijandelijke kogels ----
@@ -1666,6 +1680,24 @@
 
       this.hud();
     }catch(e){ this.dead=true; fout('TICK: '+e.message); } },
+
+    // ---- vijandelijk vuur kapotschieten ----
+    vijTreffer:function(p,dmg,straal){
+      const r2=straal*straal;
+      for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(!B.live) continue;
+        const q=this.KP2||(this.KP2=new THREE.Vector3());
+        q.copy(B.o).addScaledVector(B.dir,B.d);
+        const dx=q.x-p.x, dy=q.y-p.y, dz=q.z-p.z;
+        if(dx*dx+dy*dy+dz*dz>r2*(B.zwaar?2.6:1)) continue;
+        B.hp-=dmg;
+        if(B.hp>0){ SND.hit(q.x*0.02,0.3);
+          this.vonk(q.x,q.y,q.z,0xffd9a0,3,5,0.4); return 1; }
+        B.live=false; B.m.visible=false;
+        SND.kill(q.x*0.02,0.5);
+        this.vonk(q.x,q.y,q.z,B.zwaar?0xffe45c:0xff8a3d,B.zwaar?12:6,B.zwaar?9:6,B.zwaar?1.1:0.6);
+        this.punten+=B.zwaar?60:10;
+        return 1; }
+      return 0; },
 
     // segmenttest van een kogel tegen alle vijanden
     treffer:function(o,dir,t0,t1,tol){
