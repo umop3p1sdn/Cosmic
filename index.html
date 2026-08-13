@@ -18,9 +18,8 @@
     #bar i{display:block;height:100%;width:0%;background:#35e8ff;box-shadow:0 0 10px #35e8ff;}
     #pct{margin-top:1em;letter-spacing:0.3em;font-size:2vw;color:#5f9ab5;}
     #enter{margin-top:2.2em;letter-spacing:0.42em;font-size:2.6vw;color:#35e8ff;
-      opacity:0;transition:opacity .6s;text-shadow:0 0 16px #1b6f8a;}
-    #enter.aan{opacity:1;animation:pols 1.9s ease-in-out infinite;cursor:pointer;}
-    @keyframes pols{0%,100%{opacity:.45}50%{opacity:1}}
+      opacity:0;text-shadow:0 0 16px #1b6f8a;}
+    #enter.aan{cursor:pointer;}
     #laad.klaar{cursor:pointer;}
     #ver{position:fixed;right:12px;bottom:10px;color:#2d5b74;letter-spacing:0.2em;font-size:12px;z-index:10000;}
     #err{position:fixed;left:0;bottom:0;width:100%;max-height:38%;overflow:auto;z-index:10001;
@@ -42,7 +41,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.7';
+  const VERSIE='v11.8';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -65,7 +64,18 @@
     const l=$('#laad'), e=$('#enter'), t=$('#pct');
     if(t) t.textContent='READY';
     if(l) l.className='klaar';
-    if(e) e.className='aan';
+    // Het knipperen wordt hier geteld in plaats van met een CSS-animatie. Die start
+    // namelijk niet als alles al in de cache zit en dit scherm meteen klaar is.
+    if(e){ e.className='aan';
+      let f=0;
+      if(window.__pols) clearInterval(window.__pols);
+      window.__pols=setInterval(function(){
+        f+=0.09;
+        const o=0.42+0.58*(0.5+0.5*Math.sin(f*3.4));
+        e.style.opacity=o.toFixed(3);
+        const L2=$('#laad');
+        if(!L2||L2.style.display==='none'){ clearInterval(window.__pols); window.__pols=0; }
+      },40); }
     const weg=function(){
       const L=$('#laad'); if(L) L.style.display='none';
       // Deze tik is bedoeld om verder te gaan, niet om al een knop in te drukken.
@@ -73,7 +83,8 @@
       window.NAKLIK=performance.now()+800;
       try{ AC(); SND.initSFX(); SND.muziek(); SND.wake(); }catch(err){}   // jouw tik is het startsein voor geluid
       window.removeEventListener('mousedown',weg); window.removeEventListener('touchstart',weg);
-      window.removeEventListener('keydown',weg); };
+      window.removeEventListener('keydown',weg);
+      if(window.__pols){ clearInterval(window.__pols); window.__pols=0; } };
     window.addEventListener('mousedown',weg); window.addEventListener('touchstart',weg);
     window.addEventListener('keydown',weg);
     if(l) l.addEventListener('click',weg); }
@@ -728,7 +739,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.7" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.8" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
