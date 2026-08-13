@@ -34,7 +34,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v9.9';
+  const VERSIE='v10.1';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
 
@@ -283,7 +283,8 @@
       if(p&&p.art===uit.art&&p.music===uit.music) return;      // niets veranderd
       try{ localStorage.setItem('cosmic_paden',JSON.stringify(uit)); }catch(e){}
       klaar(uit); }).catch(function(){}); }
-  window.ART={pano:null,panos:[],objs:[],schepen:[],vondst:'-',bezig:false};
+  window.ART={pano:null,panos:[],objs:[],schepen:[],vondst:'-',bezig:false,
+              totaal:0,klaar:0,af:false};
 
   function artLaad(url,cb){ try{
     const L=new THREE.TextureLoader(); L.setCrossOrigin('anonymous');
@@ -293,12 +294,14 @@
 
   function artVerwerk(lijst){
     let klaar=0; const n=lijst.length;
-    if(!n){ window.ART.vondst='geen art'; return; }
+    window.ART.totaal=n; window.ART.klaar=0;
+    if(!n){ window.ART.vondst='geen art'; window.ART.af=true; return; }
     window.ART.vondst='laden '+n;
     lijst.forEach(function(nm){
       artLaad(ARTBASE+encodeURIComponent(nm),function(t){
-        klaar++;
+        klaar++; window.ART.klaar=klaar;
         if(t&&t.image&&t.image.width){
+          t.__naam=nm;                                       // naam bewaren voor de volgorde
           const ar=t.image.width/t.image.height;
           if(ar>=1.7){ window.ART.panos.push(t);
             if(!window.ART.pano||t.image.width>(window.ART.pano.image.width||0)) window.ART.pano=t; }
@@ -306,8 +309,9 @@
             window.ART.schepen.push(t); }
           else window.ART.objs.push(t);
           if(window.ART.nieuw) window.ART.nieuw(); }
-        if(klaar>=n) window.ART.vondst=(window.ART.schepen?'fleet ':'')+(window.ART.pano?'sky ':'')+
-          window.ART.objs.length+' obj'; }); }); }
+        if(klaar>=n){ window.ART.af=true;
+          window.ART.vondst=(window.ART.schepen?'fleet ':'')+
+            window.ART.panos.length+' sky '+window.ART.objs.length+' obj'; } }); }); }
 
   function artScan(pad){
     if(!pad) return;
@@ -531,11 +535,12 @@
   '         background="color:#02050c">'+
   '  <a-entity id="rig" position="0 0 0" cosmic>'+
   '    <a-camera id="cam" wasd-controls-enabled="false" far="420">'+
-  '      <a-text id="hudL" value="" align="left"   color="#8fd8ec" width="1.5" position="-0.42 -0.30 -1.2"></a-text>'+
-  '      <a-text id="hudR" value="" align="right"  color="#8fd8ec" width="1.5" position="0.42 -0.30 -1.2"></a-text>'+
-  '      <a-text id="hudC" value="" align="center" color="#ffb03a" width="2.2"  position="0 0.30 -1.3"></a-text>'+
-  '      <a-text id="hudW" value="" align="center" color="#e8f6ff" width="1.9"  position="0 -0.13 -1.25"></a-text>'+
-  '      <a-text id="diag" value="" align="center" color="#ffb03a" width="1.3"  position="0 -0.42 -1.2"></a-text>'+
+  '      <a-text id="hudL" value="" align="left"   color="#9fe4f5" width="1.5" position="-0.46 -0.34 -1.2"></a-text>'+
+  '      <a-plane id="krachtA" position="-0.30 -0.40 -1.21" width="0.30" height="0.012" material="color:#12303c;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="krachtB" position="-0.45 -0.40 -1.20" width="0.30" height="0.012" material="color:#35e8ff;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-text id="hudR" value="" align="right"  color="#9fe4f5" width="1.5" position="0.46 -0.34 -1.2"></a-text>'+
+  '      <a-text id="hudC" value="" align="center" color="#ffb03a" width="2.6"  position="0 0.26 -1.3"></a-text>'+
+  '      <a-text id="hudW" value="" align="center" color="#e8f6ff" width="1.7"  position="0 -0.18 -1.25"></a-text>'+
   '      <a-plane id="hurt"  position="0 0 -0.31" width="2.6" height="2.6" material="color:#ff2030;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-plane id="flits" position="0 0 -0.32" width="2.6" height="2.6" material="color:#dfe8ff;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-entity id="touchHand" rotation="45 0 0"></a-entity>'+
@@ -563,7 +568,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v9.9" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v10.1" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -575,7 +580,8 @@
   '      <a-text id="handRt" position="0.60 1.55 -2.55" value="RIGHT" align="center" color="#e8f6ff" width="3.4"></a-text>'+
   '      <a-text id="handHint" position="0 1.30 -2.55" value="machine gun goes here - the other hand takes weapons" align="center" color="#39708a" width="2.4"></a-text>'+
   '      <a-plane id="btnStart" class="menu-btn" position="0 0.98 -2.57" width="1.70" height="0.42" material="color:#123a4e;shader:flat"></a-plane>'+
-  '      <a-text position="0 0.98 -2.55" value="LAUNCH" align="center" color="#35e8ff" width="4.4"></a-text>'+
+  '      <a-text id="startTxt" position="0 0.98 -2.55" value="LAUNCH" align="center" color="#35e8ff" width="4.4"></a-text>'+
+  '      <a-plane id="laadBalk" position="-0.85 0.80 -2.56" width="0.02" height="0.035" material="color:#35e8ff;shader:flat"></a-plane>'+
   '      <a-plane id="btnCont" class="menu-btn" position="0 0.58 -2.57" width="1.70" height="0.34" material="color:#20301c;shader:flat"></a-plane>'+
   '      <a-text id="contTxt" position="0 0.58 -2.55" value="NO SAVED RUN" align="center" color="#40603a" width="2.6"></a-text>'+
   '      <a-plane id="btnDemo" class="menu-btn" position="0 0.20 -2.57" width="1.70" height="0.30" material="color:#123a2e;shader:flat"></a-plane>'+
@@ -1068,7 +1074,7 @@
       const img=tex.image; if(!img||!img.width) return null;
       const W=img.width, H=img.height;
       let Wv=W, Hv=H;                                  // maat van de textuur die we uiteindelijk gebruiken
-      let x0=0,x1=W-1,y0=0,y1=H-1, naad=0, buur=1, klaar=tex;
+      let x0=0,x1=W-1,y0=0,y1=H-1, naad=0, buur=1, klaar=tex, hel=60;
       try{
         const c=document.createElement('canvas'); c.width=W; c.height=H;
         const g=c.getContext('2d'); g.drawImage(img,0,0);
@@ -1089,6 +1095,10 @@
           s1+=Math.abs(helder(x0,y)-helder(x1,y));
           s2+=Math.abs(helder(x0+1,y)-helder(x0,y)); n++; }
         naad=s1/Math.max(1,n); buur=Math.max(0.5,s2/Math.max(1,n));
+        // gemiddelde helderheid: bepaalt de volgorde als er geen cijfer voor de naam staat
+        let som=0, tel=0;
+        for(let y=y0;y<=y1;y+=9) for(let x=x0;x<=x1;x+=9){ som+=helder(x,y); tel++; }
+        hel=som/Math.max(1,tel);
         if(naad>buur*3&&naad>8){
           // rand overvloeien zodat je de overgang niet ziet
           const bw=x1-x0+1, bh=y1-y0+1, K=Math.max(8,Math.round(bw*0.07));
@@ -1115,8 +1125,11 @@
         klaar.repeat.set((bw/Wv)*ru,(bh/Hv)*rv);
         klaar.offset.set(x0/Wv,(y0/Hv)+(bh/Hv)*(1-rv)/2);
         klaar.needsUpdate=true; }
+      const nm=String(tex.__naam||'');
+      const mm=nm.match(/^\s*(\d{1,3})[^0-9]/);
       return {tex:klaar, breed:(arb>2.4), ar:arb,
               basisU:x0/Wv, spanU:(bw/Wv)*ru, naad:naad, buur:buur,
+              hel:hel, nr:mm?parseInt(mm[1],10):null, naam:nm,
               rand:(x0>0||y0>0||x1<W-1||y1<H-1)}; },
 
     // welke plaat en welk vak hoort bij dit scheepstype?
@@ -1961,12 +1974,29 @@
 
     levelKlaar:function(){
       if(this.level>=LEVELS){ this.gehaald(); return; }
-      this.level++; this.wave=0; this.state='wacht'; this.golfT=4.0;
-      this.hemelZet();
-      if(!window.DEMO) bewaarVoortgang(this.level,this.punten,this.ults,this.contN);
-      this.zaad=this.level*7919;
-      SND.zeg('Level '+this.level);
-      this.toonMelding('LEVEL '+this.level,'#ffe45c'); },
+      // vijf tellen rust: eerst ROUND CLEAR, dan het nieuwe level
+      this.state='rust'; this.rustT=5.0; this.rustFase=0;
+      this.wave=0;
+      this.toonGroot('ROUND CLEAR','#8fd84a');
+      SND.zeg('Round clear'); },
+
+    // ---- de rustpauze zelf ----
+    rustTick:function(s){
+      this.rustT-=s;
+      if(this.rustFase===0&&this.rustT<=2.6){ this.rustFase=1;
+        this.level++;
+        this.hemelZet();
+        this.zaad=this.level*7919;
+        if(!window.DEMO) bewaarVoortgang(this.level,this.punten,this.ults,this.contN);
+        this.toonGroot('LEVEL '+this.level,'#ffe45c');
+        SND.zeg('Level '+this.level); }
+      if(this.rustT<=0){ this.toonGroot('','#ffe45c');
+        this.state='wacht'; this.golfT=1.2; } },
+
+    toonGroot:function(txt,kl){
+      const e=document.querySelector('#hudC'); if(!e) return;
+      e.setAttribute('value',txt); e.setAttribute('color',kl||'#ffb03a');
+      this.meldC=txt?9:0; },
 
     // =====================================================
     //  DOZEN
@@ -2144,7 +2174,8 @@
         if(D.p.z>14){ D.live=false; D.g.visible=false; } }
 
       // ---- golvenmachine ----
-      if(this.state==='wacht'){ this.golfT-=s; if(this.golfT<=0) this.nieuweGolf(); }
+      if(this.state==='rust'){ this.rustTick(s); }
+      else if(this.state==='wacht'){ this.golfT-=s; if(this.golfT<=0) this.nieuweGolf(); }
       else if(this.state==='vechten'){
         const klaar=this.planTick(s,levend);
         levend=0;                                     // opnieuw tellen: planTick heeft net gespawnd
@@ -2193,24 +2224,69 @@
 
     hud:function(){
       if((this.hudT=(this.hudT||0)-1)>0) return; this.hudT=14;
-      const l='POWER '+Math.round(this.power)+'%   ULT '+this.ults;
-      const r='SCORE '+this.punten+'   LEVEL '+this.level+'   WAVE '+Math.max(1,this.wave)+'/20';
-      const tex=(this.ATLAS&&this.ATLAS.image&&this.ATLAS.image.width)?'ok':'LEEG';
-      let zicht=0; for(let i=0;i<this.bb.length;i++) if(!this.bb[i].vrij) zicht++;
-      let lev=0; for(let i=0;i<this.enemies.length;i++) if(this.enemies[i].live) lev++;
-      const d='ships '+lev+'  sprites '+zicht+'  lvl '+this.level+' wave '+this.wave+' '+this.state+
-        '  tex '+tex+'  art '+((window.ART&&window.ART.vondst)||'-');
-      if(d!==this.diagV){ this.diagV=d;
-        const e=document.querySelector('#diag'); if(e) e.setAttribute('value',d); }
-      if(window.DEMO){ const dd=document.querySelector('#hudC');
-        if(dd&&this.meldC<=0){ dd.setAttribute('value','DEMO  -  press trigger to stop');
-          dd.setAttribute('color','#6ce2a0'); } }
+      const p=Math.round(this.power);
+      const l=p+'%     ULT '+this.ults;
+      const r='LEVEL '+this.level+' / '+LEVELS+'     WAVE '+Math.max(1,this.wave)+' / 20\n'+
+              this.punten.toLocaleString('nl-NL');
+      // krachtbalkje onder de cijfers
+      const bb=document.querySelector('#krachtB');
+      if(bb&&p!==this.hudP){ this.hudP=p;
+        const br=Math.max(0.004,0.30*Math.max(0,p)/100);
+        bb.setAttribute('width',br.toFixed(3));
+        bb.setAttribute('position',(-0.45+br/2).toFixed(3)+' -0.40 -1.20');
+        bb.setAttribute('material','color:'+(p>50?'#35e8ff':(p>20?'#ffb03a':'#ff3d55'))+
+          ';shader:flat;depthWrite:false;depthTest:false'); }
       if(l!==this.hudLv){ this.hudLv=l;
         const e=document.querySelector('#hudL'); if(e) e.setAttribute('value',l); }
       if(r!==this.hudRv){ this.hudRv=r;
         const e=document.querySelector('#hudR'); if(e) e.setAttribute('value',r); } },
 
+    // één hemel per beurt klaarmaken en meteen naar de videokaart sturen,
+    // zodat er tijdens het spelen niets meer hoeft te gebeuren
+    hemelWerk:function(){
+      if(!this.hemelRij||!this.hemelRij.length) return false;
+      const t=this.hemelRij.shift();
+      let H2=null; try{ H2=this.hemelBereid(t); }catch(e){ H2=null; }
+      if(H2){ this.hemels=this.hemels||[]; this.hemels.push(H2);
+        try{ const sc=this.el.sceneEl;
+          if(sc&&sc.renderer&&sc.renderer.initTexture) sc.renderer.initTexture(H2.tex);
+        }catch(e){}
+        this.hemelSorteer(); this.hemelZet(); }
+      return true; },
+
+    // ---- laadstand op de startknop ----
+    laadTonen:function(bezig){
+      const A=window.ART||{};
+      const tot=(A.totaal||0), af=(A.klaar||0);
+      const rij=(this.hemelRij?this.hemelRij.length:0);
+      const klaar=(A.af&&!rij&&!bezig)||tot===0;
+      const st=(klaar?'klaar':(af+'/'+tot+(rij?'  +'+rij:'')));
+      if(st===this.laadSt) return; this.laadSt=st;
+      const t=document.querySelector('#startTxt'), k=document.querySelector('#btnStart');
+      const b=document.querySelector('#laadBalk');
+      if(t){ t.setAttribute('value',klaar?'LAUNCH':('LOADING  '+af+' / '+tot));
+             t.setAttribute('color',klaar?'#35e8ff':'#2b6274'); }
+      if(k) k.setAttribute('material','color:'+(klaar?'#123a4e':'#0b1c26')+';shader:flat');
+      if(b){ const deel=tot?Math.min(1,(af+(tot-rij>af?0:0))/tot):1;
+        const br=Math.max(0.02,1.70*deel);
+        b.setAttribute('width',br.toFixed(3));
+        b.setAttribute('position',(-0.85+br/2).toFixed(3)+' 0.80 -2.56');
+        b.setAttribute('visible',!klaar); }
+      window.ARTKLAAR=klaar; },
+
+    // volgorde: een cijfer voor de bestandsnaam wint, anders van licht naar donker
+    hemelSorteer:function(){
+      if(!this.hemels) return;
+      this.hemels.sort(function(a,b){
+        const na=(a.nr===null||a.nr===undefined)?9999:a.nr;
+        const nb=(b.nr===null||b.nr===undefined)?9999:b.nr;
+        if(na!==nb) return na-nb;
+        return b.hel-a.hel; });
+      this.hemelI=-1; },
+
     menuTick:function(s){
+      const bezig=this.hemelWerk();
+      this.laadTonen(bezig);
       const sc=document.querySelector('#scan');
       if(sc){ this.mt=(this.mt||0)+s*0.55;
         const y=1.52+Math.sin(this.mt)*0.93;
@@ -2247,12 +2323,12 @@
           else self2.plaat6=P;
           window.ART.vondst='fleet '+(self2.plaat6?'6 ':'')+(self2.plaat12?'12a ':'')+
             (self2.plaat13?'12b ':'')+P.hoe; }); }
+      // hemels gaan in de wachtrij; ze worden één per beurt klaargemaakt zodat het
+      // menu niet bevriest bij dertien platen van vier miljoen pixels
       if(window.ART.panos&&window.ART.panos.length){
-        const zelf=this;
+        this.hemelRij=this.hemelRij||[];
         window.ART.panos.forEach(function(t){
-          if(t.__hemel) return; t.__hemel=true;
-          let H2=null; try{ H2=zelf.hemelBereid(t); }catch(e){ H2=null; }
-          if(H2){ zelf.hemels=zelf.hemels||[]; zelf.hemels.push(H2); zelf.hemelZet(); } }); }
+          if(t.__inRij) return; t.__inRij=true; this.hemelRij.push(t); },this); }
       if(false&&window.ART.pano&&!this.panoAan){ this.panoAan=true;
         const t=window.ART.pano;
         const ar=(t.image&&t.image.width)?t.image.width/t.image.height:2;
@@ -2430,6 +2506,7 @@
 
   function startSpel(demo,vanaf){
     if(window.PHASE!=='menu') return;
+    if(window.ARTKLAAR===false) return;                  // nog aan het laden
     window.DEMO=!!demo;
     AC(); SND.initSFX(); SND.muziek(); SND.wake();
     const m=document.querySelector('#menu'); if(m) m.setAttribute('visible',false);
