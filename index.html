@@ -16,6 +16,11 @@
     #bar{width:52vw;height:3px;background:#12293e;position:relative;overflow:hidden;}
     #bar i{display:block;height:100%;width:0%;background:#35e8ff;box-shadow:0 0 10px #35e8ff;}
     #pct{margin-top:1em;letter-spacing:0.3em;font-size:2vw;color:#5f9ab5;}
+    #enter{margin-top:2.2em;letter-spacing:0.42em;font-size:2.6vw;color:#35e8ff;
+      opacity:0;transition:opacity .6s;text-shadow:0 0 16px #1b6f8a;}
+    #enter.aan{opacity:1;animation:pols 1.9s ease-in-out infinite;cursor:pointer;}
+    @keyframes pols{0%,100%{opacity:.45}50%{opacity:1}}
+    #laad.klaar{cursor:pointer;}
     #ver{position:fixed;right:12px;bottom:10px;color:#2d5b74;letter-spacing:0.2em;font-size:12px;z-index:10000;}
     #err{position:fixed;left:0;bottom:0;width:100%;max-height:38%;overflow:auto;z-index:10001;
       color:#ff6b6b;background:rgba(0,0,0,0.82);font:11px monospace;padding:5px;white-space:pre-wrap;}
@@ -27,6 +32,7 @@
     <div class="sub">SHOOTER</div>
     <div id="bar"><i></i></div>
     <div id="pct">BOOTING 0%</div>
+    <div id="enter">TAP TO BEGIN</div>
   </div>
   <div id="ver">v1.0</div>
   <div id="err"></div>
@@ -34,7 +40,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.1';
+  const VERSIE='v11.3';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
 
@@ -50,7 +56,39 @@
     const b=$('#bar i'), t=$('#pct');
     if(b) b.style.width=PROG+'%';
     if(t) t.textContent=(txt||'BOOTING')+' '+Math.round(PROG)+'%'; }
-  function laadWeg(){ const l=$('#laad'); if(l) l.style.display='none'; }
+  let laadOpen=false;
+  function laadKlaar(){
+    if(laadOpen) return; laadOpen=true;
+    const l=$('#laad'), e=$('#enter'), t=$('#pct');
+    if(t) t.textContent='READY';
+    if(l) l.className='klaar';
+    if(e) e.className='aan';
+    const weg=function(){
+      const L=$('#laad'); if(L) L.style.display='none';
+      try{ AC(); SND.initSFX(); SND.muziek(); SND.wake(); }catch(err){}   // jouw tik is het startsein voor geluid
+      window.removeEventListener('mousedown',weg); window.removeEventListener('touchstart',weg);
+      window.removeEventListener('keydown',weg); };
+    window.addEventListener('mousedown',weg); window.addEventListener('touchstart',weg);
+    window.addEventListener('keydown',weg);
+    if(l) l.addEventListener('click',weg); }
+
+  // het laadscherm blijft staan tot alle platen binnen zijn
+  function laadVolgen(){
+    const A=window.ART||{};
+    const rig=document.querySelector('#rig');
+    const C=rig&&rig.components&&rig.components.cosmic;
+    const rij=(C&&C.hemelRij)?C.hemelRij.length:0;
+    const tot=A.totaal||0, af=A.klaar||0;
+    const deel=tot?Math.max(0,Math.min(1,(af-rij*0.35)/tot)):0;
+    const pc=Math.round(20+deel*80);
+    const b=$('#bar i'), t=$('#pct');
+    if(b) b.style.width=pc+'%';
+    if(t&&!laadOpen) t.textContent=(tot? ('LOADING  '+af+' / '+tot) : 'SEARCHING ART')+
+      (rij? '   +'+rij : '');
+    if(A.af&&!rij&&tot>0&&C&&C.hemels&&C.hemels.length>=0) laadKlaar();
+    if(!laadOpen) setTimeout(laadVolgen,220); }
+
+  function laadWeg(){ /* het scherm gaat nu pas weg als jij erop tikt */ }
 
   window.PHASE='menu'; window.PAUSED=false; window.PRIMHAND='left';
 
@@ -198,6 +236,8 @@
     if(!PLAY.length){ e.setAttribute('value','searching...'); e.setAttribute('color','#c08a5a'); return; }
     e.setAttribute('value',PLAY.length+' track'+(PLAY.length>1?'s':'')+': '+PLAY[0].n);
     e.setAttribute('color','#6ad1a0'); }
+  let musKandidaten=[];
+  function musVolgende(){ if(musKandidaten.length) musScan(musKandidaten.shift()); }
   function musScan(pad){
     if(!pad) return;
     MUSBASE=basisVoor(pad);
@@ -210,7 +250,7 @@
       if(!j||!j.length) return;
       const nm=j.filter(function(f){ return /\.(mp3|m4a|wav|ogg|aac)$/i.test(f.name||''); })
                 .map(function(f){ return f.name; }).sort();
-      if(!nm.length) return;
+      if(!nm.length){ musVolgende(); return; }        // lege map: probeer de andere
       try{ localStorage.setItem('cosmic_music',JSON.stringify(nm)); }catch(e){}
       PLAY=nm.map(function(n){ return {n:n,u:MUSBASE+encodeURIComponent(n)}; });
       musToon();
@@ -274,11 +314,13 @@
     if(typeof fetch!=='function') return;
     fetch(API).then(function(r){ return r.ok?r.json():null; }).then(function(j){
       if(!j||!j.length) return;
-      const uit={art:null,music:null};
+      const uit={art:null,music:null,muziekLijst:[]};
       j.forEach(function(f){ if(f.type!=='dir') return;
         const n=String(f.name||'').trim().toLowerCase();
-        if(n==='art') uit.art=f.path;
-        if(n==='music') uit.music=f.path; });
+        if(n==='art'&&!uit.art) uit.art=f.path;
+        if(n==='music'){ uit.muziekLijst.push(f.path);
+          // een map zonder spatie in de naam is de waarschijnlijkste
+          if(!uit.music||f.name===f.name.trim()) uit.music=f.path; } });
       if(!uit.art&&!uit.music) return;
       if(p&&p.art===uit.art&&p.music===uit.music) return;      // niets veranderd
       try{ localStorage.setItem('cosmic_paden',JSON.stringify(uit)); }catch(e){}
@@ -306,6 +348,54 @@
       return leeg/(96*96);
     }catch(e){ return 0; } }
 
+  // ---------------------------------------------------------------
+  //  DE NUMMERLIJST
+  //  Wat er op een plaat staat is met het oog vastgesteld en hier
+  //  vastgelegd. Raden op vorm faalt: de blauwe schijf (9559) is een
+  //  baas maar even rond als een planeet. Deze lijst wint dus altijd.
+  //  Een bestand dat hier niet in staat wordt alsnog geraden.
+  // ---------------------------------------------------------------
+  const NUMMERS=[
+    // bazen, in de volgorde waarin ze langskomen
+    {nr:'9544', rol:'baas', beurt:1, naam:'DREADNOUGHT', gedrag:'schip'},
+    {nr:'9550', rol:'baas', beurt:2, naam:'WARDEN',      gedrag:'schip'},
+    {nr:'9563', rol:'baas', beurt:3, naam:'THE EYES',    gedrag:'drieluik'},
+    {nr:'9564', rol:'baas', beurt:3, naam:'THE EYES',    gedrag:'drieluik'},
+    {nr:'9565', rol:'baas', beurt:3, naam:'THE EYES',    gedrag:'drieluik'},
+    {nr:'9559', rol:'baas', beurt:4, naam:'THE WHEEL',   gedrag:'schijf'},
+    {nr:'9557', rol:'baas', beurt:5, naam:'THE WALKER',  gedrag:'mech'},
+    {nr:'9551', rol:'baas', beurt:6, naam:'LANCE',       gedrag:'schip'},
+    {nr:'9555', rol:'baas', beurt:7, naam:'DEATHS HEAD', gedrag:'schedel'},
+    {nr:'9573', rol:'baas', beurt:8, naam:'TITAN PRIME', gedrag:'reus'},
+    // losse objecten
+    {nr:'9531', rol:'object', naam:'satelliet'},
+    {nr:'9532', rol:'planeet', naam:'aarde'},
+    {nr:'9533', rol:'planeet', naam:'aarde groot'},
+    {nr:'9534', rol:'planeet', naam:'maan'}
+  ];
+  function nummerVan(naam){
+    const m=String(naam||'').match(/(\d{4})(?!.*\d{4})/);
+    if(!m) return null;
+    for(let i=0;i<NUMMERS.length;i++) if(NUMMERS[i].nr===m[1]) return NUMMERS[i];
+    return null; }
+
+  // Een planeet is rond en vult zijn kader; een satelliet of station is grillig
+  // en laat veel leeg. Gemeten: planeten 0,78-0,79, een station 0,46.
+  function rondheid(img){
+    try{
+      const N=128;
+      const c=document.createElement('canvas'); c.width=N; c.height=N;
+      const g=c.getContext('2d'); g.clearRect(0,0,N,N);
+      g.drawImage(img,0,0,N,N);
+      const d=g.getImageData(0,0,N,N).data;
+      let x0=N,x1=-1,y0=N,y1=-1,vol=0;
+      for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+        if(d[(y*N+x)*4+3]>128){ vol++;
+          if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; } }
+      if(x1<0) return 0;
+      return vol/Math.max(1,(x1-x0+1)*(y1-y0+1));
+    }catch(e){ return 0; } }
+
   function artVerwerk(lijst){
     let klaar=0; const n=lijst.length;
     window.ART.totaal=n; window.ART.klaar=0;
@@ -321,7 +411,12 @@
           t.__naam=nm;                                       // naam bewaren voor de volgorde
           const ar=t.image.width/t.image.height;
           const leeg=doorzichtig(t.image);
-          t.__leeg=leeg; t.__soort=soort;
+          t.__leeg=leeg; t.__soort=soort; t.__rond=rondheid(t.image);
+          const N=nummerVan(nm);
+          if(N){ t.__lijst=N;                                  // de nummerlijst gaat voor
+            if(N.rol==='baas'){ t.__baas=1; window.ART.objs.push(t); if(window.ART.nieuw) window.ART.nieuw(); return; }
+            if(N.rol==='object'||N.rol==='planeet'){ t.__baas=0; window.ART.objs.push(t);
+              if(window.ART.nieuw) window.ART.nieuw(); return; } }
           if(soort==='hemel'){ window.ART.panos.push(t);
             if(!window.ART.pano) window.ART.pano=t; }
           else if(soort==='vloot') window.ART.schepen.push(t);
@@ -621,7 +716,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.1" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.3" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -1557,14 +1652,16 @@
         e.stap=0; e.mode='nader'; e.wacht=0; e.burst=0; e.bT=0;
         e.prof=T.prof; e.form=null; e.uit=0; e.dood=0; e.doodT=0; e.ring=null;
         e.stijl=(opt&&opt.stijl)||'halte'; e.zij=(opt&&opt.zij)||1; e.overs=0;
-        e.dood2=0; e.dt=0; e.stuur=0; e.dz=0;
+        e.dood2=0; e.dt=0; e.stuur=0; e.dz=0; e.hulpT=9; e.baasNaam=''; e.gedrag='';
         e.intro=(T.prof==='baas')?1:0; e.ip=0; e.it=0; e.iv=null; e.izij=0;
         e.route=(opt&&opt.route)||null; e.rp=(opt&&opt.rp)||0; e.rv=null;
         e.rs=(opt&&opt.rs)||1; e.rm=(opt&&opt.rm)||1; e.rondjes=0;
         const P=this.plaatVoor(tp);
         e.plaat=P; e.rij=T.rij;
         if(T.prof==='baas'&&this.bazen&&this.bazen.length){
-          const bt=this.bazen[(Math.max(1,this.level)-1)%this.bazen.length];
+          const B=(opt&&opt.baas)||this.bazen[(Math.max(1,this.level)-1)%this.bazen.length];
+          const bt=B.tex;
+          e.baasNaam=B.naam; e.gedrag=B.gedrag||'schip';
           if(!this.baasMat) this.baasMat={};
           if(!this.baasMat[bt.uuid]) this.baasMat[bt.uuid]=new THREE.MeshBasicMaterial(
             {map:bt,transparent:true,alphaTest:0.06,side:THREE.DoubleSide,depthWrite:false});
@@ -1577,7 +1674,10 @@
         else { bb.m.material=this.bbMat; this.bbCel(bb,Math.min(7,tp)); }
         e.hp=e.hpM=Math.round(T.hp*((opt&&opt.hp)||1));
         e.sc=T.br*((opt&&opt.sc)||1);
-        e.r=e.sc*0.42;
+        if(T.prof==='baas'&&e.gedrag==='reus'){ e.sc=134; e.hp=e.hpM=9000; }
+        // de reus is enorm maar zijn raakbol blijft binnen zijn houdafstand,
+        // anders ramt hij je onafgebroken terwijl hij gewoon staat te vechten
+        e.r=e.sc*(e.gedrag==='reus'?0.30:0.42);
         e.t=0; e.cd=0.8+Math.random()*1.6; e.ex={}; e.i0=Math.random()*6.28;
         const zij=(Math.random()<0.5)?-1:1;
         e.romp=this.romp[i];
@@ -1665,19 +1765,29 @@
       const T=TYPE[e.tp];
       if(e.dood2){ this.baasSterft(e,s); return; }
       if(e.intro){ this.baasIntro(e,s); return; }
-      const doel=52+e.r*0.4;
+      const reus=(e.gedrag==='reus');
+      const doel=reus?60:(52+e.r*0.4);
       if(afst>doel+2) e.p.addScaledVector(naar,T.sp*(afst>110?3.0:1)*s);
-      e.p.x=Math.sin(e.t*0.21)*26;                      // wiegt breed heen en weer
-      e.p.y=this.kop.y+Math.sin(e.t*0.33)*8;
+      e.p.x=Math.sin(e.t*(reus?0.12:0.21))*(reus?12:26);   // een reus verplaatst zich nauwelijks
+      e.p.y=this.kop.y+Math.sin(e.t*(reus?0.18:0.33))*(reus?4:8)+(reus?e.bh*0.16:0);
       const deel=e.hp/e.hpM;
       const woede=1+(1-deel)*1.4;                       // hoe lager zijn kracht, hoe feller
 
       // ---- salvo's: hij leent de projectielen van zijn vloot ----
       e.cd-=s*woede;
-      if(e.cd<=0){ e.cd=(T.cd||1.9)+Math.random()*0.9;
-        const n=2+Math.floor(Math.random()*3);
-        for(let k=0;k<n;k++) this.baasSchot(e,k);
-      }
+      if(e.cd<=0){
+        if(reus){ e.cd=1.5+Math.random()*0.8;
+          if(Math.random()<0.55) this.reusOgen(e); else this.reusRug(e); }
+        else { e.cd=(T.cd||1.9)+Math.random()*0.9;
+          const n=2+Math.floor(Math.random()*3);
+          for(let k=0;k<n;k++) this.baasSchot(e,k); } }
+      // de reus roept zijn mechs erbij
+      if(reus){ e.hulpT=(e.hulpT||9)-s*woede;
+        let mech=0;
+        for(let i=0;i<this.enemies.length;i++)
+          if(this.enemies[i].live&&this.enemies[i].mech) mech++;
+        if(e.hulpT<=0&&mech<4){ e.hulpT=13+Math.random()*7; this.reusHulp(e); }
+        else if(e.hulpT<=0) e.hulpT=4; }
       // ---- bij elke drempel stuurt hij een ander soort op je af ----
       const drempels=[0.85,0.68,0.52,0.36,0.20];
       e.stuur=e.stuur||0;
@@ -1712,6 +1822,66 @@
       else if(i===1) p.set(-z*115, y+12, -78);      // aan de andere kant weer uit beeld
       else p.set(0, y+4, -120);                     // en dan draait hij zich naar je toe
       return p; },
+
+    // ---- twee raketten recht uit zijn ogen ----
+    reusOgen:function(e){
+      const oy=e.p.y+e.bh*0.36;                        // ter hoogte van de schedel
+      for(let z=-1;z<=1;z+=2){
+        const B=this.vijVrij(); if(!B) return;
+        B.o.set(e.p.x+z*e.bw*0.085, oy, e.p.z+2);
+        this.vijRicht(B,0.03,26,3);
+        B.m.material=B.eigen; B.m.material.color.setHex(0xff2a2a);
+        B.br=0.9; B.len=4.4; B.m.visible=true;
+        this.richtQuad(B.m,B.o,B.dir,B.len,B.br);
+        this.vonk(B.o.x,B.o.y,B.o.z,0xff4040,5,5,0.7); }
+      SND.gun(0,1); SND.boom(0); },
+
+    // ---- een boog raketten van achter zijn rug over hem heen ----
+    reusRug:function(e){
+      const n=3+Math.floor(Math.random()*3);
+      for(let k=0;k<n;k++){
+        const B=this.vijVrij(); if(!B) break;
+        B.o.set(e.p.x+(k-(n-1)/2)*e.bw*0.16, e.p.y+e.bh*0.62, e.p.z-16);
+        this.vijRicht(B,0.12,15,5);
+        B.dir.y+=0.30; B.dir.normalize();              // eerst omhoog, dan naar je toe
+        const P=this.plaatVoor(1);
+        const R=P?P.rect[TYPE[1].rij][3]:null;
+        if(R){ B.m.material=P.mat; this.uvRect(B.m.geometry,R);
+               B.len=4.6; B.br=4.6*(R.arv||R.ar); }
+        else { B.m.material=B.eigen; B.m.material.color.setHex(0xffb03a); B.br=0.8; B.len=3.6; }
+        B.m.visible=true; B.boog=0.42;
+        this.richtQuad(B.m,B.o,B.dir,B.len,B.br); }
+      SND.boom(e.p.x*0.02); },
+
+    vijVrij:function(){
+      for(let i=0;i<this.vij.length;i++) if(!this.vij[i].live){
+        const B=this.vij[i]; B.live=true; B.d=0; B.md=200; B.boog=0; return B; }
+      return null; },
+    vijRicht:function(B,spreid,snel,hp){
+      B.dir.copy(this.kop).sub(B.o).normalize();
+      B.dir.x+=(Math.random()-0.5)*spreid; B.dir.y+=(Math.random()-0.5)*spreid;
+      B.dir.normalize();
+      B.sp=snel*(0.85+Math.random()*0.3); B.zwaar=1; B.hp=hp; },
+
+    // ---- de mechs die hem bijstaan ----
+    reusHulp:function(e){
+      const mech=(this.bazen||[]).filter(function(b){ return b.gedrag==='mech'; })[0];
+      const n=2;
+      for(let k=0;k<n;k++){
+        const v=this.spawn(15,{x:e.p.x+(k?1:-1)*e.bw*0.42, y:e.p.y+e.bh*0.1, z:e.p.z+10});
+        if(!v) continue;
+        v.hp=v.hpM=520; v.sc=16; v.r=7; v.bw=16; v.bh=16;
+        if(mech&&v.bb){
+          if(!this.baasMat) this.baasMat={};
+          if(!this.baasMat[mech.tex.uuid]) this.baasMat[mech.tex.uuid]=new THREE.MeshBasicMaterial(
+            {map:mech.tex,transparent:true,alphaTest:0.06,side:THREE.DoubleSide,depthWrite:false});
+          v.bb.m.material=this.baasMat[mech.tex.uuid];
+          const a=v.bb.g.attributes.uv;
+          a.setXY(0,0,1); a.setXY(1,1,1); a.setXY(2,0,0); a.setXY(3,1,0); a.needsUpdate=true;
+          v.plaat=null; v.ar=1; v.bw=16; v.bh=16; }
+        v.stijl='halte'; v.prof='strafer'; v.mech=1; }
+      SND.alarm();
+      this.toonMelding('MECH SUPPORT','#ff8aa6'); },
 
     baasSchot:function(e,k){
       // pak het projectiel van een willekeurige soort die op de platen staat
@@ -1765,7 +1935,7 @@
       if(!A||!B) return;
       if(!this.balkAan){ this.balkAan=true;
         A.setAttribute('visible',true); B.setAttribute('visible',true);
-        if(N) N.setAttribute('value','LEVEL '+this.level+'  BOSS'); }
+        if(N) N.setAttribute('value',(e.baasNaam||'BOSS')); }
       const d=Math.max(0,e.hp/e.hpM);
       if(Math.abs(d-(this.balkD||0))<0.004) return; this.balkD=d;
       const br=Math.max(0.004,0.62*d);
@@ -2208,7 +2378,7 @@
       this.rustT-=s;
       if(this.rustFase===0&&this.rustT<=2.6){ this.rustFase=1;
         this.level++;
-        this.hemelZet();
+        this.hemelZet(); this.objZet();
         this.zaad=this.level*7919;
         if(!window.DEMO) bewaarVoortgang(this.level,this.punten,this.ults,this.contN);
         this.toonGroot('LEVEL '+this.level,'#ffe45c');
@@ -2370,6 +2540,7 @@
       // ---- vijandelijke kogels ----
       for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(!B.live) continue;
         B.d+=B.sp*s;
+        if(B.boog){ B.dir.y-=B.boog*s; B.dir.normalize(); }   // buigt naar je toe
         const p=kp.copy(B.o).addScaledVector(B.dir,B.d);
         this.richtQuad(B.m,p,B.dir,B.len||2.4,B.br||0.42);
         if(p.distanceTo(eye)<0.80){ this.raakMij(5); B.live=false; B.m.visible=false;
@@ -2594,32 +2765,49 @@
         // Staat hij in de map Baas, dan is het een baas. Anders raden op breedte:
         // een baas is breed en doorzichtig, planeten en stations zijn vierkant.
         const isBaas=(t.__baas===1)||(t.__baas===undefined&&ar>=1.30);
-        if(isBaas){ self.bazen=self.bazen||[]; self.bazen.push(t); return; }
+        if(isBaas){ self.bazen=self.bazen||[];
+          const L=t.__lijst;
+          self.bazen.push({tex:t, naam:(L&&L.naam)||'BOSS',
+            gedrag:(L&&L.gedrag)||'schip', beurt:(L&&L.beurt)||99});
+          self.bazen.sort(function(a,b){ return a.beurt-b.beurt; });
+          return; }
         // grote platen worden grote objecten: een planeet van 2000 px hoort geen keitje te zijn
         const px=(t.image&&t.image.height)?t.image.height:1024;
-        const maat=Math.max(38,Math.min(210,px*0.075))*(0.75+Math.random()*0.6);
+        const planeet=(t.__lijst&&t.__lijst.rol)?(t.__lijst.rol==='planeet'):((t.__rond||0)>0.68);
+        // een planeet is een hemellichaam: zes keer zo groot en drie keer zo traag
+        let maat=Math.max(38,Math.min(210,px*0.075))*(0.75+Math.random()*0.6);
+        if(planeet) maat=Math.min(900,maat*6);
         const hh=maat, w=maat*ar;
         const m=new THREE.Mesh(new THREE.PlaneGeometry(w,hh),
           new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false}));
         // hoe groter, hoe verder weg — anders staat een planeet bovenop je
-        const d=Math.min(275,80+maat*1.35+Math.random()*40);
+        const d=planeet?(215+Math.random()*55):Math.min(275,80+maat*1.35+Math.random()*40);
         const a=Math.random()*6.283;
         m.position.set(Math.cos(a)*d,(Math.random()*0.5-0.12)*d*0.5,Math.sin(a)*d);
         m.renderOrder=-14;
         // Een level duurt ongeveer tien minuten en er mogen zo'n vier rondjes in,
         // dus een rondje van twee tot drie minuten. Verder weg gaat iets rustiger.
-        const rondje=(118+Math.random()*62)*(0.8+d/420);
-        m.userData.baan={a:a,d:d,y:m.position.y,
+        const rondje=(118+Math.random()*62)*(0.8+d/420)*(planeet?3:1);
+        m.userData.baan={a:a,d:d,y:m.position.y,planeet:planeet,
           w:(Math.random()<0.5?-1:1)*(6.2832/rondje),
           b:Math.random()*6.283, bs:0.16+Math.random()*0.18};
-        self.par.add(m); self.skyObjs.push(m); }); },
+        m.visible=false;
+        self.par.add(m); self.skyObjs.push(m); });
+      this.objZet(); },
+
+    // ---- per level één object in beeld, zodat er telkens iets nieuws is ----
+    objZet:function(){
+      if(!this.skyObjs||!this.skyObjs.length) return;
+      const kies=(Math.max(1,this.level||1)-1)%this.skyObjs.length;
+      for(let i=0;i<this.skyObjs.length;i++) this.skyObjs[i].visible=(i===kies);
+      this.objI=kies; },
 
     // ---- de trage drift van de losse objecten ----
     objTick:function(s){
       if(!this.skyObjs||!this.skyObjs.length) return;
       const k=this.kop||{x:0,y:1.6,z:0};
       for(let i=0;i<this.skyObjs.length;i++){ const m=this.skyObjs[i], B=m.userData.baan;
-        if(!B) continue;
+        if(!B||!m.visible) continue;
         B.a+=B.w*s; B.b+=B.bs*s;
         m.position.set(Math.cos(B.a)*B.d, B.y+Math.sin(B.b)*B.d*0.02, Math.sin(B.a)*B.d);
         m.lookAt(k.x,k.y,k.z); } },
@@ -2825,16 +3013,19 @@
     const klaar=function(){
       knoppen();
       const v=document.querySelector('#verTxt'); if(v) v.setAttribute('value',VERSIE);
-      padenZoek(function(p){ if(p.art) artScan(p.art); if(p.music) musScan(p.music);
+      padenZoek(function(p){ if(p.art) artScan(p.art);
+        musKandidaten=(p.muziekLijst||[]).filter(function(q){ return q!==p.music; });
+        if(p.music) musScan(p.music);
         if(!p.art){ const e=document.querySelector('#artTxt');
           if(e) e.setAttribute('value','geen Art-map'); }
         if(!p.music){ const e=document.querySelector('#musTxt');
           if(e) e.setAttribute('value','geen Music-map'); } });
       prog(100,'READY');
-      setTimeout(laadWeg,400); };
+      setTimeout(laadVolgen,200); };
     if(sc.hasLoaded) klaar();
     else sc.addEventListener('loaded',klaar);
-    sc.addEventListener('renderstart',function(){ setTimeout(laadWeg,200); });
+    sc.addEventListener('renderstart',function(){ setTimeout(laadVolgen,300); });
+    setTimeout(function(){ if(!window.ART.totaal&&!laadOpen) laadKlaar(); },12000);  // geen art? toch door
     // ---- muis en aanraakscherm: zelfde spel zonder headset ----
     const C=function(){ const r=document.querySelector('#rig');
       return r&&r.components&&r.components.cosmic; };
