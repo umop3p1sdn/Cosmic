@@ -34,7 +34,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v10.3';
+  const VERSIE='v11.1';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
 
@@ -292,26 +292,60 @@
     L.load(url,function(t){ cb(t); },undefined,function(){ cb(null); });
   }catch(e){ cb(null); } }
 
+  // Een achtergrond vult je hele blikveld en heeft dus nooit doorzichtige plekken.
+  // Een schip, station of planeet juist wel. Dat is een betrouwbaarder onderscheid
+  // dan de verhouding: een brede baas van 1,7 zou anders als hemel om je heen komen.
+  function doorzichtig(img){
+    try{
+      const c=document.createElement('canvas'); c.width=96; c.height=96;
+      const g=c.getContext('2d'); g.clearRect(0,0,96,96);
+      g.drawImage(img,0,0,96,96);
+      const d=g.getImageData(0,0,96,96).data;
+      let leeg=0;
+      for(let i=3;i<d.length;i+=4) if(d[i]<40) leeg++;
+      return leeg/(96*96);
+    }catch(e){ return 0; } }
+
   function artVerwerk(lijst){
     let klaar=0; const n=lijst.length;
     window.ART.totaal=n; window.ART.klaar=0;
     if(!n){ window.ART.vondst='geen art'; window.ART.af=true; return; }
     window.ART.vondst='laden '+n;
-    lijst.forEach(function(nm){
-      artLaad(ARTBASE+encodeURIComponent(nm),function(t){
+    lijst.forEach(function(item){
+      const nm=(typeof item==='string')?item:item.n;
+      const soort=(typeof item==='string')?null:item.s;
+      const url=ARTBASE+nm.split('/').map(encodeURIComponent).join('/');
+      artLaad(url,function(t){
         klaar++; window.ART.klaar=klaar;
         if(t&&t.image&&t.image.width){
           t.__naam=nm;                                       // naam bewaren voor de volgorde
           const ar=t.image.width/t.image.height;
-          if(ar>=1.7){ window.ART.panos.push(t);
+          const leeg=doorzichtig(t.image);
+          t.__leeg=leeg; t.__soort=soort;
+          if(soort==='hemel'){ window.ART.panos.push(t);
+            if(!window.ART.pano) window.ART.pano=t; }
+          else if(soort==='vloot') window.ART.schepen.push(t);
+          else if(soort==='baas'){ t.__baas=1; window.ART.objs.push(t); }
+          else if(soort==='object'){ t.__baas=0; window.ART.objs.push(t); }
+          else if(ar>=1.7&&leeg<0.12){ window.ART.panos.push(t);   // vol beeld = achtergrond
             if(!window.ART.pano||t.image.width>(window.ART.pano.image.width||0)) window.ART.pano=t; }
-          else if(ar>=0.55&&ar<=1.05){                       // staande of vierkante plaat = de vloot
+          else if(ar>=0.55&&ar<=1.05&&leeg>=0.05){            // staande of vierkante plaat = de vloot
             window.ART.schepen.push(t); }
           else window.ART.objs.push(t);
           if(window.ART.nieuw) window.ART.nieuw(); }
         if(klaar>=n){ window.ART.af=true;
           window.ART.vondst=(window.ART.schepen?'fleet ':'')+
             window.ART.panos.length+' sky '+window.ART.objs.length+' obj'; } }); }); }
+
+  // De naam van een onderliggende map zegt wat er in zit. Staat een bestand los
+  // in Art, dan raadt de code het zelf op verhouding en doorzichtigheid.
+  function mapSoort(naam){
+    const n=String(naam||'').trim().toLowerCase();
+    if(/achtergrond|hemel|sky|background/.test(n)) return 'hemel';
+    if(/vijand|schepen|fleet|enem/.test(n))        return 'vloot';
+    if(/baas|boss/.test(n))                        return 'baas';
+    if(/object|planeet|planet|prop/.test(n))       return 'object';
+    return null; }
 
   function artScan(pad){
     if(!pad) return;
@@ -322,13 +356,29 @@
     try{ const raw=localStorage.getItem('cosmic_art'); if(raw) cache=JSON.parse(raw); }catch(e){}
     if(cache&&cache.length){ artVerwerk(cache); }
     if(typeof fetch!=='function') return;
+    const plaatje=function(f){ return /\.(png|jpg|jpeg|webp)$/i.test(f.name||''); };
     fetch(APIURL).then(function(r){ return r.ok?r.json():null; }).then(function(j){
       if(!j||!j.length) return;
-      const nm=j.filter(function(f){ return /\.(png|jpg|jpeg|webp)$/i.test(f.name||''); })
-                .map(function(f){ return f.name; });
-      if(!nm.length) return;
-      try{ localStorage.setItem('cosmic_art',JSON.stringify(nm)); }catch(e){}
-      if(!cache||cache.join()!==nm.join()){ window.ART.objs.length=0; window.ART.pano=null; artVerwerk(nm); }
+      const uit=j.filter(plaatje).map(function(f){ return {n:f.name,s:null}; });
+      const mappen=j.filter(function(f){ return f.type==='dir'; });
+      let wacht=mappen.length;
+      const af=function(){
+        if(!uit.length) return;
+        try{ localStorage.setItem('cosmic_art',JSON.stringify(uit)); }catch(e){}
+        const nieuw=uit.map(function(o){ return o.n+'|'+o.s; }).join();
+        const oud=(cache||[]).map(function(o){ return (o.n||o)+'|'+(o.s||null); }).join();
+        if(nieuw!==oud){ window.ART.objs.length=0; window.ART.panos.length=0;
+          window.ART.schepen.length=0; window.ART.pano=null; artVerwerk(uit); } };
+      if(!wacht){ af(); return; }
+      mappen.forEach(function(d){
+        const soort=mapSoort(d.name);
+        fetch(API+d.path.split('/').map(encodeURIComponent).join('/'))
+          .then(function(r){ return r.ok?r.json():null; })
+          .then(function(k){
+            if(k&&k.length) k.filter(plaatje).forEach(function(f){
+              uit.push({n:d.name+'/'+f.name,s:soort}); });
+            if(--wacht<=0) af(); })
+          .catch(function(){ if(--wacht<=0) af(); }); });
     }).catch(function(){}); }
   window.artScan=artScan;
 
@@ -539,6 +589,9 @@
   '      <a-plane id="krachtA" position="-0.30 -0.40 -1.21" width="0.30" height="0.012" material="color:#12303c;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-plane id="krachtB" position="-0.45 -0.40 -1.20" width="0.30" height="0.012" material="color:#35e8ff;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-text id="hudR" value="" align="right"  color="#9fe4f5" width="1.5" position="0.46 -0.34 -1.2"></a-text>'+
+  '      <a-text id="baasNaam" value="" align="center" color="#ff8aa6" width="2.2" position="0 0.46 -1.3"></a-text>'+
+  '      <a-plane id="baasBalkA" visible="false" position="0 0.40 -1.31" width="0.62" height="0.022" material="color:#3a1420;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="baasBalkB" visible="false" position="-0.31 0.40 -1.30" width="0.62" height="0.022" material="color:#ff3d55;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-text id="hudC" value="" align="center" color="#ffb03a" width="2.6"  position="0 0.26 -1.3"></a-text>'+
   '      <a-text id="hudW" value="" align="center" color="#e8f6ff" width="1.7"  position="0 -0.18 -1.25"></a-text>'+
   '      <a-plane id="hurt"  position="0 0 -0.31" width="2.6" height="2.6" material="color:#ff2030;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
@@ -568,7 +621,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v10.3" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.1" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -772,7 +825,7 @@
     {n:'ORACLE',    pl:13,rij:9, br:16, hp:200, pt:320, sp:6,  sal:1, cd:5.5, prof:'kruiper', zwaar:1, f1:0.48, f2:0.20},
     {n:'TITAN',     pl:13,rij:10,br:24, hp:330, pt:460, sp:4,  sal:2, cd:3.4, prof:'drijver', f1:0.86, f2:0.32},
     {n:'NOVA',      pl:13,rij:11,br:29, hp:400, pt:600, sp:4,  sal:3, cd:4.0, prof:'immel',   zwaar:1, f1:0.62, f2:0.25},
-    {n:'MOTHERSHIP',pl:0, rij:0, br:26, hp:1200,pt:2500,sp:4,  sal:3, cd:2.0, prof:'baas', f1:0.70, f2:0.32}
+    {n:'MOTHERSHIP',pl:0, rij:0, br:60, hp:5200,pt:9000,sp:5,  sal:3, cd:1.9, prof:'baas', zwaar:1, f1:0.70, f2:0.32}
   ];
   const BAAS=30;
   // welke soorten er in welk level meedoen (elk level acht soorten, vier ervan nieuw)
@@ -948,6 +1001,7 @@
       this.punten=0; this.power=100; this.over=false; this.klaar=false;
       this.level=1; this.plan=null; this.planT=0; this.zaad=7919; this.beurt=0;
       this.rij=[]; this.veldMax=0; this.gi=0; this.groepT=0;
+      this.baas=null; this.baasWeg=false; this.baasBalkUit();
       this.melding=0; this.meldC=0; this.wave=0; this.golfT=0; this.state='wacht';
       this.ults=2; this.ultPt=0; this.combo=0; this.laatst=-9; this.beste=0;
       this.baas=null; this.rood=0; this.hurtCd=0; this.melding=0; this.contN=0;
@@ -958,7 +1012,7 @@
       for(const id in this.wep){ const W=this.wep[id];
         W.t=(id===prim)?5:5; W.lvl=1; W.lvlT={5:1}; W.mag={}; W.last=0; W.up=0; W.vorig=0;
         W.laz=null; }
-      this.enemies.forEach(function(e){ e.live=false; e.dood=0;
+      this.enemies.forEach(function(e){ e.live=false; e.dood=0; e.dood2=0;
         if(e.romp){ e.romp.visible=false; e.romp=null; } });
       this.bb.forEach(function(b){ b.vrij=true; b.m.visible=false; });
       [this.bolts,this.vij,this.rockets,this.vonken].forEach(function(P){
@@ -1193,7 +1247,7 @@
     kr:function(W){ return (W.lvlT&&W.lvlT[W.t])||W.lvl||1; },
     doelen:function(){ const L=[];
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
-        if(e.live&&e.hp>0&&!e.dood) L.push(e); }
+        if(e.live&&e.hp>0&&!e.dood&&!e.dood2) L.push(e); }
       return L; },
 
     toonWissel:function(W){ const e=document.querySelector('#hudW'); if(!e) return;
@@ -1353,6 +1407,8 @@
     //  TREFFERS
     // =====================================================
     raak:function(e,dmg,px,py,pz){
+      if(e.dood2) return;                            // gaat al ten onder
+      if(e.intro){ this.vonk(px||e.p.x,py||e.p.y,pz||e.p.z,0x9fe4f5,3,6,0.5); return; }
       if(e.dood){ this.knalDood(e); return; }        // genadeschot op een wrak
       if(!e.live||e.hp<=0) return;
       e.hp-=dmg; e.flash=0.12;
@@ -1375,9 +1431,11 @@
       e.hp=0;
       const T=TYPE[e.tp];
       this.punt(e);
+      if(T.prof==='baas'){ e.dood2=1; e.dt=0; e.hp=0;   // eigen ondergang van 5 seconden
+        SND.zeg('Target destroyed'); return; }
       let bezig=0;
       for(let i=0;i<this.enemies.length;i++) if(this.enemies[i].live&&this.enemies[i].dood) bezig++;
-      if(T.prof==='baas'||bezig>=14||!e.bb){ this.knalDood(e); return; }
+      if(bezig>=14||!e.bb){ this.knalDood(e); return; }
       e.dood=1; e.doodT=0;
       e.fase=1;                                        // meteen naar het beschadigde plaatje
       if(e.plaat) this.uvRect(e.bb.g,e.plaat.rect[e.rij][1]);
@@ -1499,11 +1557,23 @@
         e.stap=0; e.mode='nader'; e.wacht=0; e.burst=0; e.bT=0;
         e.prof=T.prof; e.form=null; e.uit=0; e.dood=0; e.doodT=0; e.ring=null;
         e.stijl=(opt&&opt.stijl)||'halte'; e.zij=(opt&&opt.zij)||1; e.overs=0;
+        e.dood2=0; e.dt=0; e.stuur=0; e.dz=0;
+        e.intro=(T.prof==='baas')?1:0; e.ip=0; e.it=0; e.iv=null; e.izij=0;
         e.route=(opt&&opt.route)||null; e.rp=(opt&&opt.rp)||0; e.rv=null;
         e.rs=(opt&&opt.rs)||1; e.rm=(opt&&opt.rm)||1; e.rondjes=0;
         const P=this.plaatVoor(tp);
         e.plaat=P; e.rij=T.rij;
-        if(P){ bb.m.material=P.mat; this.uvRect(bb.g,P.rect[T.rij][0]); }
+        if(T.prof==='baas'&&this.bazen&&this.bazen.length){
+          const bt=this.bazen[(Math.max(1,this.level)-1)%this.bazen.length];
+          if(!this.baasMat) this.baasMat={};
+          if(!this.baasMat[bt.uuid]) this.baasMat[bt.uuid]=new THREE.MeshBasicMaterial(
+            {map:bt,transparent:true,alphaTest:0.06,side:THREE.DoubleSide,depthWrite:false});
+          bb.m.material=this.baasMat[bt.uuid];
+          const a=bb.g.attributes.uv;                  // hele plaat, geen vak
+          a.setXY(0,0,1); a.setXY(1,1,1); a.setXY(2,0,0); a.setXY(3,1,0); a.needsUpdate=true;
+          e.plaat=null;
+          e.baasAr=(bt.image&&bt.image.width)?bt.image.width/bt.image.height:1.7; }
+        else if(P){ bb.m.material=P.mat; this.uvRect(bb.g,P.rect[T.rij][0]); }
         else { bb.m.material=this.bbMat; this.bbCel(bb,Math.min(7,tp)); }
         e.hp=e.hpM=Math.round(T.hp*((opt&&opt.hp)||1));
         e.sc=T.br*((opt&&opt.sc)||1);
@@ -1517,7 +1587,7 @@
                 (opt&&opt.y!==undefined)?opt.y:(1.6+(Math.random()*16-6)),
                 (opt&&opt.z!==undefined)?opt.z:(-112-Math.random()*28));
         e.v.set(0,0,0);
-        const ar0=e.plaat?e.plaat.rect[T.rij][0].ar:1;
+        const ar0=e.baasAr?e.baasAr:(e.plaat?e.plaat.rect[T.rij][0].ar:1);
         e.ar=ar0;
         e.bw=(ar0>=1)?e.sc:e.sc*ar0;               // breedte
         e.bh=(ar0>=1)?e.sc/ar0:e.sc;               // hoogte
@@ -1587,6 +1657,157 @@
         else if(afst<doel-3) e.p.addScaledVector(naar,-sp*0.5*s);
         e.bT-=s;
         if(e.bT<=0){ e.bT=(T.cd||3.4)+Math.random()*1.6; this.spuw(e,T.sal||1,0.07); } } },
+
+    // =====================================================
+    //  DE BAAS
+    // =====================================================
+    baasBaan:function(e,s,naar,afst){
+      const T=TYPE[e.tp];
+      if(e.dood2){ this.baasSterft(e,s); return; }
+      if(e.intro){ this.baasIntro(e,s); return; }
+      const doel=52+e.r*0.4;
+      if(afst>doel+2) e.p.addScaledVector(naar,T.sp*(afst>110?3.0:1)*s);
+      e.p.x=Math.sin(e.t*0.21)*26;                      // wiegt breed heen en weer
+      e.p.y=this.kop.y+Math.sin(e.t*0.33)*8;
+      const deel=e.hp/e.hpM;
+      const woede=1+(1-deel)*1.4;                       // hoe lager zijn kracht, hoe feller
+
+      // ---- salvo's: hij leent de projectielen van zijn vloot ----
+      e.cd-=s*woede;
+      if(e.cd<=0){ e.cd=(T.cd||1.9)+Math.random()*0.9;
+        const n=2+Math.floor(Math.random()*3);
+        for(let k=0;k<n;k++) this.baasSchot(e,k);
+      }
+      // ---- bij elke drempel stuurt hij een ander soort op je af ----
+      const drempels=[0.85,0.68,0.52,0.36,0.20];
+      e.stuur=e.stuur||0;
+      if(e.stuur<drempels.length&&deel<=drempels[e.stuur]){
+        this.baasZwerm(e,e.stuur); e.stuur++; }
+      // ---- balk bijwerken ----
+      this.baasBalk(e); },
+
+    // ---- eerst één keer langs je heen, zodat je ziet hoe groot hij is ----
+    baasIntro:function(e,s){
+      e.it=(e.it||0)+s;
+      const P=this.baasPunt(e,e.ip||0);
+      const d=this.BI||(this.BI=new THREE.Vector3());
+      d.subVectors(P,e.p);
+      const afst=d.length();
+      if(afst<10){ e.ip=(e.ip||0)+1;
+        if(e.ip>=3){ e.intro=0; e.cd=1.4; this.toonGroot('',''); return; }
+        return; }
+      d.multiplyScalar(1/afst);
+      if(!e.iv) e.iv=d.clone();
+      e.iv.lerp(d,Math.min(1,s*2.2)).normalize();
+      e.p.addScaledVector(e.iv,(e.ip===0?62:44)*s);
+      // hij helt licht over in de bocht
+      if(e.bb) e.bb.m.rotation.z=(e.iv.x)*0.28;
+      if(e.it<0.2) this.toonGroot('!!  WARNING  !!','#ff3d55'); },
+
+    baasPunt:function(e,i){
+      const z=e.izij||(e.izij=(Math.random()<0.5?-1:1));
+      const y=this.kop.y;
+      const p=this.BP||(this.BP=new THREE.Vector3());
+      if(i===0) p.set(z*40, y+3, -22);              // dwars voor je langs, rakelings
+      else if(i===1) p.set(-z*115, y+12, -78);      // aan de andere kant weer uit beeld
+      else p.set(0, y+4, -120);                     // en dan draait hij zich naar je toe
+      return p; },
+
+    baasSchot:function(e,k){
+      // pak het projectiel van een willekeurige soort die op de platen staat
+      const kies=[0,1,2,4,5,6,7,8,10,12,14,16,19,21,25,27];
+      let tp=kies[Math.floor(Math.random()*kies.length)];
+      if(!this.plaatVoor(tp)) tp=0;
+      const eye=this.tmp.copy(this.kop);
+      for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(B.live) continue;
+        B.live=true;
+        B.o.copy(e.p);
+        B.o.x+=(k-1)*e.sc*0.22; B.o.y-=e.sc*0.06;       // uit verschillende kanonnen
+        B.d=0; B.md=170;
+        B.sp=12+Math.random()*7;
+        B.dir.copy(eye).sub(B.o).normalize();
+        B.dir.x+=(Math.random()-0.5)*0.09; B.dir.y+=(Math.random()-0.5)*0.07;
+        B.dir.normalize();
+        const P=this.plaatVoor(tp);
+        const R=P?P.rect[TYPE[tp].rij][3]:null;
+        if(R){ B.m.material=P.mat; this.uvRect(B.m.geometry,R);
+               B.len=5.0; B.br=5.0*(R.arv||R.ar); }
+        else { B.m.material=B.eigen; B.m.material.color.setHex(0xffd24a);
+               B.br=0.7; B.len=3.4; }
+        B.zwaar=1; B.hp=4;                              // kapot te schieten, maar niet zomaar
+        B.m.visible=true;
+        this.richtQuad(B.m,B.o,B.dir,B.len,B.br);
+        SND.gun(e.p.x*0.02,1);
+        return; } },
+
+    baasZwerm:function(e,fase){
+      // elke fase een ander soort, oplopend in zwaarte
+      const S=this.levelSoorten();
+      const licht=S.filter(function(t){ return TYPE[t].br<=9; });
+      const zwaar=S.filter(function(t){ return TYPE[t].br>9; });
+      const lijst=(fase%2===0||!zwaar.length)?licht:zwaar;
+      if(!lijst.length) return;
+      const tp=lijst[fase%lijst.length];
+      const n=(TYPE[tp].br<=9)?(4+fase):(2+Math.floor(fase/2));
+      this.vorm='wig'; this.vormI=0; this.vormN=n;
+      this.vormC={hoek:(Math.random()-0.5)*1.4, oy:(Math.random()-0.5)*20};
+      this.vormS='halte'; this.vormZ=1;
+      for(let i=0;i<n;i++){ const v=this.spawnVorm(tp);
+        if(v){ v.p.copy(e.p); v.p.x+=(i-(n-1)/2)*e.sc*0.16;
+               v.p.y+=(Math.random()-0.5)*e.sc*0.2; v.p.z+=6; } }
+      SND.alarm();
+      this.toonMelding('LAUNCHING '+TYPE[tp].n,'#ff8aa6'); },
+
+    baasBalk:function(e){
+      if(e.intro) return;
+      const A=document.querySelector('#baasBalkA'), B=document.querySelector('#baasBalkB');
+      const N=document.querySelector('#baasNaam');
+      if(!A||!B) return;
+      if(!this.balkAan){ this.balkAan=true;
+        A.setAttribute('visible',true); B.setAttribute('visible',true);
+        if(N) N.setAttribute('value','LEVEL '+this.level+'  BOSS'); }
+      const d=Math.max(0,e.hp/e.hpM);
+      if(Math.abs(d-(this.balkD||0))<0.004) return; this.balkD=d;
+      const br=Math.max(0.004,0.62*d);
+      B.setAttribute('width',br.toFixed(4));
+      B.setAttribute('position',(-0.31+br/2).toFixed(4)+' 0.40 -1.30');
+      B.setAttribute('material','color:'+(d>0.5?'#ff3d55':(d>0.2?'#ffb03a':'#ffe45c'))+
+        ';shader:flat;depthWrite:false;depthTest:false'); },
+
+    baasBalkUit:function(){
+      this.balkAan=false; this.balkD=-1;
+      ['#baasBalkA','#baasBalkB'].forEach(function(id){
+        const e=document.querySelector(id); if(e) e.setAttribute('visible',false); });
+      const N=document.querySelector('#baasNaam'); if(N) N.setAttribute('value',''); },
+
+    // ---- het einde: overal knallen, dan scheef wegzakken ----
+    baasSterft:function(e,s){
+      e.dt=(e.dt||0)+s;
+      const b=e.bb;
+      // knallen over het hele schip verspreid
+      e.knalT=(e.knalT||0)-s;
+      if(e.knalT<=0&&e.dt<4.4){ e.knalT=0.12+Math.random()*0.16;
+        const px=e.p.x+(Math.random()-0.5)*e.bw*0.9;
+        const py=e.p.y+(Math.random()-0.5)*e.bh*0.8;
+        const pz=e.p.z+(Math.random()-0.5)*8;
+        this.vonk(px,py,pz,0xfff2c0,10,7,1.3);
+        this.vonk(px,py,pz,0xffb03a,14,11,1.5);
+        this.knal(this.tmp.set(px,py,pz),e.sc*0.30);
+        SND.boom(px*0.02); if(Math.random()<0.5) SND.kill(px*0.02,1.6); }
+      if(e.dt>1.6){                                    // helt over en zakt weg
+        const f=Math.min(1,(e.dt-1.6)/3.4);
+        e.p.y-=(3+f*16)*s;
+        e.p.z-=6*s;
+        if(b){ b.m.rotation.z=(e.dz||(e.dz=(Math.random()<0.5?-1:1)))*f*0.7; } }
+      if(e.dt>=5.2){
+        this.vonk(e.p.x,e.p.y,e.p.z,0xffffff,30,20,2.6);
+        this.vonk(e.p.x,e.p.y,e.p.z,0xffb03a,40,26,2.2);
+        this.knal(e.p,e.sc*0.8);
+        SND.boom(0); SND.kill(0,3);
+        if(b) b.m.rotation.z=0;
+        this.punt(e); this.knalDood(e);
+        this.baasBalkUit();
+        this.baasWeg=true; } },
 
     // ---- oversteken: scheert langs je heen, keert om, komt dichterbij terug ----
     oversteek:function(e,s,naar,afst,sp){
@@ -1761,12 +1982,7 @@
           e.bT=(e.bT||0)-s;
           if(e.bT<=0){ e.bT=(TYPE[e.tp].cd||3.4)+Math.random()*1.6;
             this.spuw(e,TYPE[e.tp].sal||1,0.06); } } }
-      else if(e.prof==='baas'){
-        const snelF=(e.hp<e.hpM*0.5)?1.7:1;
-        e.p.addScaledVector(naar,(afst-44)*0.35*s*3);
-        e.p.x=Math.sin(e.t*0.28)*22;
-        e.p.y=1.6+Math.sin(e.t*0.42)*7;
-        if(e.cd<=0){ e.cd=(1.9+Math.random())/snelF; this.spuw(e,T.sal,0.22); } }
+      else if(e.prof==='baas'){ this.baasBaan(e,s,naar,afst); }
       else if(e.prof==='duiker'){ this.profiel(e,s,naar,afst,sp);
         if(e.mode==='nader'&&afst>AFST[Math.min(2,e.stap)]+e.r*1.3+1.2) this.halte(e,s,naar,afst,sp*0.4); }
       else if(e.stijl==='route'){ this.routeBaan(e,s,sp); }
@@ -1776,7 +1992,7 @@
 
       // ---- botsing met de speler ----
       const dm=e.p.distanceTo(eye);
-      if(dm<e.r+1.4){ this.raakMij(2+e.sc*0.2);
+      if(dm<e.r+1.4&&!e.intro){ this.raakMij(2+e.sc*0.2);
         e.p.addScaledVector(naar,-(e.r+2.6-dm)*3);
         this.vonk(e.p.x,e.p.y,e.p.z,0xff4040,6,8,0.8); }
 
@@ -1878,7 +2094,7 @@
 
     nieuweGolf:function(){
       this.wave++;
-      if(this.wave>20){ this.levelKlaar(); return; }
+      if(this.wave>20){ this.baasKomt(); return; }
       this.plan=this.golfPlan(this.wave);
       this.planT=0; this.rij=[]; this.veldMax=0; this.gi=0; this.groepT=0;
       for(let i=0;i<this.plan.length;i++) this.plan[i].uit=0;
@@ -1981,6 +2197,11 @@
       this.wave=0;
       this.toonGroot('ROUND CLEAR','#8fd84a');
       SND.zeg('Round clear'); },
+
+    baasKomt:function(){
+      this.state='baaswacht'; this.golfT=3.4; this.baasWeg=false;
+      SND.alarm(); SND.zeg('Warning');
+      this.toonGroot('!!  WARNING  !!','#ff3d55'); },
 
     // ---- de rustpauze zelf ----
     rustTick:function(s){
@@ -2089,6 +2310,7 @@
           SND.laz(this.dir.x*0.5,L.k,L.n); }
         if(L.k>=L.n) W.laz=null; }
 
+      this.objTick(s);
       if(window.DEMO) this.demoTick(s);
 
       // ---- doorlopend vuren zolang de trigger vast zit ----
@@ -2097,7 +2319,7 @@
       // ---- vijanden ----
       let levend=0;
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i]; if(!e.live) continue;
-        this.baan(e,s); if(!e.dood) levend++;
+        this.baan(e,s); if(!e.dood&&!e.dood2&&e.prof!=='baas') levend++;
         if(e.p.z>70&&!e.ring&&e.stijl!=='over'&&e.stijl!=='route'){ this.bbVrij(e.bb); e.bb=null; e.live=false;   // pas ver achter je opruimen
           if(e.romp){ e.romp.visible=false; e.romp=null; } }               // ontsnapt
         if(window.PAUSED) return; }
@@ -2177,6 +2399,15 @@
 
       // ---- golvenmachine ----
       if(this.state==='rust'){ this.rustTick(s); }
+      else if(this.state==='baaswacht'){ this.golfT-=s;
+        if(this.golfT<=0){ this.toonGroot('',''); 
+          const zij=(Math.random()<0.5?-1:1);
+          this.baas=this.spawn(BAAS,{x:zij*230,z:-70,y:this.kop.y+8});
+          if(this.baas) this.baas.izij=-zij;             // dan scheert hij naar de andere kant
+          this.state='baas'; } }
+      else if(this.state==='baas'){
+        if(this.baasWeg||!this.baas||!this.baas.live){ this.baas=null;
+          this.baasBalkUit(); this.levelKlaar(); } }
       else if(this.state==='wacht'){ this.golfT-=s; if(this.golfT<=0) this.nieuweGolf(); }
       else if(this.state==='vechten'){
         const klaar=this.planTick(s,levend);
@@ -2355,15 +2586,43 @@
         // zodat je er alleen tegenaan kijkt als je je omdraait.
         this.hemel.rotation.y=Math.PI/2;
         this.hemel.material.map=t; this.hemel.material.needsUpdate=true; }
+      // Losse objecten: planeten, stations, wrakken. Ze hangen rondom je in de ruimte
+      // en drijven heel langzaam mee, zodat de wereld leeft zonder af te leiden.
       window.ART.objs.forEach(function(t){
         if(t.__gebruikt) return; t.__gebruikt=true;
         const ar=(t.image&&t.image.width)?t.image.width/t.image.height:1;
-        const h=46+Math.random()*30, w=h*ar;
-        const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),
+        // Staat hij in de map Baas, dan is het een baas. Anders raden op breedte:
+        // een baas is breed en doorzichtig, planeten en stations zijn vierkant.
+        const isBaas=(t.__baas===1)||(t.__baas===undefined&&ar>=1.30);
+        if(isBaas){ self.bazen=self.bazen||[]; self.bazen.push(t); return; }
+        // grote platen worden grote objecten: een planeet van 2000 px hoort geen keitje te zijn
+        const px=(t.image&&t.image.height)?t.image.height:1024;
+        const maat=Math.max(38,Math.min(210,px*0.075))*(0.75+Math.random()*0.6);
+        const hh=maat, w=maat*ar;
+        const m=new THREE.Mesh(new THREE.PlaneGeometry(w,hh),
           new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false}));
-        const a=Math.random()*6.283, d=72+Math.random()*26;          // altijd binnen de sterrenbol
-        m.position.set(Math.cos(a)*d,10+Math.random()*34,-Math.abs(Math.sin(a)*d)-30);
-        m.renderOrder=-14; self.par.add(m); self.skyObjs.push(m); }); },
+        // hoe groter, hoe verder weg — anders staat een planeet bovenop je
+        const d=Math.min(275,80+maat*1.35+Math.random()*40);
+        const a=Math.random()*6.283;
+        m.position.set(Math.cos(a)*d,(Math.random()*0.5-0.12)*d*0.5,Math.sin(a)*d);
+        m.renderOrder=-14;
+        // Een level duurt ongeveer tien minuten en er mogen zo'n vier rondjes in,
+        // dus een rondje van twee tot drie minuten. Verder weg gaat iets rustiger.
+        const rondje=(118+Math.random()*62)*(0.8+d/420);
+        m.userData.baan={a:a,d:d,y:m.position.y,
+          w:(Math.random()<0.5?-1:1)*(6.2832/rondje),
+          b:Math.random()*6.283, bs:0.16+Math.random()*0.18};
+        self.par.add(m); self.skyObjs.push(m); }); },
+
+    // ---- de trage drift van de losse objecten ----
+    objTick:function(s){
+      if(!this.skyObjs||!this.skyObjs.length) return;
+      const k=this.kop||{x:0,y:1.6,z:0};
+      for(let i=0;i<this.skyObjs.length;i++){ const m=this.skyObjs[i], B=m.userData.baan;
+        if(!B) continue;
+        B.a+=B.w*s; B.b+=B.bs*s;
+        m.position.set(Math.cos(B.a)*B.d, B.y+Math.sin(B.b)*B.d*0.02, Math.sin(B.a)*B.d);
+        m.lookAt(k.x,k.y,k.z); } },
 
     // =====================================================
     //  DEMO — de autopiloot speelt, jij kijkt
