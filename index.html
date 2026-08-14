@@ -58,7 +58,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.29';
+  const VERSIE='v11.30';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -773,7 +773,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.29" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.30" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -924,6 +924,8 @@
   const RUIMTE_HEL=78;
   // Waar TITAN PRIME komt te staan. Meteen goed, niet aan komen vliegen.
   const REUSAFSTAND=60;
+  // Taaiheid van de gewone vijanden. 1,00 is zoals ze getekend zijn.
+  const VIJHP=0.88;
   const ZUIGR=70;                 // bereik van de vortex op zijn wijdst
   const OVER=[56,40,26];        // afstandsbanden waarop een oversteker langs je scheert
   // ---------------------------------------------------------------
@@ -1868,7 +1870,10 @@
           e.baasAr=(bt.image&&bt.image.width)?bt.image.width/bt.image.height:1.7; }
         else if(P){ bb.m.material=P.mat; this.uvRect(bb.g,P.rect[T.rij][0]); }
         else { bb.m.material=this.bbMat; this.bbCel(bb,Math.min(7,tp)); }
-        e.hp=e.hpM=Math.round(T.hp*((opt&&opt.hp)||1));
+        // Eén knop voor de taaiheid van alle gewone vijanden, zodat hun
+        // onderlinge verhoudingen blijven kloppen. Bazen hebben hun eigen getal.
+        e.hp=e.hpM=Math.max(1,Math.round(T.hp*((opt&&opt.hp)||1)*
+          (T.prof==='baas'?1:VIJHP)));
         e.sc=T.br*((opt&&opt.sc)||1);
         if(T.prof==='baas'&&e.gedrag==='reus'){ e.sc=134;
           e.hp=e.hpM=Math.round(6200*((opt&&opt.hp)||1)); }   // de eindbaas blijft zwaarder
