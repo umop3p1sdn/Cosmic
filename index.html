@@ -45,7 +45,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.18';
+  const VERSIE='v11.20';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -717,15 +717,16 @@
   '         background="color:#02050c">'+
   '  <a-entity id="rig" position="0 0 0" cosmic>'+
   '    <a-camera id="cam" wasd-controls-enabled="false" far="420">'+
-  '      <a-text id="hudL" value="" align="left"   color="#9fe4f5" width="1.5" position="-0.46 -0.50 -1.2"></a-text>'+
-  '      <a-plane id="krachtA" position="-0.30 -0.56 -1.21" width="0.30" height="0.012" material="color:#12303c;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
-  '      <a-plane id="krachtB" position="-0.45 -0.56 -1.20" width="0.30" height="0.012" material="color:#35e8ff;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
-  '      <a-text id="hudR" value="" align="right"  color="#9fe4f5" width="1.5" position="0.46 -0.50 -1.2"></a-text>'+
-  '      <a-text id="baasNaam" value="" align="center" color="#ff8aa6" width="2.2" position="0 0.62 -1.3"></a-text>'+
-  '      <a-plane id="baasBalkA" visible="false" position="0 0.56 -1.31" width="0.62" height="0.022" material="color:#3a1420;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
-  '      <a-plane id="baasBalkB" visible="false" position="-0.31 0.56 -1.30" width="0.62" height="0.022" material="color:#ff3d55;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
-  '      <a-text id="hudC" value="" align="center" color="#ffb03a" width="2.6"  position="0 0.26 -1.3"></a-text>'+
-  '      <a-text id="hudW" value="" align="center" color="#e8f6ff" width="1.7"  position="0 -0.18 -1.25"></a-text>'+
+  '      <a-text id="hudL" value="" align="left"   color="#9fe4f5" width="1.4" position="-0.50 -0.46 -1.2"></a-text>'+
+  '      <a-plane id="krachtA" position="-0.35 -0.535 -1.21" width="0.30" height="0.011" material="color:#12303c;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="krachtB" position="-0.50 -0.535 -1.20" width="0.30" height="0.011" material="color:#35e8ff;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-text id="hudR" value="" align="right"  color="#9fe4f5" width="1.4" position="0.50 -0.46 -1.2"></a-text>'+
+  '      <a-text id="hudS" value="" align="right"  color="#5f9ab5" width="1.2" position="0.50 -0.535 -1.2"></a-text>'+
+  '      <a-text id="baasNaam" value="" align="center" color="#ff8aa6" width="2.0" position="0 0.545 -1.3"></a-text>'+
+  '      <a-plane id="baasBalkA" visible="false" position="0 0.475 -1.31" width="0.62" height="0.022" material="color:#3a1420;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="baasBalkB" visible="false" position="-0.31 0.475 -1.30" width="0.62" height="0.022" material="color:#ff3d55;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-text id="hudC" value="" align="center" color="#ffb03a" width="2.6"  position="0 0.30 -1.3"></a-text>'+
+  '      <a-text id="hudW" value="" align="center" color="#e8f6ff" width="1.6"  position="0 -0.24 -1.25"></a-text>'+
   '      <a-plane id="hurt"  position="0 0 -0.31" width="2.6" height="2.6" material="color:#ff2030;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-plane id="flits" position="0 0 -0.32" width="2.6" height="2.6" material="color:#dfe8ff;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-entity id="touchHand" rotation="45 0 0"></a-entity>'+
@@ -753,7 +754,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.18" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.20" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -899,6 +900,9 @@
   // Sjoerd ziet de vlam vooraan vliegen, dus de raketten staan op zijn platen
   // andersom dan ik uit de tekening opmaakte. Deze stand draait ze om.
   const VLAMOM=true;
+  // Achtergronden onder deze helderheid gelden als "diepe ruimte". Daarboven zie
+  // je lucht, wolken of een planeetoppervlak, en hangt er dus geen planeet in beeld.
+  const RUIMTE_HEL=78;
   const ZUIGR=70;                 // bereik van de vortex op zijn wijdst
   const OVER=[56,40,26];        // afstandsbanden waarop een oversteker langs je scheert
   // ---------------------------------------------------------------
@@ -2146,7 +2150,7 @@
       if(Math.abs(d-(this.balkD||0))<0.004) return; this.balkD=d;
       const br=Math.max(0.004,0.62*d);
       B.setAttribute('width',br.toFixed(4));
-      B.setAttribute('position',(-0.31+br/2).toFixed(4)+' 0.56 -1.30');
+      B.setAttribute('position',(-0.31+br/2).toFixed(4)+' 0.475 -1.30');
       B.setAttribute('material','color:'+(d>0.5?'#ff3d55':(d>0.2?'#ffb03a':'#ffe45c'))+
         ';shader:flat;depthWrite:false;depthTest:false'); },
 
@@ -2932,14 +2936,16 @@
       if((this.hudT=(this.hudT||0)-1)>0) return; this.hudT=14;
       const p=Math.round(this.power);
       const l=p+'%     ULT '+this.ults;
-      const r='LEVEL '+this.level+' / '+LEVELS+'     WAVE '+Math.max(1,this.wave)+' / 20\n'+
-              this.punten.toLocaleString('nl-NL');
+      const r='LEVEL '+this.level+' / '+LEVELS+'     WAVE '+Math.max(1,this.wave)+' / 20';
+      const sc=this.punten.toLocaleString('nl-NL');
+      if(sc!==this.hudSv){ this.hudSv=sc;
+        const e=document.querySelector('#hudS'); if(e) e.setAttribute('value',sc); }
       // krachtbalkje onder de cijfers
       const bb=document.querySelector('#krachtB');
       if(bb&&p!==this.hudP){ this.hudP=p;
         const br=Math.max(0.004,0.30*Math.max(0,p)/100);
         bb.setAttribute('width',br.toFixed(3));
-        bb.setAttribute('position',(-0.45+br/2).toFixed(3)+' -0.56 -1.20');
+        bb.setAttribute('position',(-0.50+br/2).toFixed(3)+' -0.535 -1.20');
         bb.setAttribute('material','color:'+(p>50?'#35e8ff':(p>20?'#ffb03a':'#ff3d55'))+
           ';shader:flat;depthWrite:false;depthTest:false'); }
       if(window.DEMO){ const dd=document.querySelector('#hudC');
@@ -3108,10 +3114,17 @@
     objZet:function(){
       if(!this.skyObjs||!this.skyObjs.length) return;
       const L=Math.max(1,this.level||1);
-      // Level 1 en 2 spelen boven de aarde, met wolken en water. Een planeet die
-      // daar voorbij komt drijven klopt niet, dus die begint pas in level 3.
-      const uit=(L<=2);
-      const kies=uit?-1:((L-3)%this.skyObjs.length);
+      // Een planeet hoort in de ruimte, niet boven een landschap of tussen de
+      // wolken. De helderheid van de achtergrond verraadt welke het is: lucht
+      // en land zijn licht, diepe ruimte is donker.
+      const H=(this.hemels&&this.hemels.length)
+        ? this.hemels[(L-1)%this.hemels.length] : null;
+      const hel=H?H.hel:0;
+      const ruimte=(hel<RUIMTE_HEL);
+      let kies=-1;
+      if(ruimte&&L>2){
+        // alleen door de planeten en props lopen die bij een ruimtehemel passen
+        kies=(L-3)%this.skyObjs.length; }
       for(let i=0;i<this.skyObjs.length;i++) this.skyObjs[i].visible=(i===kies);
       this.objI=kies; },
 
