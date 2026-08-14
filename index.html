@@ -58,7 +58,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.23';
+  const VERSIE='v11.24';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -773,7 +773,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.23" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.24" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -908,13 +908,13 @@
   // te schieten, gr = hoe groot hij oogt.
   const VUUR={
     // één dikke trage raket die je echt moet stukschieten
-    zwaar: {soorten:1, nmin:1, nmax:2, sp:8,  hp:14, gr:2.2, cd:1.15},
+    zwaar: {soorten:1, nmin:1, nmax:1, sp:8,  hp:14, gr:2.2, cd:1.45},
     // twee soorten, gewoon tempo
-    duo:   {soorten:2, nmin:2, nmax:3, sp:14, hp:5,  gr:1.2, cd:1.0},
+    duo:   {soorten:2, nmin:1, nmax:2, sp:14, hp:5,  gr:1.2, cd:1.35},
     // veel raketten tegelijk, maar zo kapot
-    zwerm: {soorten:3, nmin:4, nmax:6, sp:17, hp:2,  gr:0.8, cd:0.85},
+    zwerm: {soorten:3, nmin:3, nmax:4, sp:17, hp:2,  gr:0.8, cd:1.30},
     // één snelle rechte straal
-    straal:{soorten:1, nmin:3, nmax:4, sp:26, hp:3,  gr:0.7, cd:1.2}
+    straal:{soorten:1, nmin:2, nmax:3, sp:26, hp:3,  gr:0.7, cd:1.55}
   };
   // Sjoerd ziet de vlam vooraan vliegen, dus de raketten staan op zijn platen
   // andersom dan ik uit de tekening opmaakte. Deze stand draait ze om.
@@ -1050,7 +1050,7 @@
     {n:'ORACLE',    pl:13,rij:9, br:16, hp:200, pt:320, sp:6,  sal:1, cd:5.5, prof:'kruiper', zwaar:1, f1:0.48, f2:0.20},
     {n:'TITAN',     pl:13,rij:10,br:24, hp:330, pt:460, sp:4,  sal:2, cd:3.4, prof:'drijver', f1:0.86, f2:0.32},
     {n:'NOVA',      pl:13,rij:11,br:29, hp:400, pt:600, sp:4,  sal:3, cd:4.0, prof:'immel',   zwaar:1, f1:0.62, f2:0.25},
-    {n:'MOTHERSHIP',pl:0, rij:0, br:60, hp:5200,pt:9000,sp:5,  sal:3, cd:1.9, prof:'baas', zwaar:1, f1:0.70, f2:0.32}
+    {n:'MOTHERSHIP',pl:0, rij:0, br:60, hp:3900,pt:9000,sp:5,  sal:3, cd:1.9, prof:'baas', zwaar:1, f1:0.70, f2:0.32}
   ];
   const BAAS=30;
   // welke soorten er in welk level meedoen (elk level acht soorten, vier ervan nieuw)
@@ -1867,7 +1867,7 @@
         e.hp=e.hpM=Math.round(T.hp*((opt&&opt.hp)||1));
         e.sc=T.br*((opt&&opt.sc)||1);
         if(T.prof==='baas'&&e.gedrag==='reus'){ e.sc=134;
-          e.hp=e.hpM=Math.round(9000*Math.min(1.9,(opt&&opt.hp)||1)); }
+          e.hp=e.hpM=Math.round(7000*Math.min(1.9,(opt&&opt.hp)||1)); }
         // de reus is enorm maar zijn raakbol blijft binnen zijn houdafstand,
         // anders ramt hij je onafgebroken terwijl hij gewoon staat te vechten
         e.r=e.sc*(e.gedrag==='reus'?0.30:0.42);
@@ -2003,7 +2003,7 @@
       if(e.bb) e.bb.m.rotation.z=e.rol;
       e.p.y=this.kop.y+hoogte+Math.sin(e.t*(reus?0.18:0.33))*e.hb+(reus?e.bh*0.16:0);
       const deel=e.hp/e.hpM;
-      const woede=1+(1-deel)*1.4;                       // hoe lager zijn kracht, hoe feller
+      const woede=1+(1-deel)*0.85;                      // hoe lager zijn kracht, hoe feller
 
       // ---- salvo's: hij leent de projectielen van zijn vloot ----
       e.cd-=s*woede;
@@ -2022,7 +2022,7 @@
         if(e.hulpT<=0&&mech<4){ e.hulpT=13+Math.random()*7; this.reusHulp(e); }
         else if(e.hulpT<=0) e.hulpT=4; }
       // ---- bij elke drempel stuurt hij een ander soort op je af ----
-      const drempels=[0.85,0.68,0.52,0.36,0.20];
+      const drempels=[0.92,0.80,0.68,0.56,0.44,0.32,0.20,0.10];
       e.stuur=e.stuur||0;
       if(e.stuur<drempels.length&&deel<=drempels[e.stuur]){
         this.baasZwerm(e,e.stuur); e.stuur++; }
@@ -2159,7 +2159,7 @@
       const lijst=(fase%2===0||!zwaar.length)?licht:zwaar;
       if(!lijst.length) return;
       const tp=lijst[fase%lijst.length];
-      const n=(TYPE[tp].br<=9)?(4+fase):(2+Math.floor(fase/2));
+      const n=(TYPE[tp].br<=9)?(4+Math.min(5,fase)):(2+Math.floor(fase/2));
       this.vorm='wig'; this.vormI=0; this.vormN=n;
       this.vormC={hoek:(Math.random()-0.5)*1.4, oy:(Math.random()-0.5)*20};
       this.vormS='halte'; this.vormZ=1;
@@ -2659,7 +2659,7 @@
     reusKeus:function(){
       const R=(this.bazen||[]).filter(function(b){ return b.gedrag==='reus'; });
       return R[0]||this.baasKeus(1); },
-    baasKracht:function(L){ return 1+(Math.max(1,L)-1)*0.085; },   // elk level taaier
+    baasKracht:function(L){ return 1+(Math.max(1,L)-1)*0.060; },   // elk level taaier
     // Ken je hem al, dan is het een terugkeer: minder kracht, want de verrassing is eraf.
     baasEerder:function(naam){
       this.gezien=this.gezien||{};
