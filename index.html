@@ -45,7 +45,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.14';
+  const VERSIE='v11.15';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -750,7 +750,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.14" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.15" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -893,9 +893,9 @@
     // één snelle rechte straal
     straal:{soorten:1, nmin:3, nmax:4, sp:26, hp:3,  gr:0.7, cd:1.2}
   };
-  // Staan de raketten op jouw platen met de neus OMLAAG getekend? Zet dit dan op
-  // true, dan draait het spel ze om. Op de huidige platen staat de neus boven.
-  const VLAMOM=false;
+  // Sjoerd ziet de vlam vooraan vliegen, dus de raketten staan op zijn platen
+  // andersom dan ik uit de tekening opmaakte. Deze stand draait ze om.
+  const VLAMOM=true;
   const ZUIGR=70;                 // bereik van de vortex op zijn wijdst
   const OVER=[56,40,26];        // afstandsbanden waarop een oversteker langs je scheert
   // ---------------------------------------------------------------
@@ -1424,9 +1424,17 @@
     // staat daarom uit; hij is er voor het geval een plaat andersom getekend is.
     uvRect:function(g,R,keer){
       const a=g.attributes.uv;
-      if(keer&&VLAMOM&&R&&!R.draai){
-        a.setXY(0,R.u0,R.v0); a.setXY(1,R.u1,R.v0);
-        a.setXY(2,R.u0,R.v1); a.setXY(3,R.u1,R.v1);
+      if(keer&&VLAMOM&&R){
+        if(R.draai){                                // liggend: andere kant als kop
+          if(R.kop==='rechts'){
+            a.setXY(0,R.u0,R.v0); a.setXY(1,R.u0,R.v1);
+            a.setXY(2,R.u1,R.v0); a.setXY(3,R.u1,R.v1); }
+          else {
+            a.setXY(0,R.u1,R.v1); a.setXY(1,R.u1,R.v0);
+            a.setXY(2,R.u0,R.v1); a.setXY(3,R.u0,R.v0); } }
+        else {                                      // rechtop: ondersteboven
+          a.setXY(0,R.u0,R.v0); a.setXY(1,R.u1,R.v0);
+          a.setXY(2,R.u0,R.v1); a.setXY(3,R.u1,R.v1); }
         a.needsUpdate=true; return; }
       if(R&&R.draai){
         if(R.kop==='rechts'){                       // kop rechts -> kwartslag tegen de klok in
