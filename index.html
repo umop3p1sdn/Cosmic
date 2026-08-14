@@ -45,7 +45,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.9';
+  const VERSIE='v11.10';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -67,8 +67,7 @@
   let laadOpen=false;
   function laadKlaar(){
     if(laadOpen) return; laadOpen=true;
-    const l=$('#laad'), e=$('#enter'), t=$('#pct');
-    if(t) t.textContent='READY';
+    const l=$('#laad'), e=$('#enter');
     if(l) l.className='klaar';
     // Het knipperen wordt hier geteld in plaats van met een CSS-animatie. Die start
     // namelijk niet als alles al in de cache zit en dit scherm meteen klaar is.
@@ -108,9 +107,10 @@
     const pc=Math.round(20+deel*80);
     const b=$('#bar i'), t=$('#pct');
     if(b) b.style.width=pc+'%';
-    if(t&&!laadOpen) t.textContent=(tot? ('LOADING  '+af+' / '+tot) : 'SEARCHING ART')+
-      (rij? '   +'+rij : '');
-    if(A.af&&!rij&&tot>0&&C&&C.hemels&&C.hemels.length>=0) laadKlaar();
+    if(t) t.textContent=(A.af&&tot>0)?'READY':(tot?('LOADING  '+af+' / '+tot):'LOADING');
+    // Geen voorwaarden: de knop staat er meteen en drukken mag altijd.
+    // Wat nog niet binnen is laadt in het menu gewoon door.
+    laadKlaar();
     if(!laadOpen) setTimeout(laadVolgen,220); }
 
   function laadWeg(){ /* het scherm gaat nu pas weg als jij erop tikt */ }
@@ -747,7 +747,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.9" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.10" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -1043,8 +1043,13 @@
   const LEVELS=NIVEAU.length;
   const CD=[110,760,360,1400,300,60];
 
-  if(typeof AFRAME!=='undefined')
-  AFRAME.registerComponent('cosmic',{
+  // De spelcomponent wordt geregistreerd zodra A-Frame er echt is — vanuit boot.
+  // In v11.9 werd hij bij een ontbrekend A-Frame stilletjes OVERGESLAGEN; kwam
+  // A-Frame daarna alsnog binnen, dan bouwde boot een scene zonder spel en bleef
+  // het laadscherm eeuwig op LOADING 38/38 staan.
+  function registreerCosmic(){
+    if(window.__cosmicReg||typeof AFRAME==='undefined') return; window.__cosmicReg=1;
+    AFRAME.registerComponent('cosmic',{
     init:function(){ try{
       const self=this;
       this.par=this.el.object3D;                       // zelfde renderpad als alles wat werkt
@@ -3124,7 +3129,8 @@
       this.paneel(true,'ALL SECTORS CLEARED','score '+this.punten+'   kills '+this.gedood+
         '\nbest combo '+this.beste+'   continues '+this.contN,'BACK TO MENU');
       this.klaar=true; }
-  });
+  }); }
+  registreerCosmic();
 
   // =========================================================
   //  SCOREBORD
@@ -3252,6 +3258,7 @@
       if(aframeWacht<200){ setTimeout(boot,250); return; }
       if(t) t.textContent='A-FRAME FAILED TO LOAD - refresh the page';
       return; }
+    registreerCosmic();                     // vangnet: A-Frame kwam pas later binnen
     prog(20,'SCENE');
     document.body.insertAdjacentHTML('beforeend',SCENE_HTML);
     const sc=document.querySelector('a-scene');
