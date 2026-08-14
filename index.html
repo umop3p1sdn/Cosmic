@@ -58,7 +58,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.22';
+  const VERSIE='v11.23';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -773,7 +773,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.22" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.23" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -2936,8 +2936,16 @@
       for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(!B.live) continue;
         const q=this.KP2||(this.KP2=new THREE.Vector3());
         q.copy(B.o).addScaledVector(B.dir,B.d);
-        const dx=q.x-p.x, dy=q.y-p.y, dz=q.z-p.z;
-        if(dx*dx+dy*dy+dz*dz>r2*(B.zwaar?2.6:1)) continue;
+        // Een raket is geen punt maar een staaf van een paar meter. Vroeger telde
+        // alleen zijn middelpunt, dus je kon er dwars doorheen schieten terwijl je
+        // hem zag. Nu wordt de afstand tot zijn hele lengte gemeten.
+        const halve=Math.max(0.6,(B.len||2.4)*0.5);
+        let ax=p.x-q.x, ay=p.y-q.y, az=p.z-q.z;
+        let t=ax*B.dir.x+ay*B.dir.y+az*B.dir.z;
+        if(t>halve) t=halve; else if(t<-halve) t=-halve;
+        const dx=q.x+B.dir.x*t-p.x, dy=q.y+B.dir.y*t-p.y, dz=q.z+B.dir.z*t-p.z;
+        const rr=r2*(B.zwaar?2.6:1.5)+((B.br||0.5)*0.5)*((B.br||0.5)*0.5);
+        if(dx*dx+dy*dy+dz*dz>rr) continue;
         B.hp-=dmg;
         if(B.hp>0){ SND.hit(q.x*0.02,0.3);
           this.vonk(q.x,q.y,q.z,0xffd9a0,3,5,0.4); return 1; }
