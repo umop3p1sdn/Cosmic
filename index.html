@@ -58,7 +58,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.24';
+  const VERSIE='v11.26';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -773,7 +773,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.24" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.26" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -922,6 +922,8 @@
   // Achtergronden onder deze helderheid gelden als "diepe ruimte". Daarboven zie
   // je lucht, wolken of een planeetoppervlak, en hangt er dus geen planeet in beeld.
   const RUIMTE_HEL=78;
+  // Waar TITAN PRIME komt te staan. Meteen goed, niet aan komen vliegen.
+  const REUSAFSTAND=60;
   const ZUIGR=70;                 // bereik van de vortex op zijn wijdst
   const OVER=[56,40,26];        // afstandsbanden waarop een oversteker langs je scheert
   // ---------------------------------------------------------------
@@ -1844,6 +1846,7 @@
         e.stijl=(opt&&opt.stijl)||'halte'; e.zij=(opt&&opt.zij)||1; e.overs=0;
         e.dood2=0; e.dt=0; e.stuur=0; e.dz=0; e.hulpT=9; e.baasNaam=''; e.gedrag=''; e.trioI=null;
         e.trip=0; e.tripT=0; e.tripAan=0; e.weer=0; e.wapens=null; e.vuur='duo'; e.rookT=0;
+        e.rijst=0; e.rt=0;
         e.vv=0; e.rol=0; e.zb=undefined; e.zw=undefined; e.hb=undefined; e.fase2=0;
         e.intro=(T.prof==='baas')?1:0; e.ip=0; e.it=0; e.iv=null; e.izij=0;
         e.route=(opt&&opt.route)||null; e.rp=(opt&&opt.rp)||0; e.rv=null;
@@ -1867,7 +1870,7 @@
         e.hp=e.hpM=Math.round(T.hp*((opt&&opt.hp)||1));
         e.sc=T.br*((opt&&opt.sc)||1);
         if(T.prof==='baas'&&e.gedrag==='reus'){ e.sc=134;
-          e.hp=e.hpM=Math.round(7000*Math.min(1.9,(opt&&opt.hp)||1)); }
+          e.hp=e.hpM=Math.round(6200*((opt&&opt.hp)||1)); }   // de eindbaas blijft zwaarder
         // de reus is enorm maar zijn raakbol blijft binnen zijn houdafstand,
         // anders ramt hij je onafgebroken terwijl hij gewoon staat te vechten
         e.r=e.sc*(e.gedrag==='reus'?0.30:0.42);
@@ -1958,6 +1961,7 @@
       const T=TYPE[e.tp];
       if(e.dood2){ this.baasSterft(e,s); return; }
       if(e.intro){ this.baasIntro(e,s); return; }
+      if(e.rijst){ this.reusRijst(e,s); return; }
       if(e.fase>=1){                                   // blijft nasmeulen
         e.rookT=(e.rookT||1.1)-s;
         if(e.rookT<=0){ e.rookT=(e.fase>=2)?0.55:1.1;
@@ -1978,7 +1982,7 @@
       if(e.tripT<=0){ e.trip=(e.trip+1)%R.length; e.tripT=R[e.trip].t*(0.8+Math.random()*0.5);
         if(R[e.trip].zeg) this.toonMelding(R[e.trip].zeg,'#ff8aa6'); }
       const F=R[e.trip];
-      const doel=reus?60:(F.d+e.r*0.32);
+      const doel=reus?REUSAFSTAND:(F.d+e.r*0.32);
       // naar zijn plek toe, sneller als hij aanvalt dan als hij terugzakt
       // Vol vooruit of vol achteruit schoot telkens voorbij zijn doel; dat gaf
       // het schokken. Nu remt hij af naarmate hij dichter bij zijn plek komt,
@@ -1990,7 +1994,7 @@
       const xv=e.p.x;
       // Bij een fasewissel veranderen breedte en tempo van zijn zwaai. Sprong je
       // daar in één klap heen, dan verspringt hij zichtbaar. Ze glijden mee.
-      const zbW=reus?12:(zijPlek?12:F.zb), zwW=reus?0.12:F.zw, hbW=reus?4:F.hb;
+      const zbW=reus?3.5:(zijPlek?12:F.zb), zwW=reus?0.09:F.zw, hbW=reus?1.2:F.hb;
       e.zb=(e.zb===undefined)?zbW:e.zb+(zbW-e.zb)*Math.min(1,s*0.9);
       e.zw=(e.zw===undefined)?zwW:e.zw+(zwW-e.zw)*Math.min(1,s*0.9);
       e.hb=(e.hb===undefined)?hbW:e.hb+(hbW-e.hb)*Math.min(1,s*0.9);
@@ -2001,7 +2005,9 @@
       const zijV=(e.p.x-xv)/Math.max(0.004,s);
       e.rol=(e.rol||0)+((Math.max(-1,Math.min(1,zijV/13))*0.50)-(e.rol||0))*Math.min(1,s*2.4);
       if(e.bb) e.bb.m.rotation.z=e.rol;
-      e.p.y=this.kop.y+hoogte+Math.sin(e.t*(reus?0.18:0.33))*e.hb+(reus?e.bh*0.16:0);
+      e.p.y=reus
+        ? (this.kop.y-e.bh*0.34+Math.sin(e.t*0.13)*e.hb)   // hoofd blijft op ooghoogte
+        : (this.kop.y+hoogte+Math.sin(e.t*0.33)*e.hb);
       const deel=e.hp/e.hpM;
       const woede=1+(1-deel)*0.85;                      // hoe lager zijn kracht, hoe feller
 
@@ -2046,6 +2052,17 @@
       // hij helt licht over in de bocht
       if(e.bb) e.bb.m.rotation.z=(e.iv.x)*0.28;
       if(e.it<0.2) this.toonGroot('!!  WARNING  !!','#ff3d55'); },
+
+    // TITAN PRIME schuift van onderen het beeld in tot zijn hoofd op ooghoogte
+    // staat. De rest van zijn lichaam blijft gewoon onder je zichtveld hangen.
+    reusRijst:function(e,s){
+      const doelY=this.kop.y-e.bh*0.34;              // hoofd bovenin, romp eronder
+      e.p.y+=Math.max(9,(doelY-e.p.y)*1.1)*s;
+      e.p.x+=(0-e.p.x)*Math.min(1,s*1.2);
+      e.rt=(e.rt||0)+s;
+      if(e.rt<0.3) this.toonGroot('!!  WARNING  !!','#ff3d55');
+      if(e.p.y>=doelY-0.5||e.rt>16){
+        e.p.y=doelY; e.rijst=0; e.cd=1.6; this.toonGroot('',''); } },
 
     baasPunt:function(e,i){
       const z=e.izij||(e.izij=(Math.random()<0.5?-1:1));
@@ -2659,7 +2676,10 @@
     reusKeus:function(){
       const R=(this.bazen||[]).filter(function(b){ return b.gedrag==='reus'; });
       return R[0]||this.baasKeus(1); },
-    baasKracht:function(L){ return 1+(Math.max(1,L)-1)*0.060; },   // elk level taaier
+    // Elke baas even sterk. Een oplopende kracht maakte de late gevechten
+    // alleen maar langer, niet spannender; het verschil moet uit zijn gedrag
+    // en zijn hulptroepen komen.
+    baasKracht:function(L){ return 1; },
     // Ken je hem al, dan is het een terugkeer: minder kracht, want de verrassing is eraf.
     baasEerder:function(naam){
       this.gezien=this.gezien||{};
@@ -2901,8 +2921,12 @@
             const zij=(Math.random()<0.5?-1:1);
             const keus=laatste?this.reusKeus():this.baasKeus(L);
             const weer=keus?this.baasEerder(keus.naam):false;
-            this.baas=this.spawn(BAAS,{x:zij*230,z:-70,y:this.kop.y+8,baas:keus,
-              hp:kr*(weer?0.62:1)});
+            const isReus=!!(keus&&keus.gedrag==='reus');
+            this.baas=isReus
+              ? this.spawn(BAAS,{x:0,z:-REUSAFSTAND,y:this.kop.y-260,baas:keus,hp:kr})
+              : this.spawn(BAAS,{x:zij*230,z:-70,y:this.kop.y+8,baas:keus,hp:kr*(weer?0.62:1)});
+            if(this.baas&&isReus){ this.baas.intro=0; this.baas.rijst=1; this.baas.rt=0;
+              SND.alarm(); SND.zeg('Warning'); }
             if(this.baas){ this.baas.izij=-zij; this.baas.weer=weer;
               if(weer) this.baas.baasNaam=(this.baas.baasNaam||'')+'  (RETURN)'; } }
           this.state='baas'; } }
