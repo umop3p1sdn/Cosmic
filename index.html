@@ -58,7 +58,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.27';
+  const VERSIE='v11.28';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -773,7 +773,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.27" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.28" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -2207,6 +2207,9 @@
     // Een stuk van zijn eigen plaat slaat eraf en tuimelt omlaag.
     brok:function(e,x,y,z,groot){
       if(!e.bb||!e.bb.m||!e.bb.m.material||!e.bb.m.material.map) return;
+      // Bij een reus zou een brokje net zo mee opschalen: blokken van meters die
+      // door je beeld tuimelen. Die krijgt alleen vonken en vuur.
+      if(e.gedrag==='reus') return;
       for(let i=0;i<this.brokken.length;i++){ const B=this.brokken[i]; if(B.live) continue;
         B.live=true; B.life=1;
         const mt=B.m.material;
