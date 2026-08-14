@@ -45,7 +45,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.10';
+  const VERSIE='v11.11';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -747,7 +747,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.10" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.11" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -772,6 +772,13 @@
   '      <a-text id="scoreLijst" position="0 -0.44 -2.55" value="" align="center" color="#9fe4f5" width="2.2"></a-text>'+
   '      <a-plane id="btnTech" class="menu-btn" position="0 -0.52 -2.57" width="1.70" height="0.26" material="color:#2a1d38;shader:flat"></a-plane>'+
   '      <a-text position="0 -0.52 -2.55" value="TEST" align="center" color="#b06cff" width="2.4"></a-text>'+
+  '      <a-entity id="nieuw" visible="false">'+
+  '        <a-plane position="0 1.05 -2.20" width="2.00" height="0.86" material="color:#0d1b12;shader:flat"></a-plane>'+
+  '        <a-text position="0 1.34 -2.18" value="NEW VERSION AVAILABLE" align="center" color="#8fd84a" width="2.6"></a-text>'+
+  '        <a-text id="nieuwTxt" position="0 1.13 -2.18" value="" align="center" color="#cfe8d0" width="2.0"></a-text>'+
+  '        <a-plane id="btnNieuw" class="menu-btn" position="0 0.84 -2.18" width="0.72" height="0.26" material="color:#1d3a24;shader:flat"></a-plane>'+
+  '        <a-text position="0 0.84 -2.16" value="OK" align="center" color="#bdf0a8" width="2.6"></a-text>'+
+  '      </a-entity>'+
   '      <a-entity id="tech" visible="false">'+
   '        <a-plane position="0 0.60 -2.40" width="2.10" height="1.30" material="color:#100a18;shader:flat"></a-plane>'+
   '        <a-text position="0 1.12 -2.38" value="TEST START" align="center" color="#b06cff" width="3.0"></a-text>'+
@@ -3229,6 +3236,7 @@
       if(t) t.setAttribute('visible',!!aan); };
     const lvToon=function(){ const t=document.querySelector('#lvTxt');
       if(t) t.setAttribute('value','LEVEL '+techLv); };
+    kl('#btnNieuw',function(){ versieHerlaad(); });
     kl('#btnTech',function(){ techToon(true); lvToon(); });
     kl('#btnTechUit',function(){ techToon(false); });
     kl('#btnLvMin',function(){ techLv=Math.max(1,techLv-1); lvToon(); });
@@ -3249,6 +3257,30 @@
   // =========================================================
   //  OPSTARTEN
   // =========================================================
+  // Kijkt of het bestand op de server een ander versienummer heeft dan wat er
+  // nu draait. Alleen de eerste 4 kB ophalen: het nummer staat op byte 2267.
+  function versieCheck(){
+    if(typeof fetch!=='function') return;
+    const url=location.pathname+'?vc='+Date.now();
+    fetch(url,{cache:'no-store',headers:{'Range':'bytes=0-4095'}})
+      .then(function(r){ return r.ok?r.text():null; })
+      .then(function(tx){
+        if(!tx) return;
+        const m=tx.match(/const VERSIE='([^']+)'/);
+        if(!m||m[1]===VERSIE) return;
+        const p=document.querySelector('#nieuw'), t=document.querySelector('#nieuwTxt');
+        if(t) t.setAttribute('value',VERSIE+'   ->   '+m[1]);
+        if(p) p.setAttribute('visible',true); })
+      .catch(function(){}); }
+
+  // OK: de pagina opnieuw halen zonder cache.
+  function versieHerlaad(){
+    try{ localStorage.removeItem('cosmic_art'); }catch(e){}
+    try{ if(window.caches&&caches.keys) caches.keys().then(function(k){
+      k.forEach(function(n){ caches.delete(n); }); }); }catch(e){}
+    setTimeout(function(){
+      location.replace(location.pathname+'?v='+Date.now()); },120); }
+
   let aframeWacht=0;
   function boot(){
     if(typeof AFRAME==='undefined'){
@@ -3276,7 +3308,8 @@
       setTimeout(laadVolgen,200); };
     if(sc.hasLoaded) klaar();
     else sc.addEventListener('loaded',klaar);
-    sc.addEventListener('renderstart',function(){ setTimeout(laadVolgen,300); });
+    sc.addEventListener('renderstart',function(){ setTimeout(laadVolgen,300);
+      setTimeout(versieCheck,4000); });        // rustig aan, na het opstarten
     setTimeout(function(){ if(!window.ART.totaal&&!laadOpen) laadKlaar(); },12000);  // geen art? toch door
     // ---- muis en aanraakscherm: zelfde spel zonder headset ----
     const C=function(){ const r=document.querySelector('#rig');
