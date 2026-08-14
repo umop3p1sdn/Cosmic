@@ -45,7 +45,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.16';
+  const VERSIE='v11.18';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -92,12 +92,12 @@
       window.removeEventListener('mousedown',weg); window.removeEventListener('touchstart',weg);
       window.removeEventListener('keydown',weg);
       if(window.__pols){ clearInterval(window.__pols); window.__pols=0; } };
-    // Het titelscherm mag niet wegflitsen op een tik die nog van het openen komt.
-    // Pas na vijf seconden gaat hij naar invoer luisteren.
+    // Alleen een korte dovetijd, zodat de tik waarmee je de pagina opende hem
+    // niet meteen wegdrukt. Verder mag je er direct doorheen.
     setTimeout(function(){
       window.addEventListener('mousedown',weg); window.addEventListener('touchstart',weg);
       window.addEventListener('keydown',weg);
-      if(l) l.addEventListener("click",weg); },5000); }
+      if(l) l.addEventListener("click",weg); },350); }
 
   // het laadscherm blijft staan tot alle platen binnen zijn
   function laadVolgen(){
@@ -441,6 +441,11 @@
       const url=ARTBASE+nm.split('/').map(encodeURIComponent).join('/');
       artLaad(url,function(t){
         klaar++; window.ART.klaar=klaar;
+        // METEEN afvinken. Stond dit onderaan, dan sprongen bazen en planeten er
+        // met een return overheen en bleef 'alles binnen' op onwaar staan — en
+        // dan weigeren LAUNCH, DEMO en TEST allemaal.
+        if(klaar>=n){ window.ART.af=true;
+          window.ART.vondst=window.ART.panos.length+' sky '+window.ART.objs.length+' obj'; }
         if(t&&t.image&&t.image.width){
           t.__naam=nm;                                       // naam bewaren voor de volgorde
           const ar=t.image.width/t.image.height;
@@ -462,9 +467,7 @@
             window.ART.schepen.push(t); }
           else window.ART.objs.push(t);
           if(window.ART.nieuw) window.ART.nieuw(); }
-        if(klaar>=n){ window.ART.af=true;
-          window.ART.vondst=(window.ART.schepen?'fleet ':'')+
-            window.ART.panos.length+' sky '+window.ART.objs.length+' obj'; } }); }); }
+        }); }); }
 
   // De naam van een onderliggende map zegt wat er in zit. Staat een bestand los
   // in Art, dan raadt de code het zelf op verhouding en doorzichtigheid.
@@ -750,7 +753,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.16" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.18" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -2966,6 +2969,7 @@
       const tot=(A.totaal||0), af=(A.klaar||0);
       const rij=(this.hemelRij?this.hemelRij.length:0);
       const klaar=(A.af&&!rij&&!bezig)||tot===0;
+      window.ARTKLAAR=klaar;                        // altijd bijwerken, ook als de tekst gelijk blijft
       const st=(klaar?'klaar':(af+'/'+tot+(rij?'  +'+rij:'')));
       if(st===this.laadSt) return; this.laadSt=st;
       const t=document.querySelector('#startTxt'), k=document.querySelector('#btnStart');
