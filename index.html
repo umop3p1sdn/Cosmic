@@ -45,7 +45,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.15';
+  const VERSIE='v11.16';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -750,7 +750,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.15" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.16" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -1652,6 +1652,10 @@
         if(Math.random()<0.16){ this.knal(this.tmp.set(hx,hy,hz),e.sc*0.06);
           this.brok(e,hx,hy,hz,Math.random()<0.3); }
         else if(Math.random()<0.12) this.brok(e,hx,hy,hz,false); }
+      else if(e.hp>0&&e.bb){                         // gewone schepen laten ook wat los
+        const hx=(px!==undefined)?px:e.p.x, hy=(py!==undefined)?py:e.p.y, hz=(pz!==undefined)?pz:e.p.z;
+        if(Math.random()<0.30) this.brok(e,hx,hy,hz,false);
+        if(Math.random()<0.22) this.vonk(hx,hy,hz,0xffb03a,2,4,0.45); }
       if(e.hp>0){ SND.hit((px||e.p.x)*0.02,p);
         const Tf=TYPE[e.tp];
         const f1=(Tf.f1!==undefined)?Tf.f1:0.66, f2=(Tf.f2!==undefined)?Tf.f2:0.33;
@@ -2152,16 +2156,24 @@
         B.live=true; B.life=1;
         const mt=B.m.material;
         mt.map=e.bb.m.material.map; mt.opacity=1; mt.needsUpdate=true;
-        const w=0.10+Math.random()*0.10, hh=w;
-        const u0=0.08+Math.random()*(0.84-w), v0=0.08+Math.random()*(0.84-hh);
+        // Een baas vult zijn hele plaat; een gewoon schip staat in een vakje.
+        // Het brokje moet dus uit het juiste stukje van de plaat komen.
+        const R=(e.plaat&&e.plaat.rect[e.rij])?e.plaat.rect[e.rij][Math.min(1,e.fase||0)]:null;
+        let w=0.10+Math.random()*0.10, hh=w, u0, v0;
+        if(R){ const bw=(R.u1-R.u0), bh=(R.v1-R.v0);
+          w=bw*(0.16+Math.random()*0.16); hh=bh*(0.16+Math.random()*0.16);
+          u0=R.u0+bw*0.10+Math.random()*Math.max(0.0001,bw*0.80-w);
+          v0=R.v0+bh*0.10+Math.random()*Math.max(0.0001,bh*0.80-hh); }
+        else { u0=0.08+Math.random()*(0.84-w); v0=0.08+Math.random()*(0.84-hh); }
         const a=B.m.geometry.attributes.uv;
         a.setXY(0,u0,v0+hh); a.setXY(1,u0+w,v0+hh);
         a.setXY(2,u0,v0);    a.setXY(3,u0+w,v0); a.needsUpdate=true;
-        const m=(groot?1.9:1.0)*(0.5+Math.random()*0.7)*e.bw*0.075;
+        const m=(groot?1.9:1.0)*(0.5+Math.random()*0.7)*Math.max(0.5,e.bw*0.075);
         B.m.scale.set(m,m,1);
         B.m.position.set(x,y,z);
         B.m.rotation.set(0,0,Math.random()*6.283);
-        B.vx=(Math.random()-0.5)*13; B.vy=2+Math.random()*7; B.vz=(Math.random()-0.5)*8;
+        const kr=Math.max(0.45,Math.min(1.2,e.bw/16));
+        B.vx=(Math.random()-0.5)*13*kr; B.vy=(2+Math.random()*7)*kr; B.vz=(Math.random()-0.5)*8*kr;
         B.rz=(Math.random()-0.5)*4.2;
         B.m.visible=true; return; } },
 
@@ -2736,7 +2748,14 @@
       // ---- vijanden ----
       let levend=0;
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i]; if(!e.live) continue;
+        const xVoor=e.p.x;
         this.baan(e,s); if(!e.dood&&!e.dood2&&e.prof!=='baas') levend++;
+        // Zoals een vliegtuig een bocht maakt: naar links betekent rechterkant
+        // omhoog. Bazen regelen dit al in hun eigen routine.
+        if(e.bb&&e.prof!=='baas'&&!e.dood){
+          const zv=(e.p.x-xVoor)/Math.max(0.004,s);
+          e.rol=(e.rol||0)+((Math.max(-1,Math.min(1,zv/22))*0.55)-(e.rol||0))*Math.min(1,s*3.0);
+          e.bb.m.rotation.z=e.rol; }
         if(e.p.z>70&&!e.ring&&e.stijl!=='over'&&e.stijl!=='route'){ this.bbVrij(e.bb); e.bb=null; e.live=false;   // pas ver achter je opruimen
           if(e.romp){ e.romp.visible=false; e.romp=null; } }               // ontsnapt
         if(window.PAUSED) return; }
