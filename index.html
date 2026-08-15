@@ -58,7 +58,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.31';
+  const VERSIE='v11.32';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -773,7 +773,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.31" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.32" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -3646,7 +3646,11 @@
     const techStart=function(w){
       techToon(false);
       if(techLv>16){ startSpel(false,{l:1,w:0});
-        const c=C(); if(c){ c.par9klaar=1; c.paradeStart(); } return; }
+        // hier bestaat de verkorte C() niet; het spel zit op de rig
+        const rg=document.querySelector('#rig');
+        const c=rg&&rg.components&&rg.components.cosmic;
+        if(c){ c.par9klaar=1; c.paradeStart(); }
+        return; }
       startSpel(false,{l:techLv,w:w}); };
     kl('#btnFaseA',function(){ techStart(0); });
     kl('#btnFaseB',function(){ techStart(GOLVEN); });
