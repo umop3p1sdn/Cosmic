@@ -58,7 +58,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.33';
+  const VERSIE='v11.34';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -736,13 +736,13 @@
   '  <a-entity id="rig" position="0 0 0" cosmic>'+
   '    <a-camera id="cam" wasd-controls-enabled="false" far="420">'+
   '      <a-text id="hudL" value="" align="left"   color="#9fe4f5" width="1.4" position="-0.50 -0.46 -1.2"></a-text>'+
-  '      <a-plane id="krachtA" position="-0.35 -0.535 -1.21" width="0.30" height="0.011" material="color:#12303c;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
-  '      <a-plane id="krachtB" position="-0.50 -0.535 -1.20" width="0.30" height="0.011" material="color:#35e8ff;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="krachtA" position="-0.35 -0.535 -1.21" width="0.30" height="0.024" material="color:#e8f0f4;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="krachtB" position="-0.50 -0.535 -1.20" width="0.30" height="0.024" material="color:#ff3d55;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-text id="hudR" value="" align="right"  color="#9fe4f5" width="1.4" position="0.50 -0.46 -1.2"></a-text>'+
   '      <a-text id="hudS" value="" align="right"  color="#5f9ab5" width="1.2" position="0.50 -0.535 -1.2"></a-text>'+
   '      <a-text id="baasNaam" value="" align="center" color="#ff8aa6" width="2.0" position="0 0.545 -1.3"></a-text>'+
-  '      <a-plane id="baasBalkA" visible="false" position="0 0.475 -1.31" width="0.62" height="0.022" material="color:#3a1420;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
-  '      <a-plane id="baasBalkB" visible="false" position="-0.31 0.475 -1.30" width="0.62" height="0.022" material="color:#ff3d55;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="baasBalkA" visible="false" position="0 0.475 -1.31" width="0.62" height="0.034" material="color:#e8f0f4;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="baasBalkB" visible="false" position="-0.31 0.475 -1.30" width="0.62" height="0.034" material="color:#ff3d55;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-text id="hudC" value="" align="center" color="#ffb03a" width="2.6"  position="0 0.30 -1.3"></a-text>'+
   '      <a-text id="hudW" value="" align="center" color="#e8f6ff" width="1.6"  position="0 -0.24 -1.25"></a-text>'+
   '      <a-plane id="hurt"  position="0 0 -0.31" width="2.6" height="2.6" material="color:#ff2030;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
@@ -773,7 +773,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.33" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.34" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -3082,8 +3082,7 @@
         const br=Math.max(0.004,0.30*Math.max(0,p)/100);
         bb.setAttribute('width',br.toFixed(3));
         bb.setAttribute('position',(-0.50+br/2).toFixed(3)+' -0.535 -1.20');
-        bb.setAttribute('material','color:'+(p>50?'#35e8ff':(p>20?'#ffb03a':'#ff3d55'))+
-          ';shader:flat;depthWrite:false;depthTest:false'); }
+        }                                            // rood op wit, altijd
       this.mobKnop();
       if(window.DEMO){ const dd=document.querySelector('#hudC');
         if(dd&&this.meldC<=0){ dd.setAttribute('value','DEMO  -  press trigger to stop');
@@ -3385,7 +3384,7 @@
         this.dTijd+=s;
         if(this.dTijd>0.5){ this.dTijd=0;
           if(this.dRaak) this.dHou=Math.max(0,this.dHou-0.25);   // het lukt: minder voorhouden
-          else this.dHou=Math.min(2.2,this.dHou+0.22);           // het lukt niet: meer
+          else this.dHou=Math.min(1.2,this.dHou+0.22);           // het lukt niet: meer
           this.dRaak=0; } }
       const mik=this.DA||(this.DA=new THREE.Vector3());
       if(doos){ mik.copy(doos.p).sub(this.kop).normalize();
@@ -3399,7 +3398,10 @@
         else v.set(0,0,0);
         this.dVorig=this.dVorig||new THREE.Vector3(); this.dVorig.copy(best.p);
         const vlieg=best.p.distanceTo(this.kop)/150;             // reistijd van de kogel
-        mik.copy(best.p).addScaledVector(v,vlieg*this.dHou).sub(this.kop).normalize();
+        // Altijd volledig voorhouden op de gemeten snelheid — zijwaartse snelle
+        // schepen werden anders pas geraakt nadat het misser-mechanisme was
+        // opgelopen. dHou is nu alleen nog de correctie daarbovenop.
+        mik.copy(best.p).addScaledVector(v,vlieg*(1.0+this.dHou)).sub(this.kop).normalize();
         window.AIM=mik; }
       else { window.AIM=null; return; }
       this.fire(hA);
@@ -3417,7 +3419,11 @@
             w.copy(bB.o).addScaledVector(bB.dir,bB.d).sub(this.kop).normalize();
             window.AIM=w; this.fire(hA); this.fire(hB); } } }
       if(this.dT-(this.dW||0)>9){ this.dW=this.dT; this.wisDeb=0; this.wissel(hB); }
-      if(this.dT-(this.dU||0)>17&&this.ults>0){ this.dU=this.dT;
+      let druk=0;
+      for(let i=0;i<this.enemies.length;i++)
+        if(this.enemies[i].live&&!this.enemies[i].dood) druk++;
+      const ultNu=(this.dT-(this.dU||0)>11)||(druk>=12&&this.dT-(this.dU||0)>7);
+      if(ultNu&&this.ults>0){ this.dU=this.dT;
         const H=this.hands[(this.dUlt=(this.dUlt||0)+1)%2?this.prim:this.spec];
         if(H) this.ultimate(H); } },
 
@@ -3493,9 +3499,9 @@
         e.parade=1; e.hp=e.hpM=999999;                 // hij hoort niet te sneuvelen
         e.rol=0;
         P.e=e; P.fase='in'; P.t=0;
-        // Iedereen op DEZELFDE lijn, dichtbij — juist zo zie je hoe groot ze
-        // werkelijk zijn: een WASP past in je hand, TITAN PRIME is een muur.
-        P.d=PARADE_AFSTAND;
+        // Iedereen op DEZELFDE lijn, dichtbij — behalve de reus: die is op 14 m
+        // alleen nog pixels. Hij houdt zijn gevechtsafstand, dan zie je hem heel.
+        P.d=it.reus?REUSAFSTAND:PARADE_AFSTAND;
         P.naam=(it.baas?(it.baas.naam+'   -   BOSS'):TYPE[it.tp].n);
         this.toonGroot(P.naam,it.baas?'#ff8aa6':'#9fe4f5');
         return; }
