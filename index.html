@@ -5,7 +5,14 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
   <title>COSMIC SHOOTER</title>
   <style>
-    html,body{margin:0;padding:0;background:#04080f;overflow:hidden;font-family:'Trebuchet MS',sans-serif;}
+    html,body{margin:0;padding:0;background:#04080f;overflow:hidden;font-family:'Trebuchet MS',sans-serif;
+      /* Vinger op het scherm = schieten, geen tekst selecteren, geen kopieermenu,
+         geen dubbeltik-zoom en geen meeslepen van de pagina. */
+      -webkit-user-select:none; -moz-user-select:none; -ms-user-select:none; user-select:none;
+      -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent;
+      touch-action:none; overscroll-behavior:none;}
+    canvas,a-scene,#mob,#laad{touch-action:none; -webkit-user-select:none; user-select:none;
+      -webkit-touch-callout:none;}
     #laad{position:fixed;left:0;top:0;width:100%;height:100%;z-index:9999;
       background:radial-gradient(circle at 50% 42%,#0c2036 0%,#04080f 70%);
       color:#9fe4f5;display:flex;flex-direction:column;align-items:center;justify-content:center;}
@@ -27,8 +34,16 @@
       padding-bottom:2.2vh;color:#9fe4f5;letter-spacing:0.18em;}
     #mob .knop b{font-size:2.2vh;font-weight:400;opacity:0.85;}
     #mob .knop i{display:block;width:12vh;height:12vh;border-radius:50%;margin-top:1vh;
-      border:2px solid rgba(53,232,255,0.42);background:rgba(20,60,80,0.18);}
-    #mobL i{border-color:rgba(53,232,255,0.6);}
+      border:2px solid rgba(53,232,255,0.42);background:rgba(20,60,80,0.18);
+      pointer-events:auto;}                      /* dit zijn nu echte knoppen */
+    #mob .knop i:active{background:rgba(53,232,255,0.30);}
+    #mobL i{border-color:rgba(255,138,61,0.75);}   /* raketten */
+    #mobR i{border-color:rgba(160,108,255,0.75);}  /* void */
+    #mob .knop u{display:block;margin-top:1.2vh;padding:0.5vh 2.2vh;text-decoration:none;
+      font-size:1.9vh;letter-spacing:0.24em;color:#9fe4f5;pointer-events:auto;
+      border:1px solid rgba(53,232,255,0.42);background:rgba(20,60,80,0.18);}
+    #mob .knop u:active{background:rgba(53,232,255,0.30);}
+    #mob .knop.leeg i{opacity:0.30;}
     #ver{position:fixed;right:12px;bottom:10px;color:#2d5b74;letter-spacing:0.2em;font-size:12px;z-index:10000;}
     #err{position:fixed;left:0;bottom:0;width:100%;max-height:38%;overflow:auto;z-index:10001;
       color:#ff6b6b;background:rgba(0,0,0,0.82);font:11px monospace;padding:5px;white-space:pre-wrap;}
@@ -47,7 +62,7 @@
   <div id="err"></div>
   <div id="mob">
     <div class="knop" id="mobL"><b></b><i></i></div>
-    <div class="knop" id="mobR"><b></b><i></i></div>
+    <div class="knop" id="mobR"><b></b><i></i><u id="mobW">SWAP</u></div>
   </div>
 
   <!-- A-Frame staat bewust ONDER het laadscherm: de browser tekent eerst het
@@ -58,7 +73,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.34';
+  const VERSIE='v11.36';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -740,9 +755,9 @@
   '      <a-plane id="krachtB" position="-0.50 -0.535 -1.20" width="0.30" height="0.024" material="color:#ff3d55;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-text id="hudR" value="" align="right"  color="#9fe4f5" width="1.4" position="0.50 -0.46 -1.2"></a-text>'+
   '      <a-text id="hudS" value="" align="right"  color="#5f9ab5" width="1.2" position="0.50 -0.535 -1.2"></a-text>'+
-  '      <a-text id="baasNaam" value="" align="center" color="#ff8aa6" width="2.0" position="0 0.545 -1.3"></a-text>'+
-  '      <a-plane id="baasBalkA" visible="false" position="0 0.475 -1.31" width="0.62" height="0.034" material="color:#e8f0f4;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
-  '      <a-plane id="baasBalkB" visible="false" position="-0.31 0.475 -1.30" width="0.62" height="0.034" material="color:#ff3d55;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-text id="baasNaam" value="" align="center" color="#ff8aa6" width="2.0" position="0 0.625 -1.3"></a-text>'+
+  '      <a-plane id="baasBalkA" visible="false" position="0 0.555 -1.31" width="0.62" height="0.034" material="color:#e8f0f4;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="baasBalkB" visible="false" position="-0.31 0.555 -1.30" width="0.62" height="0.034" material="color:#ff3d55;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-text id="hudC" value="" align="center" color="#ffb03a" width="2.6"  position="0 0.30 -1.3"></a-text>'+
   '      <a-text id="hudW" value="" align="center" color="#e8f6ff" width="1.6"  position="0 -0.24 -1.25"></a-text>'+
   '      <a-plane id="hurt"  position="0 0 -0.31" width="2.6" height="2.6" material="color:#ff2030;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
@@ -773,7 +788,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.34" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.36" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -2230,7 +2245,7 @@
       if(Math.abs(d-(this.balkD||0))<0.004) return; this.balkD=d;
       const br=Math.max(0.004,0.62*d);
       B.setAttribute('width',br.toFixed(4));
-      B.setAttribute('position',(-0.31+br/2).toFixed(4)+' 0.475 -1.30');
+      B.setAttribute('position',(-0.31+br/2).toFixed(4)+' 0.555 -1.30');
       B.setAttribute('material','color:'+(d>0.5?'#ff3d55':(d>0.2?'#ffb03a':'#ffe45c'))+
         ';shader:flat;depthWrite:false;depthTest:false'); },
 
@@ -3160,16 +3175,25 @@
       const aan=(window.PHASE==='game'&&!window.DEMO&&!inVR);
       if(aan!==this.mobAan){ this.mobAan=aan; M.className=aan?'aan':''; }
       if(!aan) return;
+      // De kant van je hoofdhand is het raketsalvo, de andere kant de void.
+      // Schieten doe je gewoon door de schermhelft aan te raken.
       const hoofdLinks=(window.PRIMHAND!=='right');
-      const wl=this.wep[hoofdLinks?this.prim:this.spec];
-      const wr=this.wep[hoofdLinks?this.spec:this.prim];
-      const nm=function(W){ return W?((WNAAM[W.t]||'MG')+'  '+
-        (W.t>=1&&W.t<=4?((W.mag&&W.mag[W.t])||0):'∞')):''; };
-      const a=nm(wl), b=nm(wr);
+      const a='SALVO  x'+this.ults, b='VOID  x'+this.ults;
+      const eL=document.getElementById(hoofdLinks?'mobL':'mobR');
+      const eR=document.getElementById(hoofdLinks?'mobR':'mobL');
       if(a!==this.mobLv){ this.mobLv=a;
-        const e=document.getElementById('mobL'); if(e&&e.firstChild) e.firstChild.textContent=a; }
+        if(eL&&eL.firstChild) eL.firstChild.textContent=a; }
       if(b!==this.mobRv){ this.mobRv=b;
-        const e=document.getElementById('mobR'); if(e&&e.firstChild) e.firstChild.textContent=b; } },
+        if(eR&&eR.firstChild) eR.firstChild.textContent=b; }
+      const leeg=(this.ults<=0);
+      if(leeg!==this.mobLeeg){ this.mobLeeg=leeg;
+        if(eL) eL.className='knop'+(leeg?' leeg':'');
+        if(eR) eR.className='knop'+(leeg?' leeg':''); }
+      // de wisselknop hoort bij je andere hand
+      const W=this.wep[this.spec];
+      const wt='SWAP  '+(W?(WNAAM[W.t]||'MG'):'');
+      if(wt!==this.mobWv){ this.mobWv=wt;
+        const w=document.getElementById('mobW'); if(w) w.textContent=wt; } },
 
     // ---- laadstand op de startknop ----
     laadTonen:function(bezig){
@@ -3772,9 +3796,36 @@
         const nu=performance.now();
         if(ev==='mousedown'&&nu-laatsteTik<600) return;
         laatsteTik=nu;
-        aan(e); },{passive:true}); });
+        // niet passive: zo kunnen we het kopieermenu en de zoom tegenhouden
+        if(ev==='touchstart'&&e.cancelable) e.preventDefault();
+        aan(e); },{passive:false}); });
+    // lang vasthouden, rechtermuisknop en knijpzoom leveren geen menu meer op
+    ['contextmenu','gesturestart','gesturechange','selectstart','dragstart'].forEach(function(ev){
+      window.addEventListener(ev,function(e){
+        if(e.target&&e.target.closest&&e.target.closest('.a-enter-vr')) return;
+        if(e.cancelable) e.preventDefault(); },{passive:false}); });
     ['mouseup','touchend','touchcancel','blur'].forEach(function(ev){
-      window.addEventListener(ev,uit,{passive:true}); });
+      window.addEventListener(ev,function(e){
+        if(ev==='touchend'&&e&&e.cancelable) e.preventDefault();
+        uit(e); },{passive:false}); });
+    // ---- de rondjes onderin: ult links, ult rechts, en wisselen ----
+    const mobDruk=function(id,fn){
+      const el=document.getElementById&&document.getElementById(id);
+      if(!el) return;
+      ['touchstart','mousedown'].forEach(function(ev){
+        el.addEventListener(ev,function(e){
+          if(e.cancelable) e.preventDefault();
+          e.stopPropagation();                     // niet ook nog schieten
+          const nu=performance.now();
+          if(nu-(el.__t||0)<400) return; el.__t=nu;
+          const c=C(); if(c) fn(c); },{passive:false}); }); };
+    const hoofdEl=function(){ return (window.PRIMHAND!=='right')?'mobL':'mobR'; };
+    mobDruk('mobL',function(c){
+      c.ultimate(c.hands[(hoofdEl()==='mobL')?c.prim:c.spec]); });
+    mobDruk('mobR',function(c){
+      c.ultimate(c.hands[(hoofdEl()==='mobR')?c.prim:c.spec]); });
+    mobDruk('mobW',function(c){ c.wisDeb=0; c.wissel(c.hands[c.spec]); });
+
     // richtkruis is buiten VR je vizier
     const sc2=document.querySelector('a-scene');
     if(sc2){ sc2.addEventListener('enter-vr',function(){ window.INVR=true; });
