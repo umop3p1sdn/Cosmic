@@ -58,7 +58,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.32';
+  const VERSIE='v11.33';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -773,7 +773,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.32" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.33" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -924,6 +924,7 @@
   const RUIMTE_HEL=78;
   // Waar TITAN PRIME komt te staan. Meteen goed, niet aan komen vliegen.
   const REUSAFSTAND=60;
+  const PARADE_AFSTAND=14;      // waar elke paradedeelnemer stilhoudt, klein én groot
   // Taaiheid van de gewone vijanden. 1,00 is zoals ze getekend zijn.
   const VIJHP=0.88;
   const ZUIGR=70;                 // bereik van de vortex op zijn wijdst
@@ -3492,8 +3493,9 @@
         e.parade=1; e.hp=e.hpM=999999;                 // hij hoort niet te sneuvelen
         e.rol=0;
         P.e=e; P.fase='in'; P.t=0;
-        // groot spul verder weg, zodat het nog past
-        P.d=Math.max(16,Math.min(96,e.bw*0.92+10));
+        // Iedereen op DEZELFDE lijn, dichtbij — juist zo zie je hoe groot ze
+        // werkelijk zijn: een WASP past in je hand, TITAN PRIME is een muur.
+        P.d=PARADE_AFSTAND;
         P.naam=(it.baas?(it.baas.naam+'   -   BOSS'):TYPE[it.tp].n);
         this.toonGroot(P.naam,it.baas?'#ff8aa6':'#9fe4f5');
         return; }
