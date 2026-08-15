@@ -58,7 +58,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.30';
+  const VERSIE='v11.31';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -773,7 +773,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.30" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.31" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -1034,7 +1034,7 @@
     {n:'REAPER',    pl:12,rij:7, br:11, hp:90, pt:210, sp:9,  sal:1, cd:2.0, prof:'strafer', snel:26, f1:0.50, f2:0.20},
     {n:'LANCER',    pl:12,rij:9, br:9,  hp:75, pt:190, sp:10, sal:1, cd:3.0, prof:'duiker', f1:0.62, f2:0.38},
     {n:'WEAVER',    pl:12,rij:10,br:15, hp:150, pt:290, sp:7,  sal:2, cd:3.2, prof:'sluiper', f1:0.66, f2:0.20},
-    {n:'BROOD',     pl:12,rij:4, br:18, hp:180, pt:340, sp:4,  sal:3, cd:5.0, prof:'kruiper', broed:40, f1:0.82, f2:0.45},
+    {n:'BROOD',     pl:12,rij:4, br:18, hp:180, pt:340, sp:4,  sal:3, cd:5.0, prof:'moeder', broed:40, f1:0.82, f2:0.45},
     {n:'SENTINEL',  pl:12,rij:5, br:12, hp:200, pt:330, sp:4,  sal:1, cd:6.0, prof:'kruiper', zwaar:1, f1:0.45, f2:0.18},
     {n:'BULWARK',   pl:12,rij:8, br:22, hp:290, pt:450, sp:4,  sal:3, cd:3.5, prof:'kruiper', f1:0.85, f2:0.30},
     {n:'WATCHER',   pl:12,rij:11,br:26, hp:360, pt:560, sp:3,  sal:1, cd:7.0, prof:'drijver', zwaar:1, f1:0.58, f2:0.26},
@@ -1042,7 +1042,7 @@
     // ---- de tweede twaalfrijige plaat: nog eens twaalf soorten ----
     // Hun gedrag komt uit echte luchtgevechtmanoeuvres: immelmann, split-s,
     // scissors, yo-yo en de barrel roll.
-    {n:'WRAITH',    pl:13,rij:0, br:9,  hp:60,  pt:130, sp:12, sal:1, cd:2.6, prof:'splits',  f1:0.70, f2:0.30},
+    {n:'WRAITH',    pl:13,rij:0, br:9,  hp:60,  pt:130, sp:12, sal:1, cd:2.6, prof:'splitser',  f1:0.70, f2:0.30},
     {n:'FALCON',    pl:13,rij:1, br:8,  hp:50,  pt:120, sp:15, sal:1, cd:2.2, prof:'immel',   f1:0.78, f2:0.42},
     {n:'INFERNO',   pl:13,rij:2, br:17, hp:210, pt:330, sp:5,  sal:3, cd:3.6, prof:'kruiper', f1:0.66, f2:0.26},
     {n:'HALO',      pl:13,rij:3, br:14, hp:170, pt:280, sp:7,  sal:1, cd:4.5, prof:'cirkel',  zwaar:1, f1:0.52, f2:0.24},
@@ -1057,6 +1057,7 @@
     {n:'MOTHERSHIP',pl:0, rij:0, br:60, hp:3900,pt:9000,sp:5,  sal:3, cd:1.9, prof:'baas', zwaar:1, f1:0.70, f2:0.32}
   ];
   const BAAS=30;
+  const BROEDSEL=1;             // WASP: het broedsel van het moederschip
   const GOLVEN=10;              // per level; golf 11 is de baas
   // welke soorten er in welk level meedoen (elk level acht soorten, vier ervan nieuw)
   // Zestien levels. Elk level houdt zes soorten van het vorige en krijgt er twee
@@ -1211,6 +1212,7 @@
         self.wep[h.id]={t:0,lvl:1,lvlT:{},mag:{},last:0,up:0,vorig:0};
         ['triggerdown','selectstart'].forEach(function(ev){ h.addEventListener(ev,function(){
           if(performance.now()<(window.NAKLIK||0)) return;
+          if(window.PARADEKLAAR){ window.PARADEKLAAR=0; naarMenu(); return; }
           if(window.PHASE==='menu'||window.PAUSED){ menuKlik(h); return; }
           if(window.DEMO){                              // demo stopt bij aanraking,
             if(performance.now()<(window.DEMOWACHT||0)) return;   // maar niet meteen
@@ -1695,6 +1697,19 @@
         if(Math.random()<0.16){ this.knal(this.tmp.set(hx,hy,hz),e.sc*0.06);
           this.brok(e,hx,hy,hz,Math.random()<0.3); }
         else if(Math.random()<0.12) this.brok(e,hx,hy,hz,false); }
+      // Een moederschip laat bij elke treffer een broedsel los, met een korte
+      // rustpauze zodat een mitrailleur er geen zwerm van maakt.
+      if(e.hp>0&&TYPE[e.tp].prof==='moeder'){
+        e.brT=(e.brT||0)-0.016;
+        if(e.brT<=0){ e.brT=0.55;
+          let n=0;
+          for(let i=0;i<this.enemies.length;i++)
+            if(this.enemies[i].live&&this.enemies[i].broed) n++;
+          if(n<10){
+            const v=this.spawn(BROEDSEL,{x:e.p.x+(Math.random()-0.5)*e.bw*0.7,
+              y:e.p.y+(Math.random()-0.5)*e.bh*0.5, z:e.p.z+4});
+            if(v){ v.broed=1; v.prof='broed'; v.ex={}; v.stijl='vrij';
+              this.vonk(v.p.x,v.p.y,v.p.z,0x8fd84a,5,6,0.6); } } } }
       else if(e.hp>0&&e.bb){                         // gewone schepen laten ook wat los
         const hx=(px!==undefined)?px:e.p.x, hy=(py!==undefined)?py:e.p.y, hz=(pz!==undefined)?pz:e.p.z;
         if(Math.random()<0.30) this.brok(e,hx,hy,hz,false);
@@ -1721,6 +1736,16 @@
       e.hp=0;
       const T=TYPE[e.tp];
       this.punt(e);
+      // Een splitser valt bij zijn dood uiteen in twee kleinere, die zelf niet
+      // meer splitsen. Anders vult het veld zich met kopieën.
+      if(T.prof==='splitser'&&!e.gen&&!window.PAUSED){
+        for(let k=0;k<2;k++){
+          const v=this.spawn(e.tp,{x:e.p.x+(k?7:-7),y:e.p.y+(Math.random()-0.5)*5,z:e.p.z});
+          if(v){ v.gen=1; v.hp=v.hpM=Math.max(1,Math.round(v.hpM*0.42));
+            v.sc*=0.66; v.r*=0.66; v.bw*=0.66; v.bh*=0.66;
+            if(v.bb) v.bb.m.scale.set(v.bw,v.bh,1);
+            v.p.x+=(k?9:-9); }
+          this.vonk(e.p.x,e.p.y,e.p.z,0xa06cff,8,9,0.9); } }
       if(T.prof==='baas'){ e.dood2=1; e.dt=0; e.hp=0;   // eigen ondergang van 5 seconden
         SND.zeg('Target destroyed'); return; }
       let bezig=0;
@@ -1849,7 +1874,7 @@
         e.stijl=(opt&&opt.stijl)||'halte'; e.zij=(opt&&opt.zij)||1; e.overs=0;
         e.dood2=0; e.dt=0; e.stuur=0; e.dz=0; e.hulpT=9; e.baasNaam=''; e.gedrag=''; e.trioI=null;
         e.trip=0; e.tripT=0; e.tripAan=0; e.weer=0; e.wapens=null; e.vuur='duo'; e.rookT=0;
-        e.rijst=0; e.rt=0;
+        e.rijst=0; e.rt=0; e.parade=0; e.broed=0; e.gen=0; e.brT=0; e.ax=undefined;
         e.vv=0; e.rol=0; e.zb=undefined; e.zw=undefined; e.hb=undefined; e.fase2=0;
         e.intro=(T.prof==='baas')?1:0; e.ip=0; e.it=0; e.iv=null; e.izij=0;
         e.route=(opt&&opt.route)||null; e.rp=(opt&&opt.rp)||0; e.rv=null;
@@ -2392,7 +2417,28 @@
           e.p.y-=4*s;
           if(e.p.y<this.kop.y+2){ e.ex.f=1; e.i0=(e.i0>3)?1:5; } } }
 
-      else if(P==='splits'){
+      else if(P==='moeder'){
+        // Hangt stil op afstand en vuurt. Bij elke treffer laat hij een broedsel
+        // los. LET OP: in deze functie bestaat de afkorting T niet — de andere
+        // takken schrijven daarom ook TYPE[e.tp] voluit.
+        const M=TYPE[e.tp];
+        if(afst>54) e.p.addScaledVector(naar,(M.sp||4)*s*1.4);
+        // Wiegen om een ankerpunt. Een optelling per beurt zou hem laten wegdrijven
+        // en dan kruipt hij ook steeds dichterbij.
+        if(e.ax===undefined){ e.ax=e.p.x; e.az=e.p.z; }
+        e.p.x=e.ax+Math.sin(e.t*0.16)*6;
+        e.p.y+=((this.kop.y+3)-e.p.y)*Math.min(1,s*0.5);
+        e.bT=(e.bT||0)-s;
+        if(e.bT<=0){ e.bT=(M.cd||5)+Math.random()*1.2; this.spuw(e,M.sal||3,0.10); } }
+
+      else if(P==='broed'){
+        // Het broedsel zelf: recht op je af, en vlak voor je één keer vuren.
+        const B2=TYPE[e.tp];
+        e.p.addScaledVector(naar,(B2.sp||14)*2.3*s);
+        if(afst<34&&!e.ex.gaf){ e.ex.gaf=1; this.spuw(e,1,0.04); }
+        if(afst<16){ e.p.y+=9*s; e.p.x+=((e.i0>3)?1:-1)*14*s; } }
+
+      else if(P==='splitser'){
         // SPLIT-S: na elke aanval een halve looming omlaag en weg, om je vizier te breken
         e.ex.h=(e.ex.h||0)-s;
         if(e.ex.h<=0){ e.ex.h=3.2+Math.random()*1.6; e.ex.rol=1.4; this.spuw(e,1,0.05); }
@@ -2466,6 +2512,8 @@
         if(e.mode==='nader'&&afst>AFST[Math.min(2,e.stap)]+e.r*1.3+1.2) this.halte(e,s,naar,afst,sp*0.4); }
       else if(e.stijl==='route'){ this.routeBaan(e,s,sp); }
       else if(e.stijl==='over'){ this.oversteek(e,s,naar,afst,sp); }
+      else if(e.prof==='moeder'||e.prof==='broed'){
+        this.profiel(e,s,naar,afst,sp); }        // die twee bepalen hun eigen afstand
       else { this.halte(e,s,naar,afst,sp); this.profiel(e,s,naar,afst,sp); }
       if(e.ring&&!gez) this.profiel(e,s,naar,afst,sp*0.3);
 
@@ -2827,6 +2875,8 @@
       // ---- vijanden ----
       let levend=0;
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i]; if(!e.live) continue;
+        if(e.parade){ if(e.bb){ e.bb.m.position.copy(e.p);
+            e.bb.m.scale.set(e.bw,e.bh,1); } continue; }         // de parade stuurt hem zelf
         const xVoor=e.p.x;
         this.baan(e,s); if(!e.dood&&!e.dood2&&e.prof!=='baas') levend++;
         // Zoals een vliegtuig een bocht maakt: naar links betekent rechterkant
@@ -2923,7 +2973,8 @@
         if(D.p.z>14){ D.live=false; D.g.visible=false; } }
 
       // ---- golvenmachine ----
-      if(this.state==='rust'){ this.rustTick(s); }
+      if(this.state==='parade'){ this.paradeTick(s); }
+      else if(this.state==='rust'){ this.rustTick(s); }
       else if(this.state==='baaswacht'){ this.golfT-=s;
         if(this.golfT<=0){ this.toonGroot('',''); 
           this.baasTrio=[];
@@ -3403,7 +3454,83 @@
         for(let i=0;i<this.vij.length;i++){ this.vij[i].live=false; this.vij[i].m.visible=false; } }
       window.PAUSED=false; this.paneel(false); },
 
+    // =====================================================
+    //  DE PARADE — na het uitspelen komt alles nog één keer langs
+    // =====================================================
+    paradeStart:function(){
+      const L=[];
+      for(let t=0;t<TYPE.length;t++) if(TYPE[t].prof!=='baas') L.push({tp:t});
+      L.sort(function(a,b){ return TYPE[a.tp].br-TYPE[b.tp].br||TYPE[a.tp].hp-TYPE[b.tp].hp; });
+      // daarna de bazen, en de reus als allerlaatste — anders staat hij voor de rest
+      const B=(this.bazen||[]).slice().sort(function(a,b){ return a.beurt-b.beurt; });
+      B.forEach(function(b){ if(b.gedrag!=='reus') L.push({baas:b}); });
+      B.forEach(function(b){ if(b.gedrag==='reus') L.push({baas:b,reus:1}); });
+      this.par9={lijst:L, i:-1, e:null, fase:'leeg', t:0, klaarT:0};
+      // de achtergrond die geen enkel level gebruikt
+      if(this.hemels&&this.hemels.length){
+        const i=Math.min(this.hemels.length-1,LEVELS);
+        const H=this.hemels[i];
+        if(H&&this.hemel){ this.hemel.material.map=H.tex;
+          this.hemel.material.needsUpdate=true; } }
+      if(this.skyObjs) this.skyObjs.forEach(function(m){ m.visible=false; });
+      this.state='parade'; window.PAUSED=false;
+      this.toonGroot('','');
+      SND.zeg('Hall of fame'); },
+
+    paradeTick:function(s){
+      const P=this.par9; if(!P) return;
+      // ---- niemand in beeld: de volgende komt op ----
+      if(!P.e){
+        P.i++;
+        if(P.i>=P.lijst.length){ this.paradeEind(s); return; }
+        const it=P.lijst[P.i];
+        let e=null;
+        if(it.baas){ e=this.spawn(BAAS,{x:-220,y:this.kop.y,z:-90,baas:it.baas,hp:0.001});
+          if(e){ e.intro=0; e.rijst=0; e.dood2=0; } }
+        else e=this.spawn(it.tp,{x:-220,y:this.kop.y,z:-60});
+        if(!e){ return; }
+        e.parade=1; e.hp=e.hpM=999999;                 // hij hoort niet te sneuvelen
+        e.rol=0;
+        P.e=e; P.fase='in'; P.t=0;
+        // groot spul verder weg, zodat het nog past
+        P.d=Math.max(16,Math.min(96,e.bw*0.92+10));
+        P.naam=(it.baas?(it.baas.naam+'   -   BOSS'):TYPE[it.tp].n);
+        this.toonGroot(P.naam,it.baas?'#ff8aa6':'#9fe4f5');
+        return; }
+
+      const e=P.e; P.t+=s;
+      e.cd=99; e.dood=0;                                // niet schieten, niet sterven
+      const doelX=(P.fase==='uit')?260:0;
+      const snel=(P.fase==='stil')?0:78;
+      e.p.x+=Math.max(-snel,Math.min(snel,(doelX-e.p.x)*1.4))*s;
+      e.p.z+=((-P.d)-e.p.z)*Math.min(1,s*1.6);
+      e.p.y+=((this.kop.y+(e.bh>40?e.bh*0.16:0))-e.p.y)*Math.min(1,s*1.6);
+      if(e.bb){ e.bb.m.rotation.z=0; }
+
+      if(P.fase==='in'&&Math.abs(e.p.x)<1.5&&Math.abs(e.p.z+P.d)<2.5){ P.fase='stil'; P.t=0; }
+      else if(P.fase==='stil'&&P.t>=3.0){ P.fase='uit'; P.t=0; this.toonGroot('',''); }
+      else if(P.fase==='uit'&&e.p.x>150){
+        e.live=false; if(e.bb){ this.bbVrij(e.bb); e.bb=null; }
+        if(e.romp){ e.romp.visible=false; e.romp=null; }
+        P.e=null; } },
+
+    paradeEind:function(s){
+      const P=this.par9;
+      P.klaarT+=s;
+      // GAME OVER is geen melding die wegvaagt: hij blijft staan tot je drukt.
+      const gc=document.querySelector('#hudC');
+      if(!gc||gc.getAttribute('value')!=='GAME OVER') this.toonGroot('GAME OVER','#ffe45c');
+      this.meldC=9;
+      if(P.klaarT>5&&!window.PARADEKLAAR){
+        window.PARADEKLAAR=1;
+        // op de wapenregel, niet op dezelfde regel als GAME OVER
+        const w=document.querySelector('#hudW');
+        if(w){ w.setAttribute('value','PRESS TO CONTINUE');
+               w.setAttribute('color','#9fe4f5'); }
+        this.wepC=999; } },
+
     gehaald:function(){
+      if(!this.par9klaar){ this.par9klaar=1; this.paradeStart(); return; }
       this.over=true; window.PAUSED=true;
       SND.zeg('Sector cleared');
       bewaarScore(this.punten,this.contN);
@@ -3489,7 +3616,7 @@
     if(demo) SND.zeg('Demo'); else SND.zeg('Launch'); }
 
   function naarMenu(){
-    window.PHASE='menu'; window.PAUSED=false;
+    window.PHASE='menu'; window.PAUSED=false; window.PARADEKLAAR=0;
     const rig=document.querySelector('#rig'), C=rig&&rig.components&&rig.components.cosmic;
     if(C){ C.demoStop(); C.reset(); C.over=false; C.klaar=false; C.paneel(false); }
     window.DEMO=false; window.AIM=null;
@@ -3510,15 +3637,20 @@
     const techToon=function(aan){ const t=document.querySelector('#tech');
       if(t) t.setAttribute('visible',!!aan); };
     const lvToon=function(){ const t=document.querySelector('#lvTxt');
-      if(t) t.setAttribute('value','LEVEL '+techLv); };
+      if(t) t.setAttribute('value',techLv>16?'PARADE':('LEVEL '+techLv)); };
     kl('#btnNieuw',function(){ versieHerlaad(); });
     kl('#btnTech',function(){ techToon(true); lvToon(); });
     kl('#btnTechUit',function(){ techToon(false); });
     kl('#btnLvMin',function(){ techLv=Math.max(1,techLv-1); lvToon(); });
-    kl('#btnLvPlus',function(){ techLv=Math.min(16,techLv+1); lvToon(); });
-    kl('#btnFaseA',function(){ techToon(false); startSpel(false,{l:techLv,w:0}); });
-    kl('#btnFaseB',function(){ techToon(false); startSpel(false,{l:techLv,w:10}); });
-    kl('#btnFaseC',function(){ techToon(false); startSpel(false,{l:techLv,w:20}); });
+    kl('#btnLvPlus',function(){ techLv=Math.min(17,techLv+1); lvToon(); });
+    const techStart=function(w){
+      techToon(false);
+      if(techLv>16){ startSpel(false,{l:1,w:0});
+        const c=C(); if(c){ c.par9klaar=1; c.paradeStart(); } return; }
+      startSpel(false,{l:techLv,w:w}); };
+    kl('#btnFaseA',function(){ techStart(0); });
+    kl('#btnFaseB',function(){ techStart(GOLVEN); });
+    kl('#btnFaseC',function(){ techStart(GOLVEN); });
     kl('#btnScores',toonScores);
     kl('#btnHelp',function(){ const e=document.querySelector('#scoreLijst'); if(!e) return;
       e.setAttribute('value','trigger  fire      grip  ultimate\ntop buttons  switch weapon (other hand)\nstick press  pause'); });
@@ -3605,6 +3737,7 @@
     let raakt=false;
     function aan(ev){
       if(performance.now()<(window.NAKLIK||0)) return;   // net het laadscherm weggetikt
+      if(window.PARADEKLAAR){ window.PARADEKLAAR=0; naarMenu(); return; }
       const h=(window.PHASE==='game'&&!window.PAUSED&&!window.DEMO)?tHandVoor(ev):tHand();
       if(!h||!h.object3D) return;
       if(window.PHASE==='menu'||window.PAUSED){ menuKlik(h); return; }
