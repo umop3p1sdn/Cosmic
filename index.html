@@ -6,13 +6,16 @@
   <title>COSMIC SHOOTER</title>
   <style>
     html,body{margin:0;padding:0;background:#04080f;overflow:hidden;font-family:'Trebuchet MS',sans-serif;
-      /* Vinger op het scherm = schieten, geen tekst selecteren, geen kopieermenu,
-         geen dubbeltik-zoom en geen meeslepen van de pagina. */
-      -webkit-user-select:none; -moz-user-select:none; -ms-user-select:none; user-select:none;
-      -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent;
+      -webkit-tap-highlight-color:transparent;}
+    /* Vinger op het scherm = schieten, geen tekst selecteren en geen kopieermenu.
+       ALLEEN tijdens het spelen: op het laadscherm en in het menu moet de browser
+       zijn gang kunnen gaan, anders komt de vraag om beweging- en sensortoegang
+       er niet doorheen. */
+    body.spelen{-webkit-user-select:none; -moz-user-select:none; -ms-user-select:none;
+      user-select:none; -webkit-touch-callout:none;
       touch-action:none; overscroll-behavior:none;}
-    canvas,a-scene,#mob,#laad{touch-action:none; -webkit-user-select:none; user-select:none;
-      -webkit-touch-callout:none;}
+    body.spelen canvas,body.spelen a-scene,body.spelen #mob{
+      touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;}
     #laad{position:fixed;left:0;top:0;width:100%;height:100%;z-index:9999;
       background:radial-gradient(circle at 50% 42%,#0c2036 0%,#04080f 70%);
       color:#9fe4f5;display:flex;flex-direction:column;align-items:center;justify-content:center;}
@@ -73,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.36';
+  const VERSIE='v11.37';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -788,7 +791,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.36" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.37" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -3174,6 +3177,10 @@
       const inVR=!!(this.el&&this.el.sceneEl&&this.el.sceneEl.is&&this.el.sceneEl.is('vr-mode'));
       const aan=(window.PHASE==='game'&&!window.DEMO&&!inVR);
       if(aan!==this.mobAan){ this.mobAan=aan; M.className=aan?'aan':''; }
+      // de beschermlaag hoort alleen tijdens het spelen aan te staan
+      const bes=(window.PHASE==='game');
+      if(bes!==this.besAan){ this.besAan=bes;
+        try{ document.body.className=bes?'spelen':''; }catch(e){} }
       if(!aan) return;
       // De kant van je hoofdhand is het raketsalvo, de andere kant de void.
       // Schieten doe je gewoon door de schermhelft aan te raken.
@@ -3649,6 +3656,9 @@
 
   function naarMenu(){
     window.PHASE='menu'; window.PAUSED=false; window.PARADEKLAAR=0;
+    try{ document.body.className=''; }catch(e){}      // beschermlaag uit in het menu
+    { const rg=document.querySelector('#rig');
+      const c=rg&&rg.components&&rg.components.cosmic; if(c) c.besAan=false; }
     const rig=document.querySelector('#rig'), C=rig&&rig.components&&rig.components.cosmic;
     if(C){ C.demoStop(); C.reset(); C.over=false; C.klaar=false; C.paneel(false); }
     window.DEMO=false; window.AIM=null;
@@ -3796,17 +3806,19 @@
         const nu=performance.now();
         if(ev==='mousedown'&&nu-laatsteTik<600) return;
         laatsteTik=nu;
-        // niet passive: zo kunnen we het kopieermenu en de zoom tegenhouden
-        if(ev==='touchstart'&&e.cancelable) e.preventDefault();
+        // niet passive: zo kunnen we het kopieermenu en de zoom tegenhouden,
+        // maar alleen tijdens het spelen — daarbuiten moet de browser vrij zijn
+        if(ev==='touchstart'&&window.PHASE==='game'&&e.cancelable) e.preventDefault();
         aan(e); },{passive:false}); });
     // lang vasthouden, rechtermuisknop en knijpzoom leveren geen menu meer op
     ['contextmenu','gesturestart','gesturechange','selectstart','dragstart'].forEach(function(ev){
       window.addEventListener(ev,function(e){
+        if(window.PHASE!=='game') return;               // menu en laadscherm vrijlaten
         if(e.target&&e.target.closest&&e.target.closest('.a-enter-vr')) return;
         if(e.cancelable) e.preventDefault(); },{passive:false}); });
     ['mouseup','touchend','touchcancel','blur'].forEach(function(ev){
       window.addEventListener(ev,function(e){
-        if(ev==='touchend'&&e&&e.cancelable) e.preventDefault();
+        if(ev==='touchend'&&window.PHASE==='game'&&e&&e.cancelable) e.preventDefault();
         uit(e); },{passive:false}); });
     // ---- de rondjes onderin: ult links, ult rechts, en wisselen ----
     const mobDruk=function(id,fn){
