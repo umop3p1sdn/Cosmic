@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.47';
+  const VERSIE='v11.49';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -803,7 +803,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.47" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.49" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -962,10 +962,18 @@
   const VIJHP=0.88;
   // Voorbij deze hoek (in radialen, ~66 graden) zit een vijand buiten je blikveld
   // en draait hij achter je langs door tot hij er weer voor je uit komt.
-  const ACHTER_HOEK=1.15;
-  const ACHTER_VRIJ=0.80;       // en pas hier laat hij weer los (~46 graden)
+  // Buiten deze grenzen hoort een vijand niet meer thuis: hij wordt opnieuw
+  // ver vóór je neergezet. Hoek in radialen (1,25 = ~72 graden).
+  const WEG_HOEK=1.25;
+  const WEG_HOOG=42;            // meter boven of onder je
+  const WEG_VER=190;            // meter bij je vandaan
   // Hoeveel sterker de bliksem wordt bij elke oversprong (0,38 = +38% per sprong).
   const ZAPGROEI=0.38;
+  // Maximale breedte van een achtergrond en van een los object in het geheugen.
+  // Verkleinen scheelt honderden megabytes op de bril; op deze afstanden zie je
+  // het verschil niet.
+  const HEMEL_MAX=2048;
+  const PROP_MAX=768;
   const ZUIGR=70;                 // bereik van de vortex op zijn wijdst
   const OVER=[56,40,26];        // afstandsbanden waarop een oversteker langs je scheert
   // ---------------------------------------------------------------
@@ -1447,7 +1455,27 @@
       return P; },
 
     // ---- een aangeleverde hemel bruikbaar maken, wat er ook binnenkomt ----
+    // Een plaat van 2720x1536 kost 21 MB in de bril, en er staan er zeventien
+    // tegelijk in het geheugen. Voor een hemel op tientallen meters afstand zie
+    // je het verschil niet, maar de haperingen wel. Daarom eerst verkleinen.
+    hemelKlein:function(tex){
+      const img=tex.image;
+      if(!img||!img.width||img.width<=HEMEL_MAX) return tex;
+      try{
+        const sch=HEMEL_MAX/img.width;
+        const w=HEMEL_MAX, hh=Math.max(2,Math.round(img.height*sch));
+        const c=document.createElement('canvas'); c.width=w; c.height=hh;
+        const g=c.getContext('2d');
+        if(g.imageSmoothingQuality) g.imageSmoothingQuality='high';
+        g.drawImage(img,0,0,w,hh);
+        const nt=new THREE.CanvasTexture(c);
+        nt.__naam=tex.__naam; nt.__lijst=tex.__lijst; nt.__gesplitst=tex.__gesplitst;
+        nt.needsUpdate=true;
+        return nt;
+      }catch(e){ return tex; } },
+
     hemelBereid:function(tex){
+      tex=this.hemelKlein(tex);
       const img=tex.image; if(!img||!img.width) return null;
       const W=img.width, H=img.height;
       let Wv=W, Hv=H;                                  // maat van de textuur die we uiteindelijk gebruiken
@@ -2565,6 +2593,18 @@
 
       else { e.p.x+=Math.sin(e.t*1.4)*5*s*zij; } },
 
+    // Zet een vijand opnieuw neer, ver vóór je, met een frisse aanvliegroute.
+    opnieuwVoor:function(e){
+      const hk=(Math.random()-0.5)*1.25;               // binnen je blikveld
+      const d=95+Math.random()*45;
+      e.p.set(Math.sin(hk)*d, this.kop.y+(Math.random()-0.5)*14, -Math.cos(hk)*d);
+      e.zij=(e.p.x>=0)?-1:1;                           // kruist naar het midden
+      e.stap=0; e.flipT=0; e.omT=0;
+      e.t=Math.random()*3; e.cd=0.5+Math.random()*1.2;
+      if(e.ex) e.ex={};
+      if(e.bb){ e.bb.m.position.copy(e.p); e.bb.m.rotation.z=0; }
+      e.rol=0; },
+
     baan:function(e,s){
       if(e.dood){ this.doodBaan(e,s); return; }
       const eye=this.tmp.copy(this.kop);
@@ -2992,28 +3032,16 @@
         // je langs, en komt er aan de andere kant weer uit.
         const xVoor=e.p.x;
         this.baan(e,s); if(!e.dood&&!e.dood2&&e.prof!=='baas') levend++;
-        if(!e.dood&&e.bb){
-          // Hoe ver zit hij van je kijkrichting af? 0 = recht vooruit, 180 = pal
-          // achter je. Hier telt de HOEK, niet de diepte: eerder stopte ik met
-          // draaien zodra hij net voorbij de grens was, en precies dáár bleef hij
-          // dan hangen.
+        // Dit is een spel dat alleen vooruit kijkt. Alles wat achter je zit, te
+        // ver opzij, te hoog of te laag hangt heeft daar niets te zoeken: het
+        // wordt weggehaald en opnieuw ver vóór je neergezet. Geen rondjes, geen
+        // duwen — je houdt gewoon je handen vol aan wat vóór je gebeurt.
+        if(!e.dood&&!e.dood2&&e.bb&&e.prof!=='baas'){
           const hk2=Math.atan2(e.p.x,-e.p.z);
-          const uit=Math.abs(hk2);
-          // Ruime marge: hij begint te draaien voorbij ACHTER_HOEK en stopt pas
-          // als hij duidelijk vóór je zit. Zonder die marge kwam hij precies op
-          // de keergrens van zijn eigen baan uit en klapte hij heen en weer.
-          if(uit>(e.omT?ACHTER_VRIJ:ACHTER_HOEK)){
-            if(!e.omT){ e.omT=1; e.omZij=(hk2>=0)?1:-1; }   // de kant waar hij heen wilde
-            // achter je langs doordraaien tot hij er aan de andere kant uit komt
-            const R2=Math.max(16,Math.hypot(e.p.x,e.p.z));
-            const snel=1.15+0.85*Math.min(1,(uit-ACHTER_HOEK)/1.6);
-            const hk=e.omZij*snel*s;
-            const nh=hk2+hk;
-            e.p.x=Math.sin(nh)*R2; e.p.z=-Math.cos(nh)*R2;
-            if(e.flipT) e.flipT=0;
-          } else if(e.omT){
-            // weer in beeld: laat hem naar het midden kruisen, niet terug
-            e.omT=0; e.zij=(e.p.x>=0)?-1:1; e.flipT=0; }
+          const hoogte=e.p.y-this.kop.y;
+          const ver=Math.hypot(e.p.x,e.p.z);
+          if(Math.abs(hk2)>WEG_HOEK||Math.abs(hoogte)>WEG_HOOG||ver>WEG_VER)
+            this.opnieuwVoor(e);
         }
 
         // Zoals een vliegtuig een bocht maakt: naar links betekent rechterkant
@@ -3464,6 +3492,20 @@
           self.bazen.sort(function(a,b){ return a.beurt-b.beurt; });
           return; }
         // grote platen worden grote objecten: een planeet van 2000 px hoort geen keitje te zijn
+        // ook een planeet hoeft geen 2000 pixels te zijn op 240 m afstand
+        if(t.image&&t.image.width>PROP_MAX){
+          try{
+            const sch=PROP_MAX/t.image.width;
+            const c=document.createElement('canvas');
+            c.width=PROP_MAX; c.height=Math.max(2,Math.round(t.image.height*sch));
+            const g=c.getContext('2d');
+            if(g.imageSmoothingQuality) g.imageSmoothingQuality='high';
+            g.drawImage(t.image,0,0,c.width,c.height);
+            const nt=new THREE.CanvasTexture(c);
+            nt.__naam=t.__naam; nt.__lijst=t.__lijst; nt.__rond=t.__rond;
+            nt.needsUpdate=true; t=nt;
+          }catch(e){}
+        }
         const px=(t.image&&t.image.height)?t.image.height:1024;
         const planeet=(t.__lijst&&t.__lijst.rol)?(t.__lijst.rol==='planeet'):((t.__rond||0)>0.68);
         // een planeet is een hemellichaam: zes keer zo groot en drie keer zo traag
