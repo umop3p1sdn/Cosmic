@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.46';
+  const VERSIE='v11.47';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -803,7 +803,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.46" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.47" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -960,8 +960,10 @@
   const PARADE_VER_T=2.0;       // seconden op de kijkafstand
   // Taaiheid van de gewone vijanden. 1,00 is zoals ze getekend zijn.
   const VIJHP=0.88;
-  // Vanaf deze diepte telt een vijand als 'achter je' en draait hij vlot terug.
-  const ACHTER_GRENS=-4;
+  // Voorbij deze hoek (in radialen, ~66 graden) zit een vijand buiten je blikveld
+  // en draait hij achter je langs door tot hij er weer voor je uit komt.
+  const ACHTER_HOEK=1.15;
+  const ACHTER_VRIJ=0.80;       // en pas hier laat hij weer los (~46 graden)
   // Hoeveel sterker de bliksem wordt bij elke oversprong (0,38 = +38% per sprong).
   const ZAPGROEI=0.38;
   const ZUIGR=70;                 // bereik van de vortex op zijn wijdst
@@ -1959,6 +1961,7 @@
         e.dood2=0; e.dt=0; e.stuur=0; e.dz=0; e.hulpT=9; e.baasNaam=''; e.gedrag=''; e.trioI=null;
         e.trip=0; e.tripT=0; e.tripAan=0; e.weer=0; e.wapens=null; e.vuur='duo'; e.rookT=0;
         e.rijst=0; e.rt=0; e.parade=0; e.broed=0; e.gen=0; e.brT=0; e.ax=undefined;
+        e.omT=0; e.omZij=0;
         e.vv=0; e.rol=0; e.zb=undefined; e.zw=undefined; e.hb=undefined; e.fase2=0;
         e.intro=(T.prof==='baas')?1:0; e.ip=0; e.it=0; e.iv=null; e.izij=0;
         e.route=(opt&&opt.route)||null; e.rp=(opt&&opt.rp)||0; e.rv=null;
@@ -2411,11 +2414,20 @@
       // hoever is hij opzij gekomen? voorbij de grens keert hij om en komt dichterbij
       // hoek blijft binnen +/-90 graden, anders klapt de meting om en flipt hij elk frame
       const hoek=Math.atan2(e.p.x,Math.max(1,-e.p.z));
-      const grens=1.30;
+      const grens=1.12;                              // ~64 graden: keren vóór hij naast je hangt
       e.flipT=(e.flipT||0)-s;
       if(e.flipT<=0&&Math.abs(hoek)>grens){          // te ver opzij: keren, en dichterbij terug
         e.zij*=-1; e.flipT=2.5;
         e.stap=Math.min(2,e.stap+1); e.overs=(e.overs||0)+1; }
+      // Keren alleen was niet genoeg: de baan duwde hem meteen weer over de grens
+      // en dan bleef hij pal naast je hangen. Voorbij de grens wordt hij nu ook
+      // echt teruggedraaid naar voren.
+      const max2=1.22;
+      if(Math.abs(hoek)>max2){
+        const R2=Math.hypot(e.p.x,e.p.z)||1;
+        const doel=Math.sign(hoek)*max2;
+        const nh=hoek+(doel-hoek)*Math.min(1,s*3.0);
+        e.p.x=Math.sin(nh)*R2; e.p.z=-Math.cos(nh)*R2; }
       e.bT=(e.bT||0)-s;
       if(e.bT<=0){ e.bT=(T.cd||3.4)*0.7+Math.random()*1.2;
         this.spuw(e,T.sal||1,0.06); } },
@@ -2973,15 +2985,37 @@
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i]; if(!e.live) continue;
         if(e.parade){ if(e.bb){ e.bb.m.position.copy(e.p);
             e.bb.m.scale.set(e.bw,e.bh,1); } continue; }         // de parade stuurt hem zelf
-        // Je speelt alleen vooruit. Wie achter je komt mag daar even zijn, maar
-        // moet vlot weer vóór je verschijnen — anders sta je op niets te wachten.
-        if(!e.dood&&e.p.z>ACHTER_GRENS){
-          const d=Math.min(1,(e.p.z-ACHTER_GRENS)/40);
-          e.p.z-=(26+64*d)*s;                                 // vlot terug naar voren
-          e.p.x+=(Math.sign(e.p.x||1)*18-e.p.x*0.4)*s*0.6;    // langs je heen, niet dwars door
-          if(e.flipT) e.flipT=0; }
+        // Achter je vliegen mag, blijven hangen niet. Eerst duwde ik hem recht
+        // naar voren, maar dat vocht met zijn eigen baan: op de grens hielden ze
+        // elkaar in evenwicht en plakte hij ertegenaan. Nu maakt hij zijn rondje
+        // AF — hij draait door in de richting waar hij toch al heen ging, achter
+        // je langs, en komt er aan de andere kant weer uit.
         const xVoor=e.p.x;
         this.baan(e,s); if(!e.dood&&!e.dood2&&e.prof!=='baas') levend++;
+        if(!e.dood&&e.bb){
+          // Hoe ver zit hij van je kijkrichting af? 0 = recht vooruit, 180 = pal
+          // achter je. Hier telt de HOEK, niet de diepte: eerder stopte ik met
+          // draaien zodra hij net voorbij de grens was, en precies dáár bleef hij
+          // dan hangen.
+          const hk2=Math.atan2(e.p.x,-e.p.z);
+          const uit=Math.abs(hk2);
+          // Ruime marge: hij begint te draaien voorbij ACHTER_HOEK en stopt pas
+          // als hij duidelijk vóór je zit. Zonder die marge kwam hij precies op
+          // de keergrens van zijn eigen baan uit en klapte hij heen en weer.
+          if(uit>(e.omT?ACHTER_VRIJ:ACHTER_HOEK)){
+            if(!e.omT){ e.omT=1; e.omZij=(hk2>=0)?1:-1; }   // de kant waar hij heen wilde
+            // achter je langs doordraaien tot hij er aan de andere kant uit komt
+            const R2=Math.max(16,Math.hypot(e.p.x,e.p.z));
+            const snel=1.15+0.85*Math.min(1,(uit-ACHTER_HOEK)/1.6);
+            const hk=e.omZij*snel*s;
+            const nh=hk2+hk;
+            e.p.x=Math.sin(nh)*R2; e.p.z=-Math.cos(nh)*R2;
+            if(e.flipT) e.flipT=0;
+          } else if(e.omT){
+            // weer in beeld: laat hem naar het midden kruisen, niet terug
+            e.omT=0; e.zij=(e.p.x>=0)?-1:1; e.flipT=0; }
+        }
+
         // Zoals een vliegtuig een bocht maakt: naar links betekent rechterkant
         // omhoog. Bazen regelen dit al in hun eigen routine.
         if(e.bb&&e.prof!=='baas'&&!e.dood){
