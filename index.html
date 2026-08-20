@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.39';
+  const VERSIE='v11.43';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -802,7 +802,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.39" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.43" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -953,9 +953,14 @@
   const RUIMTE_HEL=78;
   // Waar TITAN PRIME komt te staan. Meteen goed, niet aan komen vliegen.
   const REUSAFSTAND=60;
-  const PARADE_AFSTAND=14;      // waar elke paradedeelnemer stilhoudt, klein én groot
+  const PARADE_AFSTAND=14;      // eerst zo dichtbij komt iedereen
+  const PARADE_VERMAX=105;      // en niet verder terug dan dit
+  const PARADE_DICHT_T=1.6;     // seconden vlak voor je neus
+  const PARADE_VER_T=2.0;       // seconden op de kijkafstand
   // Taaiheid van de gewone vijanden. 1,00 is zoals ze getekend zijn.
   const VIJHP=0.88;
+  // Vanaf deze diepte telt een vijand als 'achter je' en draait hij vlot terug.
+  const ACHTER_GRENS=-4;
   const ZUIGR=70;                 // bereik van de vortex op zijn wijdst
   const OVER=[56,40,26];        // afstandsbanden waarop een oversteker langs je scheert
   // ---------------------------------------------------------------
@@ -1235,11 +1240,15 @@
 
       // ---- wapens per hand ----
       this.wep={};
+      // ÉÉN gedeelde wapenzak voor beide handen. Elke hand had er eerst een eigen
+      // zak, maar wisselen mag alleen met je tweede hand — pakte je op met je
+      // hoofdhand, dan verdween het wapen in een zak die je nooit kon gebruiken.
+      this.zak={mag:{},lvlT:{}};
       this.held=[];
       this.hands={};
       ['#leftHand','#rightHand'].forEach(function(id){ const h=document.querySelector(id); if(!h) return;
         self.hands[h.id]=h;
-        self.wep[h.id]={t:0,lvl:1,lvlT:{},mag:{},last:0,up:0,vorig:0};
+        self.wep[h.id]={t:0,lvl:1,lvlT:self.zak.lvlT,mag:self.zak.mag,last:0,up:0,vorig:0};
         ['triggerdown','selectstart'].forEach(function(ev){ h.addEventListener(ev,function(){
           if(performance.now()<(window.NAKLIK||0)) return;
           if(window.PARADEKLAAR){ window.PARADEKLAAR=0; naarMenu(); return; }
@@ -1286,9 +1295,14 @@
       const prim=(window.PRIMHAND==='right')?'rightHand':'leftHand';
       const spec=(prim==='leftHand')?'rightHand':'leftHand';
       this.prim=prim; this.spec=spec;
+      // de gedeelde zak leegmaken, maar wel GEDEELD houden
+      this.zak=this.zak||{mag:{},lvlT:{}};
+      for(const k in this.zak.mag) delete this.zak.mag[k];
+      for(const k in this.zak.lvlT) delete this.zak.lvlT[k];
+      this.zak.lvlT[5]=1;
       for(const id in this.wep){ const W=this.wep[id];
-        W.t=(id===prim)?5:5; W.lvl=1; W.lvlT={5:1}; W.mag={}; W.last=0; W.up=0; W.vorig=0;
-        W.laz=null; }
+        W.t=5; W.lvl=1; W.lvlT=this.zak.lvlT; W.mag=this.zak.mag;
+        W.last=0; W.up=0; W.vorig=0; W.laz=null; }
       this.enemies.forEach(function(e){ e.live=false; e.dood=0; e.dood2=0;
         if(e.romp){ e.romp.visible=false; e.romp=null; } });
       this.bb.forEach(function(b){ b.vrij=true; b.m.visible=false; });
@@ -2509,7 +2523,9 @@
       const sp=T.sp;
 
       // ---- vortex: wie gevangen is verliest zijn eigen koers volledig ----
-      const zr=(this.zuigT>0)?(ZUIGR*(0.40+0.60*(1-this.zuigT/6))):0;
+      // Hij pakt METEEN alles binnen zijn bereik. Eerst groeide hij van 28 naar
+      // 70 m, waardoor de eerste seconde bijna niets gebeurde.
+      const zr=(this.zuigT>0)?(ZUIGR*(0.92+0.08*(1-this.zuigT/6))):0;
       const gez=(this.zuigT>0&&this.zuigP&&e.prof!=='baas'&&
                  e.p.distanceTo(this.zuigP)<zr);
       if(gez){
@@ -2517,11 +2533,12 @@
         v.subVectors(this.zuigP,e.p);
         const d=Math.max(0.6,v.length());
         v.multiplyScalar(1/d);
-        e.p.addScaledVector(v,Math.min(30,4+d*0.9)*s);          // naar binnen
+        e.p.addScaledVector(v,Math.min(52,11+d*1.35)*s);         // met kracht naar binnen
         const t2=this.ZT||(this.ZT=new THREE.Vector3());
         t2.set(-v.z,0,v.x).normalize();
-        e.p.addScaledVector(t2,Math.min(22,d*0.8)*s);           // en er omheen draaien
-        e.p.y+=Math.sin(e.t*3+e.i0)*3*s;
+        // een beetje draaikolk mag, maar niet zoveel dat hij blijft cirkelen
+        e.p.addScaledVector(t2,Math.min(9,d*0.30)*s);
+        e.p.y+=Math.sin(e.t*3+e.i0)*1.4*s;
         e.flash=0.06; }
       else if(e.ring){                                // hangt in een baan om de speler
         const R=e.ring;
@@ -2870,7 +2887,7 @@
       if(this.zuigT>0){ this.zuigT-=s;
         const k=Math.min(1,this.zuigT/0.6);
         const puls=1+Math.sin(this.T*9)*0.06;
-        const zr2=ZUIGR*(0.40+0.60*(1-this.zuigT/6));
+        const zr2=ZUIGR*(0.92+0.08*(1-this.zuigT/6));
         this.zuig.scale.setScalar(zr2*0.45*k*puls);
         this.zuig.material.opacity=0.16*k;
         this.zuig.rotation.y+=s*3.2;
@@ -2907,6 +2924,13 @@
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i]; if(!e.live) continue;
         if(e.parade){ if(e.bb){ e.bb.m.position.copy(e.p);
             e.bb.m.scale.set(e.bw,e.bh,1); } continue; }         // de parade stuurt hem zelf
+        // Je speelt alleen vooruit. Wie achter je komt mag daar even zijn, maar
+        // moet vlot weer vóór je verschijnen — anders sta je op niets te wachten.
+        if(!e.dood&&e.p.z>ACHTER_GRENS){
+          const d=Math.min(1,(e.p.z-ACHTER_GRENS)/40);
+          e.p.z-=(26+64*d)*s;                                 // vlot terug naar voren
+          e.p.x+=(Math.sign(e.p.x||1)*18-e.p.x*0.4)*s*0.6;    // langs je heen, niet dwars door
+          if(e.flipT) e.flipT=0; }
         const xVoor=e.p.x;
         this.baan(e,s); if(!e.dood&&!e.dood2&&e.prof!=='baas') levend++;
         // Zoals een vliegtuig een bocht maakt: naar links betekent rechterkant
@@ -3558,9 +3582,13 @@
         e.parade=1; e.hp=e.hpM=999999;                 // hij hoort niet te sneuvelen
         e.rol=0;
         P.e=e; P.fase='in'; P.t=0;
-        // Iedereen op DEZELFDE lijn, dichtbij — behalve de reus: die is op 14 m
-        // alleen nog pixels. Hij houdt zijn gevechtsafstand, dan zie je hem heel.
-        P.d=it.reus?REUSAFSTAND:PARADE_AFSTAND;
+        // Iedereen komt eerst op DEZELFDE korte afstand — zo voel je hoe groot
+        // ze zijn. Daarna zakken ze terug tot ze helemaal in beeld passen; die
+        // afstand schaalt met hun breedte en hoogte.
+        P.dichtbij=PARADE_AFSTAND;
+        P.ver=Math.max(PARADE_AFSTAND+10,
+              Math.min(PARADE_VERMAX, Math.max(e.bw,e.bh*0.8)*1.35+10));
+        P.d=P.dichtbij;
         P.naam=(it.baas?(it.baas.naam+'   -   BOSS'):TYPE[it.tp].n);
         this.toonGroot(P.naam,it.baas?'#ff8aa6':'#9fe4f5');
         return; }
@@ -3568,14 +3596,21 @@
       const e=P.e; P.t+=s;
       e.cd=99; e.dood=0;                                // niet schieten, niet sterven
       const doelX=(P.fase==='uit')?260:0;
-      const snel=(P.fase==='stil')?0:78;
+      const stil=(P.fase==='stil'||P.fase==='ver');
+      const snel=stil?0:78;
       e.p.x+=Math.max(-snel,Math.min(snel,(doelX-e.p.x)*1.4))*s;
-      e.p.z+=((-P.d)-e.p.z)*Math.min(1,s*1.6);
-      e.p.y+=((this.kop.y+(e.bh>40?e.bh*0.16:0))-e.p.y)*Math.min(1,s*1.6);
+      // terugzakken doet hij rustig, dat leest prettiger dan wegschieten
+      e.p.z+=((-P.d)-e.p.z)*Math.min(1,s*(P.fase==='terug'?0.9:1.6));
+      // een kolos houdt zijn hoofd op ooghoogte; zijn romp hangt eronder
+      const hoog=(e.bh>40)?(this.kop.y-e.bh*0.34):this.kop.y;
+      e.p.y+=(hoog-e.p.y)*Math.min(1,s*1.6);
       if(e.bb){ e.bb.m.rotation.z=0; }
 
       if(P.fase==='in'&&Math.abs(e.p.x)<1.5&&Math.abs(e.p.z+P.d)<2.5){ P.fase='stil'; P.t=0; }
-      else if(P.fase==='stil'&&P.t>=3.0){ P.fase='uit'; P.t=0; this.toonGroot('',''); }
+      else if(P.fase==='stil'&&P.t>=PARADE_DICHT_T){    // even van dichtbij
+        P.fase='terug'; P.t=0; P.d=P.ver; }
+      else if(P.fase==='terug'&&Math.abs(e.p.z+P.d)<3.0){ P.fase='ver'; P.t=0; }
+      else if(P.fase==='ver'&&P.t>=PARADE_VER_T){ P.fase='uit'; P.t=0; this.toonGroot('',''); }
       else if(P.fase==='uit'&&e.p.x>150){
         e.live=false; if(e.bb){ this.bbVrij(e.bb); e.bb=null; }
         if(e.romp){ e.romp.visible=false; e.romp=null; }
