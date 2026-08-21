@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.56';
+  const VERSIE='v11.57';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -828,7 +828,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.56" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.57" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -1035,6 +1035,12 @@
   // op een bril kost een lichaam meer dan een plat vlak, en bij kleine kogels
   // zie je het verschil toch niet.
   const RAKETLIJF=18;
+  // Een los stukje binnen een vak dat kleiner is dan dit deel van het schip zelf
+  // wordt weggepoetst. 0,04 = alles onder 4% van het schip.
+  const SCHOON_DEEL=0.04;
+  // Tot welke kolom er wordt opgeruimd. De vierde kolom is het projectiel van dat
+  // schip; daar hoort een losse vlam bij en die mag niet als rommel worden gezien.
+  const SCHOON_KOL=3;
   const ZUIGR=70;                 // bereik van de vortex op zijn wijdst
   const OVER=[56,40,26];        // afstandsbanden waarop een oversteker langs je scheert
   // ---------------------------------------------------------------
@@ -1460,6 +1466,71 @@
       return uit; },
 
     // ---- de plaat zelf opmeten: geen vast raster, maar zoeken waar de inkt staat ----
+    // Per vak alles wegpoetsen wat niet aan het hoofdschip vastzit.
+    // Werkt met een vlakke vulling vanaf het midden: wat je van daaruit niet kunt
+    // bereiken, hoort er niet bij. Kleine losse stukjes gaan weg, echte losse
+    // delen van het schip (een motorgloed, een losse vleugel) blijven staan
+    // zolang ze groot genoeg zijn.
+    plaatSchoon:function(img,W,H,kol,rij,d,naam){
+      const c=document.createElement('canvas'); c.width=W; c.height=H;
+      const g=c.getContext('2d'); g.drawImage(img,0,0);
+      const bd=g.getImageData(0,0,W,H);
+      const px=bd.data;
+      const DR=24;                                     // vanaf hier telt het als inkt
+      let weg=0, blobs=0;
+      const merk=new Int32Array(W*H);                  // 0 = nog niet bekeken
+      const stapel=new Int32Array(W*H);
+      for(let rr=0;rr<rij.length;rr++){
+        const r=rij[rr];
+        for(let cc=0;cc<kol.length;cc++){
+          const k=kol[cc];
+          const x0=k[0], x1=k[1], y0=r[0], y1=r[1];
+          // 1. alle losse gebieden in dit vak zoeken
+          const gebieden=[];
+          for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){
+            const i=y*W+x;
+            if(merk[i]||px[i*4+3]<DR) continue;
+            let sp=0; stapel[sp++]=i; merk[i]=gebieden.length+1;
+            let n=0, cx=0, cy=0;
+            while(sp>0){ const j=stapel[--sp];
+              const jx=j%W, jy=(j/W)|0;
+              n++; cx+=jx; cy+=jy;
+              if(jx>x0&&!merk[j-1]&&px[(j-1)*4+3]>=DR){ merk[j-1]=gebieden.length+1; stapel[sp++]=j-1; }
+              if(jx<x1&&!merk[j+1]&&px[(j+1)*4+3]>=DR){ merk[j+1]=gebieden.length+1; stapel[sp++]=j+1; }
+              if(jy>y0&&!merk[j-W]&&px[(j-W)*4+3]>=DR){ merk[j-W]=gebieden.length+1; stapel[sp++]=j-W; }
+              if(jy<y1&&!merk[j+W]&&px[(j+W)*4+3]>=DR){ merk[j+W]=gebieden.length+1; stapel[sp++]=j+W; } }
+            gebieden.push({id:gebieden.length+1,n:n,cx:cx/n,cy:cy/n}); }
+          // De vierde kolom bevat de projectielen. Daar hoort een raket met een
+          // losse vlam te staan: die zou het opruimen als 'los stukje' zien.
+          if(cc>=SCHOON_KOL) continue;
+          if(gebieden.length<2) continue;              // niets losstaands: klaar
+          blobs+=gebieden.length-1;
+          let grootste=gebieden[0];
+          for(const G of gebieden) if(G.n>grootste.n) grootste=G;
+          // 2. te kleine losse stukjes wegpoetsen
+          const drempel=grootste.n*SCHOON_DEEL;
+          const houd={}; houd[grootste.id]=1;
+          for(const G of gebieden) if(G.n>=drempel) houd[G.id]=1;
+          let vakWeg=0;
+          for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){
+            const i=y*W+x, m=merk[i];
+            if(m&&!houd[m]){ px[i*4+3]=0; weg++; vakWeg++; } }
+          if(vakWeg){
+            // Verslag: welke plaat, welk vak, hoeveel. Zo is later na te gaan wat
+            // er precies is weggehaald en wijst het nooit naar de verkeerde plaat.
+            window.ART.schoonLog=window.ART.schoonLog||[];
+            window.ART.schoonLog.push({
+              plaat:naam||'?', rij:rr, kolom:cc,
+              vak:'x'+x0+'-'+x1+' y'+y0+'-'+y1,
+              gebieden:gebieden.length, grootste:grootste.n, weg:vakWeg }); } } }
+      if(!weg) return null;
+      g.putImageData(bd,0,0);
+      const nt=new THREE.CanvasTexture(c);
+      nt.__naam=(img.__naam||'')+' [schoon]';
+      nt.needsUpdate=true;
+      window.ART.geknipt=(window.ART.geknipt||0)+weg;
+      return nt; },
+
     meetPlaat:function(tex){
       const img=tex.image; if(!img||!img.width) return null;
       const W=img.width, H=img.height;
@@ -1537,7 +1608,14 @@
       }catch(e){ /* plaat van een ander domein: dan het vaste raster */ }
       if(!kol){ kol=[]; for(let i=0;i<4;i++) kol.push([Math.round(i*W/4),Math.round((i+1)*W/4)-1]);
                 rij=[]; for(let i=0;i<6;i++) rij.push([Math.round(i*H/6),Math.round((i+1)*H/6)-1]); }
-      const mat=new THREE.MeshBasicMaterial({map:tex,transparent:true,alphaTest:0.06,
+      // Losse stukjes weg werken: binnen elk vak hoort maar één schip te staan.
+      // Alles wat er niet aan vastzit — een vleugelpunt van de buurman, een
+      // afgesneden hoekje — wordt uit de plaat gepoetst. Zo hoef je niet te
+      // vertrouwen op precies snijden: wat toch meekomt, verdwijnt gewoon.
+      let schoon=tex;
+      if(pix&&kol&&rij&&hoe.indexOf('gemeten')===0){
+        try{ schoon=this.plaatSchoon(img,W,H,kol,rij,pix,tex.__naam)||tex; }catch(e){ schoon=tex; } }
+      const mat=new THREE.MeshBasicMaterial({map:schoon,transparent:true,alphaTest:0.06,
         side:THREE.DoubleSide,depthWrite:false});
       const P={tex:tex,mat:mat,rect:{},hoe:hoe,kol:kol,rij:rij,rijen:rij.length,data:pix};
       for(let rr=0;rr<rij.length;rr++){
