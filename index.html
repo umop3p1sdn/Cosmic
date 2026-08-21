@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.52';
+  const VERSIE='v11.53';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -794,6 +794,13 @@
   '    <a-entity id="menu" position="0 0 0">'+
   '      <a-plane position="0 1.24 -2.62" width="2.92" height="2.96" material="color:#35e8ff;shader:flat;opacity:0.55;transparent:true"></a-plane>'+
   '      <a-plane position="0 1.24 -2.60" width="2.86" height="2.90" material="color:#061524;shader:flat;opacity:0.97;transparent:true"></a-plane>'+
+  '      <a-plane position="0 2.30 -2.59" width="2.60" height="0.46" material="color:#35e8ff;shader:flat;opacity:0.10;transparent:true;depthWrite:false"></a-plane>'+
+  '      <a-plane position="0 2.30 -2.585" width="1.90" height="0.30" material="color:#35e8ff;shader:flat;opacity:0.12;transparent:true;depthWrite:false"></a-plane>'+
+  '      <a-text position="0 2.30 -2.575" value="C O S M I C" align="center" color="#0d4a5e" width="5.4"></a-text>'+
+  '      <a-text position="0 2.303 -2.570" value="C O S M I C" align="center" color="#1f8fb0" width="5.3"></a-text>'+
+  '      <a-text position="0 2.305 -2.565" value="C O S M I C" align="center" color="#e8f6ff" width="5.2"></a-text>'+
+  '      <a-text position="0 2.06 -2.565" value="S H O O T E R" align="center" color="#ffb03a" width="3.1"></a-text>'+
+  '      <a-plane position="0 1.93 -2.575" width="2.20" height="0.006" material="color:#ffb03a;shader:flat;opacity:0.6;transparent:true"></a-plane>'+
   '      <a-plane id="scan" position="0 1.52 -2.585" width="2.80" height="0.016" material="color:#35e8ff;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
   '      <a-plane position="-1.78 1.42 -2.28" rotation="0 30 0" width="1.02" height="1.42" material="color:#0a2133;shader:flat;opacity:0.9;transparent:true"></a-plane>'+
   '      <a-plane position="1.78 1.42 -2.28"  rotation="0 -30 0" width="1.02" height="1.42" material="color:#0a2133;shader:flat;opacity:0.9;transparent:true"></a-plane>'+
@@ -804,7 +811,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.52" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.53" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -827,7 +834,12 @@
   '      <a-plane id="btnHelp" class="menu-btn" position="0.52 -0.16 -2.57" width="0.80" height="0.26" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="0.52 -0.16 -2.55" value="CONTROLS" align="center" color="#8fd8ec" width="2.4"></a-text>'+
   '      <a-text id="scoreLijst" position="0 -0.44 -2.55" value="" align="center" color="#9fe4f5" width="2.2"></a-text>'+
-  '      <a-plane id="btnTech" class="menu-btn" position="0 -0.52 -2.57" width="1.70" height="0.26" material="color:#2a1d38;shader:flat"></a-plane>'+
+  '      <a-ring id="wijzer" visible="false" radius-inner="0.020" radius-outer="0.034" material="color:#ffe45c;shader:flat;transparent:true;opacity:0.95;depthWrite:false;depthTest:false"></a-ring>'+
+  '      <a-plane id="menuSchip" visible="false" width="1" height="1" material="transparent:true;alphaTest:0.06;shader:flat;side:double;depthWrite:false"></a-plane>'+
+  '      <a-plane id="btnMoei" class="menu-btn" position="0 -0.50 -2.55" width="1.30" height="0.20" material="color:#101c2e;shader:flat"></a-plane>'+
+  '      <a-text id="moeiTxt" value="NORMAL" align="center" color="#9fe4f5" width="1.9" position="0 -0.50 -2.54"></a-text>'+
+  '      <a-text id="moeiInfo" value="" align="center" color="#5f9ab5" width="1.35" position="0 -0.655 -2.54"></a-text>'+
+  '      <a-plane id="btnTech" class="menu-btn" position="0 -0.86 -2.57" width="1.70" height="0.26" material="color:#2a1d38;shader:flat"></a-plane>'+
   '      <a-text position="0 -0.52 -2.55" value="TEST" align="center" color="#b06cff" width="2.4"></a-text>'+
   '      <a-entity id="nieuw" visible="false">'+
   '        <a-plane position="0 1.05 -2.20" width="2.00" height="0.86" material="color:#0d1b12;shader:flat"></a-plane>'+
@@ -980,6 +992,17 @@
   // aankondiging, en de nieuwe wereld die opkomt. Vijanden wachten tot het eind.
   const RUST_KIJK=2.2, RUST_DOOF=1.6, RUST_ZWART=2.4, RUST_OP=2.0;
   const RUST_TOTAAL=RUST_KIJK+RUST_DOOF+RUST_ZWART+RUST_OP;
+  // De drie standen verschillen ALLEEN in hoeveel continues je hebt en hoe royaal
+  // de dozen zijn. Het spel zelf blijft precies hetzelfde.
+  const MOEILIJK={
+    easy:{naam:'EASY', cont:-1, doos:1.75, mag:1.6, ult:4,
+          uitleg:'unlimited continues\nextra guns and ammo'},
+    mid: {naam:'NORMAL', cont:20, doos:1.00, mag:1.0, ult:2,
+          uitleg:'20 continues\nnormal guns and ammo'},
+    hard:{naam:'HARD', cont:10, doos:1.00, mag:1.0, ult:2,
+          uitleg:'10 continues\nnormal guns and ammo'} };
+  let MSTAND='mid';
+  const M=function(){ return MOEILIJK[MSTAND]||MOEILIJK.mid; };
   const ZUIGR=70;                 // bereik van de vortex op zijn wijdst
   const OVER=[56,40,26];        // afstandsbanden waarop een oversteker langs je scheert
   // ---------------------------------------------------------------
@@ -1140,7 +1163,8 @@
     [ 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29]
   ];
   const LEVELS=NIVEAU.length;
-  const CD=[110,760,360,1400,300,60];
+  //          -  raket shotgun laser electro mitrailleur
+  const CD=[110,  760,   360,  700,   300,      60];   // laser was 1400: gehalveerd   // laser was 1400: gehalveerd
 
   // De spelcomponent wordt geregistreerd zodra A-Frame er echt is — vanuit boot.
   // In v11.9 werd hij bij een ontbrekend A-Frame stilletjes OVERGESLAGEN; kwam
@@ -1333,7 +1357,7 @@
       this.rij=[]; this.veldMax=0; this.gi=0; this.groepT=0;
       this.baas=null; this.baasTrio=null; this.baasWeg=false; this.baasBalkUit();
       this.melding=0; this.meldC=0; this.wave=0; this.golfT=0; this.state='wacht';
-      this.ults=2; this.ultPt=0; this.combo=0; this.laatst=-9; this.beste=0;
+      this.ults=M().ult; this.ultPt=0; this.combo=0; this.laatst=-9; this.beste=0;
       this.baas=null; this.rood=0; this.hurtCd=0; this.melding=0; this.contN=0;
       this.gedood=0; this.schoten=0;
       const prim=(window.PRIMHAND==='right')?'rightHand':'leftHand';
@@ -1691,7 +1715,7 @@
         if(!W.lvlT) W.lvlT={};
         if(D.ammo){                                               // ammo-doos: puur bijvullen, nooit wisselen
           const k=(W.t>=1&&W.t<=4)?W.t:(W.vorig||(1+Math.floor(Math.random()*4)));
-          W.mag[k]=(W.mag[k]||0)+((W.t===k)?10:20);
+          W.mag[k]=(W.mag[k]||0)+Math.round(((W.t===k)?10:20)*M().mag);
           if(W.t===k) this.toonWissel(W); else this.toonZak(k,W);
           SND.boom(0); return true; }
         const k=D.k;
@@ -1700,7 +1724,7 @@
           this.toonZak(5,W); SND.boom(0); return true; }
         const had=((W.mag[k]||0)>0)||(W.lvlT[k]>=1);
         W.lvlT[k]=had?Math.min(3,(W.lvlT[k]||1)+1):1;              // niveau per wapensoort, blijft bewaard
-        W.mag[k]=(W.mag[k]||0)+20;
+        W.mag[k]=(W.mag[k]||0)+Math.round(20*M().mag);
         if(W.t===k){ W.lvl=W.lvlT[k]; this.toonWissel(W); } else this.toonZak(k,W);
         SND.boom(0); return true; }
       return false; },
@@ -1709,6 +1733,9 @@
       if(window.PHASE!=='game'||window.PAUSED) return;
       const W=this.wp(h), now=performance.now();
       const snel=((W.t===5||W.t===0)?(1/(1+0.12*this.kr(W))):1);
+      // De laser vuurt een reeks flitsen af. Begon je opnieuw terwijl die nog
+      // liep, dan werd de reeks afgekapt en deed hij juist MINDER schade.
+      if(W.t===3&&W.laz) return;
       if(now-W.last<CD[W.t]*snel) return;
       W.last=now;
       if(W.t>=1&&W.t<=4){ if((W.mag[W.t]||0)<=0){ W.vorig=W.t; W.t=5; W.lvl=(W.lvlT[5]||1); this.toonWissel(W); }
@@ -2034,7 +2061,7 @@
         e.dood2=0; e.dt=0; e.stuur=0; e.dz=0; e.hulpT=9; e.baasNaam=''; e.gedrag=''; e.trioI=null;
         e.trip=0; e.tripT=0; e.tripAan=0; e.weer=0; e.wapens=null; e.vuur='duo'; e.rookT=0;
         e.rijst=0; e.rt=0; e.parade=0; e.broed=0; e.gen=0; e.brT=0; e.ax=undefined;
-        e.omT=0; e.omZij=0;
+        e.omT=0; e.omZij=0; e.vrede=0;
         e.vv=0; e.rol=0; e.zb=undefined; e.zw=undefined; e.hb=undefined; e.fase2=0;
         e.intro=(T.prof==='baas')?1:0; e.ip=0; e.it=0; e.iv=null; e.izij=0;
         e.route=(opt&&opt.route)||null; e.rp=(opt&&opt.rp)||0; e.rv=null;
@@ -2715,7 +2742,10 @@
 
       // ---- botsing met de speler ----
       const dm=e.p.distanceTo(eye);
-      if(dm<e.r+1.4&&!e.intro){ this.raakMij(2+e.sc*0.2);
+      // Een schip dat al neerstort doet je niets meer. Zonder dit nam de hele
+      // vloot je mee de dood in zodra de baas viel: tien wrakken tegelijk die
+      // dwars door je heen tuimelen.
+      if(dm<e.r+1.4&&!e.intro&&!e.dood&&!e.dood2&&!e.vrede){ this.raakMij(2+e.sc*0.2);
         e.p.addScaledVector(naar,-(e.r+2.6-dm)*3);
         this.vonk(e.p.x,e.p.y,e.p.z,0xff4040,6,8,0.8); }
 
@@ -2930,7 +2960,7 @@
       // De baas is dood: een echte overwinning. Alles wat nog vliegt stort neer
       // en al het vijandelijke vuur verdwijnt.
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
-        if(e.live&&!e.dood&&!e.dood2&&e.prof!=='baas') this.kill(e); }
+        if(e.live&&!e.dood&&!e.dood2&&e.prof!=='baas'){ e.vrede=1; this.kill(e); } }
       for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(!B.live) continue;
         B.live=false; B.m.visible=false;
         this.vonk(B.m.position.x,B.m.position.y,B.m.position.z,0xffb03a,4,6,0.5); }
@@ -3223,7 +3253,7 @@
 
       // ---- dozen ----
       this.doosT-=s;
-      if(this.doosT<=0){ this.doosT=26+Math.random()*10; this.doosSpawn(); }
+      if(this.doosT<=0){ this.doosT=(26+Math.random()*10)/M().doos; this.doosSpawn(); }
       for(let i=0;i<this.dozen.length;i++){ const D=this.dozen[i]; if(!D.live) continue;
         D.t+=s; D.p.z+=D.sp*s;
         D.g.position.copy(D.p);
@@ -3499,7 +3529,35 @@
         return b.hel-a.hel; });
       this.hemelI=-1; },
 
+    // Af en toe scheert er een vijandelijk schip langs de rand van het menu.
+    menuVlieg:function(s){
+      const m=document.querySelector('#menuSchip'); if(!m||!m.object3D) return;
+      if(!this.mvT){ this.mvT=3+Math.random()*7; }
+      if(!this.mvAan){
+        this.mvT-=s;
+        if(this.mvT>0) return;
+        const P=this.plaat12||this.plaat13||this.plaat6;
+        if(!P){ this.mvT=4; return; }
+        const rijen=Object.keys(P.rect);
+        const r=P.rect[rijen[Math.floor(Math.random()*rijen.length)]][0];
+        m.setAttribute('material','transparent:true;alphaTest:0.06;shader:flat;'+
+          'side:double;depthWrite:false;src:#'+(P.tex.__id||''));
+        const mesh=m.getObject3D('mesh');
+        if(mesh){ mesh.material=P.mat; this.uvRect(mesh.geometry,r); }
+        this.mvZij=(Math.random()<0.5)?-1:1;
+        this.mvX=this.mvZij*3.4; this.mvY=(Math.random()-0.5)*1.6+1.4;
+        this.mvSp=1.1+Math.random()*0.9;
+        this.mvAan=1; m.setAttribute('visible',true); }
+      this.mvX-=this.mvZij*this.mvSp*s*1.6;
+      m.object3D.position.set(this.mvX,this.mvY,-3.2);
+      m.object3D.scale.set(0.55,0.55,1);
+      m.object3D.rotation.z=this.mvZij*0.25;
+      if(Math.abs(this.mvX)>3.6){ this.mvAan=0; m.setAttribute('visible',false);
+        this.mvT=5+Math.random()*9; } },
+
     menuTick:function(s){
+      this.menuVlieg(s);
+      wijzerTick();
       const bezig=this.hemelWerk();
       this.laadTonen(bezig);
       const sc=document.querySelector('#scan');
@@ -3768,7 +3826,11 @@
         '\ncontinues used: '+this.contN,'CONTINUE'); },
 
     verder:function(){
-      if(this.over){ this.over=false; this.contN++; this.power=100; this.rood=0;
+      if(this.over){
+        const lim=M().cont;
+        if(lim>=0&&this.contN>=lim){
+          this.toonMelding('NO CONTINUES LEFT','#ff3d55'); return; }
+        this.over=false; this.contN++; this.power=100; this.rood=0;
         for(let i=0;i<this.vij.length;i++){ this.vij[i].live=false; this.vij[i].m.visible=false; } }
       window.PAUSED=false; this.paneel(false); },
 
@@ -3921,7 +3983,38 @@
     if(rt) rt.setAttribute('color',links?'#5f9ab5':'#ffffff'); }
 
   function laserAan(aan){
-    document.querySelectorAll('.menu-laser').forEach(function(l){ l.setAttribute('visible',!!aan); }); }
+    document.querySelectorAll('.menu-laser').forEach(function(l){ l.setAttribute('visible',!!aan); });
+    const p=document.querySelector('#wijzer'); if(p) p.setAttribute('visible',!!aan); }
+
+  // De stip die laat zien waar je op mikt in het menu. Hij springt naar de knop
+  // waar je op wijst, ook als die knop niets doet (CONTINUE zonder opgeslagen spel).
+  function wijzerTick(){
+    const p=document.querySelector('#wijzer');
+    if(!p||window.PHASE!=='menu') return;
+    const h=tHandMenu(); if(!h||!h.object3D) return;
+    const O=WP0||(WP0=new THREE.Vector3()), D=WD0||(WD0=new THREE.Vector3());
+    h.object3D.getWorldPosition(O); h.object3D.getWorldQuaternion(WQ0||(WQ0=new THREE.Quaternion()));
+    D.set(0,0,-1).applyQuaternion(WQ0).normalize();
+    let best=null, bd=1e9;
+    document.querySelectorAll('.menu-btn').forEach(function(b){
+      if(!b.object3D||b.getAttribute('visible')===false) return;
+      const P=WP1||(WP1=new THREE.Vector3());
+      b.object3D.getWorldPosition(P);
+      const v=WP2||(WP2=new THREE.Vector3());
+      v.subVectors(P,O);
+      const t=v.dot(D); if(t<0.2) return;
+      const af=v.addScaledVector(D,-t).length();
+      if(af<bd){ bd=af; best=P.clone(); } });
+    if(best&&bd<0.42){ p.setAttribute('visible',true);
+      p.object3D.position.copy(p.object3D.parent.worldToLocal(best.clone()));
+      p.object3D.position.z+=0.02; }
+    else p.setAttribute('visible',false); }
+  let WP0,WP1,WP2,WD0,WQ0;
+  const tHandMenu=function(){
+    const prim=(window.PRIMHAND==='right')?'#rightHand':'#leftHand';
+    const h=document.querySelector(prim);
+    if(h&&h.object3D&&h.object3D.visible&&window.INVR) return h;
+    return document.querySelector('#touchHand'); };
 
   function startSpel(demo,vanaf){
     if(window.PHASE!=='menu') return;
@@ -3937,7 +4030,7 @@
     window.PAUSED=false; window.PHASE='game';
     if(C){ C.reset();
       if(vanaf&&(vanaf.l>1||vanaf.w)){ C.level=vanaf.l||1; C.zaad=C.level*7919;
-        C.punten=vanaf.s||0; C.ults=Math.max(2,vanaf.u||2); C.contN=vanaf.c||0;
+        C.punten=vanaf.s||0; C.ults=Math.max(M().ult,vanaf.u||M().ult); C.contN=vanaf.c||0;
         C.hemelZet(); C.objZet();
         if(vanaf.w){ C.wave=vanaf.w;                 // halverwege of pal voor de baas
           for(let q=1;q<=vanaf.w;q++) C.golfPlan(q); }   // zaadje meelopen zodat het klopt
@@ -3972,6 +4065,17 @@
     const lvToon=function(){ const t=document.querySelector('#lvTxt');
       if(t) t.setAttribute('value',techLv>16?'PARADE':('LEVEL '+techLv)); };
     kl('#btnNieuw',function(){ versieHerlaad(); });
+    const moeiToon=function(){
+      const t=document.querySelector('#moeiTxt'), i=document.querySelector('#moeiInfo');
+      if(t) t.setAttribute('value',M().naam);
+      if(i) i.setAttribute('value',M().uitleg); };
+    kl('#btnMoei',function(){
+      MSTAND=(MSTAND==='easy')?'mid':((MSTAND==='mid')?'hard':'easy');
+      try{ localStorage.setItem('cosmic_moei',MSTAND); }catch(e){}
+      moeiToon(); SND.boom(0); });
+    try{ const m2=localStorage.getItem('cosmic_moei');
+         if(m2&&MOEILIJK[m2]) MSTAND=m2; }catch(e){}
+    moeiToon();
     kl('#btnTech',function(){ techToon(true); lvToon(); });
     kl('#btnTechUit',function(){ techToon(false); });
     kl('#btnLvMin',function(){ techLv=Math.max(1,techLv-1); lvToon(); });
