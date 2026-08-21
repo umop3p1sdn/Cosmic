@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.54';
+  const VERSIE='v11.56';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -828,7 +828,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.54" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.56" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -1031,6 +1031,10 @@
   const ZOEKMAX=2, ZOEKKANS=0.28, ZOEKDRAAI=0.30;
   const ZOEKSTOP=34;            // vanaf hier stopt hij met zoeken: te ontwijken
   const ZWERM_RUST=7;           // tellen tussen twee zwermen bij een drieluik
+  // Hoeveel raketten tegelijk een echt lichaam krijgen. De rest blijft een vlak:
+  // op een bril kost een lichaam meer dan een plat vlak, en bij kleine kogels
+  // zie je het verschil toch niet.
+  const RAKETLIJF=18;
   const ZUIGR=70;                 // bereik van de vortex op zijn wijdst
   const OVER=[56,40,26];        // afstandsbanden waarop een oversteker langs je scheert
   // ---------------------------------------------------------------
@@ -1254,6 +1258,18 @@
             depthWrite:false,color:0xff5a3c}));
         m.renderOrder=6; return m; },{o:1,dir:1,d:0,sp:26,md:150,br:0.42,len:2.4});
       this.vij.forEach(function(B){ B.eigen=B.m.material; });   // eigen streep als er geen plaat is
+      // Een platte raket blijft altijd naar je toe draaien: je ziet dan van elke
+      // kant dezelfde schuine tekening. Grote raketten krijgen daarom een echt
+      // lichaam: een taps toelopende buis waar de tekening RONDOM omheen zit.
+      // Vanaf de zijkant een raket, van voren een neus die op je af komt.
+      const buis=new THREE.CylinderGeometry(0.16,0.5,1,12,1,true);
+      this.vijBuis=[];
+      for(let i=0;i<RAKETLIJF;i++){
+        const m=new THREE.Mesh(buis.clone(),
+          new THREE.MeshBasicMaterial({transparent:true,alphaTest:0.05,
+            side:THREE.DoubleSide,depthWrite:false}));
+        m.renderOrder=6; m.visible=false; m.frustumCulled=false;
+        this.par.add(m); this.vijBuis.push(m); }
       this.rockets=[]; this.mkPool(this.rockets,64,function(){
         const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
           new THREE.MeshBasicMaterial({map:self.GLOED,transparent:true,blending:THREE.AdditiveBlending,
@@ -1383,7 +1399,7 @@
       this.punten=0; this.power=100; this.over=false; this.klaar=false;
       this.level=1; this.plan=null; this.planT=0; this.zaad=7919; this.beurt=0;
       this.rij=[]; this.veldMax=0; this.gi=0; this.groepT=0;
-      this.baas=null; this.baasTrio=null; this.baasWeg=false; this.baasBalkUit();
+      this.baas=null; this.baasTrio=null; this.baasWeg=false; this.zwermBeurt=0; this.baasBalkUit();
       this.melding=0; this.meldC=0; this.wave=0; this.golfT=0; this.state='wacht';
       this.ults=M().ult; this.ultPt=0; this.combo=0; this.laatst=-9; this.beste=0;
       this.baas=null; this.rood=0; this.hurtCd=0; this.melding=0; this.contN=0;
@@ -1639,6 +1655,44 @@
         for(let x=k[0];x<=k[1];x++){ const al=d[o+x*4+3];
           if(x<mid) a+=al; else b+=al; } }
       return (a>=b)?'links':'rechts'; },
+
+    // De tekening rondom een buis wikkelen: horizontaal loopt hij helemaal rond
+    // (naad aan de achterkant), verticaal van staart naar neus.
+    // Een lichaam met zijn lengte langs de vliegrichting zetten.
+    richtAs:function(m,dir){
+      // EIGEN geheugenplek: this.RQ is van richtQuad en heeft daar meer velden.
+      // Die hier overschrijven brak het richten van alle andere projectielen.
+      const R=this.RA||(this.RA={y:new THREE.Vector3(),x:new THREE.Vector3(),
+        z:new THREE.Vector3(),M:new THREE.Matrix4(),op:new THREE.Vector3()});
+      R.y.copy(dir).normalize();
+      R.op.set(0,1,0);
+      if(Math.abs(R.y.dot(R.op))>0.98) R.op.set(1,0,0);
+      R.x.crossVectors(R.op,R.y).normalize();
+      R.z.crossVectors(R.x,R.y).normalize();
+      R.M.makeBasis(R.x,R.y,R.z);
+      m.quaternion.setFromRotationMatrix(R.M); },
+
+    vijVrij2:function(B){
+      if(!B) return;
+      B.live=false; B.m.visible=false;
+      if(B.buis){ B.buis.visible=false; B.buis=null; } },
+
+    buisRect:function(g,R){
+      const a=g.attributes.uv;
+      for(let i=0;i<a.count;i++){
+        const u=a.getX(i), v=a.getY(i);
+        a.setXY(i,R.u0+u*(R.u1-R.u0),R.v0+v*(R.v1-R.v0)); }
+      a.needsUpdate=true; },
+
+    // Een vrije buis pakken voor een grote raket; is er geen, dan blijft het een vlak.
+    buisPak:function(B,R,mat){
+      if(!this.vijBuis) return false;
+      for(let i=0;i<this.vijBuis.length;i++){ const m=this.vijBuis[i];
+        if(m.visible) continue;
+        m.material.map=mat.map; m.material.needsUpdate=true;
+        this.buisRect(m.geometry,R);
+        m.visible=true; B.buis=m; return true; }
+      return false; },
 
     // keer=true zet het plaatje ondersteboven. Op Sjoerds platen staan de raketten
     // rechtop MET DE NEUS BOVEN, en richtQuad legt de bovenkant van het plaatje
@@ -2196,13 +2250,22 @@
             if(this.zoekers()<ZOEKMAX&&Math.random()<ZOEKKANS){
               B.zoek=1; B.sp*=0.72; B.hp=Math.max(B.hp,3); B.zwaar=1; }
             else B.sp*=0.9; }
-          else if(Math.random()<0.30) B.wieg=1;         // een enkele slingert
+          else {
+            // De middenmoot mengt zijn vuur: slingeren, een boogje, of soms toch
+            // een zoeker. Zo lijkt niet elk schot op het vorige.
+            const r2=Math.random();
+            if(r2<0.28) B.wieg=1;
+            else if(r2<0.46){ B.boog=0.22+Math.random()*0.20; B.sp*=0.92; }
+            else if(r2<0.56&&this.zoekers()<ZOEKMAX&&Math.random()<0.5){
+              B.zoek=1; B.sp*=0.78; B.hp=Math.max(B.hp,3); B.zwaar=1; }
+            else if(r2<0.70){ B.sp*=1.35; B.streep=1; B.hp=1; B.zwaar=0; } }
           B.dir.copy(eye).sub(e.p).normalize();
           B.dir.x+=(Math.random()-0.5)*(spr||0.06);
           B.dir.y+=(Math.random()-0.5)*(spr||0.06);
           B.dir.normalize();
           const R=e.plaat?e.plaat.rect[e.rij][3]:null;   // kolom 4 = zijn eigen projectiel
           if(R){ B.m.material=e.plaat.mat; this.uvRect(B.m.geometry,R,1);
+                 this.buisPak(B,R,e.plaat.mat);
                  B.len=3.4; B.br=3.4*(R.arv||R.ar); }
           else { B.m.material=B.eigen; B.m.material.color.setHex(e.tp===7?0xffd24a:0xff5a3c);
                  B.br=0.5; B.len=2.6; }
@@ -2313,7 +2376,12 @@
       const drempels=[0.92,0.80,0.68,0.56,0.44,0.32,0.20,0.10];
       e.stuur=e.stuur||0;
       if(e.stuur<drempels.length&&deel<=drempels[e.stuur]){
-        this.baasZwerm(e,e.stuur); e.stuur++; }
+        // Staan er meerdere bazen tegelijk, dan stuurt er steeds maar ÉÉN een
+        // zwerm. Alledrie tegelijk werd een muur waar niet doorheen te komen was.
+        const trio=(this.baasTrio&&this.baasTrio.length>1);
+        if(!trio||this.zwermBeurt===undefined||this.zwermBeurt===e.trioI){
+          this.baasZwerm(e,e.stuur); e.stuur++;
+          if(trio) this.zwermBeurt=(e.trioI+1)%this.baasTrio.length; } }
       // ---- balk bijwerken ----
       this.baasBalk(e); },
 
@@ -2379,6 +2447,7 @@
         const P=this.plaatVoor(1);
         const R=P?P.rect[TYPE[1].rij][3]:null;
         if(R){ B.m.material=P.mat; this.uvRect(B.m.geometry,R,1);
+               this.buisPak(B,R,P.mat);
                B.len=4.6; B.br=4.6*(R.arv||R.ar); }
         else { B.m.material=B.eigen; B.m.material.color.setHex(0xffb03a); B.br=0.8; B.len=3.6; }
         B.m.visible=true; B.boog=0.42;
@@ -2441,6 +2510,7 @@
         const P=this.plaatVoor(tp);
         const R=P?P.rect[TYPE[tp].rij][3]:null;
         if(R){ B.m.material=P.mat; this.uvRect(B.m.geometry,R,1);
+               this.buisPak(B,R,P.mat);
                B.len=5.0*V.gr; B.br=B.len*(R.arv||R.ar); }
         else { B.m.material=B.eigen; B.m.material.color.setHex(0xffd24a);
                B.br=0.7*V.gr; B.len=3.4*V.gr; }
@@ -3026,7 +3096,7 @@
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
         if(e.live&&!e.dood&&!e.dood2&&e.prof!=='baas'){ e.vrede=1; this.kill(e); } }
       for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(!B.live) continue;
-        B.live=false; B.m.visible=false;
+        this.vijVrij2(B);
         this.vonk(B.m.position.x,B.m.position.y,B.m.position.z,0xffb03a,4,6,0.5); }
       this.state='rust'; this.rustT=RUST_TOTAAL; this.rustFase=0;
       this.wave=0;
@@ -3311,10 +3381,18 @@
           B.wf=(B.wf||Math.random()*6)+s*3.2;
           B.dir.x+=Math.sin(B.wf)*0.9*s; B.dir.normalize(); }
         const p=kp.copy(B.o).addScaledVector(B.dir,B.d);
-        this.richtQuad(B.m,p,B.dir,B.len||2.4,B.br||0.42);
-        if(p.distanceTo(eye)<0.80){ this.raakMij(5); B.live=false; B.m.visible=false;
+        if(B.buis){
+          // Het lichaam wijst met zijn lengte langs de vliegrichting en draait niet
+          // naar je toe: daardoor zie je hem van opzij als raket en van voren als neus.
+          const L=B.len||2.4, Br=B.br||0.42;
+          B.buis.position.copy(p);
+          B.buis.scale.set(Br*1.35,L,Br*1.35);
+          this.richtAs(B.buis,B.dir);
+          B.m.visible=false;
+        } else this.richtQuad(B.m,p,B.dir,B.len||2.4,B.br||0.42);
+        if(p.distanceTo(eye)<0.80){ this.raakMij(5); this.vijVrij2(B);
           this.vonk(p.x,p.y,p.z,0xff5a3c,6,7,0.6); if(window.PAUSED) return; continue; }
-        if(B.d>B.md){ B.live=false; B.m.visible=false; } }
+        if(B.d>B.md){ this.vijVrij2(B); } }
 
       // ---- brokstukken ----
       for(let i=0;i<this.brokken.length;i++){ const B=this.brokken[i]; if(!B.live) continue;
@@ -3971,7 +4049,7 @@
         if(lim>=0&&this.contN>=lim){
           this.toonMelding('NO CONTINUES LEFT','#ff3d55'); return; }
         this.over=false; this.contN++; this.power=100; this.rood=0;
-        for(let i=0;i<this.vij.length;i++){ this.vij[i].live=false; this.vij[i].m.visible=false; } }
+        for(let i=0;i<this.vij.length;i++) this.vijVrij2(this.vij[i]); }
       window.PAUSED=false; this.paneel(false); },
 
     // =====================================================
