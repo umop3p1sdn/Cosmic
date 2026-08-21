@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.53';
+  const VERSIE='v11.54';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -398,6 +398,11 @@
   window.ART={pano:null,panos:[],objs:[],schepen:[],vondst:'-',bezig:false,
               totaal:0,klaar:0,af:false};
 
+  // Wat we van elke plaat weten zonder hem in het geheugen te houden: waar hij
+  // staat, welk nummer hij heeft en hoe licht hij is. Genoeg om de volgorde te
+  // bepalen en hem later terug te halen uit de browsercache.
+  const KAART={hemels:[], bazen:[]};
+
   function artLaad(url,cb){ try{
     const L=new THREE.TextureLoader(); L.setCrossOrigin('anonymous');
     if(L.setPath) L.setPath('');
@@ -495,20 +500,26 @@
           window.ART.vondst=window.ART.panos.length+' sky '+window.ART.objs.length+' obj'; }
         if(t&&t.image&&t.image.width){
           t.__naam=nm;                                       // naam bewaren voor de volgorde
+          t.__url=url;                                       // en waar hij vandaan komt
           const ar=t.image.width/t.image.height;
           const leeg=doorzichtig(t.image);
           t.__leeg=leeg; t.__soort=soort; t.__rond=rondheid(t.image);
           const N=nummerVan(nm);
           if(N){ t.__lijst=N;                                  // de nummerlijst gaat voor
-            if(N.rol==='baas'){ t.__baas=1; window.ART.objs.push(t); if(window.ART.nieuw) window.ART.nieuw(); return; }
+            if(N.rol==='baas'){ t.__baas=1; window.ART.objs.push(t);
+              KAART.bazen.push({naam:nm,url:url,lijst:N});
+              if(window.ART.nieuw) window.ART.nieuw(); return; }
             if(N.rol==='object'||N.rol==='planeet'){ t.__baas=0; window.ART.objs.push(t);
               if(window.ART.nieuw) window.ART.nieuw(); return; } }
           if(soort==='hemel'){ window.ART.panos.push(t);
+            KAART.hemels.push({naam:nm,url:url,lijst:N||null});
             if(!window.ART.pano) window.ART.pano=t; }
           else if(soort==='vloot') window.ART.schepen.push(t);
-          else if(soort==='baas'){ t.__baas=1; window.ART.objs.push(t); }
+          else if(soort==='baas'){ t.__baas=1; window.ART.objs.push(t);
+            KAART.bazen.push({naam:nm,url:url,lijst:N||null}); }
           else if(soort==='object'){ t.__baas=0; window.ART.objs.push(t); }
           else if(ar>=1.7&&leeg<0.12){ window.ART.panos.push(t);   // vol beeld = achtergrond
+            KAART.hemels.push({naam:nm,url:url,lijst:N||null});
             if(!window.ART.pano||t.image.width>(window.ART.pano.image.width||0)) window.ART.pano=t; }
           else if(ar>=0.55&&ar<=1.05&&leeg>=0.05){            // staande of vierkante plaat = de vloot
             window.ART.schepen.push(t); }
@@ -792,8 +803,12 @@
 
   // ---------- MENU ----------
   '    <a-entity id="menu" position="0 0 0">'+
-  '      <a-plane position="0 1.24 -2.62" width="2.92" height="2.96" material="color:#35e8ff;shader:flat;opacity:0.55;transparent:true"></a-plane>'+
-  '      <a-plane position="0 1.24 -2.60" width="2.86" height="2.90" material="color:#061524;shader:flat;opacity:0.97;transparent:true"></a-plane>'+
+  '      <a-plane position="0 1.24 -2.66" width="3.30" height="3.34" material="color:#35e8ff;shader:flat;opacity:0.07;transparent:true;depthWrite:false"></a-plane>'+
+  '      <a-plane position="0 1.24 -2.64" width="3.08" height="3.12" material="color:#35e8ff;shader:flat;opacity:0.16;transparent:true;depthWrite:false"></a-plane>'+
+  '      <a-plane position="0 1.24 -2.62" width="2.92" height="2.96" material="color:#0a5f78;shader:flat;opacity:0.85;transparent:true"></a-plane>'+
+  '      <a-plane position="0 1.24 -2.60" width="2.86" height="2.90" material="color:#04101c;shader:flat;opacity:0.97;transparent:true"></a-plane>'+
+  '      <a-plane position="0 2.60 -2.595" width="2.86" height="0.008" material="color:#35e8ff;shader:flat;opacity:0.55;transparent:true"></a-plane>'+
+  '      <a-plane position="0 -0.12 -2.595" width="2.86" height="0.008" material="color:#35e8ff;shader:flat;opacity:0.35;transparent:true"></a-plane>'+
   '      <a-plane position="0 2.30 -2.59" width="2.60" height="0.46" material="color:#35e8ff;shader:flat;opacity:0.10;transparent:true;depthWrite:false"></a-plane>'+
   '      <a-plane position="0 2.30 -2.585" width="1.90" height="0.30" material="color:#35e8ff;shader:flat;opacity:0.12;transparent:true;depthWrite:false"></a-plane>'+
   '      <a-text position="0 2.30 -2.575" value="C O S M I C" align="center" color="#0d4a5e" width="5.4"></a-text>'+
@@ -802,8 +817,10 @@
   '      <a-text position="0 2.06 -2.565" value="S H O O T E R" align="center" color="#ffb03a" width="3.1"></a-text>'+
   '      <a-plane position="0 1.93 -2.575" width="2.20" height="0.006" material="color:#ffb03a;shader:flat;opacity:0.6;transparent:true"></a-plane>'+
   '      <a-plane id="scan" position="0 1.52 -2.585" width="2.80" height="0.016" material="color:#35e8ff;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
-  '      <a-plane position="-1.78 1.42 -2.28" rotation="0 30 0" width="1.02" height="1.42" material="color:#0a2133;shader:flat;opacity:0.9;transparent:true"></a-plane>'+
-  '      <a-plane position="1.78 1.42 -2.28"  rotation="0 -30 0" width="1.02" height="1.42" material="color:#0a2133;shader:flat;opacity:0.9;transparent:true"></a-plane>'+
+  '      <a-plane position="-1.78 1.42 -2.30" rotation="0 30 0" width="1.12" height="1.52" material="color:#35e8ff;shader:flat;opacity:0.14;transparent:true;depthWrite:false"></a-plane>'+
+  '      <a-plane position="-1.78 1.42 -2.28" rotation="0 30 0" width="1.02" height="1.42" material="color:#06182a;shader:flat;opacity:0.94;transparent:true"></a-plane>'+
+  '      <a-plane position="1.78 1.42 -2.30"  rotation="0 -30 0" width="1.12" height="1.52" material="color:#35e8ff;shader:flat;opacity:0.14;transparent:true;depthWrite:false"></a-plane>'+
+  '      <a-plane position="1.78 1.42 -2.28"  rotation="0 -30 0" width="1.02" height="1.42" material="color:#06182a;shader:flat;opacity:0.94;transparent:true"></a-plane>'+
   '      <a-text position="-1.78 1.96 -2.27" rotation="0 30 0"  value="ART" align="center" color="#2f7c96" width="2.0"></a-text>'+
   '      <a-text id="artTxt" position="-1.78 1.74 -2.27" rotation="0 30 0" value="scanning..." align="center" color="#6ad1a0" width="1.9"></a-text>'+
   '      <a-text position="-1.78 1.42 -2.27" rotation="0 30 0"  value="MUSIC" align="center" color="#2f7c96" width="2.0"></a-text>'+
@@ -811,7 +828,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.53" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.54" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -822,12 +839,15 @@
   '      <a-plane id="handR" class="menu-btn" position="0.60 1.55 -2.57" width="1.06" height="0.34" material="color:#0e2c40;shader:flat"></a-plane>'+
   '      <a-text id="handRt" position="0.60 1.55 -2.55" value="RIGHT" align="center" color="#e8f6ff" width="3.4"></a-text>'+
   '      <a-text id="handHint" position="0 1.30 -2.55" value="machine gun goes here - the other hand takes weapons" align="center" color="#39708a" width="2.4"></a-text>'+
-  '      <a-plane id="btnStart" class="menu-btn" position="0 0.98 -2.57" width="1.70" height="0.42" material="color:#123a4e;shader:flat"></a-plane>'+
+    '      <a-plane position="0 0.98 -2.585" width="1.78" height="0.34" material="color:#35e8ff;shader:flat;opacity:0.18;transparent:true;depthWrite:false"></a-plane>'+
+'      <a-plane id="btnStart" class="menu-btn" position="0 0.98 -2.57" width="1.70" height="0.42" material="color:#123a4e;shader:flat"></a-plane>'+
   '      <a-text id="startTxt" position="0 0.98 -2.55" value="LAUNCH" align="center" color="#35e8ff" width="4.4"></a-text>'+
   '      <a-plane id="laadBalk" position="-0.85 0.80 -2.56" width="0.02" height="0.035" material="color:#35e8ff;shader:flat"></a-plane>'+
-  '      <a-plane id="btnCont" class="menu-btn" position="0 0.58 -2.57" width="1.70" height="0.34" material="color:#20301c;shader:flat"></a-plane>'+
+    '      <a-plane position="0 0.58 -2.585" width="1.78" height="0.34" material="color:#35e8ff;shader:flat;opacity:0.18;transparent:true;depthWrite:false"></a-plane>'+
+'      <a-plane id="btnCont" class="menu-btn" position="0 0.58 -2.57" width="1.70" height="0.34" material="color:#20301c;shader:flat"></a-plane>'+
   '      <a-text id="contTxt" position="0 0.58 -2.55" value="NO SAVED RUN" align="center" color="#40603a" width="2.6"></a-text>'+
-  '      <a-plane id="btnDemo" class="menu-btn" position="0 0.20 -2.57" width="1.70" height="0.30" material="color:#123a2e;shader:flat"></a-plane>'+
+    '      <a-plane position="0 0.2 -2.585" width="1.78" height="0.34" material="color:#35e8ff;shader:flat;opacity:0.18;transparent:true;depthWrite:false"></a-plane>'+
+'      <a-plane id="btnDemo" class="menu-btn" position="0 0.20 -2.57" width="1.70" height="0.30" material="color:#123a2e;shader:flat"></a-plane>'+
   '      <a-text position="0 0.20 -2.55" value="WATCH DEMO" align="center" color="#6ce2a0" width="3.0"></a-text>'+
   '      <a-plane id="btnScores" class="menu-btn" position="-0.52 -0.16 -2.57" width="0.80" height="0.26" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-0.52 -0.16 -2.55" value="SCORES" align="center" color="#8fd8ec" width="2.4"></a-text>'+
@@ -986,8 +1006,11 @@
   // Maximale breedte van een achtergrond en van een los object in het geheugen.
   // Verkleinen scheelt honderden megabytes op de bril; op deze afstanden zie je
   // het verschil niet.
-  const HEMEL_MAX=2048;
-  const PROP_MAX=768;
+  // Sinds er nog maar ÉÉN wereld tegelijk in het geheugen staat, hoeft er niets
+  // meer ingeleverd te worden op scherpte. 4096 is de grootste plaat die Sjoerd
+  // aanlevert, dus in de praktijk blijft alles op volle resolutie.
+  const HEMEL_MAX=4096;
+  const PROP_MAX=2048;
   // De overgang na een baas, in seconden: nagenieten, doven, zwart met de
   // aankondiging, en de nieuwe wereld die opkomt. Vijanden wachten tot het eind.
   const RUST_KIJK=2.2, RUST_DOOF=1.6, RUST_ZWART=2.4, RUST_OP=2.0;
@@ -1003,6 +1026,11 @@
           uitleg:'10 continues\nnormal guns and ammo'} };
   let MSTAND='mid';
   const M=function(){ return MOEILIJK[MSTAND]||MOEILIJK.mid; };
+  // Zoekend vuur: hoeveel er hoogstens tegelijk onderweg zijn, hoe vaak een
+  // kolos er een stuurt, en hoe snel hij bijdraait (hoger = moeilijker ontwijken).
+  const ZOEKMAX=2, ZOEKKANS=0.28, ZOEKDRAAI=0.30;
+  const ZOEKSTOP=34;            // vanaf hier stopt hij met zoeken: te ontwijken
+  const ZWERM_RUST=7;           // tellen tussen twee zwermen bij een drieluik
   const ZUIGR=70;                 // bereik van de vortex op zijn wijdst
   const OVER=[56,40,26];        // afstandsbanden waarop een oversteker langs je scheert
   // ---------------------------------------------------------------
@@ -2134,10 +2162,23 @@
       return v.dot(K)>0.30;                            // ruwweg 72 graden om het midden
     },
 
+    // Hoeveel zoekende raketten er op dit moment onderweg zijn.
+    zoekers:function(){
+      let n=0;
+      for(let i=0;i<this.vij.length;i++) if(this.vij[i].live&&this.vij[i].zoek) n++;
+      return n; },
+
     spuw:function(e,n,spr){
       if(!this.inBeeld(e)) return;                     // niet van achteren
       if(!this.vuurBeurt(n||1)) return;
       const eye=this.tmp.copy(this.kop);
+      // Wat voor vuur past bij dit schip?
+      //   klein en snel  -> lichtstrepen die langs je heen flitsen
+      //   groot en traag -> een zware raket die je zoekt
+      //   daartussenin   -> gewone raketten, af en toe eentje die meebuigt
+      const Tb=TYPE[e.tp]||{};
+      const breed=Tb.br||8;
+      const soort=(breed<=9)?'streep':((breed>=16)?'zoeker':'raket');
       for(let k=0;k<(n||1);k++){
         for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(B.live) continue;
           B.live=true; B.o.copy(e.p); B.d=0; B.md=140;
@@ -2145,6 +2186,17 @@
           B.sp=(Tv&&Tv.snel?Tv.snel:13)+Math.random()*4; // rustig genoeg om te zien aankomen
           B.zwaar=(Tv&&Tv.zwaar)?1:0;
           B.hp=B.zwaar?6:1;                            // zware projectielen kosten meer schoten
+          B.zoek=0; B.streep=0; B.boog=0; B.wieg=0;
+          if(soort==='streep'){
+            // een jager vuurt lichtstrepen: snel, dun, en ze buigen niet
+            B.streep=1; B.sp*=2.3; B.hp=1; B.zwaar=0; }
+          else if(soort==='zoeker'){
+            // Alleen de trage kolossen sturen zoekend vuur, en nooit allemaal
+            // tegelijk — anders komt de hele lucht op je af.
+            if(this.zoekers()<ZOEKMAX&&Math.random()<ZOEKKANS){
+              B.zoek=1; B.sp*=0.72; B.hp=Math.max(B.hp,3); B.zwaar=1; }
+            else B.sp*=0.9; }
+          else if(Math.random()<0.30) B.wieg=1;         // een enkele slingert
           B.dir.copy(eye).sub(e.p).normalize();
           B.dir.x+=(Math.random()-0.5)*(spr||0.06);
           B.dir.y+=(Math.random()-0.5)*(spr||0.06);
@@ -2154,6 +2206,8 @@
                  B.len=3.4; B.br=3.4*(R.arv||R.ar); }
           else { B.m.material=B.eigen; B.m.material.color.setHex(e.tp===7?0xffd24a:0xff5a3c);
                  B.br=0.5; B.len=2.6; }
+          if(B.streep){ B.len=(B.len||2.6)*2.1; B.br=(B.br||0.5)*0.34; }
+          if(B.zoek){ B.len=(B.len||2.6)*1.15; B.br=(B.br||0.5)*1.25; }
           B.m.visible=true;
           this.richtQuad(B.m,B.o,B.dir,B.len,B.br);
           break; } }
@@ -2396,7 +2450,17 @@
         SND.gun(e.p.x*0.02,1);
         return; } },
 
+    // Bij een drieluik stuurt er maar ÉÉN tegelijk hulp: drie zwermen door
+    // elkaar is niet spannend maar onoverzichtelijk.
+    zwermMag:function(e){
+      if(!this.baasTrio||this.baasTrio.length<2) return true;
+      const nu=this.T||0;
+      if(nu<(this.zwermT||0)) return false;
+      this.zwermT=nu+ZWERM_RUST;
+      return true; },
+
     baasZwerm:function(e,fase){
+      if(!this.zwermMag(e)) return;
       // elke fase een ander soort, oplopend in zwaarte
       const S=this.levelSoorten();
       const licht=S.filter(function(t){ return TYPE[t].br<=9; });
@@ -3009,11 +3073,17 @@
       // in het zwart wisselt de wereld: dat zie je dus niet gebeuren
       if(this.rustFase===0&&op>=RUST_KIJK+RUST_DOOF){ this.rustFase=1;
         this.level++;
+        // In het zwart: opruimen wat dit level niet nodig heeft en de rest halen.
+        const self=this; this.wachtLaden=1;
+        this.rondeLaden(this.level,function(){ self.wachtLaden=0; });
         this.hemelZet(); this.objZet();
         this.zaad=this.level*7919;
         if(!window.DEMO) bewaarVoortgang(this.level,this.punten,this.ults,this.contN);
         this.toonGroot('LEVEL '+this.level,'#ffe45c');
         SND.zeg('Level '+this.level); }
+      // zolang er nog iets binnenkomt blijft het zwart en staat de tijd stil
+      if(this.wachtLaden&&this.rustT<=RUST_OP+0.05){ this.rustT=RUST_OP+0.05;
+        this.toonMelding('LOADING WORLD','#5f9ab5'); }
       if(this.rustT<=0){ this.toonGroot('','#ffe45c');
         if(D){ this.dekV=0;
           D.setAttribute('material','color:#000000;opacity:0;transparent:true;'+
@@ -3227,6 +3297,19 @@
       for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(!B.live) continue;
         B.d+=B.sp*s;
         if(B.boog){ B.dir.y-=B.boog*s; B.dir.normalize(); }   // buigt naar je toe
+        if(B.zoek){
+          // Draait langzaam bij, en laat je vlak voor je neus los: zo kun je hem
+          // altijd nog ontwijken of kapotschieten. Zonder dat laatste is er geen
+          // ontkomen aan en wordt het een strafmaatregel in plaats van een dreiging.
+          const q=kp.copy(B.o).addScaledVector(B.dir,B.d);
+          if(q.distanceTo(eye)>ZOEKSTOP){
+            const naarMij=this.tmp2||(this.tmp2=new THREE.Vector3());
+            naarMij.subVectors(eye,q).normalize();
+            B.dir.lerp(naarMij,Math.min(1,ZOEKDRAAI*s)).normalize();
+            B.o.copy(q); B.d=0; } }
+        else if(B.wieg){
+          B.wf=(B.wf||Math.random()*6)+s*3.2;
+          B.dir.x+=Math.sin(B.wf)*0.9*s; B.dir.normalize(); }
         const p=kp.copy(B.o).addScaledVector(B.dir,B.d);
         this.richtQuad(B.m,p,B.dir,B.len||2.4,B.br||0.42);
         if(p.distanceTo(eye)<0.80){ this.raakMij(5); B.live=false; B.m.visible=false;
@@ -3449,6 +3532,63 @@
         }catch(e){}
       });
       return uit.length===2?uit:null; },
+
+    // Een plaat echt uit het geheugen van de bril halen.
+    losLaten:function(t){
+      if(!t) return;
+      try{ if(t.dispose) t.dispose(); }catch(e){}
+      try{ if(t.image&&t.image.close) t.image.close(); }catch(e){}
+      try{ t.image=null; }catch(e){} },
+
+    // Wat heeft dit level nodig, wat staat er al, en wat kan weg? Dit draait
+    // tijdens het zwarte scherm, dus je ziet er niets van.
+    rondeLaden:function(L,klaar){
+      const self=this;
+      const hemNaam=(this.hemels&&this.hemels.length)
+        ? this.hemels[(Math.max(1,L)-1)%this.hemels.length].naam : null;
+      const keus=this.baasKeus(L);
+      const baasNamen=(keus&&keus.delen||[]).map(function(t){ return t&&t.__naam; });
+      let vrij=0;
+      (this.hemels||[]).forEach(function(H){
+        if(H.naam!==hemNaam&&H.tex&&H.tex.image){ self.losLaten(H.tex); vrij++; } });
+      (this.bazen||[]).forEach(function(B){
+        (B.delen||[]).forEach(function(t){
+          if(t&&t.image&&baasNamen.indexOf(t.__naam)<0){ self.losLaten(t); vrij++; } }); });
+      this.vrijgemaakt=vrij;
+      const werk=[];
+      const H2=(this.hemels||[]).filter(function(H){ return H.naam===hemNaam; })[0];
+      if(hemNaam&&(!H2||!H2.tex||!H2.tex.image)) werk.push({s:'hemel',naam:hemNaam});
+      baasNamen.forEach(function(n){
+        if(!n) return;
+        const heeft=(self.bazen||[]).some(function(B){
+          return (B.delen||[]).some(function(t){ return t&&t.__naam===n&&t.image; }); });
+        if(!heeft) werk.push({s:'baas',naam:n}); });
+      this.ladenBezig=werk.length;
+      if(!werk.length){ if(klaar) klaar(); return; }
+      werk.forEach(function(w){
+        const lijst=(w.s==='hemel')?KAART.hemels:KAART.bazen;
+        const info=lijst.filter(function(x){ return x.naam===w.naam; })[0];
+        if(!info){ self.ladenBezig--; if(!self.ladenBezig&&klaar) klaar(); return; }
+        artLaad(info.url,function(t){
+          if(t){ t.__naam=info.naam; t.__lijst=info.lijst;
+            if(w.s==='hemel') self.hemelVervang(info.naam,t);
+            else self.baasVervang(info.naam,t); }
+          self.ladenBezig--;
+          if(!self.ladenBezig&&klaar) klaar(); }); }); },
+
+    hemelVervang:function(naam,tex){
+      let H2=null; try{ H2=this.hemelBereid(tex); }catch(e){ H2=null; }
+      if(!H2) return;
+      this.hemels=this.hemels||[];
+      for(let i=0;i<this.hemels.length;i++)
+        if(this.hemels[i].naam===naam){ H2.naam=naam; this.hemels[i]=H2; this.hemelZet(); return; }
+      this.hemels.push(H2); this.hemelSorteer(); this.hemelZet(); },
+
+    baasVervang:function(naam,tex){
+      (this.bazen||[]).forEach(function(B){
+        if(B.tex&&B.tex.__naam===naam) B.tex=tex;
+        (B.delen||[]).forEach(function(d,i){
+          if(d&&d.__naam===naam) B.delen[i]=tex; }); }); },
 
     hemelWerk:function(){
       if(!this.hemelRij||!this.hemelRij.length) return false;
@@ -4031,10 +4171,12 @@
     if(C){ C.reset();
       if(vanaf&&(vanaf.l>1||vanaf.w)){ C.level=vanaf.l||1; C.zaad=C.level*7919;
         C.punten=vanaf.s||0; C.ults=Math.max(M().ult,vanaf.u||M().ult); C.contN=vanaf.c||0;
+        C.rondeLaden(C.level,function(){});          // ook hier: alleen dit level laden
         C.hemelZet(); C.objZet();
         if(vanaf.w){ C.wave=vanaf.w;                 // halverwege of pal voor de baas
           for(let q=1;q<=vanaf.w;q++) C.golfPlan(q); }   // zaadje meelopen zodat het klopt
         C.toonMelding('LEVEL '+C.level+(vanaf.w?('  WAVE '+(vanaf.w+1)):''),'#8fd84a'); }
+      else C.rondeLaden(C.level,function(){});      // gewone start: alleen level 1
       C.state='wacht'; C.golfT=2.2; }
     if(demo) SND.zeg('Demo'); else SND.zeg('Launch'); }
 
