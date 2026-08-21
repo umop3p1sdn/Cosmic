@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.57';
+  const VERSIE='v11.58';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -828,7 +828,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.57" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.58" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -1359,6 +1359,8 @@
         self.hands[h.id]=h;
         self.wep[h.id]={t:0,lvl:1,lvlT:self.zak.lvlT,mag:self.zak.mag,last:0,up:0,vorig:0};
         ['triggerdown','selectstart'].forEach(function(ev){ h.addEventListener(ev,function(){
+          const LS2=document.querySelector('#laad');
+          if(LS2&&LS2.style.display!=='none'){ window.NAKLIK=performance.now()+800; return; }
           if(performance.now()<(window.NAKLIK||0)) return;
           if(window.PARADEKLAAR){ window.PARADEKLAAR=0; naarMenu(); return; }
           if(window.PHASE==='menu'||window.PAUSED){ menuKlik(h); return; }
@@ -3703,14 +3705,23 @@
       const hemNaam=(this.hemels&&this.hemels.length)
         ? this.hemels[(Math.max(1,L)-1)%this.hemels.length].naam : null;
       const keus=this.baasKeus(L);
-      const baasNamen=(keus&&keus.delen||[]).map(function(t){ return t&&t.__naam; });
+      const baasNamen=(keus&&keus.delen||[]).map(function(t){ return t&&t.__naam; })
+        .filter(function(n){ return !!n; });
       let vrij=0;
-      (this.hemels||[]).forEach(function(H){
-        if(H.naam!==hemNaam&&H.tex&&H.tex.image){ self.losLaten(H.tex); vrij++; } });
-      (this.bazen||[]).forEach(function(B){
-        (B.delen||[]).forEach(function(t){
-          if(t&&t.image&&baasNamen.indexOf(t.__naam)<0){ self.losLaten(t); vrij++; } }); });
-      this.vrijgemaakt=vrij;
+      // VEILIGHEIDSSLOT: opruimen mag alleen als we ZEKER weten wat we moeten
+      // houden. Weten we dat niet — art nog niet binnen, geen baas gevonden, of
+      // een plaat zonder naam — dan gooien we niets weg. Zonder dit slot werden
+      // bij een lege namenlijst ALLE baasplaten vrijgegeven en waren de bazen weg.
+      const mag=!!(window.ART&&window.ART.af)&&!!keus&&baasNamen.length>0
+                &&(this.bazen&&this.bazen.length>0);
+      if(mag){
+        (this.hemels||[]).forEach(function(H){
+          if(hemNaam&&H.naam!==hemNaam&&H.tex&&H.tex.image){ self.losLaten(H.tex); vrij++; } });
+        (this.bazen||[]).forEach(function(B){
+          (B.delen||[]).forEach(function(t){
+            if(t&&t.image&&t.__naam&&baasNamen.indexOf(t.__naam)<0){
+              self.losLaten(t); vrij++; } }); }); }
+      this.vrijgemaakt=vrij; this.mochtOpruimen=mag;
       const werk=[];
       const H2=(this.hemels||[]).filter(function(H){ return H.naam===hemNaam; })[0];
       if(hemNaam&&(!H2||!H2.tex||!H2.tex.image)) werk.push({s:'hemel',naam:hemNaam});
@@ -4475,6 +4486,12 @@
       return document.querySelector(hoofd?'#touchHand':'#touchHand2')||tHand(); };
     let raakt=false;
     function aan(ev){
+      // Staat het laadscherm nog in beeld, dan is deze tik bedoeld om DAAR
+      // doorheen te gaan — nooit om een menuknop in te drukken. De invoer van het
+      // spel luistert eerder dan het laadscherm zelf, dus zonder dit slot kwam de
+      // tik bij LAUNCH terecht en begon het spel meteen.
+      const LS=document.querySelector('#laad');
+      if(LS&&LS.style.display!=='none'){ window.NAKLIK=performance.now()+800; return; }
       if(performance.now()<(window.NAKLIK||0)) return;   // net het laadscherm weggetikt
       if(window.PARADEKLAAR){ window.PARADEKLAAR=0; naarMenu(); return; }
       const h=(window.PHASE==='game'&&!window.PAUSED&&!window.DEMO)?tHandVoor(ev):tHand();
