@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.70';
+  const VERSIE='v11.71';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -845,49 +845,49 @@
   '    </a-entity>'+
 
   // ---------- MENU ----------
-  '    <a-entity id="menu" position="0 -0.460 0">'+
-  '      <a-entity id="mTitel" position="0 1.820 -2.60"></a-entity>'+
-  '      <a-entity id="mSub" position="0 1.560 -2.60"></a-entity>'+
-  '      <a-plane position="0 1.440 -2.60" width="1.60" height="0.004" material="color:#35e8ff;shader:flat;opacity:0.35;transparent:true;depthWrite:false"></a-plane>'+
-  '      <a-plane id="btnStart" class="menu-btn" position="0 0.980 -2.58" width="1.80" height="0.36" material="color:#0b2c3c;shader:flat;opacity:0.55;transparent:true"></a-plane>'+
-  '      <a-plane position="0 0.980 -2.585" width="1.86" height="0.42" material="color:#35e8ff;shader:flat;opacity:0.18;transparent:true;depthWrite:false"></a-plane>'+
-  '      <a-entity id="startTxt" position="0 0.980 -2.57"></a-entity>'+
-  '      <a-plane id="laadBalk" position="-0.88 0.785 -2.57" width="0.02" height="0.012" material="color:#35e8ff;shader:flat"></a-plane>'+
-  '      <a-plane id="btnCont" class="menu-btn" position="0 0.540 -2.58" width="1.24" height="0.22" material="color:#0a1d28;shader:flat;opacity:0.6;transparent:true"></a-plane>'+
-  '      <a-entity id="contTxt" position="0 0.585 -2.57"></a-entity>'+
-  '      <a-entity id="contSub" position="0 0.495 -2.57"></a-entity>'+
-  '      <a-entity id="moeiKop" position="0 0.320 -2.57"></a-entity>'+
-  '      <a-plane id="btnEasy" class="menu-btn" position="-0.50 0.195 -2.58" width="0.44" height="0.145" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
-  '      <a-plane id="btnNorm" class="menu-btn" position="0 0.195 -2.58" width="0.44" height="0.145" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
-  '      <a-plane id="btnHard" class="menu-btn" position="0.50 0.195 -2.58" width="0.44" height="0.145" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
-  '      <a-entity id="mEasy" position="-0.50 0.195 -2.57"></a-entity>'+
-  '      <a-entity id="mNorm" position="0 0.195 -2.57"></a-entity>'+
-  '      <a-entity id="mHard" position="0.50 0.195 -2.57"></a-entity>'+
-  '      <a-plane position="0 -0.010 -2.59" width="1.90" height="0.003" material="color:#35e8ff;shader:flat;opacity:0.18;transparent:true;depthWrite:false"></a-plane>'+
-  '      <a-plane id="btnDemo" class="menu-btn" position="-0.72 -0.120 -2.58" width="0.34" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-plane id="btnScores" class="menu-btn" position="-0.36 -0.120 -2.58" width="0.34" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-plane id="btnHelp" class="menu-btn" position="0 -0.120 -2.58" width="0.40" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-plane id="btnTech" class="menu-btn" position="0.36 -0.120 -2.58" width="0.30" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-plane id="btnVR" class="menu-btn" position="0.76 -0.120 -2.58" width="0.44" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-entity id="mDemo" position="-0.72 -0.120 -2.57"></a-entity>'+
-  '      <a-entity id="mScores" position="-0.36 -0.120 -2.57"></a-entity>'+
-  '      <a-entity id="mHelp" position="0 -0.120 -2.57"></a-entity>'+
-  '      <a-entity id="mTest" position="0.36 -0.120 -2.57"></a-entity>'+
-  '      <a-entity id="mVR" position="0.76 -0.120 -2.57"></a-entity>'+
-  '      <a-entity id="scoreLijst" position="0 -0.360 -2.57"></a-entity>'+
-  '      <a-text id="verTxt" position="0 -0.560 -2.57" value="v11.69" align="center" color="#37586b" width="1.1"></a-text>'+
-  '      <a-text id="artTxt" value="" align="center" color="#37586b" width="1.0" position="-0.62 -0.560 -2.57"></a-text>'+
-  '      <a-text id="musTxt" value="" align="center" color="#37586b" width="1.0" position="0.62 -0.560 -2.57"></a-text>'+
-  '      <a-plane id="btnTrack" class="menu-btn" position="0.62 -0.560 -2.58" width="0.42" height="0.10" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-text id="bestTxt" value="" align="center" color="#37586b" width="1.0" position="0 -0.700 -2.57"></a-text>'+
-  '      <a-plane id="handL" class="menu-btn" position="-0.30 -0.900 -2.58" width="0.34" height="0.15" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
-  '      <a-text id="handLt" position="-0.30 -0.900 -2.57" value="LEFT" align="center" color="#9fe4f5" width="1.5"></a-text>'+
-  '      <a-plane id="handR" class="menu-btn" position="0.30 -0.900 -2.58" width="0.34" height="0.15" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
-  '      <a-text id="handRt" position="0.30 -0.900 -2.57" value="RIGHT" align="center" color="#9fe4f5" width="1.5"></a-text>'+
-  '      <a-text id="handHint" position="0 -1.040 -2.57" value="trigger hand" align="center" color="#37586b" width="1.1"></a-text>'+
+  '    <a-entity id="menu" position="0 0.160 0">'+
+  '      <a-entity id="mTitel" position="0 2.440 -2.60"></a-entity>'+
+  '      <a-entity id="mSub" position="0 2.180 -2.60"></a-entity>'+
+  '      <a-plane position="0 2.060 -2.60" width="1.60" height="0.004" material="color:#35e8ff;shader:flat;opacity:0.35;transparent:true;depthWrite:false"></a-plane>'+
+  '      <a-plane id="btnStart" class="menu-btn" position="0 1.600 -2.58" width="1.80" height="0.36" material="color:#0b2c3c;shader:flat;opacity:0.55;transparent:true"></a-plane>'+
+  '      <a-plane position="0 1.600 -2.585" width="1.86" height="0.42" material="color:#35e8ff;shader:flat;opacity:0.18;transparent:true;depthWrite:false"></a-plane>'+
+  '      <a-entity id="startTxt" position="0 1.600 -2.57"></a-entity>'+
+  '      <a-plane id="laadBalk" position="-0.88 1.405 -2.57" width="0.02" height="0.012" material="color:#35e8ff;shader:flat"></a-plane>'+
+  '      <a-plane id="btnCont" class="menu-btn" position="0 1.160 -2.58" width="1.24" height="0.22" material="color:#0a1d28;shader:flat;opacity:0.6;transparent:true"></a-plane>'+
+  '      <a-entity id="contTxt" position="0 1.205 -2.57"></a-entity>'+
+  '      <a-entity id="contSub" position="0 1.115 -2.57"></a-entity>'+
+  '      <a-entity id="moeiKop" position="0 0.940 -2.57"></a-entity>'+
+  '      <a-plane id="btnEasy" class="menu-btn" position="-0.50 0.815 -2.58" width="0.44" height="0.145" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
+  '      <a-plane id="btnNorm" class="menu-btn" position="0 0.815 -2.58" width="0.44" height="0.145" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
+  '      <a-plane id="btnHard" class="menu-btn" position="0.50 0.815 -2.58" width="0.44" height="0.145" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
+  '      <a-entity id="mEasy" position="-0.50 0.815 -2.57"></a-entity>'+
+  '      <a-entity id="mNorm" position="0 0.815 -2.57"></a-entity>'+
+  '      <a-entity id="mHard" position="0.50 0.815 -2.57"></a-entity>'+
+  '      <a-plane position="0 0.610 -2.59" width="1.90" height="0.003" material="color:#35e8ff;shader:flat;opacity:0.18;transparent:true;depthWrite:false"></a-plane>'+
+  '      <a-plane id="btnDemo" class="menu-btn" position="-0.72 0.500 -2.58" width="0.34" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-plane id="btnScores" class="menu-btn" position="-0.36 0.500 -2.58" width="0.34" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-plane id="btnHelp" class="menu-btn" position="0 0.500 -2.58" width="0.40" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-plane id="btnTech" class="menu-btn" position="0.36 0.500 -2.58" width="0.30" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-plane id="btnVR" class="menu-btn" position="0.76 0.500 -2.58" width="0.44" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-entity id="mDemo" position="-0.72 0.500 -2.57"></a-entity>'+
+  '      <a-entity id="mScores" position="-0.36 0.500 -2.57"></a-entity>'+
+  '      <a-entity id="mHelp" position="0 0.500 -2.57"></a-entity>'+
+  '      <a-entity id="mTest" position="0.36 0.500 -2.57"></a-entity>'+
+  '      <a-entity id="mVR" position="0.76 0.500 -2.57"></a-entity>'+
+  '      <a-entity id="scoreLijst" position="0 0.260 -2.57"></a-entity>'+
+  '      <a-text id="verTxt" position="0 0.060 -2.57" value="v11.69" align="center" color="#37586b" width="1.1"></a-text>'+
+  '      <a-text id="artTxt" value="" align="center" color="#37586b" width="1.0" position="-0.62 0.060 -2.57"></a-text>'+
+  '      <a-text id="musTxt" value="" align="center" color="#37586b" width="1.0" position="0.62 0.060 -2.57"></a-text>'+
+  '      <a-plane id="btnTrack" class="menu-btn" position="0.62 0.060 -2.58" width="0.42" height="0.10" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-text id="bestTxt" value="" align="center" color="#37586b" width="1.0" position="0 -0.080 -2.57"></a-text>'+
+  '      <a-plane id="handL" class="menu-btn" position="-0.30 -0.280 -2.58" width="0.34" height="0.15" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
+  '      <a-text id="handLt" position="-0.30 -0.280 -2.57" value="LEFT" align="center" color="#9fe4f5" width="1.5"></a-text>'+
+  '      <a-plane id="handR" class="menu-btn" position="0.30 -0.280 -2.58" width="0.34" height="0.15" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
+  '      <a-text id="handRt" position="0.30 -0.280 -2.57" value="RIGHT" align="center" color="#9fe4f5" width="1.5"></a-text>'+
+  '      <a-text id="handHint" position="0 -0.420 -2.57" value="trigger hand" align="center" color="#37586b" width="1.1"></a-text>'+
   '      <a-ring id="wijzer" visible="false" radius-inner="0.020" radius-outer="0.034" material="color:#ffe45c;shader:flat;transparent:true;opacity:0.95;depthWrite:false;depthTest:false"></a-ring>'+
   '      <a-plane id="menuSchip" visible="false" width="1" height="1" material="transparent:true;alphaTest:0.06;shader:flat;side:double;depthWrite:false"></a-plane>'+
-  '      <a-plane id="scan" position="0 1.060 -2.585" width="2.80" height="0.006" material="color:#35e8ff;shader:flat;opacity:0.10;transparent:true;depthWrite:false"></a-plane>'+
+  '      <a-plane id="scan" position="0 1.680 -2.585" width="2.80" height="0.006" material="color:#35e8ff;shader:flat;opacity:0.10;transparent:true;depthWrite:false"></a-plane>'+
   '      <a-entity id="nieuw" visible="false">'+
   '        <a-plane position="0 1.05 -2.20" width="2.00" height="0.86" material="color:#0d1b12;shader:flat"></a-plane>'+
   '        <a-text position="0 1.34 -2.18" value="NEW VERSION AVAILABLE" align="center" color="#8fd84a" width="2.6"></a-text>'+
@@ -939,13 +939,22 @@
   //  KLIKKEN — eigen straaltest (A-Frame raycaster mist Quest-handen)
   // =========================================================
   let KLIKT=0;
+  // Waar wijs je heen? Eerst met je hand. Raakt die niets, dan telt je
+  // KIJKRICHTING — dan werkt "kijk naar de knop en knijp" altijd, ongeacht hoe je
+  // je controller houdt. Dat was de reden dat de knoppen soms niets deden.
   function menuKlik(h){
     if(!h||!h.object3D) return;
     const nu=performance.now(); if(nu-KLIKT<250) return; KLIKT=nu;
+    if(menuMik(h)) return;
+    const cam=document.querySelector('#cam');
+    if(cam&&cam.object3D&&cam!==h) menuMik(cam,true); }
+
+  function menuMik(h,kijk){
     const o=new THREE.Vector3(), q=new THREE.Quaternion();
     h.object3D.getWorldPosition(o); h.object3D.getWorldQuaternion(q);
-    const d=new THREE.Vector3(0,-0.7071,-0.7071).applyQuaternion(q).normalize();
-    if(Math.abs(d.z)<0.002) return;
+    const d=(kijk?new THREE.Vector3(0,0,-1):new THREE.Vector3(0,-0.7071,-0.7071))
+      .applyQuaternion(q).normalize();
+    if(Math.abs(d.z)<0.002) return false;
     let best=null, bt=1e9; const wp=new THREE.Vector3();
     document.querySelectorAll('.menu-btn').forEach(function(el){
       if(!el.object3D) return;
@@ -956,8 +965,9 @@
       el.object3D.getWorldPosition(wp);
       const t=(wp.z-o.z)/d.z; if(t<=0.1||t>=bt) return;
       const px=o.x+d.x*t, py=o.y+d.y*t;
-      if(Math.abs(px-wp.x)<=w*0.6&&Math.abs(py-wp.y)<=hh*0.85){ bt=t; best=el; } });
-    if(best) best.emit('click'); }
+      if(Math.abs(px-wp.x)<=w*0.62&&Math.abs(py-wp.y)<=hh*1.05){ bt=t; best=el; } });
+    if(best){ best.emit('click'); return true; }
+    return false; }
 
   // =========================================================
   //  HET SPEL
