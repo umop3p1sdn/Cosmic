@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.60';
+  const VERSIE='v11.61';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -828,7 +828,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.60" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.61" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -889,10 +889,17 @@
 
   // ---------- PAUZE / GAME OVER ----------
   '    <a-entity id="paneel" visible="false" position="0 0 0">'+
-  '      <a-plane position="0 1.55 -2.32" width="2.06" height="1.32" material="color:#35e8ff;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
-  '      <a-plane position="0 1.55 -2.30" width="2.00" height="1.26" material="color:#061524;shader:flat;opacity:0.97;transparent:true"></a-plane>'+
-  '      <a-text id="pTitel" position="0 2.02 -2.28" value="PAUSED" align="center" color="#ffb03a" width="4.6"></a-text>'+
-  '      <a-text id="pInfo"  position="0 1.76 -2.28" value="" align="center" color="#8fd8ec" width="2.2"></a-text>'+
+  '      <a-plane position="0 1.55 -2.36" width="2.42" height="1.70" material="color:#35e8ff;shader:flat;opacity:0.07;transparent:true;depthWrite:false"></a-plane>'+
+  '      <a-plane position="0 1.55 -2.34" width="2.22" height="1.52" material="color:#35e8ff;shader:flat;opacity:0.16;transparent:true;depthWrite:false"></a-plane>'+
+  '      <a-plane position="0 1.55 -2.32" width="2.06" height="1.40" material="color:#0a5f78;shader:flat;opacity:0.85;transparent:true"></a-plane>'+
+  '      <a-plane position="0 1.55 -2.30" width="2.00" height="1.34" material="color:#04101c;shader:flat;opacity:0.97;transparent:true"></a-plane>'+
+  '      <a-plane position="0 2.195 -2.295" width="1.70" height="0.19" material="color:#35e8ff;shader:flat;opacity:0.12;transparent:true;depthWrite:false"></a-plane>'+
+  '      <a-text position="0 2.19 -2.290" value="C O S M I C" align="center" color="#0d4a5e" width="3.9"></a-text>'+
+  '      <a-text position="0 2.192 -2.286" value="C O S M I C" align="center" color="#1f8fb0" width="3.85"></a-text>'+
+  '      <a-text position="0 2.194 -2.282" value="C O S M I C" align="center" color="#e8f6ff" width="3.8"></a-text>'+
+  '      <a-plane position="0 2.075 -2.290" width="1.56" height="0.005" material="color:#ffb03a;shader:flat;opacity:0.55;transparent:true"></a-plane>'+
+  '      <a-text id="pTitel" position="0 1.99 -2.28" value="PAUSED" align="center" color="#ffb03a" width="4.6"></a-text>'+
+  '      <a-text id="pInfo"  position="0 1.75 -2.28" value="" align="center" color="#8fd8ec" width="2.2"></a-text>'+
   '      <a-plane id="btnGo" class="menu-btn" position="0 1.45 -2.28" width="1.40" height="0.34" material="color:#123a4e;shader:flat"></a-plane>'+
   '      <a-text id="goTxt" position="0 1.45 -2.26" value="RESUME" align="center" color="#35e8ff" width="3.6"></a-text>'+
   '      <a-plane id="btnQuit" class="menu-btn" position="0 1.05 -2.28" width="1.40" height="0.30" material="color:#33141c;shader:flat"></a-plane>'+
@@ -3270,7 +3277,13 @@
       if(window.DEMO&&this.over){ this.dOver=(this.dOver||0)+s;
         if(this.dOver>2.2){ this.dOver=0; this.verder(); }
         return; }
-      if(window.PAUSED) return;
+      // Ook op het paneel wil je zien waar je op mikt: bij pauze, bij GAME OVER
+      // en in het continue-scherm.
+      if(window.PAUSED){ wijzerTick(); return; }
+      // hervat: de aanwijzer hoort niet in je vizier te blijven hangen
+      if(this.wijzerAan){ this.wijzerAan=false;
+        const wp=document.querySelector('#wijzer');
+        if(wp) wp.setAttribute('visible',false); }
       this.T+=s;
       const eye=this.EYE||(this.EYE=new THREE.Vector3(0,1.6,0));
       if(this.cam&&this.cam.object3D){ this.cam.object3D.getWorldPosition(this.kop);
@@ -4319,13 +4332,17 @@
 
   function laserAan(aan){
     document.querySelectorAll('.menu-laser').forEach(function(l){ l.setAttribute('visible',!!aan); });
-    const p=document.querySelector('#wijzer'); if(p) p.setAttribute('visible',!!aan); }
+    const p=document.querySelector('#wijzer'); if(p&&!aan) p.setAttribute('visible',false); }
 
   // De stip die laat zien waar je op mikt in het menu. Hij springt naar de knop
   // waar je op wijst, ook als die knop niets doet (CONTINUE zonder opgeslagen spel).
   function wijzerTick(){
     const p=document.querySelector('#wijzer');
-    if(!p||window.PHASE!=='menu') return;
+    if(!p) return;
+    // tijdens het spelen hoort hij weg te zijn, niet te blijven staan
+    if(window.PHASE!=='menu'&&!window.PAUSED){
+      if(p.getAttribute('visible')!==false) p.setAttribute('visible',false);
+      return; }
     const h=tHandMenu(); if(!h||!h.object3D) return;
     const O=WP0||(WP0=new THREE.Vector3()), D=WD0||(WD0=new THREE.Vector3());
     h.object3D.getWorldPosition(O); h.object3D.getWorldQuaternion(WQ0||(WQ0=new THREE.Quaternion()));
@@ -4340,6 +4357,8 @@
       const t=v.dot(D); if(t<0.2) return;
       const af=v.addScaledVector(D,-t).length();
       if(af<bd){ bd=af; best=P.clone(); } });
+    { const rg=document.querySelector('#rig');
+      const c2=rg&&rg.components&&rg.components.cosmic; if(c2) c2.wijzerAan=true; }
     if(best&&bd<0.42){ p.setAttribute('visible',true);
       p.object3D.position.copy(p.object3D.parent.worldToLocal(best.clone()));
       p.object3D.position.z+=0.02; }
@@ -4371,8 +4390,17 @@
         if(vanaf.w){ C.wave=vanaf.w;                 // halverwege of pal voor de baas
           for(let q=1;q<=vanaf.w;q++) C.golfPlan(q); }   // zaadje meelopen zodat het klopt
         C.toonMelding('LEVEL '+C.level+(vanaf.w?('  WAVE '+(vanaf.w+1)):''),'#8fd84a'); }
-      else C.rondeLaden(C.level,function(){});      // gewone start: alleen level 1
-      C.state='wacht'; C.golfT=2.2; }
+      else {
+        C.rondeLaden(C.level,function(){});         // gewone start: alleen level 1
+        // Dezelfde opening als tussen twee levels: zwart met LEVEL in beeld, dan
+        // komt de wereld op. Alleen bij een gewone start — de TEST-knop zet zijn
+        // eigen golf en die mag dit ritueel niet overschrijven.
+        C.state='rust'; C.rustT=RUST_TOTAAL-RUST_KIJK; C.rustFase=1; C.wave=0;
+        C.toonGroot('LEVEL '+C.level,'#ffe45c');
+        const D=document.querySelector('#doek');
+        if(D){ C.dekV=1;
+          D.setAttribute('material','color:#000000;opacity:1;transparent:true;'+
+            'shader:flat;depthWrite:false;depthTest:false'); } } }
     if(demo) SND.zeg('Demo'); else SND.zeg('Launch'); }
 
   function naarMenu(){
