@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.72';
+  const VERSIE='v11.73';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -807,13 +807,13 @@
   '    <a-camera id="cam" wasd-controls-enabled="false" far="420">'+
   '      <a-entity id="hudAlles" visible="false">'+
   '      <a-entity id="mBaasNaam" position="0 0.640 -1.30"></a-entity>'+
-  '      <a-plane id="baasBalkA" visible="false" position="0 0.575 -1.31" width="0.70" height="0.030" material="color:#173a25;shader:flat;opacity:0.85;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="baasBalkA" visible="false" position="0 0.575 -1.31" width="0.001" height="0.001" material="color:#000000;shader:flat;opacity:0;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-plane id="baasBalkB" visible="false" position="-0.345 0.575 -1.30" width="0.68" height="0.024" material="color:#ff3d55;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
-  '      <a-plane id="baasRand" visible="false" position="0 0.575 -1.315" width="0.712" height="0.038" material="color:#6cf08a;shader:flat;opacity:0.75;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="baasRand" visible="false" position="0 0.575 -1.315" width="0.001" height="0.001" material="color:#000000;shader:flat;opacity:0;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-entity id="mBaasPct" position="0.40 0.575 -1.30"></a-entity>'+
   '      <a-entity id="mHull" position="-0.545 -0.145 -1.25"></a-entity>'+
-  '      <a-plane id="krachtR" position="-0.545 -0.375 -1.255" width="0.062" height="0.428" material="color:#6cf08a;shader:flat;opacity:0.75;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
-  '      <a-plane id="krachtA" position="-0.545 -0.375 -1.25" width="0.054" height="0.420" material="color:#173a25;shader:flat;opacity:0.85;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="krachtR" position="-0.545 -0.375 -1.255" width="0.001" height="0.001" material="color:#000000;shader:flat;opacity:0;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="krachtA" position="-0.545 -0.375 -1.25" width="0.001" height="0.001" material="color:#000000;shader:flat;opacity:0;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-plane id="krachtB" position="-0.545 -0.585 -1.245" width="0.046" height="0.412" material="color:#ff3d55;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-entity id="mHp" position="-0.545 -0.625 -1.25"></a-entity>'+
   '      <a-entity id="mUltL" position="-0.545 -0.700 -1.25"></a-entity>'+
@@ -821,7 +821,7 @@
   '      <a-entity id="mWap" position="0.545 -0.395 -1.25"></a-entity>'+
   '      <a-entity id="mWapLv" position="-0.055 -0.470 -1.25"></a-entity>'+
   '      <a-entity id="mAmmo" position="0.545 -0.470 -1.25"></a-entity>'+
-  '      <a-plane id="magA" position="0.395 -0.530 -1.25" width="0.30" height="0.012" material="color:#173a25;shader:flat;opacity:0.85;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="magA" position="0.395 -0.530 -1.25" width="0.001" height="0.001" material="color:#000000;shader:flat;opacity:0;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-plane id="magB" position="0.245 -0.530 -1.245" width="0.30" height="0.012" material="color:#6cf08a;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-text id="hudC" value="" align="center" color="#6cf08a" width="2.6" position="0 0.34 -1.3"></a-text>'+
   '      <a-entity id="mLv" position="-0.20 -0.640 -1.25"></a-entity>'+
@@ -2817,8 +2817,14 @@
         this.vonk(px,py,pz,0xffb03a,2,3.4*fel*heftig,0.30);
         if(Math.random()<0.5) this.vonk(px,py,pz,0xff6a2a,1,4.2*fel,0.45);
         if(Math.random()<0.7) this.vonk(px,py,pz+1.5,0xff8a3d,1,1.6,0.55,true);
-        if(Math.random()<(e.fase>=2?0.9:0.55))
-          this.vonk(px,py,pz+2.5,(e.fase>=2)?0x3a3a3a:0x7a7a7a,1,2.6,1.9,true); } },
+        // Zwarte rook hoorde pas bij zware schade, maar zo ver komt een schip
+        // vaak niet — je zag hem dus nooit. Nu rookt hij vanaf de eerste schade,
+        // donkerder en langer naarmate hij er slechter aan toe is.
+        const rookK=(e.fase>=2)?0x1a1a1a:0x4a4a4a;
+        if(Math.random()<0.85)
+          this.vonk(px,py,pz+2.5,rookK,1,3.4,(e.fase>=2)?2.8:2.1,true);
+        if(Math.random()<0.35)
+          this.vonk(px,py,pz+4.0,rookK,1,5.0,(e.fase>=2)?3.4:2.6,true); } },
 
     // Een gehavende baas rookt en vonkt over zijn hele romp; hoe zwaarder
     // beschadigd, hoe meer. Zijn plaatje blijft heel.
@@ -3915,61 +3921,80 @@
 
     // Wat heeft dit level nodig, wat staat er al, en wat kan weg? Dit draait
     // tijdens het zwarte scherm, dus je ziet er niets van.
+    // LADEN, DAN WISSELEN, DAN PAS OPRUIMEN.
+    //
+    // Eerst ruimde ik op en laadde daarna — dus tussen die twee momenten was er
+    // geen achtergrond en geen baasplaat, en elke hapering daarin gaf een leeg
+    // beeld. Nu blijft alles wat in gebruik is gewoon staan tot de vervanger
+    // binnen is. Pas als het nieuwe level compleet is, gaat het oude weg.
     rondeLaden:function(L,klaar){
       const self=this;
-      const hemNaam=(this.hemels&&this.hemels.length)
-        ? this.hemels[(Math.max(1,L)-1)%this.hemels.length].naam : null;
-      const keus=this.baasKeus(L);
-      const baasNamen=(keus&&keus.delen||[]).map(function(t){ return t&&t.__naam; })
-        .filter(function(n){ return !!n; });
-      // Het voorlaatste level zet DRIE ANDERE bazen tegelijk in het veld. Die
-      // horen er ook bij, anders staan er twee zonder plaatje — en dat gevecht
-      // is dan niet meer te winnen.
-      if(L===LEVELS-1){
-        const B3=(this.bazen||[]).filter(function(b){ return b.beurt<99; });
-        for(let k=0;k<3&&B3.length;k++){
-          const b=B3[(L+k*4)%B3.length];
-          (b&&b.delen||[]).forEach(function(t){
-            if(t&&t.__naam&&baasNamen.indexOf(t.__naam)<0) baasNamen.push(t.__naam); }); } }
-      let vrij=0;
-      // VEILIGHEIDSSLOT: opruimen mag alleen als we ZEKER weten wat we moeten
-      // houden. Weten we dat niet — art nog niet binnen, geen baas gevonden, of
-      // een plaat zonder naam — dan gooien we niets weg. Zonder dit slot werden
-      // bij een lege namenlijst ALLE baasplaten vrijgegeven en waren de bazen weg.
-      const mag=!!(window.ART&&window.ART.af)&&!!keus&&baasNamen.length>0
-                &&(this.bazen&&this.bazen.length>0);
-      if(mag){
-        (this.hemels||[]).forEach(function(H){
-          if(!hemNaam||H.naam===hemNaam||!H.tex||!H.tex.image) return;
-          // alleen weggooien wat we kennen: anders is die ronde straks kaal
-          const kenbaar=KAART.hemels.some(function(x){ return x.naam===H.naam; });
-          if(!kenbaar||H.tex.__vast) return;
-          self.losLaten(H.tex); vrij++; });
-        (this.bazen||[]).forEach(function(B){
-          (B.delen||[]).forEach(function(t){
-            if(t&&t.image&&t.__naam&&!t.__vast&&baasNamen.indexOf(t.__naam)<0){
-              self.losLaten(t); vrij++; } }); }); }
-      this.vrijgemaakt=vrij; this.mochtOpruimen=mag;
-      const werk=[];
-      const H2=(this.hemels||[]).filter(function(H){ return H.naam===hemNaam; })[0];
-      if(hemNaam&&(!H2||!H2.tex||!H2.tex.image)) werk.push({s:'hemel',naam:hemNaam});
-      baasNamen.forEach(function(n){
-        if(!n) return;
-        const heeft=(self.bazen||[]).some(function(B){
-          return (B.delen||[]).some(function(t){ return t&&t.__naam===n&&t.image; }); });
-        if(!heeft) werk.push({s:'baas',naam:n}); });
+      const nodig=this.rondeNodig(L);
+      if(!nodig.namen.length){ if(klaar) klaar(); return; }
+      // wat mist er nog?
+      const werk=nodig.lijst.filter(function(w){ return !self.heeftPlaat(w); });
       this.ladenBezig=werk.length;
-      if(!werk.length){ if(klaar) klaar(); return; }
+      const afronden=function(){
+        // 1. de nieuwe wereld in beeld zetten
+        self.hemelI=-1; self.hemelZet(); self.objZet();
+        // 2. en NU pas weggooien wat dit level niet gebruikt
+        self.rondeOpruimen(nodig.namen);
+        if(klaar) klaar(); };
+      if(!werk.length){ afronden(); return; }
       werk.forEach(function(w){
         const lijst=(w.s==='hemel')?KAART.hemels:KAART.bazen;
         const info=lijst.filter(function(x){ return x.naam===w.naam; })[0];
-        if(!info){ self.ladenBezig--; if(!self.ladenBezig&&klaar) klaar(); return; }
+        if(!info){ if(!--self.ladenBezig) afronden(); return; }
         artLaad(info.url,function(t){
           if(t){ t.__naam=info.naam; t.__lijst=info.lijst;
             if(w.s==='hemel') self.hemelVervang(info.naam,t);
             else self.baasVervang(info.naam,t); }
-          self.ladenBezig--;
-          if(!self.ladenBezig&&klaar) klaar(); }); }); },
+          if(!--self.ladenBezig) afronden(); }); }); },
+
+    // Welke platen heeft dit level nodig?
+    rondeNodig:function(L){
+      const uit={namen:[],lijst:[]};
+      const hemNaam=(this.hemels&&this.hemels.length)
+        ? this.hemels[(Math.max(1,L)-1)%this.hemels.length].naam : null;
+      if(hemNaam){ uit.namen.push(hemNaam); uit.lijst.push({s:'hemel',naam:hemNaam}); }
+      const zet=function(k){ (k&&k.delen||[]).forEach(function(t){
+        if(t&&t.__naam&&uit.namen.indexOf(t.__naam)<0){
+          uit.namen.push(t.__naam); uit.lijst.push({s:'baas',naam:t.__naam}); } }); };
+      zet(this.baasKeus(L));
+      // het voorlaatste level zet DRIE andere bazen in het veld
+      if(L===LEVELS-1){
+        const B3=(this.bazen||[]).filter(function(b){ return b.beurt<99; });
+        for(let k=0;k<3&&B3.length;k++) zet(B3[(L+k*4)%B3.length]); }
+      return uit; },
+
+    heeftPlaat:function(w){
+      const self=this;
+      if(w.s==='hemel'){
+        const H=(this.hemels||[]).filter(function(x){ return x.naam===w.naam; })[0];
+        return !!(H&&H.tex&&H.tex.image&&H.tex.image.width); }
+      return (this.bazen||[]).some(function(B){
+        return (B.delen||[]).some(function(t){
+          return t&&t.__naam===w.naam&&t.image&&t.image.width; }); }); },
+
+    // Weggooien wat dit level niet gebruikt — pas als het nieuwe binnen is.
+    rondeOpruimen:function(houd){
+      const self=this;
+      // alleen opruimen als we ZEKER weten wat we moeten houden
+      if(!(window.ART&&window.ART.af)||!houd||!houd.length){ this.vrijgemaakt=0; return; }
+      let vrij=0;
+      (this.hemels||[]).forEach(function(H){
+        if(!H.tex||!H.tex.image||H.tex.__vast) return;
+        if(houd.indexOf(H.naam)>=0) return;
+        if(!KAART.hemels.some(function(x){ return x.naam===H.naam; })) return;  // niet terug te halen
+        if(self.hemel&&self.hemel.material.map===H.tex) return;                 // staat in beeld
+        self.losLaten(H.tex); vrij++; });
+      (this.bazen||[]).forEach(function(B){
+        (B.delen||[]).forEach(function(t){
+          if(!t||!t.image||t.__vast||!t.__naam) return;
+          if(houd.indexOf(t.__naam)>=0) return;
+          if(!KAART.bazen.some(function(x){ return x.naam===t.__naam; })) return;
+          self.losLaten(t); vrij++; }); });
+      this.vrijgemaakt=vrij; },
 
     hemelVervang:function(naam,tex){
       // Kwam deze hemel uit een gesplitst bestand, dan moet hij opnieuw in tweeën
@@ -3981,7 +4006,8 @@
       if(!H2) return;
       this.hemels=this.hemels||[];
       for(let i=0;i<this.hemels.length;i++)
-        if(this.hemels[i].naam===naam){ H2.naam=naam; this.hemels[i]=H2; this.hemelZet(); return; }
+        if(this.hemels[i].naam===naam){ H2.naam=naam; this.hemels[i]=H2;
+          this.hemelI=-1; this.hemelZet(); return; }
       this.hemels.push(H2); this.hemelSorteer(); this.hemelZet(); },
 
     baasVervang:function(naam,tex){
@@ -4117,7 +4143,11 @@
     hemelZet:function(){
       if(!this.hemels||!this.hemels.length) return;
       const i=(Math.max(1,this.level||1)-1)%this.hemels.length;
-      if(this.hemelI===i&&this.panoAan) return;
+      // Ook opnieuw zetten als de plaat intussen is opgeruimd en teruggehaald:
+      // anders blijft de hemel naar een leeggemaakte textuur wijzen en zie je niets.
+      const H0=this.hemels[i];
+      const zelfde=(this.hemel&&this.hemel.material.map===(H0&&H0.tex));
+      if(this.hemelI===i&&this.panoAan&&zelfde&&H0&&H0.tex&&H0.tex.image) return;
       this.hemelI=i; this.panoAan=true;
       const H=this.hemels[i];
       this.panoBreed=H.breed;
@@ -4363,6 +4393,9 @@
     paneel:function(aan,titel,info,knop){
       const p=document.querySelector('#paneel'); if(!p) return;
       p.setAttribute('visible',!!aan);
+      // De aanwijslijn hoort er ook te zijn als je moet kiezen: bij pauze, bij
+      // GAME OVER en in het continue-scherm. Die stond alleen in het menu aan.
+      try{ laserAan(!!aan||window.PHASE==='menu'); }catch(e){}
       if(!aan) return;
       document.querySelector('#pTitel').setAttribute('value',titel);
       document.querySelector('#pInfo').setAttribute('value',info||'');
