@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.58';
+  const VERSIE='v11.60';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -828,7 +828,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.58" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.60" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -3592,7 +3592,9 @@
         B.hp-=dmg;
         if(B.hp>0){ SND.hit(q.x*0.02,0.3);
           this.vonk(q.x,q.y,q.z,0xffd9a0,3,5,0.4); return 1; }
-        B.live=false; B.m.visible=false;
+        // ook het lichaam vrijgeven: bleef dat bezet, dan waren er na achttien
+        // neergeschoten raketten geen lichamen meer en werd alles weer plat.
+        this.vijVrij2(B);
         SND.kill(q.x*0.02,0.5);
         this.vonk(q.x,q.y,q.z,B.zwaar?0xffe45c:0xff8a3d,B.zwaar?12:6,B.zwaar?9:6,B.zwaar?1.1:0.6);
         this.punten+=B.zwaar?60:10;
@@ -3707,6 +3709,15 @@
       const keus=this.baasKeus(L);
       const baasNamen=(keus&&keus.delen||[]).map(function(t){ return t&&t.__naam; })
         .filter(function(n){ return !!n; });
+      // Het voorlaatste level zet DRIE ANDERE bazen tegelijk in het veld. Die
+      // horen er ook bij, anders staan er twee zonder plaatje — en dat gevecht
+      // is dan niet meer te winnen.
+      if(L===LEVELS-1){
+        const B3=(this.bazen||[]).filter(function(b){ return b.beurt<99; });
+        for(let k=0;k<3&&B3.length;k++){
+          const b=B3[(L+k*4)%B3.length];
+          (b&&b.delen||[]).forEach(function(t){
+            if(t&&t.__naam&&baasNamen.indexOf(t.__naam)<0) baasNamen.push(t.__naam); }); } }
       let vrij=0;
       // VEILIGHEIDSSLOT: opruimen mag alleen als we ZEKER weten wat we moeten
       // houden. Weten we dat niet — art nog niet binnen, geen baas gevonden, of
@@ -3716,10 +3727,14 @@
                 &&(this.bazen&&this.bazen.length>0);
       if(mag){
         (this.hemels||[]).forEach(function(H){
-          if(hemNaam&&H.naam!==hemNaam&&H.tex&&H.tex.image){ self.losLaten(H.tex); vrij++; } });
+          if(!hemNaam||H.naam===hemNaam||!H.tex||!H.tex.image) return;
+          // alleen weggooien wat we kennen: anders is die ronde straks kaal
+          const kenbaar=KAART.hemels.some(function(x){ return x.naam===H.naam; });
+          if(!kenbaar||H.tex.__vast) return;
+          self.losLaten(H.tex); vrij++; });
         (this.bazen||[]).forEach(function(B){
           (B.delen||[]).forEach(function(t){
-            if(t&&t.image&&t.__naam&&baasNamen.indexOf(t.__naam)<0){
+            if(t&&t.image&&t.__naam&&!t.__vast&&baasNamen.indexOf(t.__naam)<0){
               self.losLaten(t); vrij++; } }); }); }
       this.vrijgemaakt=vrij; this.mochtOpruimen=mag;
       const werk=[];
@@ -3744,6 +3759,11 @@
           if(!self.ladenBezig&&klaar) klaar(); }); }); },
 
     hemelVervang:function(naam,tex){
+      // Kwam deze hemel uit een gesplitst bestand, dan moet hij opnieuw in tweeën
+      // en pakken we de helft die bij deze naam hoort.
+      try{ const dl=this.hemelSplits(tex);
+        if(dl){ const kies=(String(naam).indexOf('[onder]')>=0)?dl[1]:dl[0];
+          kies.__naam=naam; kies.__gesplitst=1; tex=kies; } }catch(e){}
       let H2=null; try{ H2=this.hemelBereid(tex); }catch(e){ H2=null; }
       if(!H2) return;
       this.hemels=this.hemels||[];
@@ -3762,7 +3782,12 @@
       const t=this.hemelRij.shift();
       if(!t.__gesplitst){
         let dl=null; try{ dl=this.hemelSplits(t); }catch(e){ dl=null; }
-        if(dl){ dl.forEach(function(x){ x.__gesplitst=1; },this);
+        if(dl){ dl.forEach(function(x){ x.__gesplitst=1;
+            // Deze twee komen uit één bestand. Onthoud dat, anders zijn ze na het
+            // opruimen niet terug te halen en blijft die ronde zonder achtergrond.
+            x.__bron=t.__url||(t.image&&t.image.src)||null;
+            if(x.__bron) KAART.hemels.push({naam:x.__naam,url:x.__bron,
+              lijst:t.__lijst||null,splits:1}); },this);
           this.hemelRij.unshift(dl[0],dl[1]); return true; } }
       let H2=null; try{ H2=this.hemelBereid(t); }catch(e){ H2=null; }
       if(H2){ this.hemels=this.hemels||[]; this.hemels.push(H2);
@@ -3899,6 +3924,9 @@
           const echt=P&&P.hoe.indexOf('gemeten')===0&&P.kol.length===4&&P.rijen>=4;
           if(!echt){ window.ART.objs.push(t); return; }
           const ar2=t.image.width/t.image.height;
+          // Vlootplaten zijn ELK level nodig. Ze worden nooit vrijgegeven, anders
+          // staat er ineens een vierkant blokje in plaats van een schip.
+          t.__vast=1; if(P.mat&&P.mat.map) P.mat.map.__vast=1;
           if(P.rijen>=10){ if(ar2>=0.85) self2.plaat12=P; else self2.plaat13=P; }
           else self2.plaat6=P;
           window.ART.vondst='fleet '+(self2.plaat6?'6 ':'')+(self2.plaat12?'12a ':'')+
