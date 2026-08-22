@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.71';
+  const VERSIE='v11.72';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1408,8 +1408,12 @@
         self.hands[h.id]=h;
         self.wep[h.id]={t:0,lvl:1,lvlT:self.zak.lvlT,mag:self.zak.mag,last:0,up:0,vorig:0};
         ['triggerdown','selectstart'].forEach(function(ev){ h.addEventListener(ev,function(){
+          // In de bril zie je het laadscherm niet — het hangt alleen nog in de
+          // pagina. Toch slikte deze controle daar ELKE knopdruk in, waardoor het
+          // menu dood aanvoelde. In VR telt het scherm dus niet mee.
           const LS2=document.querySelector('#laad');
-          if(LS2&&LS2.style.display!=='none'){ window.NAKLIK=performance.now()+800; return; }
+          if(!window.INVR&&LS2&&LS2.style.display!=='none'){
+            window.NAKLIK=performance.now()+800; return; }
           if(performance.now()<(window.NAKLIK||0)) return;
           if(window.PARADEKLAAR){ window.PARADEKLAAR=0; naarMenu(); return; }
           if(window.PHASE==='menu'||window.PAUSED){ menuKlik(h); return; }
@@ -1542,7 +1546,15 @@
         g.globalAlpha=laag[2]; g.fillStyle=kl;
         let xx=marge;
         letters.forEach(function(t){ g.fillText(t,xx,y); xx+=g.measureText(t).width+sperr; }); });
-      g.shadowBlur=0; g.globalAlpha=1; g.fillStyle=kl;
+      // Een donkere rand om elke letter. Zonder dat verdwijnt lichte tekst in een
+      // lichte achtergrond — en in de bril is dat het verschil tussen lezen en raden.
+      g.shadowBlur=0; g.globalAlpha=1;
+      g.lineJoin='round'; g.miterLimit=2;
+      g.lineWidth=Math.max(3,px*0.13);
+      g.strokeStyle='rgba(2,8,14,0.92)';
+      let xr=marge;
+      letters.forEach(function(t){ g.strokeText(t,xr,y); xr+=g.measureText(t).width+sperr; });
+      g.fillStyle=kl;
       letters.forEach(function(t){ g.fillText(t,x,y); x+=g.measureText(t).width+sperr; });
       const t=new THREE.CanvasTexture(c);
       t.needsUpdate=true;
@@ -4067,44 +4079,9 @@
     // Schepen die achter het menu langs vliegen. Ze volgen geen rail meer maar
     // een eigen baan met bochten en hoogteverschil, en kijken je altijd aan —
     // net als in het spel. Plat voorbij schuiven zag er lelijk uit.
-    menuVlieg:function(s){
-      const m=document.querySelector('#menuSchip'); if(!m||!m.object3D) return;
-      const mesh=m.getObject3D&&m.getObject3D('mesh');
-      if(!this.mvT&&!this.mvAan){ this.mvT=2+Math.random()*6; }
-      if(!this.mvAan){
-        this.mvT-=s;
-        if(this.mvT>0) return;
-        const P=this.plaat12||this.plaat13||this.plaat6;
-        if(!P){ this.mvT=4; return; }
-        const rijen=Object.keys(P.rect);
-        const r=P.rect[rijen[Math.floor(Math.random()*rijen.length)]][0];
-        if(mesh){ mesh.material=P.mat; this.uvRect(mesh.geometry,r); }
-        // een eigen route: van welke kant, hoe hoog, hoe diep, hoe snel
-        this.mvZij=(Math.random()<0.5)?-1:1;
-        this.mvP=this.mvP||new THREE.Vector3();
-        this.mvD=6.5+Math.random()*7;                  // diepte achter het menu
-        this.mvP.set(this.mvZij*(this.mvD*1.5),
-                     0.6+Math.random()*2.4, -this.mvD);
-        this.mvSp=2.2+Math.random()*3.4;
-        this.mvBocht=(Math.random()-0.5)*0.5;          // hij draait onderweg bij
-        this.mvStijg=(Math.random()-0.5)*0.5;
-        this.mvGr=0.5+Math.random()*0.5;
-        this.mvF=Math.random()*6.283;
-        this.mvAan=1; m.setAttribute('visible',true); }
-      // vliegen: rechtdoor met een flauwe bocht en wat op-en-neer
-      this.mvF+=s;
-      this.mvP.x-=this.mvZij*this.mvSp*s;
-      this.mvP.z+=Math.sin(this.mvF*0.35)*this.mvBocht*s*4;
-      this.mvP.y+=Math.sin(this.mvF*0.8)*this.mvStijg*s*1.6;
-      m.object3D.position.copy(this.mvP);
-      const gr=this.mvGr*(this.mvD/9);
-      m.object3D.scale.set(gr,gr,1);
-      // altijd naar je toe gekeerd, met een lichte helling in de bocht
-      m.object3D.lookAt(0,1.6,0);
-      m.object3D.rotateZ(this.mvZij*this.mvBocht*0.7);
-      if(Math.abs(this.mvP.x)>this.mvD*1.7){
-        this.mvAan=0; m.setAttribute('visible',false);
-        this.mvT=3+Math.random()*7; } },
+    // De schepen die achter het menu langs vlogen zijn eruit: het vloog niet mooi
+    // en het menu is rustiger zonder.
+    menuVlieg:function(s){},
 
     menuTick:function(s){
       if(this.hudZicht!==false){ this.hudZicht=false;
@@ -4117,12 +4094,12 @@
           this.letterZet('#mSub','SHOOTER','#ffb03a','#a0631a',0.145,0.50);
           // de vaste opschriften ook in dezelfde letters
           const self3=this;
-          this.letterZet('#moeiKop','DIFFICULTY','#7fb8cc','#1b6f8a',0.034,0.34);
-          [['#mDemo','DEMO','#9fe4f5',0.052],
-           ['#mScores','SCORES','#9fe4f5',0.052],
-           ['#mHelp','CONTROLS','#9fe4f5',0.052],
-           ['#mTest','TEST','#9fe4f5',0.052],
-           ['#mVR','OTHER GAME','#9fe4f5',0.052]].forEach(function(q){
+          this.letterZet('#moeiKop','DIFFICULTY','#bfe4f2','#1b6f8a',0.058,0.34);
+          [['#mDemo','DEMO','#cfeeff',0.104],
+           ['#mScores','SCORES','#cfeeff',0.104],
+           ['#mHelp','CONTROLS','#cfeeff',0.104],
+           ['#mTest','TEST','#cfeeff',0.104],
+           ['#mVR','OTHER GAME','#cfeeff',0.104]].forEach(function(q){
             try{ self3.letterZet(q[0],q[1],q[2],'#1b6f8a',q[3],0.30); }catch(e){} });
         }catch(e){} }
       this.menuVlieg(s);
@@ -4528,7 +4505,7 @@
     const t=document.querySelector('#contTxt'), k=document.querySelector('#btnCont');
     if(!t||!k) return;
     if(v){ mTekst('#contTxt','CONTINUE','#cfeeff',0.070,0.28);
-      mTekst('#contSub','level '+v.l+'   ·   '+(v.s||0).toLocaleString('nl-NL'),'#8fc4d8',0.036,0.18);
+      mTekst('#contSub','level '+v.l+'   ·   '+(v.s||0).toLocaleString('nl-NL'),'#bfe4f2',0.058,0.18);
       k.setAttribute('material','color:#0a2a36;shader:flat;opacity:0.7;transparent:true'); }
     else { mTekst('#contTxt','NO SAVED RUN','#3f6070',0.046,0.28);
       mTekst('#contSub','','#5f8fa6',0.030,0.18);
@@ -4536,7 +4513,7 @@
 
   function toonScores(){
     const L=leesScores(), e=document.querySelector('#scoreLijst'); if(!e) return;
-    if(!L.length){ mTekst('#scoreLijst','no runs logged yet','#8fc4d8',0.034,0.22); return; }
+    if(!L.length){ mTekst('#scoreLijst','no runs logged yet','#bfe4f2',0.058,0.22); return; }
     let t='';
     for(let i=0;i<Math.min(5,L.length);i++) t+=(i+1)+'.  '+L[i].s+'   '+L[i].d+(L[i].c?'   C'+L[i].c:'')+'\n';
     e.setAttribute('value',t);
@@ -4673,7 +4650,7 @@
         if(b) b.setAttribute('material','color:'+(aan?'#0d3a4c':'#0a1d28')+
           ';shader:flat;opacity:'+(aan?0.95:0.5)+';transparent:true');
         if(c2){ c2['hM'+q[0]]=null;
-          try{ c2.letterZet(q[2],q[3],aan?'#eafcff':'#7fb8cc','#1b6f8a',aan?0.062:0.052,0.24); }catch(e){} } }); };
+          try{ c2.letterZet(q[2],q[3],aan?'#eafcff':'#bfe4f2','#1b6f8a',aan?0.092:0.078,0.24); }catch(e){} } }); };
     const zetStand=function(s){
       MSTAND=s; try{ localStorage.setItem('cosmic_moei',s); }catch(e){}
       moeiToon(); SND.boom(0); };
@@ -4863,7 +4840,10 @@
 
     // richtkruis is buiten VR je vizier
     const sc2=document.querySelector('a-scene');
-    if(sc2){ sc2.addEventListener('enter-vr',function(){ window.INVR=true; });
+    if(sc2){ sc2.addEventListener('enter-vr',function(){ window.INVR=true;
+               const L3=document.querySelector('#laad');
+               if(L3) L3.style.display='none';           // hoort niet meer in de weg te zitten
+               window.NAKLIK=0; });
              sc2.addEventListener('exit-vr',function(){ window.INVR=false; }); }
   }
 
