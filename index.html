@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.69';
+  const VERSIE='v11.70';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -845,49 +845,49 @@
   '    </a-entity>'+
 
   // ---------- MENU ----------
-  '    <a-entity id="menu" position="0 0 0">'+
-  '      <a-entity id="mTitel" position="0 2.28 -2.60"></a-entity>'+
-  '      <a-entity id="mSub" position="0 2.02 -2.60"></a-entity>'+
-  '      <a-plane position="0 1.90 -2.60" width="1.60" height="0.004" material="color:#35e8ff;shader:flat;opacity:0.35;transparent:true;depthWrite:false"></a-plane>'+
-  '      <a-plane id="btnStart" class="menu-btn" position="0 1.44 -2.58" width="1.80" height="0.36" material="color:#0b2c3c;shader:flat;opacity:0.55;transparent:true"></a-plane>'+
-  '      <a-plane position="0 1.44 -2.585" width="1.86" height="0.42" material="color:#35e8ff;shader:flat;opacity:0.18;transparent:true;depthWrite:false"></a-plane>'+
-  '      <a-entity id="startTxt" position="0 1.44 -2.57"></a-entity>'+
-  '      <a-plane id="laadBalk" position="-0.88 1.245 -2.57" width="0.02" height="0.012" material="color:#35e8ff;shader:flat"></a-plane>'+
-  '      <a-plane id="btnCont" class="menu-btn" position="0 1.00 -2.58" width="1.24" height="0.22" material="color:#0a1d28;shader:flat;opacity:0.6;transparent:true"></a-plane>'+
-  '      <a-entity id="contTxt" position="0 1.045 -2.57"></a-entity>'+
-  '      <a-entity id="contSub" position="0 0.955 -2.57"></a-entity>'+
-  '      <a-entity id="moeiKop" position="0 0.78 -2.57"></a-entity>'+
-  '      <a-plane id="btnEasy" class="menu-btn" position="-0.50 0.655 -2.58" width="0.44" height="0.145" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
-  '      <a-plane id="btnNorm" class="menu-btn" position="0 0.655 -2.58" width="0.44" height="0.145" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
-  '      <a-plane id="btnHard" class="menu-btn" position="0.50 0.655 -2.58" width="0.44" height="0.145" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
-  '      <a-entity id="mEasy" position="-0.50 0.655 -2.57"></a-entity>'+
-  '      <a-entity id="mNorm" position="0 0.655 -2.57"></a-entity>'+
-  '      <a-entity id="mHard" position="0.50 0.655 -2.57"></a-entity>'+
-  '      <a-plane position="0 0.45 -2.59" width="1.90" height="0.003" material="color:#35e8ff;shader:flat;opacity:0.18;transparent:true;depthWrite:false"></a-plane>'+
-  '      <a-plane id="btnDemo" class="menu-btn" position="-0.72 0.34 -2.58" width="0.34" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-plane id="btnScores" class="menu-btn" position="-0.36 0.34 -2.58" width="0.34" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-plane id="btnHelp" class="menu-btn" position="0 0.34 -2.58" width="0.40" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-plane id="btnTech" class="menu-btn" position="0.36 0.34 -2.58" width="0.30" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-plane id="btnVR" class="menu-btn" position="0.76 0.34 -2.58" width="0.44" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-entity id="mDemo" position="-0.72 0.34 -2.57"></a-entity>'+
-  '      <a-entity id="mScores" position="-0.36 0.34 -2.57"></a-entity>'+
-  '      <a-entity id="mHelp" position="0 0.34 -2.57"></a-entity>'+
-  '      <a-entity id="mTest" position="0.36 0.34 -2.57"></a-entity>'+
-  '      <a-entity id="mVR" position="0.76 0.34 -2.57"></a-entity>'+
-  '      <a-entity id="scoreLijst" position="0 0.10 -2.57"></a-entity>'+
-  '      <a-text id="verTxt" position="0 -0.10 -2.57" value="v11.69" align="center" color="#37586b" width="1.1"></a-text>'+
-  '      <a-text id="artTxt" value="" align="center" color="#37586b" width="1.0" position="-0.62 -0.10 -2.57"></a-text>'+
-  '      <a-text id="musTxt" value="" align="center" color="#37586b" width="1.0" position="0.62 -0.10 -2.57"></a-text>'+
-  '      <a-plane id="btnTrack" class="menu-btn" position="0.62 -0.10 -2.58" width="0.42" height="0.10" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-text id="bestTxt" value="" align="center" color="#37586b" width="1.0" position="0 -0.24 -2.57"></a-text>'+
-  '      <a-plane id="handL" class="menu-btn" position="-0.30 -0.44 -2.58" width="0.34" height="0.15" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
-  '      <a-text id="handLt" position="-0.30 -0.44 -2.57" value="LEFT" align="center" color="#9fe4f5" width="1.5"></a-text>'+
-  '      <a-plane id="handR" class="menu-btn" position="0.30 -0.44 -2.58" width="0.34" height="0.15" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
-  '      <a-text id="handRt" position="0.30 -0.44 -2.57" value="RIGHT" align="center" color="#9fe4f5" width="1.5"></a-text>'+
-  '      <a-text id="handHint" position="0 -0.58 -2.57" value="trigger hand" align="center" color="#37586b" width="1.1"></a-text>'+
+  '    <a-entity id="menu" position="0 -0.460 0">'+
+  '      <a-entity id="mTitel" position="0 1.820 -2.60"></a-entity>'+
+  '      <a-entity id="mSub" position="0 1.560 -2.60"></a-entity>'+
+  '      <a-plane position="0 1.440 -2.60" width="1.60" height="0.004" material="color:#35e8ff;shader:flat;opacity:0.35;transparent:true;depthWrite:false"></a-plane>'+
+  '      <a-plane id="btnStart" class="menu-btn" position="0 0.980 -2.58" width="1.80" height="0.36" material="color:#0b2c3c;shader:flat;opacity:0.55;transparent:true"></a-plane>'+
+  '      <a-plane position="0 0.980 -2.585" width="1.86" height="0.42" material="color:#35e8ff;shader:flat;opacity:0.18;transparent:true;depthWrite:false"></a-plane>'+
+  '      <a-entity id="startTxt" position="0 0.980 -2.57"></a-entity>'+
+  '      <a-plane id="laadBalk" position="-0.88 0.785 -2.57" width="0.02" height="0.012" material="color:#35e8ff;shader:flat"></a-plane>'+
+  '      <a-plane id="btnCont" class="menu-btn" position="0 0.540 -2.58" width="1.24" height="0.22" material="color:#0a1d28;shader:flat;opacity:0.6;transparent:true"></a-plane>'+
+  '      <a-entity id="contTxt" position="0 0.585 -2.57"></a-entity>'+
+  '      <a-entity id="contSub" position="0 0.495 -2.57"></a-entity>'+
+  '      <a-entity id="moeiKop" position="0 0.320 -2.57"></a-entity>'+
+  '      <a-plane id="btnEasy" class="menu-btn" position="-0.50 0.195 -2.58" width="0.44" height="0.145" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
+  '      <a-plane id="btnNorm" class="menu-btn" position="0 0.195 -2.58" width="0.44" height="0.145" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
+  '      <a-plane id="btnHard" class="menu-btn" position="0.50 0.195 -2.58" width="0.44" height="0.145" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
+  '      <a-entity id="mEasy" position="-0.50 0.195 -2.57"></a-entity>'+
+  '      <a-entity id="mNorm" position="0 0.195 -2.57"></a-entity>'+
+  '      <a-entity id="mHard" position="0.50 0.195 -2.57"></a-entity>'+
+  '      <a-plane position="0 -0.010 -2.59" width="1.90" height="0.003" material="color:#35e8ff;shader:flat;opacity:0.18;transparent:true;depthWrite:false"></a-plane>'+
+  '      <a-plane id="btnDemo" class="menu-btn" position="-0.72 -0.120 -2.58" width="0.34" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-plane id="btnScores" class="menu-btn" position="-0.36 -0.120 -2.58" width="0.34" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-plane id="btnHelp" class="menu-btn" position="0 -0.120 -2.58" width="0.40" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-plane id="btnTech" class="menu-btn" position="0.36 -0.120 -2.58" width="0.30" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-plane id="btnVR" class="menu-btn" position="0.76 -0.120 -2.58" width="0.44" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-entity id="mDemo" position="-0.72 -0.120 -2.57"></a-entity>'+
+  '      <a-entity id="mScores" position="-0.36 -0.120 -2.57"></a-entity>'+
+  '      <a-entity id="mHelp" position="0 -0.120 -2.57"></a-entity>'+
+  '      <a-entity id="mTest" position="0.36 -0.120 -2.57"></a-entity>'+
+  '      <a-entity id="mVR" position="0.76 -0.120 -2.57"></a-entity>'+
+  '      <a-entity id="scoreLijst" position="0 -0.360 -2.57"></a-entity>'+
+  '      <a-text id="verTxt" position="0 -0.560 -2.57" value="v11.69" align="center" color="#37586b" width="1.1"></a-text>'+
+  '      <a-text id="artTxt" value="" align="center" color="#37586b" width="1.0" position="-0.62 -0.560 -2.57"></a-text>'+
+  '      <a-text id="musTxt" value="" align="center" color="#37586b" width="1.0" position="0.62 -0.560 -2.57"></a-text>'+
+  '      <a-plane id="btnTrack" class="menu-btn" position="0.62 -0.560 -2.58" width="0.42" height="0.10" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-text id="bestTxt" value="" align="center" color="#37586b" width="1.0" position="0 -0.700 -2.57"></a-text>'+
+  '      <a-plane id="handL" class="menu-btn" position="-0.30 -0.900 -2.58" width="0.34" height="0.15" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
+  '      <a-text id="handLt" position="-0.30 -0.900 -2.57" value="LEFT" align="center" color="#9fe4f5" width="1.5"></a-text>'+
+  '      <a-plane id="handR" class="menu-btn" position="0.30 -0.900 -2.58" width="0.34" height="0.15" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
+  '      <a-text id="handRt" position="0.30 -0.900 -2.57" value="RIGHT" align="center" color="#9fe4f5" width="1.5"></a-text>'+
+  '      <a-text id="handHint" position="0 -1.040 -2.57" value="trigger hand" align="center" color="#37586b" width="1.1"></a-text>'+
   '      <a-ring id="wijzer" visible="false" radius-inner="0.020" radius-outer="0.034" material="color:#ffe45c;shader:flat;transparent:true;opacity:0.95;depthWrite:false;depthTest:false"></a-ring>'+
   '      <a-plane id="menuSchip" visible="false" width="1" height="1" material="transparent:true;alphaTest:0.06;shader:flat;side:double;depthWrite:false"></a-plane>'+
-  '      <a-plane id="scan" position="0 1.52 -2.585" width="2.80" height="0.006" material="color:#35e8ff;shader:flat;opacity:0.10;transparent:true;depthWrite:false"></a-plane>'+
+  '      <a-plane id="scan" position="0 1.060 -2.585" width="2.80" height="0.006" material="color:#35e8ff;shader:flat;opacity:0.10;transparent:true;depthWrite:false"></a-plane>'+
   '      <a-entity id="nieuw" visible="false">'+
   '        <a-plane position="0 1.05 -2.20" width="2.00" height="0.86" material="color:#0d1b12;shader:flat"></a-plane>'+
   '        <a-text position="0 1.34 -2.18" value="NEW VERSION AVAILABLE" align="center" color="#8fd84a" width="2.6"></a-text>'+
@@ -1515,7 +1515,7 @@
       const H=128, marge=Math.round(H*0.55);
       const c=document.createElement('canvas');
       const g0=c.getContext('2d');
-      const font='300 '+px+'px "Trebuchet MS", sans-serif';
+      const font='500 '+px+'px "Trebuchet MS", sans-serif';   // dikker: dun las slecht in de bril
       c.width=16; c.height=16; g0.font=font;
       const sperr=sp*px;
       const letters=String(tekst).split('');
@@ -1527,7 +1527,7 @@
       const y=c.height/2;
       let x=marge;
       // twee gloedlagen, daarna de letter zelf — net als text-shadow in het menu
-      [[gloed,26,0.55],[gloed,12,0.75]].forEach(function(laag){
+      [[gloed,34,0.75],[gloed,16,0.90],[gloed,7,1.0]].forEach(function(laag){
         g.shadowColor=laag[0]; g.shadowBlur=laag[1];
         g.globalAlpha=laag[2]; g.fillStyle=kl;
         let xx=marge;
@@ -4054,9 +4054,13 @@
       this.hemelI=-1; },
 
     // Af en toe scheert er een vijandelijk schip langs de rand van het menu.
+    // Schepen die achter het menu langs vliegen. Ze volgen geen rail meer maar
+    // een eigen baan met bochten en hoogteverschil, en kijken je altijd aan —
+    // net als in het spel. Plat voorbij schuiven zag er lelijk uit.
     menuVlieg:function(s){
       const m=document.querySelector('#menuSchip'); if(!m||!m.object3D) return;
-      if(!this.mvT){ this.mvT=3+Math.random()*7; }
+      const mesh=m.getObject3D&&m.getObject3D('mesh');
+      if(!this.mvT&&!this.mvAan){ this.mvT=2+Math.random()*6; }
       if(!this.mvAan){
         this.mvT-=s;
         if(this.mvT>0) return;
@@ -4064,20 +4068,33 @@
         if(!P){ this.mvT=4; return; }
         const rijen=Object.keys(P.rect);
         const r=P.rect[rijen[Math.floor(Math.random()*rijen.length)]][0];
-        m.setAttribute('material','transparent:true;alphaTest:0.06;shader:flat;'+
-          'side:double;depthWrite:false;src:#'+(P.tex.__id||''));
-        const mesh=m.getObject3D('mesh');
         if(mesh){ mesh.material=P.mat; this.uvRect(mesh.geometry,r); }
+        // een eigen route: van welke kant, hoe hoog, hoe diep, hoe snel
         this.mvZij=(Math.random()<0.5)?-1:1;
-        this.mvX=this.mvZij*3.4; this.mvY=(Math.random()-0.5)*1.6+1.4;
-        this.mvSp=1.1+Math.random()*0.9;
+        this.mvP=this.mvP||new THREE.Vector3();
+        this.mvD=6.5+Math.random()*7;                  // diepte achter het menu
+        this.mvP.set(this.mvZij*(this.mvD*1.5),
+                     0.6+Math.random()*2.4, -this.mvD);
+        this.mvSp=2.2+Math.random()*3.4;
+        this.mvBocht=(Math.random()-0.5)*0.5;          // hij draait onderweg bij
+        this.mvStijg=(Math.random()-0.5)*0.5;
+        this.mvGr=0.5+Math.random()*0.5;
+        this.mvF=Math.random()*6.283;
         this.mvAan=1; m.setAttribute('visible',true); }
-      this.mvX-=this.mvZij*this.mvSp*s*1.6;
-      m.object3D.position.set(this.mvX,this.mvY,-3.2);
-      m.object3D.scale.set(0.55,0.55,1);
-      m.object3D.rotation.z=this.mvZij*0.25;
-      if(Math.abs(this.mvX)>3.6){ this.mvAan=0; m.setAttribute('visible',false);
-        this.mvT=5+Math.random()*9; } },
+      // vliegen: rechtdoor met een flauwe bocht en wat op-en-neer
+      this.mvF+=s;
+      this.mvP.x-=this.mvZij*this.mvSp*s;
+      this.mvP.z+=Math.sin(this.mvF*0.35)*this.mvBocht*s*4;
+      this.mvP.y+=Math.sin(this.mvF*0.8)*this.mvStijg*s*1.6;
+      m.object3D.position.copy(this.mvP);
+      const gr=this.mvGr*(this.mvD/9);
+      m.object3D.scale.set(gr,gr,1);
+      // altijd naar je toe gekeerd, met een lichte helling in de bocht
+      m.object3D.lookAt(0,1.6,0);
+      m.object3D.rotateZ(this.mvZij*this.mvBocht*0.7);
+      if(Math.abs(this.mvP.x)>this.mvD*1.7){
+        this.mvAan=0; m.setAttribute('visible',false);
+        this.mvT=3+Math.random()*7; } },
 
     menuTick:function(s){
       if(this.hudZicht!==false){ this.hudZicht=false;
@@ -4090,12 +4107,12 @@
           this.letterZet('#mSub','SHOOTER','#ffb03a','#a0631a',0.145,0.50);
           // de vaste opschriften ook in dezelfde letters
           const self3=this;
-          this.letterZet('#moeiKop','DIFFICULTY','#4a7288','#1b6f8a',0.026,0.34);
-          [['#mDemo','DEMO','#5f8fa6',0.038],
-           ['#mScores','SCORES','#5f8fa6',0.038],
-           ['#mHelp','CONTROLS','#5f8fa6',0.038],
-           ['#mTest','TEST','#5f8fa6',0.038],
-           ['#mVR','OTHER GAME','#5f8fa6',0.038]].forEach(function(q){
+          this.letterZet('#moeiKop','DIFFICULTY','#7fb8cc','#1b6f8a',0.034,0.34);
+          [['#mDemo','DEMO','#9fe4f5',0.052],
+           ['#mScores','SCORES','#9fe4f5',0.052],
+           ['#mHelp','CONTROLS','#9fe4f5',0.052],
+           ['#mTest','TEST','#9fe4f5',0.052],
+           ['#mVR','OTHER GAME','#9fe4f5',0.052]].forEach(function(q){
             try{ self3.letterZet(q[0],q[1],q[2],'#1b6f8a',q[3],0.30); }catch(e){} });
         }catch(e){} }
       this.menuVlieg(s);
@@ -4500,8 +4517,8 @@
     const v=leesVoortgang();
     const t=document.querySelector('#contTxt'), k=document.querySelector('#btnCont');
     if(!t||!k) return;
-    if(v){ mTekst('#contTxt','CONTINUE','#9fe4f5',0.058,0.28);
-      mTekst('#contSub','level '+v.l+'   ·   '+(v.s||0).toLocaleString('nl-NL'),'#5f8fa6',0.030,0.18);
+    if(v){ mTekst('#contTxt','CONTINUE','#cfeeff',0.070,0.28);
+      mTekst('#contSub','level '+v.l+'   ·   '+(v.s||0).toLocaleString('nl-NL'),'#8fc4d8',0.036,0.18);
       k.setAttribute('material','color:#0a2a36;shader:flat;opacity:0.7;transparent:true'); }
     else { mTekst('#contTxt','NO SAVED RUN','#3f6070',0.046,0.28);
       mTekst('#contSub','','#5f8fa6',0.030,0.18);
@@ -4509,7 +4526,7 @@
 
   function toonScores(){
     const L=leesScores(), e=document.querySelector('#scoreLijst'); if(!e) return;
-    if(!L.length){ mTekst('#scoreLijst','no runs logged yet','#5f8fa6',0.028,0.22); return; }
+    if(!L.length){ mTekst('#scoreLijst','no runs logged yet','#8fc4d8',0.034,0.22); return; }
     let t='';
     for(let i=0;i<Math.min(5,L.length);i++) t+=(i+1)+'.  '+L[i].s+'   '+L[i].d+(L[i].c?'   C'+L[i].c:'')+'\n';
     e.setAttribute('value',t);
@@ -4646,7 +4663,7 @@
         if(b) b.setAttribute('material','color:'+(aan?'#0d3a4c':'#0a1d28')+
           ';shader:flat;opacity:'+(aan?0.95:0.5)+';transparent:true');
         if(c2){ c2['hM'+q[0]]=null;
-          try{ c2.letterZet(q[2],q[3],aan?'#eafcff':'#4a7288','#1b6f8a',aan?0.052:0.044,0.24); }catch(e){} } }); };
+          try{ c2.letterZet(q[2],q[3],aan?'#eafcff':'#7fb8cc','#1b6f8a',aan?0.062:0.052,0.24); }catch(e){} } }); };
     const zetStand=function(s){
       MSTAND=s; try{ localStorage.setItem('cosmic_moei',s); }catch(e){}
       moeiToon(); SND.boom(0); };
