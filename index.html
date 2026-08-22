@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.65';
+  const VERSIE='v11.67';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -805,16 +805,27 @@
   '         background="color:#02050c">'+
   '  <a-entity id="rig" position="0 0 0" cosmic>'+
   '    <a-camera id="cam" wasd-controls-enabled="false" far="420">'+
-  '      <a-text id="hudL" value="" align="left"   color="#9fe4f5" width="1.30" position="-0.52 -0.455 -1.2"></a-text>'+
-  '      <a-plane id="krachtA" position="-0.37 -0.545 -1.21" width="0.26" height="0.024" material="color:#e8f0f4;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
-  '      <a-plane id="krachtB" position="-0.50 -0.545 -1.20" width="0.26" height="0.024" material="color:#ff3d55;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
-  '      <a-text id="hudR" value="" align="right"  color="#9fe4f5" width="1.30" position="0.52 -0.455 -1.2"></a-text>'+
-  '      <a-text id="hudS" value="" align="right"  color="#5f9ab5" width="1.05" position="0.52 -0.545 -1.2"></a-text>'+
-  '      <a-text id="hudP" value="" align="left"   color="#5f9ab5" width="1.05" position="-0.16 -0.545 -1.2"></a-text>'+
-  '      <a-text id="baasNaam" value="" align="center" color="#ff8aa6" width="2.0" position="0 0.625 -1.3"></a-text>'+
-  '      <a-plane id="baasBalkA" visible="false" position="0 0.555 -1.31" width="0.64" height="0.055" material="color:#e8f0f4;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
-  '      <a-plane id="baasBalkB" visible="false" position="-0.31 0.555 -1.295" width="0.62" height="0.045" material="color:#ff3d55;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
-  '      <a-text id="hudC" value="" align="center" color="#ffb03a" width="2.6"  position="0 0.30 -1.3"></a-text>'+
+  '      <a-entity id="mBaasNaam" position="0 0.640 -1.30"></a-entity>'+
+  '      <a-plane id="baasBalkA" visible="false" position="0 0.575 -1.31" width="0.70" height="0.030" material="color:#173a25;shader:flat;opacity:0.85;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="baasBalkB" visible="false" position="-0.345 0.575 -1.30" width="0.68" height="0.024" material="color:#ff3d55;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="baasRand" visible="false" position="0 0.575 -1.315" width="0.712" height="0.038" material="color:#6cf08a;shader:flat;opacity:0.75;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-entity id="mBaasPct" position="0.40 0.575 -1.30"></a-entity>'+
+  '      <a-entity id="mHull" position="-0.545 -0.145 -1.25"></a-entity>'+
+  '      <a-plane id="krachtR" position="-0.545 -0.375 -1.255" width="0.062" height="0.428" material="color:#6cf08a;shader:flat;opacity:0.75;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="krachtA" position="-0.545 -0.375 -1.25" width="0.054" height="0.420" material="color:#173a25;shader:flat;opacity:0.85;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="krachtB" position="-0.545 -0.585 -1.245" width="0.046" height="0.412" material="color:#ff3d55;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-entity id="mHp" position="-0.545 -0.625 -1.25"></a-entity>'+
+  '      <a-entity id="mUltL" position="-0.545 -0.700 -1.25"></a-entity>'+
+  '      <a-entity id="mUlt" position="-0.545 -0.760 -1.25"></a-entity>'+
+  '      <a-entity id="mWap" position="0.545 -0.395 -1.25"></a-entity>'+
+  '      <a-entity id="mWapLv" position="-0.055 -0.470 -1.25"></a-entity>'+
+  '      <a-entity id="mAmmo" position="0.545 -0.470 -1.25"></a-entity>'+
+  '      <a-plane id="magA" position="0.395 -0.530 -1.25" width="0.30" height="0.012" material="color:#173a25;shader:flat;opacity:0.85;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="magB" position="0.245 -0.530 -1.245" width="0.30" height="0.012" material="color:#6cf08a;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-text id="hudC" value="" align="center" color="#6cf08a" width="2.6" position="0 0.34 -1.3"></a-text>'+
+  '      <a-entity id="mLv" position="-0.20 -0.640 -1.25"></a-entity>'+
+  '      <a-entity id="mWave" position="0.06 -0.640 -1.25"></a-entity>'+
+  '      <a-entity id="mScore" position="0.545 -0.640 -1.25"></a-entity>'+
   '      <a-text id="hudW" value="" align="center" color="#e8f6ff" width="1.6"  position="0 -0.24 -1.25"></a-text>'+
   '      <a-plane id="hurt"  position="0 0 -0.31" width="2.6" height="2.6" material="color:#ff2030;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-plane id="doek" position="0 0 -0.30" width="3.4" height="3.4" material="color:#000000;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
@@ -856,7 +867,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.65" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.67" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -887,6 +898,8 @@
   '      <a-plane id="btnMoei" class="menu-btn" position="0 -0.545 -2.55" width="1.30" height="0.20" material="color:#101c2e;shader:flat"></a-plane>'+
   '      <a-text id="moeiTxt" value="NORMAL" align="center" color="#9fe4f5" width="1.9" position="0 -0.545 -2.54"></a-text>'+
   '      <a-text id="moeiInfo" value="" align="center" color="#5f9ab5" width="1.35" position="0 -0.70 -2.54"></a-text>'+
+  '      <a-plane id="btnVR" class="menu-btn" position="1.78 0.34 -2.28" rotation="0 -30 0" width="0.94" height="0.30" material="color:#2a1d38;shader:flat"></a-plane>'+
+  '      <a-entity id="mVR" position="1.78 0.34 -2.26" rotation="0 -30 0"></a-entity>'+
   '      <a-plane id="btnTech" class="menu-btn" position="0 -0.86 -2.57" width="1.70" height="0.26" material="color:#2a1d38;shader:flat"></a-plane>'+
   '      <a-entity id="mTest" position="0 -0.86 -2.55"></a-entity>'+
   '      <a-entity id="nieuw" visible="false">'+
@@ -2759,18 +2772,20 @@
     baasBalk:function(e){
       if(e.intro) return;
       const A=document.querySelector('#baasBalkA'), B=document.querySelector('#baasBalkB');
-      const N=document.querySelector('#baasNaam');
+      const R=document.querySelector('#baasRand');
       if(!A||!B) return;
       if(!this.balkAan){ this.balkAan=true;
         A.setAttribute('visible',true); B.setAttribute('visible',true);
-        if(N) N.setAttribute('value',(e.baasNaam||'BOSS')); }
+        if(R) R.setAttribute('visible',true);
+        this.hBaas=null;
+        this.hudTekst('#mBaasNaam',(e.baasNaam||'BOSS'),'#6cf08a',0.048,0.30,'hBaas'); }
       const d=Math.max(0,e.hp/e.hpM);
       if(Math.abs(d-(this.balkD||0))<0.004) return; this.balkD=d;
-      const br=Math.max(0.004,0.62*d);
+      const br=Math.max(0.004,0.68*d);
       B.setAttribute('width',br.toFixed(4));
-      // hoogte elke keer meegeven: anders kan hij ergens dun blijven staan
-      B.setAttribute('height','0.045');
-      B.setAttribute('position',(-0.31+br/2).toFixed(4)+' 0.555 -1.295');
+      B.setAttribute('height','0.024');
+      B.setAttribute('position',(-0.345+br/2).toFixed(4)+' 0.575 -1.30');
+      this.hudTekst('#mBaasPct',Math.round(d*100)+'%','#ff6a7d',0.034,0.16,'hBaasPct');
       B.setAttribute('material','color:'+(d>0.5?'#ff3d55':(d>0.2?'#ffb03a':'#ffe45c'))+
         ';shader:flat;depthWrite:false;depthTest:false'); },
 
@@ -2848,7 +2863,13 @@
       this.balkAan=false; this.balkD=-1;
       ['#baasBalkA','#baasBalkB'].forEach(function(id){
         const e=document.querySelector(id); if(e) e.setAttribute('visible',false); });
-      const N=document.querySelector('#baasNaam'); if(N) N.setAttribute('value',''); },
+      ['#baasRand'].forEach(function(id){
+        const e2=document.querySelector(id); if(e2) e2.setAttribute('visible',false); });
+      const self4=this;
+      ['#mBaasNaam','#mBaasPct'].forEach(function(id){
+        const e2=document.querySelector(id);
+        if(e2&&e2.getObject3D){ const m=e2.getObject3D('mesh'); if(m) m.visible=false; } });
+      this.hBaas=null; this.hBaasPct=null; },
 
     // ---- het einde: overal knallen, dan scheef wegzakken ----
     baasSterft:function(e,s){
@@ -3777,38 +3798,55 @@
       if(!be) return null;
       return {e:be,x:o.x+dir.x*bt,y:o.y+dir.y*bt,z:o.z+dir.z*bt}; },
 
+    // De HUD is een vizier: alles in fosforgroen, rood alleen waar het alarm
+    // moet slaan. Tekst wordt met dezelfde gloeiende letters getekend als het
+    // menu, en alleen bijgewerkt als hij echt verandert — een doekje maken kost
+    // te veel om elke beurt te doen.
+    hudTekst:function(id,tekst,kl,hoog,sp,onth){
+      if(this[onth]===tekst) return; this[onth]=tekst;
+      try{ this.letterZet(id,tekst,kl,'#1d7a3f',hoog,sp===undefined?0.24:sp); }catch(e){}
+    },
+
     hud:function(){
       if((this.hudT=(this.hudT||0)-1)>0) return; this.hudT=14;
+      const GR='#6cf08a', GRZ='#3f9c5f', ROOD='#ff6a7d';
       const p=Math.round(this.power);
-      // Linksonder: welk wapen je vast hebt en hoeveel munitie. Dat stond eerder
-      // alleen even in beeld bij het wisselen en was daarna weg.
       const W2=this.wep[this.spec]||this.wep[this.prim];
-      const munitie=(W2&&W2.t>=1&&W2.t<=4)?String(W2.mag[W2.t]||0):'\u221E';
-      const l=(W2?((WNAAM[W2.t]||'MACHINE GUN')+'  LV'+this.kr(W2)+'   '+munitie):'');
-      // kort houden: anders loopt deze regel tot over de wapenregel heen
-      const r='LV '+this.level+'/'+LEVELS+'    WAVE '+Math.max(1,this.wave)+'/'+GOLVEN;
-      // en naast de krachtbalk: hoeveel kracht en hoeveel ults
-      const pu=p+'%     ULT '+this.ults;
-      if(pu!==this.hudPv){ this.hudPv=pu;
-        const e=document.querySelector('#hudP'); if(e) e.setAttribute('value',pu); }
-      const sc=this.punten.toLocaleString('nl-NL');
-      if(sc!==this.hudSv){ this.hudSv=sc;
-        const e=document.querySelector('#hudS'); if(e) e.setAttribute('value',sc); }
-      // krachtbalkje onder de cijfers
+
+      // ---- wapen rechtsonder: naam, niveau, munitie, magazijnbalk ----
+      const wn=(W2?(WNAAM[W2.t]||'MACHINE GUN'):'');
+      this.hudTekst('#mWap',wn,GR,0.052,0.18,'hWap');
+      this.hudTekst('#mWapLv','LV '+(W2?this.kr(W2):1),GRZ,0.034,0.22,'hWapLv');
+      const eindeloos=!(W2&&W2.t>=1&&W2.t<=4);
+      const mag=eindeloos?0:(W2.mag[W2.t]||0);
+      this.hudTekst('#mAmmo',eindeloos?'\u221E':String(mag),GR,0.072,0.10,'hAmmo');
+      const mb=document.querySelector('#magB');
+      if(mb){ const deel=eindeloos?1:Math.max(0,Math.min(1,mag/60));
+        const br=Math.max(0.004,0.30*deel);
+        if(br!==this.hMag){ this.hMag=br;
+          mb.setAttribute('width',br.toFixed(3));
+          mb.setAttribute('position',(0.245+br/2).toFixed(3)+' -0.530 -1.245'); } }
+
+      // ---- kracht linksonder ----
+      this.hudTekst('#mHull','HULL',GRZ,0.030,0.30,'hHull');
+      this.hudTekst('#mHp',String(p),GR,0.060,0.12,'hHp');
+      this.hudTekst('#mUltL','ULT',GRZ,0.028,0.30,'hUltL');
+      this.hudTekst('#mUlt',String(this.ults),GR,0.052,0.12,'hUlt');
       const bb=document.querySelector('#krachtB');
       if(bb&&p!==this.hudP){ this.hudP=p;
-        const br=Math.max(0.004,0.26*Math.max(0,p)/100);
-        bb.setAttribute('width',br.toFixed(3));
-        bb.setAttribute('position',(-0.50+br/2).toFixed(3)+' -0.545 -1.20');
-        }                                            // rood op wit, altijd
+        const hh=Math.max(0.004,0.412*Math.max(0,p)/100);
+        bb.setAttribute('height',hh.toFixed(4));
+        bb.setAttribute('position','-0.545 '+(-0.585+hh/2).toFixed(4)+' -1.245'); }
+
+      // ---- onderregel ----
+      this.hudTekst('#mLv','LV '+this.level+'/'+LEVELS,GRZ,0.032,0.26,'hLv');
+      this.hudTekst('#mWave','WAVE '+Math.max(1,this.wave)+'/'+GOLVEN,GRZ,0.032,0.26,'hWave');
+      this.hudTekst('#mScore',this.punten.toLocaleString('nl-NL'),GRZ,0.034,0.20,'hScore');
+
       this.mobKnop();
       if(window.DEMO){ const dd=document.querySelector('#hudC');
         if(dd&&this.meldC<=0){ dd.setAttribute('value','DEMO  -  press trigger to stop');
-          dd.setAttribute('color','#6ce2a0'); } }
-      if(l!==this.hudLv){ this.hudLv=l;
-        const e=document.querySelector('#hudL'); if(e) e.setAttribute('value',l); }
-      if(r!==this.hudRv){ this.hudRv=r;
-        const e=document.querySelector('#hudR'); if(e) e.setAttribute('value',r); } },
+          dd.setAttribute('color','#6ce2a0'); } } },
 
     // één hemel per beurt klaarmaken en meteen naar de videokaart sturen,
     // zodat er tijdens het spelen niets meer hoeft te gebeuren
@@ -4059,7 +4097,8 @@
           [['#mDemo','WATCH DEMO','#9fe4f5',0.055],
            ['#mScores','SCORES','#8fd8ec',0.050],
            ['#mHelp','CONTROLS','#8fd8ec',0.050],
-           ['#mTest','TEST','#b06cff',0.050]].forEach(function(q){
+           ['#mTest','TEST','#b06cff',0.050],
+           ['#mVR','OTHER GAME','#b06cff',0.042]].forEach(function(q){
             try{ self3.letterZet(q[0],q[1],q[2],'#1b6f8a',q[3],0.30); }catch(e){} });
         }catch(e){} }
       this.menuVlieg(s);
@@ -4602,6 +4641,10 @@
     try{ const m2=localStorage.getItem('cosmic_moei');
          if(m2&&MOEILIJK[m2]) MSTAND=m2; }catch(e){}
     moeiToon();
+    // Sjoerds andere spel staat op dezelfde plek, alleen eindigt het pad op /VR/
+    kl('#btnVR',function(){
+      const p=location.pathname.replace(/\/Cosmic\/?$/i,'/VR/');
+      location.href=location.origin+(p===location.pathname?'/VR/':p); });
     kl('#btnTech',function(){ techToon(true); lvToon(); });
     kl('#btnTechUit',function(){ techToon(false); });
     kl('#btnLvMin',function(){ techLv=Math.max(1,techLv-1); lvToon(); });
