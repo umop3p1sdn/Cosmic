@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.62';
+  const VERSIE='v11.64';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -239,11 +239,41 @@
       og.gain.setValueAtTime(0.4,t); og.gain.exponentialRampToValueAtTime(0.001,t+0.45);
       o.connect(og); naar(og,p); o.start(t); o.stop(t+0.5); } }
 
-  function boomSnd(p){ if(!sfxOk(4)) return; const a=AC(), t=a.currentTime;
+  // Een ontploffing is geen zuivere toon. Drie lagen over elkaar: de klap die je
+  // in je borst voelt, een korte scheur van ruis, en een lage nagalm die uitrolt.
+  function boomSnd(p,zwaar){ if(!sfxOk(4)) return; const a=AC(), t=a.currentTime;
+    const gr=zwaar?1.5:1;                                   // grote schepen dreunen zwaarder
+    // 1. de dreun zelf, dieper en langer dan eerst
     const o=a.createOscillator(), g=a.createGain();
-    o.type='sine'; o.frequency.setValueAtTime(120,t); o.frequency.exponentialRampToValueAtTime(34,t+0.22);
-    g.gain.setValueAtTime(0.42,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.26);
-    o.connect(g); naar(g,p); o.start(t); o.stop(t+0.28); }
+    o.type='sine';
+    o.frequency.setValueAtTime(150*(zwaar?0.8:1),t);
+    o.frequency.exponentialRampToValueAtTime(26,t+0.34*gr);
+    g.gain.setValueAtTime(0.46,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.42*gr);
+    o.connect(g); naar(g,p); o.start(t); o.stop(t+0.44*gr);
+    // 2. de scheur: ruis die meteen wegvalt — dat geeft de klap zijn rand
+    try{
+      const n=Math.floor(a.sampleRate*0.30*gr);
+      const buf=a.createBuffer(1,n,a.sampleRate), d=buf.getChannelData(0);
+      for(let i=0;i<n;i++){ const k=1-i/n; d[i]=(Math.random()*2-1)*k*k; }
+      const s=a.createBufferSource(); s.buffer=buf;
+      const f=a.createBiquadFilter(); f.type='lowpass';
+      f.frequency.setValueAtTime(1800,t);
+      f.frequency.exponentialRampToValueAtTime(180,t+0.28*gr);
+      const g2=a.createGain();
+      g2.gain.setValueAtTime(0.34,t);
+      g2.gain.exponentialRampToValueAtTime(0.001,t+0.32*gr);
+      s.connect(f).connect(g2); naar(g2,p); s.start(t); s.stop(t+0.32*gr);
+    }catch(e){}
+    // 3. de nagalm: een diepe toon die er nog even onder blijft hangen
+    const o3=a.createOscillator(), g3=a.createGain();
+    o3.type='triangle';
+    o3.frequency.setValueAtTime(58,t+0.02);
+    o3.frequency.exponentialRampToValueAtTime(19,t+0.55*gr);
+    g3.gain.setValueAtTime(0.0001,t);
+    g3.gain.exponentialRampToValueAtTime(0.20,t+0.05);
+    g3.gain.exponentialRampToValueAtTime(0.001,t+0.60*gr);
+    o3.connect(g3); naar(g3,p); o3.start(t); o3.stop(t+0.62*gr); }
 
   function lazSnd(p,k,n){ const a=AC(), t=a.currentTime;
     const o=a.createOscillator(), g=a.createGain(), f=a.createBiquadFilter();
@@ -828,7 +858,7 @@
   '      <a-plane id="btnTrack" class="menu-btn" position="-1.78 0.94 -2.27" rotation="0 30 0" width="0.78" height="0.24" material="color:#0d2233;shader:flat"></a-plane>'+
   '      <a-text position="-1.78 0.94 -2.25" rotation="0 30 0" value="NEXT TRACK" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '      <a-text position="1.78 1.90 -2.27" rotation="0 -30 0" value="BUILD" align="center" color="#2f7c96" width="2.0"></a-text>'+
-  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.62" align="center" color="#ffb03a" width="2.6"></a-text>'+
+  '      <a-text id="verTxt" position="1.78 1.62 -2.27" rotation="0 -30 0" value="v11.64" align="center" color="#ffb03a" width="2.6"></a-text>'+
   '      <a-text id="bestTxt" position="1.78 1.16 -2.27" rotation="0 -30 0" value="" align="center" color="#5f9ab5" width="1.7"></a-text>'+
   '      <a-text position="0 2.26 -2.58" value="C O S M I C" align="center" color="#e8f6ff" width="6.4"></a-text>'+
   '      <a-text position="0 2.02 -2.58" value="S H O O T E R" align="center" color="#35e8ff" width="4.2"></a-text>'+
@@ -1050,6 +1080,9 @@
   const SCHOON_KOL=3;
   // Hoe vaak er in het menu naar een nieuwe versie wordt gekeken (milliseconden).
   const VERSIE_ELK=20000;
+  // Hoeveel stukken er hoogstens van een ontploffend schip af spatten.
+  const BROKKNAL=9;
+  const BRAND_VER=95;           // tot hoe ver een brandend schip zijn vlammen toont
   const ZUIGR=70;                 // bereik van de vortex op zijn wijdst
   const OVER=[56,40,26];        // afstandsbanden waarop een oversteker langs je scheert
   // ---------------------------------------------------------------
@@ -1477,6 +1510,36 @@
       return uit; },
 
     // ---- de plaat zelf opmeten: geen vast raster, maar zoeken waar de inkt staat ----
+    // Waar staat dit schip in brand? We leggen het hele plaatje naast het
+    // beschadigde en zoeken de plekken die er fel-oranje bij zijn gekomen. Dat
+    // zijn precies de gaten die Sjoerd zelf heeft getekend.
+    vuurPlek:function(P,rij,d,W){
+      const k0=P.kol[0], k1=P.kol[1], r=P.rij[rij];
+      if(!k0||!k1||!r) return [];
+      const bw=Math.min(k0[1]-k0[0],k1[1]-k1[0])+1, bh=r[1]-r[0]+1;
+      const brandt=function(o){
+        const R=d[o],G=d[o+1],B=d[o+2],A=d[o+3];
+        return A>60&&R>170&&G>70&&B<130&&R>B+80; };
+      const merk=new Uint8Array(bw*bh);
+      const plek=[];
+      const st=new Int32Array(bw*bh);
+      for(let y=0;y<bh;y+=2) for(let x=0;x<bw;x+=2){
+        const i=y*bw+x; if(merk[i]) continue;
+        const oB=((r[0]+y)*W+(k1[0]+x))*4, oH=((r[0]+y)*W+(k0[0]+x))*4;
+        if(!brandt(oB)||brandt(oH)) continue;
+        let sp=0; st[sp++]=i; merk[i]=1; let n=0,cx=0,cy=0;
+        while(sp>0){ const j=st[--sp]; const jx=j%bw, jy=(j/bw)|0;
+          n++; cx+=jx; cy+=jy;
+          for(let q=0;q<4;q++){
+            const nx=jx+(q===0?2:(q===1?-2:0)), ny=jy+(q===2?2:(q===3?-2:0));
+            if(nx<0||ny<0||nx>=bw||ny>=bh) continue;
+            const nj=ny*bw+nx; if(merk[nj]) continue;
+            const o2=((r[0]+ny)*W+(k1[0]+nx))*4, o3=((r[0]+ny)*W+(k0[0]+nx))*4;
+            if(brandt(o2)&&!brandt(o3)){ merk[nj]=1; st[sp++]=nj; } } }
+        if(n>=6) plek.push({x:(cx/n)/bw-0.5, y:0.5-(cy/n)/bh, n:n}); }
+      plek.sort(function(a,b){ return b.n-a.n; });
+      return plek.slice(0,3); },
+
     // Per vak alles wegpoetsen wat niet aan het hoofdschip vastzit.
     // Werkt met een vlakke vulling vanaf het midden: wat je van daaruit niet kunt
     // bereiken, hoort er niet bij. Kleine losse stukjes gaan weg, echte losse
@@ -1628,7 +1691,11 @@
         try{ schoon=this.plaatSchoon(img,W,H,kol,rij,pix,tex.__naam)||tex; }catch(e){ schoon=tex; } }
       const mat=new THREE.MeshBasicMaterial({map:schoon,transparent:true,alphaTest:0.06,
         side:THREE.DoubleSide,depthWrite:false});
-      const P={tex:tex,mat:mat,rect:{},hoe:hoe,kol:kol,rij:rij,rijen:rij.length,data:pix};
+      const P={tex:tex,mat:mat,rect:{},hoe:hoe,kol:kol,rij:rij,rijen:rij.length,data:pix,vuur:{}};
+      // waar brandt elk schip? één keer uitrekenen, daarna gratis
+      if(pix&&kol.length>=2){
+        for(let vr=0;vr<rij.length;vr++){
+          try{ P.vuur[vr]=this.vuurPlek(P,vr,pix,W); }catch(e){ P.vuur[vr]=[]; } } }
       for(let rr=0;rr<rij.length;rr++){
         const r=rij[rr]; P.rect[rr]=[];
         for(let c=0;c<4;c++){ const k=kol[c];
@@ -2184,11 +2251,22 @@
     knalDood:function(e){
       e.live=false; e.dood=0; e.hp=0;
       if(e.romp){ e.romp.visible=false; e.romp=null; }
-      SND.kill(e.p.x*0.02,e.sc/7); SND.boom(e.p.x*0.02);
+      SND.kill(e.p.x*0.02,e.sc/7); SND.boom(e.p.x*0.02,e.bw>=16);
       this.vonk(e.p.x,e.p.y,e.p.z,0xfff2c0,14,7,1.7);      // witte kern
       this.vonk(e.p.x,e.p.y,e.p.z,0xffb03a,22,15,1.5);     // oranje wolk
       this.vonk(e.p.x,e.p.y,e.p.z,0xff5a2a,16,22,1.1);     // rode scherven ver weg
       this.vonk(e.p.x,e.p.y,e.p.z,0x6a6a6a,10,9,2.2);      // rook
+      // Hij spat uiteen: echte stukken van zijn eigen plaatje, met vuur en rook
+      // die met de brokken mee naar buiten vliegen. Een flits alleen is te schoon
+      // voor een schip dat zojuist uit elkaar is geslagen.
+      const nb=Math.min(BROKKNAL,2+Math.round(e.bw*0.35));
+      for(let k=0;k<nb;k++) this.brok(e,e.p.x,e.p.y,e.p.z,Math.random()<0.35,1);
+      for(let k=0;k<3;k++){
+        const hk=Math.random()*6.283, af=e.sc*(0.3+Math.random()*0.7);
+        const sx=e.p.x+Math.cos(hk)*af, sy=e.p.y+Math.sin(hk)*af*0.7,
+              sz=e.p.z+(Math.random()-0.5)*af;
+        this.vonk(sx,sy,sz,0xffd070,5,7,0.9);              // wegspattend vuur
+        this.vonk(sx,sy,sz,0x5a5a5a,4,5,2.4); }            // en zijn rookje
       this.knal(e.p,e.sc);
       this.bbVrij(e.bb); e.bb=null;
       if(TYPE[e.tp].prof==='baas'){ this.baas=null; } },
@@ -2655,10 +2733,33 @@
       B.setAttribute('material','color:'+(d>0.5?'#ff3d55':(d>0.2?'#ffb03a':'#ffe45c'))+
         ';shader:flat;depthWrite:false;depthTest:false'); },
 
+    // Een beschadigd schip brandt op de plekken die op zijn plaatje branden. De
+    // vlam wakkert grillig aan en uit, laat een vuurstreep achter waar hij net
+    // was, en daarachter een rookspoor dat langzaam uitdijt.
+    brandTick:function(e,s){
+      if(!e.plaat||!e.plaat.vuur||e.fase<1||!e.bb) return;
+      const pl=e.plaat.vuur[e.rij];
+      if(!pl||!pl.length) return;
+      if(e.p.distanceTo(this.kop)>BRAND_VER) return;
+      e.brT2=(e.brT2||0)-s;
+      if(e.brT2>0) return;
+      const heftig=(e.fase>=2)?1.7:1;
+      e.brT2=(0.045+Math.random()*0.05)/heftig;
+      for(let i=0;i<pl.length;i++){
+        const P2=pl[i];
+        const px=e.p.x+P2.x*e.bw*0.92, py=e.p.y+P2.y*e.bh*0.92, pz=e.p.z+1;
+        const fel=0.55+Math.random()*0.95;
+        this.vonk(px,py,pz,0xfff2c0,1,2.2*fel*heftig,0.16);
+        this.vonk(px,py,pz,0xffb03a,2,3.4*fel*heftig,0.30);
+        if(Math.random()<0.5) this.vonk(px,py,pz,0xff6a2a,1,4.2*fel,0.45);
+        if(Math.random()<0.7) this.vonk(px,py,pz+1.5,0xff8a3d,1,1.6,0.55,true);
+        if(Math.random()<(e.fase>=2?0.9:0.55))
+          this.vonk(px,py,pz+2.5,(e.fase>=2)?0x3a3a3a:0x7a7a7a,1,2.6,1.9,true); } },
+
     // Een gehavende baas rookt en vonkt over zijn hele romp; hoe zwaarder
     // beschadigd, hoe meer. Zijn plaatje blijft heel.
     // Een stuk van zijn eigen plaat slaat eraf en tuimelt omlaag.
-    brok:function(e,x,y,z,groot){
+    brok:function(e,x,y,z,groot,knal){
       if(!e.bb||!e.bb.m||!e.bb.m.material||!e.bb.m.material.map) return;
       // Bij een reus zou een brokje net zo mee opschalen: blokken van meters die
       // door je beeld tuimelen. Die krijgt alleen vonken en vuur.
@@ -2683,8 +2784,11 @@
         B.m.scale.set(m,m,1);
         B.m.position.set(x,y,z);
         B.m.rotation.set(0,0,Math.random()*6.283);
-        const kr=Math.max(0.45,Math.min(1.2,e.bw/16));
-        B.vx=(Math.random()-0.5)*13*kr; B.vy=(2+Math.random()*7)*kr; B.vz=(Math.random()-0.5)*8*kr;
+        // bij een ontploffing vliegen ze alle kanten op, niet alleen omhoog
+        const kr=Math.max(0.45,Math.min(1.2,e.bw/16))*(knal?2.3:1);
+        B.vx=(Math.random()-0.5)*13*kr;
+        B.vy=(knal?(Math.random()-0.35)*11:(2+Math.random()*7))*kr;
+        B.vz=(Math.random()-0.5)*8*kr;
         B.rz=(Math.random()-0.5)*4.2;
         B.m.visible=true; return; } },
 
@@ -3376,6 +3480,7 @@
         // je langs, en komt er aan de andere kant weer uit.
         const xVoor=e.p.x;
         this.baan(e,s); if(!e.dood&&!e.dood2&&e.prof!=='baas') levend++;
+        if(e.fase>=1&&!e.dood2) this.brandTick(e,s);
         // Dit is een spel dat alleen vooruit kijkt. Alles wat achter je zit, te
         // ver opzij, te hoog of te laag hangt heeft daar niets te zoeken: het
         // wordt weggehaald en opnieuw ver vóór je neergezet. Geen rondjes, geen
