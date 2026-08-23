@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.73';
+  const VERSIE='v11.74';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -344,7 +344,8 @@
     MUSAPI=API+pad.split('/').map(encodeURIComponent).join('/');
     let cache=null;
     try{ const r=localStorage.getItem('cosmic_music'); if(r) cache=JSON.parse(r); }catch(e){}
-    if(cache&&cache.length){ PLAY=cache.map(function(n){ return {n:n,u:MUSBASE+encodeURIComponent(n)}; }); musToon(); }
+    if(cache&&cache.length){ PLAY=cache.map(function(n){ return {n:n,u:MUSBASE+encodeURIComponent(n)}; }); musToon();
+      if(!CUR&&window.__geluidVrij) playAt(0); }        // uit de cache: meteen spelen
     if(typeof fetch!=='function') return;
     fetch(MUSAPI).then(function(r){ return r.ok?r.json():null; }).then(function(j){
       if(!j||!j.length) return;
@@ -354,7 +355,10 @@
       try{ localStorage.setItem('cosmic_music',JSON.stringify(nm)); }catch(e){}
       PLAY=nm.map(function(n){ return {n:n,u:MUSBASE+encodeURIComponent(n)}; });
       musToon();
-      if(window.PHASE!=='menu'&&!CUR) playAt(0);      // scan kwam pas na de start binnen
+      // De lijst komt meestal binnen terwijl je nog in het MENU staat. Hier stond
+      // dat hij dan juist niet moest starten — daardoor bleef de muziek stil tot
+      // je zelf een nummer aanklikte.
+      if(!CUR&&window.__geluidVrij) playAt(0);
     }).catch(function(){}); }
   function playAt(i){
     if(!PLAY.length) return false;
@@ -375,7 +379,10 @@
       const e2=$('#musTxt'); if(e2) e2.setAttribute('value','\u25b6 '+PLAY[PIDX].n);
       return true;
     }catch(e){ return false; } }
-  function muziekStart(){ AC(); if(!playAt(0)) startDrone(); }
+  function muziekStart(){ AC();
+    // Vanaf nu mag er geluid spelen: jouw tik is het startsein van de browser.
+    window.__geluidVrij=1;
+    if(!playAt(0)) startDrone(); }
   function beat(){ if(!ANA||!ANAD) return 0;
     try{ ANA.getByteFrequencyData(ANAD);
       let s=0; for(let i=1;i<7;i++) s+=ANAD[i];
@@ -1089,6 +1096,7 @@
   const VERSIE_ELK=20000;
   // Hoeveel stukken er hoogstens van een ontploffend schip af spatten.
   const BROKKNAL=9;
+  const GAMEOVER_WACHT=3;       // seconden dat GAME OVER blijft staan vóór de keuze
   const BRAND_VER=95;           // tot hoe ver een brandend schip zijn vlammen toont
   const ZUIGR=70;                 // bereik van de vortex op zijn wijdst
   const OVER=[56,40,26];        // afstandsbanden waarop een oversteker langs je scheert
@@ -1343,6 +1351,13 @@
           new THREE.MeshBasicMaterial({map:self.GLOED,transparent:true,blending:THREE.AdditiveBlending,
             depthWrite:false,color:0xffffff}));
         m.renderOrder=7; return m; },{life:0,vx:0,vy:0,vz:0,sz:1});
+      // Rookdeeltjes: GEWONE menging, niet optellend — alleen zo kan rook het
+      // beeld verdonkeren in plaats van oplichten.
+      this.rookP=[]; this.mkPool(this.rookP,44,function(){
+        const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
+          new THREE.MeshBasicMaterial({map:self.GLOED,transparent:true,
+            depthWrite:false,color:0x333333,opacity:0.7}));
+        m.renderOrder=5; return m; },{life:0,leven:1,vx:0,vy:0,vz:0,sz:1});
       prog(58,'ARMS');
 
       // ---- bliksem (electro) ----
@@ -1567,7 +1582,9 @@
       const D=this.letterDoek(tekst,kl,gloed,64,sp===undefined?0.42:sp);
       if(!m){
         m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
-          new THREE.MeshBasicMaterial({transparent:true,depthWrite:false}));
+          new THREE.MeshBasicMaterial({transparent:true,depthWrite:false,depthTest:false}));
+        // ver vooraan: een planeet van 200 m breed hing anders vóór je krachtbalk
+        m.renderOrder=14;
         el.setObject3D('mesh',m); }
       m.material.map=D.tex; m.material.needsUpdate=true;
       m.scale.set(hoog*D.ar,hoog,1); },
@@ -2338,6 +2355,22 @@
       K.visible=true; K.position.copy(p); K.material.opacity=0.95;
       K.scale.setScalar(sc*0.35); this.blastT=0.45; this.blastS=sc; },
 
+    // Rook is geen vonk: vonken worden OPTELLEND getekend en dan voegt zwart
+    // niets toe — je zag dus nooit donkere rook, hoe donker ik hem ook maakte.
+    // Rook krijgt daarom zijn eigen deeltjes die het beeld juist verdonkeren.
+    rook:function(x,y,z,zwart,sz,leven){
+      if(!this.rookP) return;
+      for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(R.live) continue;
+        R.live=true; R.life=1; R.leven=leven||1;
+        R.sz=(sz||2)*(0.6+Math.random()*0.7);
+        R.m.material.color.setHex(zwart?0x141414:0x585858);
+        R.m.material.opacity=zwart?0.85:0.55;
+        R.m.position.set(x,y,z); R.m.visible=true;
+        R.vx=(Math.random()-0.5)*1.6; R.vy=0.5+Math.random()*1.2;
+        R.vz=(Math.random()-0.5)*1.6;
+        R.m.scale.setScalar(R.sz);
+        return; } },
+
     vonk:function(x,y,z,col,n,spr,sz,staart){
       if(staart){ let vrij=0;
         for(let i=0;i<this.vonken.length;i++) if(!this.vonken[i].live) vrij++;
@@ -2500,7 +2533,10 @@
                  B.br=0.5; B.len=2.6; }
           if(B.streep){ B.len=(B.len||2.6)*2.1; B.br=(B.br||0.5)*0.34; }
           if(B.zoek){ B.len=(B.len||2.6)*1.15; B.br=(B.br||0.5)*1.25; }
-          B.m.visible=true;
+          // Schoon beginnen: hield hij nog een verwijzing naar een al vrijgegeven
+          // lichaam vast, dan bleef het vlak verborgen én het lichaam onzichtbaar —
+          // en dan zie je het schot helemaal niet aankomen.
+          B.buis=null; B.m.visible=true;
           this.richtQuad(B.m,B.o,B.dir,B.len,B.br);
           break; } }
       SND.gun(e.p.x*0.02,0); },
@@ -2820,11 +2856,9 @@
         // Zwarte rook hoorde pas bij zware schade, maar zo ver komt een schip
         // vaak niet — je zag hem dus nooit. Nu rookt hij vanaf de eerste schade,
         // donkerder en langer naarmate hij er slechter aan toe is.
-        const rookK=(e.fase>=2)?0x1a1a1a:0x4a4a4a;
-        if(Math.random()<0.85)
-          this.vonk(px,py,pz+2.5,rookK,1,3.4,(e.fase>=2)?2.8:2.1,true);
-        if(Math.random()<0.35)
-          this.vonk(px,py,pz+4.0,rookK,1,5.0,(e.fase>=2)?3.4:2.6,true); } },
+        const zwaar=(e.fase>=2);
+        if(Math.random()<0.8) this.rook(px,py,pz+2.5,zwaar,zwaar?3.2:2.4,zwaar?1.9:1.4);
+        if(Math.random()<0.3) this.rook(px,py,pz+4.2,zwaar,zwaar?4.4:3.2,zwaar?2.4:1.7); } },
 
     // Een gehavende baas rookt en vonkt over zijn hele romp; hoe zwaarder
     // beschadigd, hoe meer. Zijn plaatje blijft heel.
@@ -3418,7 +3452,7 @@
         this.hemelZet(); this.objZet();
         this.zaad=this.level*7919;
         if(!window.DEMO) bewaarVoortgang(this.level,this.punten,this.ults,this.contN);
-        this.toonGroot('LEVEL '+this.level,'#ffe45c');
+        this.toonGroot('LEVEL '+this.level+'          WAVE 1 / '+GOLVEN,'#ffe45c');
         SND.zeg('Level '+this.level); }
       // zolang er nog iets binnenkomt blijft het zwart en staat de tijd stil
       if(this.wachtLaden&&this.rustT<=RUST_OP+0.05){ this.rustT=RUST_OP+0.05;
@@ -3461,7 +3495,7 @@
         return; }
       // Ook op het paneel wil je zien waar je op mikt: bij pauze, bij GAME OVER
       // en in het continue-scherm.
-      if(window.PAUSED){ wijzerTick(); return; }
+      if(window.PAUSED){ this.overTick(s); wijzerTick(); return; }
       // hervat: de aanwijzer hoort niet in je vizier te blijven hangen
       if(this.wijzerAan){ this.wijzerAan=false;
         const wp=document.querySelector('#wijzer');
@@ -3661,6 +3695,7 @@
           // Het lichaam wijst met zijn lengte langs de vliegrichting en draait niet
           // naar je toe: daardoor zie je hem van opzij als raket en van voren als neus.
           const L=B.len||2.4, Br=B.br||0.42;
+          if(!B.buis.visible) B.buis.visible=true;      // nooit onzichtbaar vliegen
           B.buis.position.copy(p);
           B.buis.scale.set(Br*1.35,L,Br*1.35);
           this.richtAs(B.buis,B.dir);
@@ -3678,6 +3713,15 @@
         B.m.rotation.z+=B.rz*s;
         B.m.material.opacity=Math.min(1,B.life*1.6);
         if(B.life<=0){ B.live=false; B.m.visible=false; } }
+
+      // ---- rook: drijft op, dijt uit en vervaagt ----
+      for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(!R.live) continue;
+        R.life-=s/Math.max(0.3,R.leven);
+        R.m.position.x+=R.vx*s; R.m.position.y+=R.vy*s; R.m.position.z+=R.vz*s;
+        R.m.scale.setScalar(R.sz*(1+(1-R.life)*1.8));
+        R.m.material.opacity=Math.max(0,R.life*0.75);
+        R.m.lookAt(eye);
+        if(R.life<=0){ R.live=false; R.m.visible=false; } }
 
       // ---- vonken ----
       for(let i=0;i<this.vonken.length;i++){ const F=this.vonken[i]; if(!F.live) continue;
@@ -4403,11 +4447,24 @@
 
     gameOver:function(){
       this.over=true; window.PAUSED=true;
+      // Eerst drie tellen alleen GAME OVER. Zonder die pauze druk je in je schrik
+      // meteen op een knop die er nog niet had moeten staan.
+      this.overT=GAMEOVER_WACHT;
       SND.zeg('Systems down');
+      this.toonGroot('GAME OVER','#ff3d55'); },
+
+    // De wachttijd wordt in het spel zelf afgeteld, niet met een timer: een timer
+    // die niet loopt zou je voorgoed op GAME OVER laten staan.
+    overTick:function(s){
+      if(!this.over||!(this.overT>0)) return;
+      this.overT-=s;
+      if(this.overT>0) return;
+      this.overT=0; this.toonGroot('','#ff3d55');
       this.paneel(true,'SYSTEMS DOWN','score '+this.punten+'   wave '+this.wave+
         '\ncontinues used: '+this.contN,'CONTINUE'); },
 
     verder:function(){
+      if(this.over&&this.overT>0) return;              // eerst GAME OVER laten staan
       if(this.over){
         const lim=M().cont;
         if(lim>=0&&this.contN>=lim){
@@ -4638,7 +4695,7 @@
         // komt de wereld op. Alleen bij een gewone start — de TEST-knop zet zijn
         // eigen golf en die mag dit ritueel niet overschrijven.
         C.state='rust'; C.rustT=RUST_TOTAAL-RUST_KIJK; C.rustFase=1; C.wave=0;
-        C.toonGroot('LEVEL '+C.level,'#ffe45c');
+        C.toonGroot('LEVEL '+C.level+'          WAVE 1 / '+GOLVEN,'#ffe45c');
         const D=document.querySelector('#doek');
         if(D){ C.dekV=1;
           D.setAttribute('material','color:#000000;opacity:1;transparent:true;'+
