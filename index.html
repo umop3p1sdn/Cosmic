@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.75';
+  const VERSIE='v11.76';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2891,8 +2891,18 @@
     // was, en daarachter een rookspoor dat langzaam uitdijt.
     brandTick:function(e,s){
       if(!e.plaat||!e.plaat.vuur||e.fase<1||!e.bb) return;
-      const pl=e.plaat.vuur[e.rij];
+      let pl=e.plaat.vuur[e.rij];
       if(!pl||!pl.length) return;
+      // Op een schip van 24 meter valt één pluimpje niet op. Grote schepen
+      // krijgen extra brandhaarden, verspreid over de romp.
+      if(e.bw>=14&&pl.length<3){
+        if(!e.vuurX){
+          e.vuurX=pl.slice();
+          const n=(e.bw>=22)?4:3;
+          for(let q=pl.length;q<n;q++)
+            e.vuurX.push({x:(q%2?0.26:-0.26)*(0.6+Math.random()*0.5),
+                          y:(q<2?0.10:-0.14)+(Math.random()-0.5)*0.16,n:40}); }
+        pl=e.vuurX; }
       if(e.p.distanceTo(this.kop)>BRAND_VER) return;
       e.brT2=(e.brT2||0)-s;
       if(e.brT2>0) return;
@@ -2902,9 +2912,10 @@
         const P2=pl[i];
         const px=e.p.x+P2.x*e.bw*0.92, py=e.p.y+P2.y*e.bh*0.92, pz=e.p.z+1;
         const fel=0.55+Math.random()*0.95;
-        this.vonk(px,py,pz,0xfff2c0,1,2.2*fel*heftig,0.16);
-        this.vonk(px,py,pz,0xffb03a,2,3.4*fel*heftig,0.30);
-        if(Math.random()<0.5) this.vonk(px,py,pz,0xff6a2a,1,4.2*fel,0.45);
+        const vg=Math.max(1,Math.min(2.6,e.bw/10));    // een kolos brandt groter
+        this.vonk(px,py,pz,0xfff2c0,1,2.2*fel*heftig*vg,0.16);
+        this.vonk(px,py,pz,0xffb03a,2,3.4*fel*heftig*vg,0.30);
+        if(Math.random()<0.5) this.vonk(px,py,pz,0xff6a2a,1,4.2*fel*vg,0.45);
         if(Math.random()<0.7) this.vonk(px,py,pz+1.5,0xff8a3d,1,1.6,0.55,true);
         // Zwarte rook hoorde pas bij zware schade, maar zo ver komt een schip
         // vaak niet — je zag hem dus nooit. Nu rookt hij vanaf de eerste schade,
