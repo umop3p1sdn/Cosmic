@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.77';
+  const VERSIE='v11.80';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -837,6 +837,7 @@
   '      </a-entity>'+
   '      <a-text id="hudW" value="" align="center" color="#e8f6ff" width="1.6"  position="0 -0.24 -1.25"></a-text>'+
   '      <a-plane id="hurt"  position="0 0 -0.31" width="2.6" height="2.6" material="color:#ff2030;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-entity id="mLevel" position="0 0.06 -0.28"></a-entity>'+
   '      <a-plane id="doek" position="0 0 -0.30" width="3.4" height="3.4" material="color:#000000;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-plane id="flits" position="0 0 -0.32" width="2.6" height="2.6" material="color:#dfe8ff;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-entity id="touchHand" rotation="45 0 0"></a-entity>'+
@@ -1086,6 +1087,15 @@
   // kolos er een stuurt, en hoe snel hij bijdraait (hoger = moeilijker ontwijken).
   const ZOEKMAX=2, ZOEKKANS=0.28, ZOEKDRAAI=0.30;
   const ZOEKSTOP=34;            // vanaf hier stopt hij met zoeken: te ontwijken
+  // Het uitwaaierende salvo: hoeveel raketten, hoe lang ze naar buiten zwenken en
+  // hoe hard. Daarna draaien ze pas op je af.
+  const SALVO_N=10, SALVO_KLEIN=6, SALVO_WAAIER=0.75, WAAIERKRACHT=2.6;
+  // Trager dan gewoon vuur — je moet ze zien aankomen — maar met een strakke
+  // bocht, net als jouw eigen salvo.
+  const SALVO_SNEL=19, SALVO_DRAAI=4.2;
+  const SALVO_ELK=7;            // om de hoeveel schoten een baas het salvo afvuurt
+  // Het rookspoor achter een zoekende raket: hoe vaak, hoe dun, hoe lang zichtbaar.
+  const SPOOR_ELK=0.045, SPOOR_MAAT=0.55, SPOOR_LEVEN=3.4;
   const ZWERM_RUST=7;           // tellen tussen twee zwermen bij een drieluik
   // Hoeveel raketten tegelijk een echt lichaam krijgen. De rest blijft een vlak:
   // op een bril kost een lichaam meer dan een plat vlak, en bij kleine kogels
@@ -2562,6 +2572,9 @@
           else if(soort==='zoeker'){
             // Alleen de trage kolossen sturen zoekend vuur, en nooit allemaal
             // tegelijk — anders komt de hele lucht op je af.
+            // een kolos doet het af en toe groots: het uitwaaierende salvo
+            if(e.bw>=20&&this.zoekers()<2&&Math.random()<0.22){
+              this.salvoBarrage(e,SALVO_KLEIN); return; }
             if(this.zoekers()<ZOEKMAX&&Math.random()<ZOEKKANS){
               B.zoek=1; B.sp*=0.72; B.hp=Math.max(B.hp,3); B.zwaar=1; }
             else B.sp*=0.9; }
@@ -2589,7 +2602,7 @@
           // Schoon beginnen: hield hij nog een verwijzing naar een al vrijgegeven
           // lichaam vast, dan bleef het vlak verborgen én het lichaam onzichtbaar —
           // en dan zie je het schot helemaal niet aankomen.
-          B.buis=null; B.m.visible=true;
+          B.buis=null; B.m.visible=true; B.waaier=0; B.draai=0;
           this.richtQuad(B.m,B.o,B.dir,B.len,B.br);
           break; } }
       SND.gun(e.p.x*0.02,0); },
@@ -2681,8 +2694,14 @@
           if(Math.random()<0.55) this.reusOgen(e); else this.reusRug(e); }
         else { const V=VUUR[e.vuur]||VUUR.duo;
           e.cd=((T.cd||1.9)*V.cd+Math.random()*0.9)/Math.max(0.4,F.f);
-          const n=V.nmin+Math.floor(Math.random()*(V.nmax-V.nmin+1));
-          for(let k=0;k<n;k++) this.baasSchot(e,k); } }
+          // Af en toe het grote salvo in plaats van los vuur: tien raketten die
+          // naar buiten waaieren en dan van alle kanten op je af draaien.
+          e.barT=(e.barT||SALVO_ELK)-1;
+          if(e.barT<=0&&this.zoekers()<3){
+            e.barT=SALVO_ELK; e.cd=Math.max(e.cd,2.6);
+            this.salvoBarrage(e); }
+          else { const n=V.nmin+Math.floor(Math.random()*(V.nmax-V.nmin+1));
+            for(let k=0;k<n;k++) this.baasSchot(e,k); } } }
       // de reus roept zijn mechs erbij
       if(reus){ e.hulpT=(e.hulpT||9)-s*woede;
         let mech=0;
@@ -2846,6 +2865,32 @@
       if(nu<(this.zwermT||0)) return false;
       this.zwermT=nu+ZWERM_RUST;
       return true; },
+
+    // Een salvo zoals in de oude robotfilms: tien raketten die eerst vanuit het
+    // midden naar buiten waaieren, even in een brede boog hangen, en dan met zijn
+    // allen op je af draaien. Ze komen dus NIET recht op je af maar van opzij.
+    salvoBarrage:function(e,n){
+      const N=n||SALVO_N;
+      let gezet=0;
+      for(let i=0;i<this.vij.length&&gezet<N;i++){ const B=this.vij[i]; if(B.live) continue;
+        const hoek=(gezet/N)*6.283+Math.random()*0.25;
+        B.live=true; B.buis=null; B.m.visible=true;
+        B.o.copy(e.p); B.d=0; B.dir.subVectors(this.kop,e.p).normalize();
+        B.sp=34+Math.random()*10; B.md=420;
+        B.zoek=1; B.zwaar=1; B.hp=3; B.streep=0; B.boog=0; B.wieg=0;
+        B.waaier=SALVO_WAAIER*(0.8+Math.random()*0.5);   // hoe lang hij uitzwenkt
+        B.draai=SALVO_DRAAI;                             // en dan strak terugdraaien
+        B.wh=hoek;                                       // welke kant hij uitgaat
+        B.dmg=6;
+        const P=e.plaat, R=P&&P.rect[e.rij]&&P.rect[e.rij][3];
+        if(R){ B.m.material=P.mat; this.uvRect(B.m.geometry,R,1);
+               this.buisPak(B,R,P.mat);
+               B.len=5.2; B.br=B.len*(R.arv||R.ar); }
+        else { B.m.material=B.eigen; B.len=3.4; B.br=0.5; }
+        this.vonk(e.p.x,e.p.y,e.p.z,0xffb03a,3,5,0.5);
+        gezet++; }
+      if(gezet){ SND.boom(e.p.x*0.02); this.toonMelding('INCOMING','#ff8a3d'); }
+      return gezet; },
 
     baasZwerm:function(e,fase){
       if(!this.zwermMag(e)) return;
@@ -3507,6 +3552,10 @@
       if(D&&Math.abs(dek-(this.dekV||0))>0.01){ this.dekV=dek;
         D.setAttribute('material','color:#000000;opacity:'+dek.toFixed(3)+
           ';transparent:true;shader:flat;depthWrite:false;depthTest:false'); }
+      // De aankondiging hangt VOOR het doek en is alleen te zien zolang het beeld
+      // echt zwart is. Zo kan hij per definitie niet tijdens het spelen blijven
+      // staan of pas verschijnen als het al licht wordt.
+      this.levelTekst(dek>=0.97);
       // in het zwart wisselt de wereld: dat zie je dus niet gebeuren
       if(this.rustFase===0&&op>=RUST_KIJK+RUST_DOOF){ this.rustFase=1;
         this.level++;
@@ -3516,16 +3565,31 @@
         this.hemelZet(); this.objZet();
         this.zaad=this.level*7919;
         if(!window.DEMO) bewaarVoortgang(this.level,this.punten,this.ults,this.contN);
-        this.toonGroot('LEVEL '+this.level+'          WAVE 1 / '+GOLVEN,'#ffe45c');
+        this.levelTxt='LEVEL '+this.level;
+        this.levelSub='WAVE 1 / '+GOLVEN;
         SND.zeg('Level '+this.level); }
       // zolang er nog iets binnenkomt blijft het zwart en staat de tijd stil
       if(this.wachtLaden&&this.rustT<=RUST_OP+0.05){ this.rustT=RUST_OP+0.05;
         this.toonMelding('LOADING WORLD','#5f9ab5'); }
-      if(this.rustT<=0){ this.toonGroot('','#ffe45c');
+      if(this.rustT<=0){ this.levelTekst(false);
         if(D){ this.dekV=0;
           D.setAttribute('material','color:#000000;opacity:0;transparent:true;'+
             'shader:flat;depthWrite:false;depthTest:false'); }
         this.state='wacht'; this.golfT=1.2; } },
+
+    // De levelaankondiging in dezelfde gloeiende letters als het menu, vóór het
+    // zwarte doek. Aan of uit, meer smaken zijn er niet.
+    levelTekst:function(aan){
+      if(aan===this.lvlAan) return; this.lvlAan=aan;
+      const el=document.querySelector('#mLevel'); if(!el) return;
+      if(!aan){ const m=el.getObject3D&&el.getObject3D('mesh');
+        if(m) m.visible=false; return; }
+      const t=(this.levelTxt||'LEVEL '+this.level)+'      '+(this.levelSub||'');
+      this.hLevel=null;
+      try{ this.letterZet('#mLevel',t,'#eafcff','#35e8ff',0.030,0.34); }catch(e){}
+      const m=el.getObject3D&&el.getObject3D('mesh');
+      if(m){ m.visible=true; m.renderOrder=24;
+        if(m.material){ m.material.depthTest=false; m.material.depthWrite=false; } } },
 
     toonGroot:function(txt,kl){
       const e=document.querySelector('#hudC'); if(!e) return;
@@ -3758,14 +3822,32 @@
           // altijd nog ontwijken of kapotschieten. Zonder dat laatste is er geen
           // ontkomen aan en wordt het een strafmaatregel in plaats van een dreiging.
           const q=kp.copy(B.o).addScaledVector(B.dir,B.d);
-          if(q.distanceTo(eye)>ZOEKSTOP){
+          // Waaierfase: eerst zwenkt hij naar buiten, weg van de anderen, en pas
+          // daarna draait hij op je af. Dat geeft die brede boog uit de tekenfilms.
+          if(B.waaier>0){
+            B.waaier-=s;
+            const zw=this.WZ||(this.WZ=new THREE.Vector3());
+            zw.set(Math.cos(B.wh),Math.sin(B.wh)*0.75,0);
+            B.dir.addScaledVector(zw,WAAIERKRACHT*s).normalize();
+            B.o.copy(q); B.d=0;
+          }
+          else if(q.distanceTo(eye)>ZOEKSTOP){
             const naarMij=this.tmp2||(this.tmp2=new THREE.Vector3());
             naarMij.subVectors(eye,q).normalize();
-            B.dir.lerp(naarMij,Math.min(1,ZOEKDRAAI*s)).normalize();
+            // Een salvoraket draait veel strakker bij: hij moet na het uitwaaieren
+            // in een boog terugkomen, niet rechtdoor de ruimte in vliegen.
+            B.dir.lerp(naarMij,Math.min(1,(B.draai||ZOEKDRAAI)*s)).normalize();
             B.o.copy(q); B.d=0; } }
         else if(B.wieg){
           B.wf=(B.wf||Math.random()*6)+s*3.2;
           B.dir.x+=Math.sin(B.wf)*0.9*s; B.dir.normalize(); }
+        // Een lang, dun rookspoor: zo zie je hem van ver aankomen en blijft zijn
+        // baan nog even in de lucht hangen.
+        if(B.zoek){
+          B.rT=(B.rT||0)-s;
+          if(B.rT<=0){ B.rT=SPOOR_ELK;
+            const q2=kp.copy(B.o).addScaledVector(B.dir,B.d);
+            this.rook(q2.x,q2.y,q2.z,false,SPOOR_MAAT,SPOOR_LEVEN); } }
         const p=kp.copy(B.o).addScaledVector(B.dir,B.d);
         if(B.buis){
           // Het lichaam wijst met zijn lengte langs de vliegrichting en draait niet
@@ -4777,7 +4859,8 @@
         // de doofperiode, dan rekende de overgang uit dat hij nog moest gaan
         // doven — en werd het beeld eerst licht voordat het zwart werd.
         C.state='rust'; C.rustT=RUST_ZWART+RUST_OP; C.rustFase=1; C.wave=0;
-        C.toonGroot('LEVEL '+C.level+'          WAVE 1 / '+GOLVEN,'#ffe45c');
+        C.levelTxt='LEVEL '+C.level; C.levelSub='WAVE 1 / '+GOLVEN;
+        C.lvlAan=false; C.levelTekst(true);
         const D=document.querySelector('#doek');
         if(D){ C.dekV=1;
           D.setAttribute('material','color:#000000;opacity:1;transparent:true;'+
