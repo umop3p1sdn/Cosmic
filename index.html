@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.74';
+  const VERSIE='v11.75';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -818,13 +818,13 @@
   '      <a-plane id="baasBalkB" visible="false" position="-0.345 0.575 -1.30" width="0.68" height="0.024" material="color:#ff3d55;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-plane id="baasRand" visible="false" position="0 0.575 -1.315" width="0.001" height="0.001" material="color:#000000;shader:flat;opacity:0;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-entity id="mBaasPct" position="0.40 0.575 -1.30"></a-entity>'+
-  '      <a-entity id="mHull" position="-0.545 -0.145 -1.25"></a-entity>'+
+  '      <a-entity id="mHull" position="-0.545 -0.085 -1.25"></a-entity>'+
   '      <a-plane id="krachtR" position="-0.545 -0.375 -1.255" width="0.001" height="0.001" material="color:#000000;shader:flat;opacity:0;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-plane id="krachtA" position="-0.545 -0.375 -1.25" width="0.001" height="0.001" material="color:#000000;shader:flat;opacity:0;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
-  '      <a-plane id="krachtB" position="-0.545 -0.585 -1.245" width="0.046" height="0.412" material="color:#ff3d55;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
-  '      <a-entity id="mHp" position="-0.545 -0.625 -1.25"></a-entity>'+
-  '      <a-entity id="mUltL" position="-0.545 -0.700 -1.25"></a-entity>'+
-  '      <a-entity id="mUlt" position="-0.545 -0.760 -1.25"></a-entity>'+
+  '      <a-plane id="krachtB" position="-0.545 -0.525 -1.245" width="0.023" height="0.412" material="color:#ff3d55;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-entity id="mHp" position="-0.545 -0.575 -1.25"></a-entity>'+
+  '      <a-entity id="mUltL" position="-0.545 -0.655 -1.25"></a-entity>'+
+  '      <a-entity id="mUlt" position="-0.545 -0.720 -1.25"></a-entity>'+
   '      <a-entity id="mWap" position="0.545 -0.395 -1.25"></a-entity>'+
   '      <a-entity id="mWapLv" position="-0.055 -0.470 -1.25"></a-entity>'+
   '      <a-entity id="mAmmo" position="0.545 -0.470 -1.25"></a-entity>'+
@@ -1054,6 +1054,10 @@
   const WEG_VER=190;            // meter bij je vandaan
   // Hoeveel sterker de bliksem wordt bij elke oversprong (0,38 = +38% per sprong).
   const ZAPGROEI=0.38;
+  // Hoe ruim de bliksem zelf mikt en hoe ver hij overspringt.
+  const ZAPBEREIK=150;          // meter vooruit
+  const ZAPKEGEL=0.16;          // breedte van de kegel (0,16 = ruim 9 graden)
+  const ZAPSPRONG=55;           // meter tussen twee schepen (was 28)
   // Maximale breedte van een achtergrond en van een los object in het geheugen.
   // Verkleinen scheelt honderden megabytes op de bril; op deze afstanden zie je
   // het verschil niet.
@@ -1062,6 +1066,7 @@
   // aanlevert, dus in de praktijk blijft alles op volle resolutie.
   const HEMEL_MAX=4096;
   const PROP_MAX=2048;
+  const PLANEET_MAX=340;        // breedte van een planeet in meters
   // De overgang na een baas, in seconden: nagenieten, doven, zwart met de
   // aankondiging, en de nieuwe wereld die opkomt. Vijanden wachten tot het eind.
   const RUST_KIJK=2.2, RUST_DOOF=1.6, RUST_ZWART=2.4, RUST_OP=2.0;
@@ -1096,6 +1101,10 @@
   const VERSIE_ELK=20000;
   // Hoeveel stukken er hoogstens van een ontploffend schip af spatten.
   const BROKKNAL=9;
+  // Wat een raket van jou aanricht: schade in het midden en hoe ver hij reikt.
+  const RAKETDMG=24;            // was 6
+  const RAKETBLAST=10;          // meter
+  const RINGEN=6, RINGPT=44, RINGTIJD=0.42;
   const GAMEOVER_WACHT=3;       // seconden dat GAME OVER blijft staan vóór de keuze
   const BRAND_VER=95;           // tot hoe ver een brandend schip zijn vlammen toont
   const ZUIGR=70;                 // bereik van de vortex op zijn wijdst
@@ -2089,11 +2098,16 @@
 
       else if(W.t===4){ SND.gun(this.dir.x*0.4,4);
         const T=this.doelen(); if(!T.length) return;
+        // De bliksem springt toch al zelf van schip naar schip, dus hij mag ook
+        // zelf zijn eerste doel kiezen: alles binnen een ruime kegel om je hand.
         let bi=-1, bs=1e9;
         for(let i=0;i<T.length;i++){ const v=this.tmp.copy(T[i].p).sub(this.ori);
-          const t2=v.dot(this.dir); if(t2<0.5||t2>150||t2>=bs) continue;
+          const t2=v.dot(this.dir); if(t2<0.5||t2>ZAPBEREIK) continue;
           const q=v.addScaledVector(this.dir,-t2).length();
-          if(q<T[i].r+t2*0.02+0.6){ bs=t2; bi=i; } }
+          const ruim=T[i].r+t2*ZAPKEGEL+2.5;           // hoe verder weg, hoe ruimer
+          if(q>ruim) continue;
+          const punt=q/Math.max(0.01,ruim)*0.7+t2/ZAPBEREIK*0.3;   // dichtbij het kruis wint
+          if(punt<bs){ bs=punt; bi=i; } }
         if(bi<0) return;
         const used={}, pts=[this.ori.clone()], max=Math.min(14,(4+lv*2)*(W.up?2:1));
         let cur=T[bi];
@@ -2104,7 +2118,7 @@
           const kracht=(2+lv)*(1+k*ZAPGROEI);
           this.raak(cur,kracht,cur.p.x,cur.p.y,cur.p.z);
           if(k>0) this.vonk(cur.p.x,cur.p.y,cur.p.z,0xffffff,3+Math.min(8,k),5+k,0.5);
-          let nb=null, nd=760;
+          let nb=null, nd=ZAPSPRONG*ZAPSPRONG;
           for(let i=0;i<T.length;i++){ if(used[i]||!T[i].live) continue;
             const d2=T[i].p.distanceToSquared(cur.p); if(d2<nd){ nd=d2; nb=T[i]; } }
           cur=nb; }
@@ -2349,6 +2363,45 @@
       this.knal(e.p,e.sc);
       this.bbVrij(e.bb); e.bb=null;
       if(TYPE[e.tp].prof==='baas'){ this.baas=null; } },
+
+    // De open schokring: een dun cirkeltje dat uitdijt en vervaagt, met een gat
+    // erin op een willekeurige plek. Een gesloten ring oogt als een hoepel; juist
+    // die opening maakt het een klap.
+    schokRing:function(p){
+      if(!this.ringen){
+        this.ringen=[];
+        for(let i=0;i<RINGEN;i++){
+          const g=new THREE.BufferGeometry();
+          g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(3*(RINGPT+1)),3));
+          const m=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xffd9a0,
+            transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));
+          m.frustumCulled=false; m.renderOrder=9; m.visible=false;
+          this.par.add(m); this.ringen.push({m:m,g:g,live:false,t:0,
+            gat:0,gr:0,kant:new THREE.Quaternion()}); } }
+      for(let i=0;i<this.ringen.length;i++){ const R=this.ringen[i]; if(R.live) continue;
+        R.live=true; R.t=0;
+        R.gat=Math.random()*6.283;                     // waar de opening zit
+        R.gr=(0.35+Math.random()*0.45)*1.57;           // hoe groot het gat is
+        R.m.position.copy(p);
+        // een willekeurige kanteling, zodat niet elke klap er hetzelfde uitziet
+        R.m.rotation.set(Math.random()*3.14,Math.random()*3.14,Math.random()*3.14);
+        R.m.visible=true; R.m.material.opacity=0.95;
+        return; } },
+
+    ringTick:function(s){
+      if(!this.ringen) return;
+      for(let i=0;i<this.ringen.length;i++){ const R=this.ringen[i]; if(!R.live) continue;
+        R.t+=s;
+        const k=R.t/RINGTIJD;
+        if(k>=1){ R.live=false; R.m.visible=false; continue; }
+        const straal=RAKETBLAST*(0.15+k*1.15);
+        const a=R.g.attributes.position;
+        for(let q=0;q<=RINGPT;q++){
+          // het gat overslaan: die punten leggen we op de rand van de opening
+          let hoek=R.gat+R.gr+(6.283-R.gr*2)*(q/RINGPT);
+          a.setXYZ(q,Math.cos(hoek)*straal,Math.sin(hoek)*straal,0); }
+        a.needsUpdate=true;
+        R.m.material.opacity=0.95*(1-k)*(1-k); } },
 
     knal:function(p,sc){                                   // korte lichtbol op de plek van de klap
       const K=this.blast; if(!K) return;
@@ -2856,9 +2909,9 @@
         // Zwarte rook hoorde pas bij zware schade, maar zo ver komt een schip
         // vaak niet — je zag hem dus nooit. Nu rookt hij vanaf de eerste schade,
         // donkerder en langer naarmate hij er slechter aan toe is.
+        // Dunne pluimen in plaats van wolken: kleiner en minder vaak.
         const zwaar=(e.fase>=2);
-        if(Math.random()<0.8) this.rook(px,py,pz+2.5,zwaar,zwaar?3.2:2.4,zwaar?1.9:1.4);
-        if(Math.random()<0.3) this.rook(px,py,pz+4.2,zwaar,zwaar?4.4:3.2,zwaar?2.4:1.7); } },
+        if(Math.random()<0.34) this.rook(px,py,pz+2.5,zwaar,zwaar?1.5:1.1,zwaar?1.8:1.3); } },
 
     // Een gehavende baas rookt en vonkt over zijn hele romp; hoe zwaarder
     // beschadigd, hoe meer. Zijn plaatje blijft heel.
@@ -3666,11 +3719,23 @@
         // oplost omdat er net een golf werd gewisseld.
         if(bum||(R.tot-(R.wachtT||0))>9.0){
           const P=R.m.position;
-          if(bum){ SND.boom(P.x*0.02);
-            this.vonk(P.x,P.y,P.z,0xffb03a,14,11,1.2);
+          if(bum){ SND.boom(P.x*0.02,true);
+            // Een raket slaat nu echt in: felle flits, brokstukken, en schade over
+            // een straal — ook schepen die er náást vlogen krijgen ervan langs.
+            this.vonk(P.x,P.y,P.z,0xfff2c0,10,6,1.6);
+            this.vonk(P.x,P.y,P.z,0xffb03a,20,14,1.4);
+            this.vonk(P.x,P.y,P.z,0xff5a2a,12,20,1.0);
+            this.rook(P.x,P.y,P.z,false,2.6,1.6);
+            this.knal(P,7);
+            this.schokRing(P);
+            const straal=RAKETBLAST;
             for(let a=0;a<this.enemies.length;a++){ const e=this.enemies[a]; if(!e.live) continue;
-              if(e.p.distanceTo(P)<R.rad+e.r) this.raak(e,6,P.x,P.y,P.z); }
-            for(let k=0;k<8;k++) if(!this.vijTreffer(P,9,R.rad)) break; }
+              const af=e.p.distanceTo(P);
+              if(af>straal+e.r) continue;
+              // vol in het midden, minder aan de rand
+              const deel=1-Math.max(0,af-e.r)/straal;
+              this.raak(e,RAKETDMG*Math.max(0.25,deel),P.x,P.y,P.z); }
+            for(let k=0;k<14;k++) if(!this.vijTreffer(P,9,straal*0.6)) break; }
           R.live=false; R.m.visible=false; } }
 
       // ---- vijandelijke kogels ----
@@ -3714,6 +3779,7 @@
         B.m.material.opacity=Math.min(1,B.life*1.6);
         if(B.life<=0){ B.live=false; B.m.visible=false; } }
 
+      this.ringTick(s);
       // ---- rook: drijft op, dijt uit en vervaagt ----
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(!R.live) continue;
         R.life-=s/Math.max(0.3,R.leven);
@@ -3900,7 +3966,7 @@
       if(bb&&p!==this.hudP){ this.hudP=p;
         const hh=Math.max(0.004,0.412*Math.max(0,p)/100);
         bb.setAttribute('height',hh.toFixed(4));
-        bb.setAttribute('position','-0.545 '+(-0.585+hh/2).toFixed(4)+' -1.245'); }
+        bb.setAttribute('position','-0.545 '+(-0.525+hh/2).toFixed(4)+' -1.245'); }
 
       // ---- onderregel ----
       this.hudTekst('#mLv','LV '+this.level+'/'+LEVELS,GRZ,0.032,0.26,'hLv');
@@ -4285,12 +4351,14 @@
         const planeet=(t.__lijst&&t.__lijst.rol)?(t.__lijst.rol==='planeet'):((t.__rond||0)>0.68);
         // een planeet is een hemellichaam: zes keer zo groot en drie keer zo traag
         let maat=Math.max(38,Math.min(210,px*0.075))*(0.75+Math.random()*0.6);
-        if(planeet) maat=Math.min(900,maat*6);
+        // Een planeet van 900 m op 215 m vult je hele blik met een doorzichtig
+        // vlak. Dat kost een bril meer dan alle schepen samen. Kleiner en verder.
+        if(planeet) maat=Math.min(PLANEET_MAX,maat*6);
         const hh=maat, w=maat*ar;
         const m=new THREE.Mesh(new THREE.PlaneGeometry(w,hh),
           new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false}));
         // hoe groter, hoe verder weg — anders staat een planeet bovenop je
-        const d=planeet?(215+Math.random()*55):Math.min(275,80+maat*1.35+Math.random()*40);
+        const d=planeet?(300+Math.random()*90):Math.min(275,80+maat*1.35+Math.random()*40);
         const a=Math.random()*6.283;
         m.position.set(Math.cos(a)*d,(Math.random()*0.5-0.12)*d*0.5,Math.sin(a)*d);
         m.renderOrder=-14;
