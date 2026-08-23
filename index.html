@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.82';
+  const VERSIE='v11.83';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1111,6 +1111,8 @@
   };
   const SIG_OMSLAG=0.5;         // onder de helft kracht komt zijn tweede vorm
   const SIG_PAUZE=1.6;          // even niet vuren bij de omslag: je ziet het aankomen
+  // De rode dreigingswijzers aan de rand van je blik.
+  const WIJZERS=8, WIJZER_TIJD=1.7, WIJZER_RAND=0.30;
   const SALVO_ELK=7;            // om de hoeveel schoten een baas het salvo afvuurt
   // Het rookspoor achter een zoekende raket: hoe vaak, hoe dun, hoe lang zichtbaar.
   const SPOOR_ELK=0.045, SPOOR_MAAT=0.55, SPOOR_LEVEN=3.4;
@@ -2609,19 +2611,25 @@
           B.dir.x+=(Math.random()-0.5)*(spr||0.06);
           B.dir.y+=(Math.random()-0.5)*(spr||0.06);
           B.dir.normalize();
+          // EERST schoonmaken, DAN pas zijn lichaam pakken. Andersom wiste deze
+          // regel het lichaam dat er net was toegewezen — vandaar dat vijandelijke
+          // raketten platte plaatjes bleven én de voorraad lichamen leegliep.
+          B.buis=null; B.m.visible=true; B.waaier=0; B.draai=0;
           const R=e.plaat?e.plaat.rect[e.rij][3]:null;   // kolom 4 = zijn eigen projectiel
           if(R){ B.m.material=e.plaat.mat; this.uvRect(B.m.geometry,R,1);
-                 this.buisPak(B,R,e.plaat.mat);
-                 B.len=3.4; B.br=3.4*(R.arv||R.ar); }
+                 B.len=3.4; B.br=3.4*(R.arv||R.ar);
+                 if(B.streep){ B.len*=2.1; B.br*=0.34; }
+                 if(B.zoek){ B.len*=1.15; B.br*=1.25; }
+                 this.buisPak(B,R,e.plaat.mat); }
           else { B.m.material=B.eigen; B.m.material.color.setHex(e.tp===7?0xffd24a:0xff5a3c);
-                 B.br=0.5; B.len=2.6; }
-          if(B.streep){ B.len=(B.len||2.6)*2.1; B.br=(B.br||0.5)*0.34; }
-          if(B.zoek){ B.len=(B.len||2.6)*1.15; B.br=(B.br||0.5)*1.25; }
-          // Schoon beginnen: hield hij nog een verwijzing naar een al vrijgegeven
-          // lichaam vast, dan bleef het vlak verborgen én het lichaam onzichtbaar —
-          // en dan zie je het schot helemaal niet aankomen.
-          B.buis=null; B.m.visible=true; B.waaier=0; B.draai=0;
+                 B.br=0.5; B.len=2.6;
+                 if(B.streep){ B.len*=2.1; B.br*=0.34; }
+                 if(B.zoek){ B.len*=1.15; B.br*=1.25; } }
           this.richtQuad(B.m,B.o,B.dir,B.len,B.br);
+          // Een korte flits bij de loop: je ziet dat hij schiet, en van wie.
+          this.vonk(B.o.x,B.o.y,B.o.z,0xffd9a0,3,2.2,0.22);
+          this.vonk(B.o.x,B.o.y,B.o.z,0xff5a3c,2,3.0,0.30);
+          this.wijsDreiging(B);
           break; } }
       SND.gun(e.p.x*0.02,0); },
 
@@ -2982,6 +2990,46 @@
       const R=this.sigRij; if(!R||!R.length) return;
       for(let i=R.length-1;i>=0;i--){
         if((R[i].t-=s)<=0){ const f=R[i].fn; R.splice(i,1); try{ f(); }catch(e){} } } },
+
+    // Een rood gloeiend pijltje aan de rand van je blik dat aanwijst wáár een
+    // schot vandaan komt. Kijk je die kant op, dan schuift hij naar de rand en
+    // dooft hij: dan zie je de dreiging zelf al.
+    wijsDreiging:function(B){
+      if(!this.wijzers){
+        this.wijzers=[];
+        for(let i=0;i<WIJZERS;i++){
+          const g=new THREE.RingGeometry(0.020,0.052,3,1,0,6.283);
+          const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0xff2a3d,
+            transparent:true,opacity:0,depthWrite:false,depthTest:false,
+            blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+          m.renderOrder=20; m.visible=false;
+          this.cam.object3D.add(m);
+          this.wijzers.push({m:m,live:false,t:0,B:null}); } }
+      for(let i=0;i<this.wijzers.length;i++){ const W=this.wijzers[i];
+        if(W.live) continue;
+        W.live=true; W.t=WIJZER_TIJD; W.B=B;
+        W.m.visible=true; return; } },
+
+    wijzerTickD:function(s){
+      if(!this.wijzers||!this.cam||!this.cam.object3D) return;
+      const cam=this.cam.object3D;
+      const p=this.WD1||(this.WD1=new THREE.Vector3());
+      for(let i=0;i<this.wijzers.length;i++){ const W=this.wijzers[i]; if(!W.live) continue;
+        W.t-=s;
+        const B=W.B;
+        if(W.t<=0||!B||!B.live){ W.live=false; W.m.visible=false; W.B=null; continue; }
+        // waar staat het schot, gezien vanuit je hoofd?
+        p.copy(B.o).addScaledVector(B.dir,B.d);
+        cam.worldToLocal(p);
+        const vlak=Math.hypot(p.x,p.y)||0.001;
+        // recht vooruit = geen waarschuwing nodig, je ziet hem
+        const voor=(-p.z)/Math.max(0.01,p.length());
+        const hoek=Math.atan2(p.y,p.x);
+        const straal=WIJZER_RAND*(voor>0.86?1.25:1);
+        W.m.position.set(Math.cos(hoek)*straal,Math.sin(hoek)*straal,-0.62);
+        W.m.rotation.z=hoek-1.5708;
+        const knip=0.55+0.45*Math.sin(this.T*17);
+        W.m.material.opacity=Math.min(1,W.t/WIJZER_TIJD)*knip*(voor>0.86?0.25:0.95); } },
 
     // Kort aankondigen: je moet een grote klap zien aankomen.
     sigMeld:function(e,tekst,kl){
@@ -4127,7 +4175,7 @@
         B.m.material.opacity=Math.min(1,B.life*1.6);
         if(B.life<=0){ B.live=false; B.m.visible=false; } }
 
-      this.ringTick(s); this.sigRijTick(s);
+      this.ringTick(s); this.sigRijTick(s); this.wijzerTickD(s);
       // ---- rook: drijft op, dijt uit en vervaagt ----
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(!R.live) continue;
         R.life-=s/Math.max(0.3,R.leven);
