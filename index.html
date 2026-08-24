@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.99';
+  const VERSIE='v12.00';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -494,6 +494,11 @@
   //  baas maar even rond als een planeet. Deze lijst wint dus altijd.
   //  Een bestand dat hier niet in staat wordt alsnog geraden.
   // ---------------------------------------------------------------
+  // Sjoerds plaat met 25 raketkoppen, 5 bij 5. Wordt herkend aan het begin van
+  // de bestandsnaam; het spel knipt hem zelf in vakken.
+  const KOPPEN_BESTAND='537ED456';
+  const KOPPEN_RIJ=5, KOPPEN_KOL=5;
+
   const NUMMERS=[
     // bazen, in de volgorde waarin ze langskomen
     // beurt 99 = buiten de omloop; die wordt apart geplaatst (de reus is de eindbaas)
@@ -575,6 +580,10 @@
               if(window.ART.nieuw) window.ART.nieuw(); return; }
             if(N.rol==='object'||N.rol==='planeet'){ t.__baas=0; window.ART.objs.push(t);
               if(window.ART.nieuw) window.ART.nieuw(); return; } }
+          // de koppenplaat gaat niet naar de vloot of de hemels
+          if(String(nm).indexOf(KOPPEN_BESTAND)===0){
+            t.__koppen=1; window.ART.koppen=t;
+            if(window.ART.nieuw) window.ART.nieuw(); return; }
           if(soort==='hemel'){ window.ART.panos.push(t);
             KAART.hemels.push({naam:nm,url:url,lijst:N||null});
             if(!window.ART.pano) window.ART.pano=t; }
@@ -1186,6 +1195,9 @@
   // De massieve kop: hoe groot het ondoorzichtige bolletje is ten opzichte van
   // de gloed eromheen. 0 = geen kop, alleen licht.
   const KOP_BOL=0.26;
+  // Sjoerds getekende koppen zijn platte plaatjes; die mogen wat groter dan het
+  // massieve bolletje, anders zie je het ontwerp niet.
+  const KOP_PLAAT=0.50;   // Sjoerd: de helft van de oude rode koppen
   // De raketstorm die een baas afvuurt in plaats van hulptroepen te roepen.
   const STORM_N=7, STORM_GROEI=1.4, STORM_PAUZE=0.55;
   const STORM_SNEL=17, STORM_DRAAI=3.0;
@@ -4314,7 +4326,10 @@
             this.rook(q2.x,q2.y,q2.z,false,SPOOR_MAAT,SPOOR_LEVEN); } }
         const p=kp.copy(B.o).addScaledVector(B.dir,B.d);
         // De gloeiende neus vliegt mee en kijkt je altijd aan — geen gaten meer.
-        if(B.neus){
+        // Staan Sjoerds getekende koppen klaar, dan hoeft de rode gloedstip niet
+        // meer: die was groot en rood en zou zijn ontwerp overstemmen.
+        if(B.neus&&this.kopVak){ if(B.neus.visible) B.neus.visible=false; }
+        else if(B.neus){
           B.neus.position.copy(p);
           B.neus.lookAt(eye);
           // Hij mag ademen — dat leest prettig — maar NOOIT helemaal doven, want
@@ -4327,8 +4342,10 @@
             *(0.88+puls*0.18);
           B.neus.scale.set(gr,gr,1);
           if(B.kop2){ B.kop2.position.copy(p);
-            const kg2=gr*KOP_BOL;
-            B.kop2.scale.setScalar(kg2); } }
+            const kg2=gr*(this.kopVak?KOP_PLAAT:KOP_BOL);
+            if(this.kopVak){ B.kop2.lookAt(eye);      // getekende kop kijkt je aan
+              B.kop2.scale.set(kg2*(B.kop2.__ar||1),kg2,1); }
+            else B.kop2.scale.setScalar(kg2); } }
         if(B.buis){
           // Het lichaam wijst met zijn lengte langs de vliegrichting en draait niet
           // naar je toe: daardoor zie je hem van opzij als raket en van voren als neus.
@@ -4662,8 +4679,52 @@
 
     // Een gloeiende neus die MEEVLIEGT met het schot. Losse vonkjes lieten gaten
     // vallen — dan zag je het schot even niet. Deze is er altijd.
+    // Sjoerds plaat opknippen: vijf bij vijf koppen, elk hun eigen vakje. We
+    // meten per vak waar de inkt zit, zodat een kop nooit half wordt afgesneden.
+    koppenKnip:function(t){
+      const img=t&&t.image; if(!img||!img.width) return null;
+      const W=img.width, H=img.height;
+      let d=null;
+      try{
+        const c=document.createElement('canvas'); c.width=W; c.height=H;
+        const g=c.getContext('2d'); g.drawImage(img,0,0);
+        d=g.getImageData(0,0,W,H).data;
+      }catch(e){ return null; }
+      const rand=function(v0,v1,horizontaal){
+        // van buiten naar binnen lopen tot de eerste inkt
+        let a=v0, b=v1;
+        const leeg=function(k){
+          for(let q=0;q<(horizontaal?H:W);q+=2){
+            const o=horizontaal?((q*W+k)*4+3):((k*W+q)*4+3);
+            if(d[o]>24) return false; }
+          return true; };
+        while(a<b&&leeg(a)) a++;
+        while(b>a&&leeg(b)) b--;
+        return [a,b]; };
+      const uit=[];
+      const bw=W/KOPPEN_KOL, bh=H/KOPPEN_RIJ;
+      for(let r=0;r<KOPPEN_RIJ;r++){
+        for(let k=0;k<KOPPEN_KOL;k++){
+          const x0=Math.round(k*bw), x1=Math.round((k+1)*bw)-1;
+          const y0=Math.round(r*bh), y1=Math.round((r+1)*bh)-1;
+          // binnen dit vak de echte randen van de kop zoeken
+          let mnx=x1,mxx=x0,mny=y1,mxy=y0,gevonden=false;
+          for(let y=y0;y<=y1;y+=2) for(let x=x0;x<=x1;x+=2){
+            if(d[(y*W+x)*4+3]<=24) continue;
+            gevonden=true;
+            if(x<mnx)mnx=x; if(x>mxx)mxx=x;
+            if(y<mny)mny=y; if(y>mxy)mxy=y; }
+          if(!gevonden) continue;
+          uit.push({u0:mnx/W, u1:(mxx+1)/W, v0:1-(mxy+1)/H, v1:1-mny/H,
+                    ar:(mxx-mnx+1)/(mxy-mny+1)}); } }
+      return uit.length?uit:null; },
+
     neusPak:function(B,soort,kleur){
       if(!this.neuzen){
+        // Sjoerds koppen als ze er zijn; anders mijn eigen getekende vormen.
+        this.kopVak=null;
+        try{ if(window.ART&&window.ART.koppen)
+          this.kopVak=this.koppenKnip(window.ART.koppen); }catch(e){}
         this.neusT=[this.neusPlaat(0),this.neusPlaat(1),this.neusPlaat(2)];
         this.neuzen=[]; this.koppen=[];
         // Een MASSIEVE kop: een echt bolletje dat licht geeft maar waar je niet
@@ -4690,8 +4751,23 @@
         m.material.needsUpdate=true;
         m.visible=true; B.neus=m;
         const k=this.koppen[i];
-        k.geometry=k.__vormen[soort%3];          // stip, kruis of vleugels
-        k.material.color.setHex(kleur||0xff3020);
+        if(this.kopVak&&this.kopVak.length){
+          // Sjoerds getekende kop: een plat vlak met zijn eigen plaatje, dat je
+          // altijd aankijkt. Ondoorzichtig genoeg om niet doorheen te kijken.
+          const nr=(B.kopNr!==undefined)?B.kopNr:(B.kopNr=Math.floor(Math.random()*this.kopVak.length));
+          const R=this.kopVak[nr%this.kopVak.length];
+          // eigen vlak per kop: elk vakje heeft zijn eigen uitsnede
+          if(!k.__vlak) k.__vlak=new THREE.PlaneGeometry(1,1);
+          k.geometry=k.__vlak;
+          this.uvRect(k.geometry,R,1);
+          k.material.map=window.ART.koppen;
+          k.material.color.setHex(0xffffff);
+          k.material.transparent=true; k.material.alphaTest=0.25;
+          k.material.needsUpdate=true;
+          k.__ar=R.ar||1; }
+        else { k.geometry=k.__vormen[soort%3];   // terugval: mijn eigen vormen
+               k.material.map=null; k.material.color.setHex(kleur||0xff3020);
+               k.material.needsUpdate=true; k.__ar=1; }
         k.visible=true; B.kop2=k;
         return true; }
       return false; },
