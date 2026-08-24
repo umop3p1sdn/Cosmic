@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.94';
+  const VERSIE='v11.98';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1176,6 +1176,16 @@
   // haakse kop is (0,28 = de voorste ruim kwart).
   const RAKETLIJF=20;
   const KOP_DEEL=0.28;
+  // De meevliegende neuzen op vijandelijk vuur.
+  const NEUZEN=40, NEUS_MAAT=1.5;
+  // De neus pulseert, maar dooft nooit helemaal: NEUS_MIN is de bodem.
+  const NEUS_PULS=9.0, NEUS_MIN=0.55;
+  // De raketstorm die een baas afvuurt in plaats van hulptroepen te roepen.
+  const STORM_N=7, STORM_GROEI=1.4, STORM_PAUZE=0.55;
+  const STORM_SNEL=17, STORM_DRAAI=3.0;
+  // Kleuren van de neuzen: elk scheepstype een andere, allemaal duidelijk rood
+  // tot oranje zodat het altijd als vijandelijk leest.
+  const NEUSKL=[0xff3040,0xff7a30,0xff2a80,0xffb030,0xff4060,0xff9040];
   // Een los stukje binnen een vak dat kleiner is dan dit deel van het schip zelf
   // wordt weggepoetst. 0,04 = alles onder 4% van het schip.
   const SCHOON_DEEL=0.04;
@@ -2008,7 +2018,8 @@
     vijVrij2:function(B){
       if(!B) return;
       B.live=false; B.m.visible=false;
-      if(B.buis){ B.buis.visible=false; B.buis=null; } },
+      if(B.buis){ B.buis.visible=false; B.buis=null; }
+      if(B.neus){ B.neus.visible=false; B.neus=null; } },
 
     buisRect:function(g,R){
       const a=g.attributes.uv;
@@ -2693,6 +2704,9 @@
           // Een korte flits bij de loop: je ziet dat hij schiet, en van wie.
           this.vonk(B.o.x,B.o.y,B.o.z,0xffd9a0,3,2.2,0.22);
           this.vonk(B.o.x,B.o.y,B.o.z,0xff5a3c,2,3.0,0.30);
+          // Elk scheepstype zijn eigen neus: vorm en kleur. Zo zie je aan de kop
+          // welk soort raket op je afkomt.
+          this.neusPak(B,e.tp%3,NEUSKL[e.tp%NEUSKL.length]);
           this.wijsDreiging(B);
           break; } }
       SND.gun(e.p.x*0.02,0); },
@@ -2810,14 +2824,15 @@
         if(e.hulpT<=0&&mech<4){ e.hulpT=13+Math.random()*7; this.reusHulp(e); }
         else if(e.hulpT<=0) e.hulpT=4; }
       // ---- bij elke drempel stuurt hij een ander soort op je af ----
+      // ---- bij elke drempel een RAKETSTORM, geen hulptroepen meer ----
+      // Sjoerd: een baas moet het zelf doen. Vroeger riep hij bij elke drempel
+      // een zwerm schepen; nu vuurt hij zelf een grote golf zoekende raketten.
       const drempels=[0.92,0.80,0.68,0.56,0.44,0.32,0.20,0.10];
       e.stuur=e.stuur||0;
       if(e.stuur<drempels.length&&deel<=drempels[e.stuur]){
-        // Staan er meerdere bazen tegelijk, dan stuurt er steeds maar ÉÉN een
-        // zwerm. Alledrie tegelijk werd een muur waar niet doorheen te komen was.
         const trio=(this.baasTrio&&this.baasTrio.length>1);
         if(!trio||this.zwermBeurt===undefined||this.zwermBeurt===e.trioI){
-          this.baasZwerm(e,e.stuur); e.stuur++;
+          this.raketStorm(e,e.stuur); e.stuur++;
           if(trio) this.zwermBeurt=(e.trioI+1)%this.baasTrio.length; } }
       // ---- balk bijwerken ----
       this.baasBalk(e); },
@@ -3028,6 +3043,8 @@
         this.richtQuad(B.m,B.o,B.dir,B.len,B.br);
         // Ook baasvuur verdient een waarschuwing: die liep alleen langs het gewone
         // vijandschot, dus alle pijlen die Sjoerd zag kwamen van de hulptroepen.
+        // ook baasvuur krijgt een meevliegende neus, met een eigen vorm per baas
+        this.neusPak(B,(o.neus||0),o.kleur||0xff3040);
         this.wijsDreiging(B);
         return B; }
       return null; },
@@ -3071,8 +3088,12 @@
       if(!this.wijzers){
         this.wijzers=[];
         for(let i=0;i<WIJZERS;i++){
-          const g=new THREE.RingGeometry(0.026,0.070,3,1,0,6.283);
+          // Was een gelijkzijdige driehoek — die wijst drie kanten op, dus
+          // nergens heen. Nu een wazige rode vlek aan de rand van je blik: geen
+          // richting die tegenspreekt, alleen "het komt van DIE kant".
+          const g=new THREE.PlaneGeometry(0.16,0.16);
           const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0xff2a3d,
+            map:this.GLOED,
             transparent:true,opacity:0,depthWrite:false,depthTest:false,
             blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
           m.renderOrder=20; m.visible=false;
@@ -3111,7 +3132,7 @@
         const hoek=Math.atan2(p.y,p.x);
         const straal=WIJZER_RAND*(voor>0.86?1.25:1);
         W.m.position.set(Math.cos(hoek)*straal,Math.sin(hoek)*straal,-0.62);
-        W.m.rotation.z=hoek-1.5708;
+        W.m.rotation.z=0;              // een vlek heeft geen richting nodig
         // Kijk je die kant op, dan zie je de raket zelf al — dan hoeft de pijl niet.
         if(voor>0.90){ W.m.material.opacity=0; continue; }
         // Fel genoeg om op te vallen: hij knippert tussen driekwart en vol, en
@@ -3135,14 +3156,14 @@
       for(let i=0;i<n;i++){
         const zij=((i/(n-1))-0.5)*2*spreid+Math.sin(dr)*0.5;
         this.sigSchot(e,this.sigRicht(e,zij,0.02),
-          {sp:twee?21:24,hp:2,dmg:6,streep:0,groot:0.8,zoek:1,draai:twee?1.5:1.0}); }
+          {sp:twee?21:24,hp:2,dmg:6,streep:0,groot:0.8,zoek:1,draai:twee?1.5:1.0,neus:0,kleur:0xff3040}); }
       this.sigMeld(e,twee?'SPREAD  -  SWEEP':'SPREAD','#ffb03a'); },
 
     // ---- 2. WARDEN: twee zware knallers; in fase 2 splijten ze ----
     sigKnaller:function(e,twee){
       for(let i=0;i<2;i++){
         this.sigSchot(e,this.sigRicht(e,(i?0.16:-0.16),0),
-          {sp:11,hp:9,dmg:16,zwaar:1,groot:1.9,zoek:1,draai:1.3,
+          {sp:11,hp:9,dmg:16,zwaar:1,groot:1.9,zoek:1,draai:1.3,neus:1,kleur:0xff2020,
            splijt:twee?4:0,sptijd:twee?1.9:0}); }
       this.sigMeld(e,twee?'HEAVY  -  SPLIT':'HEAVY','#ff3d55'); },
 
@@ -3154,7 +3175,7 @@
         for(let i=0;i<n;i++){
           const hk=(i/n)*6.283+(r?0.26:0);
           this.sigSchot(e,this.sigRicht(e,Math.cos(hk)*0.6,Math.sin(hk)*0.6),
-            {sp:twee?16:18,hp:2,dmg:5,groot:0.85,
+            {sp:twee?16:18,hp:2,dmg:5,groot:0.85,neus:2,kleur:0xffd030,
              draaiOm:om,hoekS:1.5,hoek0:hk,straal0:1}); } }
       this.sigMeld(e,twee?'WHEEL  -  DOUBLE':'WHEEL','#ffe45c'); },
 
@@ -3167,7 +3188,7 @@
         this.sigNa(i*0.11,function(){
           if(!e.live) return;
           self.sigSchot(e,self.sigRicht(e,zij,0),
-            {sp:46,hp:1,dmg:8,streep:1,groot:0.7}); }); }
+            {sp:46,hp:1,dmg:8,streep:1,groot:0.7,neus:0,kleur:0xffd0e0}); }); }
       this.sigMeld(e,twee?'LANCE  -  VOLLEY':'LANCE','#cfe8ff'); },
 
     // ---- 5. RAVEN: groepjes die van opzij omvliegen; fase 2 ook van boven ----
@@ -3176,7 +3197,7 @@
       kanten.forEach(function(k,gi){
         for(let i=0;i<4;i++){
           const B=this.sigSchot(e,this.sigRicht(e,k[0]*1.4,k[1]*1.2),
-            {sp:24,hp:2,dmg:5,zoek:1,draai:3.0,groot:0.8});
+            {sp:24,hp:2,dmg:5,zoek:1,draai:3.0,groot:0.8,neus:1,kleur:0xc060ff});
           if(B){ B.waaier=0.55+i*0.05; B.wh=Math.atan2(k[1],k[0]); } }
       },this);
       this.sigMeld(e,twee?'FLANK  -  TRIPLE':'FLANK','#c07dff'); },
@@ -3184,7 +3205,7 @@
     // ---- 6. IRONCLAD: rolbom die opensplijt; fase 2 splijt nog eens ----
     sigRolbom:function(e,twee){
       this.sigSchot(e,this.sigRicht(e,0,0.04),
-        {sp:9,hp:14,dmg:16,zwaar:1,groot:2.4,zoek:1,draai:0.9,splijt:6,sptijd:2.2,
+        {sp:9,hp:14,dmg:16,zwaar:1,groot:2.4,zoek:1,draai:0.9,neus:1,kleur:0xc0c8d0,splijt:6,sptijd:2.2,
          splijt2:twee?3:0});
       this.sigMeld(e,twee?'BREACH  -  CLUSTER':'BREACH','#b8c4cc'); },
 
@@ -3194,11 +3215,11 @@
       if(twee){ T3.forEach(function(b,i){
           if(!b.live) return;
           this.sigSchot(b,this.sigRicht(b,(i-1)*0.5,0.1),
-            {sp:17,hp:4,dmg:9,zoek:1,draai:3.2,groot:1.1}); },this); }
+            {sp:17,hp:4,dmg:9,zoek:1,draai:3.2,groot:1.1,neus:0,kleur:0x60ff90}); },this); }
       else { const i=(e.oogB=((e.oogB||0)+1)%T3.length);
         const b=T3[i]||e;
         if(b.live) this.sigSchot(b,this.sigRicht(b,0,0.05),
-          {sp:16,hp:4,dmg:9,zoek:1,draai:3.0,groot:1.1}); }
+          {sp:16,hp:4,dmg:9,zoek:1,draai:3.0,groot:1.1,neus:0,kleur:0x60ff90}); }
       this.sigMeld(e,twee?'GAZE  -  ALL EYES':'GAZE','#6ce2a0'); },
 
     // ---- 8. THE WALKER: sliert als een zweep; fase 2 twee kruisende ----
@@ -3212,7 +3233,7 @@
           this.sigNa(i*0.07,function(){
             if(!e.live) return;
             self.sigSchot(e,self.sigRicht(e,zij,0.02),
-              {sp:26,hp:1,dmg:6,groot:0.65,zoek:1,draai:0.8}); }); } }
+              {sp:26,hp:1,dmg:6,groot:0.65,zoek:1,draai:0.8,neus:0,kleur:0xff8a30}); }); } }
       this.sigMeld(e,twee?'LASH  -  CROSS':'LASH','#d98a4a'); },
 
     // ---- 9. ARACHNID: poten spuwen uit en trekken samen; fase 2 een web ----
@@ -3220,7 +3241,7 @@
       for(let i=0;i<8;i++){
         const hk=(i/8)*6.283;
         const B=this.sigSchot(e,this.sigRicht(e,Math.cos(hk)*0.75,Math.sin(hk)*0.6),
-          {sp:twee?11:20,hp:2,dmg:5,zoek:twee?0:1,draai:2.6,groot:0.8});
+          {sp:twee?11:20,hp:2,dmg:5,zoek:twee?0:1,draai:2.6,groot:0.8,neus:2,kleur:0x90ff40});
         if(B&&!twee){ B.waaier=0.5; B.wh=hk; }
         if(B&&twee){ B.md=190; }                    // blijft hangen als een web
       }
@@ -3239,7 +3260,7 @@
       for(let i=0;i<n;i++){
         const hk=(i/n)*6.283+(e.pulsF=(e.pulsF||0)+0.31);
         this.sigSchot(e,this.sigRicht(e,Math.cos(hk)*0.62,Math.sin(hk)*0.5),
-          {sp:15,hp:3,dmg:7,groot:0.8,zoek:1,draai:1.8}); }
+          {sp:15,hp:3,dmg:7,groot:0.8,zoek:1,draai:1.8,neus:2,kleur:0x40e0ff}); }
       if(twee){ for(let i=0;i<4;i++){
         const hk=(e.pulsF||0)*2+i*1.57;
         this.sigSchot(e,this.sigRicht(e,Math.cos(hk)*0.85,Math.sin(hk)*0.7),
@@ -3251,7 +3272,7 @@
       const n=twee?6:3;
       for(let i=0;i<n;i++){
         this.sigSchot(e,this.sigRicht(e,((i/(n-1))-0.5)*0.8,0.05),
-          {sp:twee?15:13,hp:5,dmg:11,zoek:1,draai:twee?5.6:4.2,groot:1.3}); }
+          {sp:twee?15:13,hp:5,dmg:11,zoek:1,draai:twee?5.6:4.2,groot:1.3,neus:1,kleur:0xff2050}); }
       this.sigMeld(e,twee?'REAPER  -  SWARM':'REAPER','#ff4060'); },
 
     // ---- 16. TITAN PRIME: alles, in fasen ----
@@ -3266,6 +3287,28 @@
       else if(e.tFase===1) this.sigPuls(e,false);
       else this.salvoBarrage(e,8);
       this.sigMeld(e,'TITAN PRIME','#ffb03a'); },
+
+    // Een raketstorm: een grote golf zoekende raketten in plaats van hulptroepen.
+    // Hoe verder de baas is uitgeput, hoe groter de golf. Ze vertrekken in twee
+    // of drie vlagen achter elkaar, zodat je niet alles tegelijk over je heen
+    // krijgt maar wel onder druk staat.
+    raketStorm:function(e,ronde){
+      const n=STORM_N+Math.round(ronde*STORM_GROEI);
+      const vlagen=(ronde<3)?2:3;
+      const perVlaag=Math.max(2,Math.round(n/vlagen));
+      const self=this;
+      for(let v=0;v<vlagen;v++){
+        this.sigNa(v*STORM_PAUZE,function(){
+          if(!e.live||e.dood) return;
+          for(let i=0;i<perVlaag;i++){
+            const hk=(i/perVlaag)*6.283+v*0.7;
+            const B=self.sigSchot(e,self.sigRicht(e,Math.cos(hk)*0.5,Math.sin(hk)*0.4),
+              {sp:STORM_SNEL,hp:3,dmg:6,zoek:1,draai:STORM_DRAAI,groot:0.9,
+               neus:1,kleur:0xff4020});
+            if(B){ B.waaier=0.45+Math.random()*0.3; B.wh=hk; } }
+          self.vonk(e.p.x,e.p.y,e.p.z,0xff2a3d,6,e.bw*0.3,0.8);
+          SND.boom(e.p.x*0.02); }); }
+      this.toonGroot('MISSILE STORM','#ff3d55'); },
 
     baasZwerm:function(e,fase){
       if(!this.zwermMag(e)) return;
@@ -4255,21 +4298,27 @@
               {van:q3,sp:B.sp*1.5,hp:2,dmg:5,groot:0.7,
                splijt:B.splijt2||0,sptijd:B.splijt2?1.1:0}); }
           this.vijVrij2(B); continue; }
-        // ELK vijandelijk schot krijgt een gloeiende kop. Of zijn plaatje nu wel of
-        // niet goed uitpakt: je ziet altijd iets vliegen. Dit is het vangnet.
-        B.gT=(B.gT||0)-s;
-        if(B.gT<=0){ B.gT=KOP_ELK;
-          const qk=kp.copy(B.o).addScaledVector(B.dir,B.d);
-          this.vonk(qk.x,qk.y,qk.z,0xff3d2a,1,KOP_MAAT*(B.zwaar?1.7:1),0.26,true);
-          this.vonk(qk.x,qk.y,qk.z,0xffd9a0,1,KOP_MAAT*0.55,0.16,true); }
-        // Een lang, dun rookspoor: zo zie je hem van ver aankomen en blijft zijn
-        // baan nog even in de lucht hangen.
-        if(B.zoek){
+        // Een rookspoor achter ELK vijandelijk schot: zo zie je hem van ver
+        // aankomen en blijft zijn baan nog even hangen.
+        if(true){
           B.rT=(B.rT||0)-s;
           if(B.rT<=0){ B.rT=SPOOR_ELK;
             const q2=kp.copy(B.o).addScaledVector(B.dir,B.d);
             this.rook(q2.x,q2.y,q2.z,false,SPOOR_MAAT,SPOOR_LEVEN); } }
         const p=kp.copy(B.o).addScaledVector(B.dir,B.d);
+        // De gloeiende neus vliegt mee en kijkt je altijd aan — geen gaten meer.
+        if(B.neus){
+          B.neus.position.copy(p);
+          B.neus.lookAt(eye);
+          // Hij mag ademen — dat leest prettig — maar NOOIT helemaal doven, want
+          // dan raak je hem even kwijt. Hij pulseert tussen half en vol.
+          B.nf=(B.nf||Math.random()*6.283)+s*NEUS_PULS;
+          const puls=NEUS_MIN+(1-NEUS_MIN)*(0.5+0.5*Math.sin(B.nf));
+          B.neus.material.opacity=0.95*puls;
+          const gr=NEUS_MAAT*(B.zwaar?1.8:1)
+            *(1+Math.min(1.4,60/Math.max(6,p.distanceTo(eye)))*0.5)
+            *(0.88+puls*0.18);
+          B.neus.scale.set(gr,gr,1); }
         if(B.buis){
           // Het lichaam wijst met zijn lengte langs de vliegrichting en draait niet
           // naar je toe: daardoor zie je hem van opzij als raket en van voren als neus.
@@ -4543,6 +4592,51 @@
         }catch(e){}
       });
       return uit.length===2?uit:null; },
+
+    // Drie neusvormen, zelf getekend: een stip, een stip met kruis, en een stip
+    // met dwarsvleugels. Zo herken je aan de kop welk soort raket op je afkomt.
+    neusPlaat:function(soort){
+      const S=128, c=document.createElement('canvas');
+      c.width=S; c.height=S;
+      const g=c.getContext('2d'), m=S/2;
+      // de gloeiende stip zelf
+      const gr=g.createRadialGradient(m,m,0,m,m,S*0.30);
+      gr.addColorStop(0,'rgba(255,255,255,1)');
+      gr.addColorStop(0.35,'rgba(255,120,90,0.95)');
+      gr.addColorStop(1,'rgba(255,40,60,0)');
+      g.fillStyle=gr; g.beginPath(); g.arc(m,m,S*0.30,0,6.283); g.fill();
+      g.strokeStyle='rgba(255,90,80,0.85)'; g.lineCap='round';
+      if(soort===1){                                   // kruis
+        g.lineWidth=S*0.055;
+        g.beginPath(); g.moveTo(m,S*0.10); g.lineTo(m,S*0.90);
+        g.moveTo(S*0.10,m); g.lineTo(S*0.90,m); g.stroke(); }
+      else if(soort===2){                              // dwarsvleugels
+        g.lineWidth=S*0.075;
+        g.beginPath(); g.moveTo(S*0.06,m); g.lineTo(S*0.94,m); g.stroke();
+        g.lineWidth=S*0.045;
+        g.beginPath(); g.moveTo(S*0.20,m-S*0.13); g.lineTo(S*0.20,m+S*0.13);
+        g.moveTo(S*0.80,m-S*0.13); g.lineTo(S*0.80,m+S*0.13); g.stroke(); }
+      const t=new THREE.CanvasTexture(c); t.needsUpdate=true; return t; },
+
+    // Een gloeiende neus die MEEVLIEGT met het schot. Losse vonkjes lieten gaten
+    // vallen — dan zag je het schot even niet. Deze is er altijd.
+    neusPak:function(B,soort,kleur){
+      if(!this.neuzen){
+        this.neusT=[this.neusPlaat(0),this.neusPlaat(1),this.neusPlaat(2)];
+        this.neuzen=[];
+        for(let i=0;i<NEUZEN;i++){
+          const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
+            new THREE.MeshBasicMaterial({transparent:true,depthWrite:false,
+              blending:THREE.AdditiveBlending,opacity:0.95}));
+          m.renderOrder=8; m.visible=false; m.frustumCulled=false;
+          this.par.add(m); this.neuzen.push(m); } }
+      for(let i=0;i<this.neuzen.length;i++){ const m=this.neuzen[i];
+        if(m.visible) continue;
+        m.material.map=this.neusT[soort%3];
+        m.material.color.setHex(kleur||0xffffff);
+        m.material.needsUpdate=true;
+        m.visible=true; B.neus=m; return true; }
+      return false; },
 
     // Twee vlakken die samen een L maken. De lengte-as is Y (−0,5 achter,
     // +0,5 voor). De staart ligt in het XY-vlak, de kop staat er haaks op.
