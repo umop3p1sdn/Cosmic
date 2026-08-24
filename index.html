@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.08';
+  const VERSIE='v12.09';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1171,6 +1171,8 @@
   // altijd iets ziet vliegen, ook als een plaatje niet goed uitpakt.
   const KOP_ELK=0.05, KOP_MAAT=2.6;
   const ULT_DOOF=700;           // milliseconden tussen twee ults
+  // De straal-ult: dik, ver, en hij verdampt alles in zijn koker.
+  const STRAAL_TIJD=2.2, STRAAL_DIK=9, STRAAL_VER=340, STRAAL_DMG=46;
   // Hoe breed een baaswaaier spreidt. Te breed en alles gaat naast je langs;
   // het moet JOU bedreigen, niet de ruimte ernaast.
   const SIG_SPREID=0.20;   // strak op je gericht; groter = meer langs je heen
@@ -2377,12 +2379,71 @@
           const R=this.raket(this.ori,dd,6.0,1.6+Math.random()*1.4,Math.random()*6.283);
           if(R&&T.length) R.zoek=T[k%T.length]; }
         this.toonMelding('SALVO','#ff8a3d'); }
-      else {                                                  // zuigbal
-        this.ults--; SND.boom(0); SND.zeg('Vortex');
-        this.zuigT=6.0; this.zuig.visible=true;
-        this.zuigP=this.ori.clone().addScaledVector(this.dir,34);
-        this.zuig.position.copy(this.zuigP);
-        this.toonMelding('VORTEX','#c07dff'); } },
+      else {                                                  // DE STRAAL
+        // Sjoerds wens: alle kracht van een raketsalvo in één dikke straal
+        // vanuit je vizier. Alles wat erin staat gaat eraan — en tegen een baas
+        // is dit je zwaarste zet.
+        this.ults--; SND.boom(0,true); SND.zeg('Beam');
+        this.straalT=STRAAL_TIJD;
+        this.straalO=this.ori.clone();
+        // hij mikt waar je vizier staat, niet waar je hand toevallig wijst
+        this.straalD=(window.AIM?window.AIM.clone():this.dir.clone()).normalize();
+        if(this.straal){ this.straal.visible=true; }
+        this.toonGroot('BEAM','#66f0ff');
+        this.toonMelding('BEAM','#66f0ff'); } },
+
+    // De straal leeft een paar tellen: hij groeit open, brandt, en dooft. Elke
+    // beurt raakt hij alles binnen zijn koker — schepen én vijandelijk vuur.
+    straalTick:function(s){
+      if(!(this.straalT>0)) return;
+      if(!this.straal){
+        const g=new THREE.CylinderGeometry(1,1,1,16,1,true);
+        g.rotateX(Math.PI/2);                       // lengte langs -Z
+        const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0x66f0ff,
+          transparent:true,opacity:0.55,depthWrite:false,side:THREE.DoubleSide,
+          blending:THREE.AdditiveBlending}));
+        m.renderOrder=11; m.frustumCulled=false;
+        const k=new THREE.Mesh(g.clone(),new THREE.MeshBasicMaterial({color:0xffffff,
+          transparent:true,opacity:0.9,depthWrite:false,side:THREE.DoubleSide,
+          blending:THREE.AdditiveBlending}));
+        k.renderOrder=12; k.frustumCulled=false;
+        this.par.add(m); this.par.add(k);
+        this.straal=m; this.straalK=k; }
+      this.straalT-=s;
+      const k=Math.max(0,this.straalT/STRAAL_TIJD);
+      // opengroeien in het begin, uitdoven aan het eind
+      const opbouw=Math.min(1,(STRAAL_TIJD-this.straalT)/0.18);
+      const dik=STRAAL_DIK*opbouw*(0.75+0.25*Math.sin(this.T*40))*(0.4+k*0.6);
+      const mid=this.SM||(this.SM=new THREE.Vector3());
+      mid.copy(this.straalO).addScaledVector(this.straalD,STRAAL_VER/2);
+      [this.straal,this.straalK].forEach(function(m,i){
+        m.visible=true; m.position.copy(mid);
+        m.scale.set(dik*(i?0.42:1),dik*(i?0.42:1),STRAAL_VER);
+        m.material.opacity=(i?0.95:0.6)*Math.min(1,k*2.2); });
+      this.straal.lookAt(this.straalO.clone().addScaledVector(this.straalD,-1));
+      this.straalK.quaternion.copy(this.straal.quaternion);
+      // schade: alles in de koker
+      this.straalS=(this.straalS||0)-s;
+      if(this.straalS<=0){ this.straalS=0.06;
+        const p=this.SP2||(this.SP2=new THREE.Vector3());
+        for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
+          if(!e.live||e.dood2) continue;
+          p.subVectors(e.p,this.straalO);
+          const t=p.dot(this.straalD);
+          if(t<0||t>STRAAL_VER) continue;
+          if(p.addScaledVector(this.straalD,-t).length()>dik*0.5+e.r) continue;
+          this.raak(e,STRAAL_DMG,e.p.x,e.p.y,e.p.z); }
+        // en vijandelijk vuur verdampt
+        for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(!B.live) continue;
+          p.copy(B.o).addScaledVector(B.dir,B.d).sub(this.straalO);
+          const t=p.dot(this.straalD);
+          if(t<0||t>STRAAL_VER) continue;
+          if(p.addScaledVector(this.straalD,-t).length()>dik*0.5+1.5) continue;
+          const q=this.tmp.copy(B.o).addScaledVector(B.dir,B.d);
+          this.vonk(q.x,q.y,q.z,0x66f0ff,4,4,0.4);
+          this.vijVrij2(B); } }
+      if(this.straalT<=0&&this.straal){
+        this.straal.visible=false; this.straalK.visible=false; } },
 
     toonMelding:function(txt,kl){ const e=document.querySelector('#hudC'); if(!e) return;
       e.setAttribute('value',txt); e.setAttribute('color',kl||'#ffb03a'); this.meldC=1.6; },
@@ -4717,6 +4778,7 @@
         if(B.life<=0){ B.live=false; B.m.visible=false; } }
 
       this.ringTick(s); this.sigRijTick(s); this.wijzerTickD(s); this.spiraalSpawn(s);
+      this.straalTick(s);
       // ---- rook: drijft op, dijt uit en vervaagt ----
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(!R.live) continue;
         R.life-=s/Math.max(0.3,R.leven);
