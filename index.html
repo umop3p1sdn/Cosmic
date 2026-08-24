@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.13';
+  const VERSIE='v12.14';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1188,6 +1188,7 @@
   const SPIR_ELK=5.0, SPIR_SPRINT=2.2, SPIR_SNEL=34;
   const SPIR_MAX_N=12;          // vanaf level 8 vuurt hij er twaalf
   const SPIR_WIJD=0.62;         // hoe wijd de bloem opengaat
+  const SPOOK_FLITS=0.16;       // hoe lang hij oplicht als je hem raakt
   const SPIR_HP=820;            // taaier: Sjoerd wilde meer schade om hem te breken
   const JACHT_DMG=25, JACHT_HP=7;
   // De derde aanval van elke baas: een eigen groep zoekende raketten. vorm bepaalt
@@ -2455,6 +2456,13 @@
     //  TREFFERS
     // =====================================================
     raak:function(e,dmg,px,py,pz){
+      // Een spook dat je raakt hoort even op te lichten. Zonder dat weet je niet
+      // of je hem hebt, en voelt hij onraakbaar — precies wat Sjoerd merkte.
+      if(e&&e.onzicht&&!e.dood){
+        e.zichtT=SPOOK_FLITS;
+        if(e.bb&&e.bb.m) e.bb.m.visible=true;
+        this.vonk(px,py,pz,0x66f0ff,5,3.5,0.45);
+        this.vonk(px,py,pz,0xffffff,3,2.0,0.25); }
       if(window.DEMO&&e===this.dDoel) this.dRaak=1;
       if(e.dood2) return;                            // gaat al ten onder
       if(e.intro){ this.vonk(px||e.p.x,py||e.p.y,pz||e.p.z,0x9fe4f5,3,6,0.5); return; }
@@ -4053,8 +4061,11 @@
       // De spiraalwerper stuurt zichzelf: hij staat stil terwijl hij vuurt en
       // sprint daarna weg. Zijn gewone vlieggedrag zou dat overschrijven.
       if(e.spiraal&&!e.dood2){
-        // onzichtbaar houden, behalve als hij neerstort
-        if(e.onzicht&&e.bb&&e.bb.m&&e.bb.m.visible&&!e.dood) e.bb.m.visible=false;
+        // onzichtbaar houden — behalve heel even nadat je hem hebt geraakt, en
+        // als hij neerstort.
+        if(e.zichtT>0){ e.zichtT-=s;
+          if(e.bb&&e.bb.m) e.bb.m.visible=true; }
+        else if(e.onzicht&&e.bb&&e.bb.m&&e.bb.m.visible&&!e.dood) e.bb.m.visible=false;
         this.spiraalTick(e,s); return; }
       const eye=this.tmp.copy(this.kop);
       const T=TYPE[e.tp];
