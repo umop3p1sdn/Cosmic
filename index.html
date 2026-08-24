@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.09';
+  const VERSIE='v12.11';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -950,12 +950,13 @@
   '        <a-text id="lvTxt" position="0 0.86 -2.36" value="LEVEL 1" align="center" color="#e8d6ff" width="2.8"></a-text>'+
   '        <a-plane id="btnLvPlus" class="menu-btn" position="0.62 0.86 -2.38" width="0.30" height="0.24" material="color:#241634;shader:flat"></a-plane>'+
   '        <a-text position="0.62 0.86 -2.36" value="+" align="center" color="#e8d6ff" width="3.4"></a-text>'+
-  '        <a-plane id="btnFaseA" class="menu-btn" position="-0.66 0.48 -2.38" width="0.60" height="0.26" material="color:#1a2c3a;shader:flat"></a-plane>'+
-  '        <a-text position="-0.66 0.48 -2.36" value="BEGIN" align="center" color="#8fd8ec" width="2.2"></a-text>'+
-  '        <a-plane id="btnFaseB" class="menu-btn" position="0 0.48 -2.38" width="0.60" height="0.26" material="color:#1a2c3a;shader:flat"></a-plane>'+
-  '        <a-text position="0 0.48 -2.36" value="MID" align="center" color="#8fd8ec" width="2.2"></a-text>'+
-  '        <a-plane id="btnFaseC" class="menu-btn" position="0.66 0.48 -2.38" width="0.60" height="0.26" material="color:#3a1420;shader:flat"></a-plane>'+
-  '        <a-text position="0.66 0.48 -2.36" value="BOSS" align="center" color="#ff8aa6" width="2.2"></a-text>'+
+  '        <a-plane id="btnFaseA" class="menu-btn" position="-0.66 0.48 -2.38" width="0.42" height="0.26" material="color:#1a2c3a;shader:flat"></a-plane>'+
+  '        <a-text position="-0.66 0.48 -2.36" value="WAVE -" align="center" color="#8fd8ec" width="2.0"></a-text>'+
+  '        <a-text id="wvTxt" position="0 0.48 -2.36" value="WAVE 1" align="center" color="#e8f6ff" width="2.4"></a-text>'+
+  '        <a-plane id="btnFaseB" class="menu-btn" position="0.66 0.48 -2.38" width="0.42" height="0.26" material="color:#1a2c3a;shader:flat"></a-plane>'+
+  '        <a-text position="0.66 0.48 -2.36" value="WAVE +" align="center" color="#8fd8ec" width="2.0"></a-text>'+
+  '        <a-plane id="btnFaseC" class="menu-btn" position="0 0.16 -2.38" width="0.90" height="0.24" material="color:#123a4e;shader:flat"></a-plane>'+
+  '        <a-text position="0 0.16 -2.36" value="START HERE" align="center" color="#eafcff" width="2.6"></a-text>'+
   '        <a-plane id="btnMeet" class="menu-btn" position="0 -0.12 -2.38" width="0.70" height="0.20" material="color:#2a1d38;shader:flat"></a-plane>'+
   '        <a-text position="0 -0.12 -2.37" value="COUNT SHOTS" align="center" color="#b06cff" width="1.8"></a-text>'+
   '        <a-plane id="btnTechUit" class="menu-btn" position="0 0.12 -2.38" width="0.70" height="0.22" material="color:#20182a;shader:flat"></a-plane>'+
@@ -1182,10 +1183,12 @@
   const BAAS_TAAI=2.0;
   // De spiraalwerper: vanaf level 4, hoogstens twee tegelijk. Acht zoekers die
   // vanuit zijn midden naar buiten spreiden en spiralend op je af draaien.
-  const SPIR_VANAF=4, SPIR_MAX=2;
+  const SPIR_VANAF=4, SPIR_MAX=2, SPIR_GOLF=3, SPIR_KANS=0.55;
   const SPIR_N=8, SPIR_SP=15, SPIR_DMG=22, SPIR_DRAAI=2.2, SPIR_WAAIER=0.7;
   const SPIR_ELK=5.0, SPIR_SPRINT=2.2, SPIR_SNEL=34;
-  const SPIR_HP=560;            // ongeveer acht tellen mitrailleur
+  const SPIR_MAX_N=12;          // vanaf level 8 vuurt hij er twaalf
+  const SPIR_WIJD=0.62;         // hoe wijd de bloem opengaat
+  const SPIR_HP=820;            // taaier: Sjoerd wilde meer schade om hem te breken
   const JACHT_DMG=25, JACHT_HP=7;
   // De derde aanval van elke baas: een eigen groep zoekende raketten. vorm bepaalt
   // hoe ze aankomen, neus welke kop erop zit, kl de kleur van de gloed.
@@ -2869,6 +2872,16 @@
           this.vonk(B.o.x,B.o.y,B.o.z,0xff5a3c,2,3.0,0.30);
           // Elk scheepstype zijn eigen neus: vorm en kleur. Zo zie je aan de kop
           // welk soort raket op je afkomt.
+          // De kop hoort bij het SCHIP. Deze regel was bij het opnieuw indelen
+          // verdwenen, waardoor elk projectiel de kop van zijn vorige leven
+          // hield — en dus leek alles op elkaar.
+          B.kopNr=(e.tp||0)%25;
+          // DE KOP HOORT BIJ HET SCHIP. Deze regel ontbrak: alleen baasvuur
+          // zette hem, dus een hergebruikt projectiel hield de kop van zijn
+          // vorige leven en leek alles hetzelfde. De rij van dit schip op zijn
+          // vlootplaat bepaalt welke van Sjoerds 25 koppen hij krijgt — net als
+          // vroeger, toen elk vliegtuig zijn eigen raketplaatje had.
+          B.kopNr=this.kopVoor(e);
           this.neusPak(B,e.tp%3,NEUSKL[e.tp%NEUSKL.length]);
           this.wijsDreiging(B);
           break; } }
@@ -3614,10 +3627,11 @@
     // sprint hij naar een nieuwe plek. Taai genoeg om acht tellen mitrailleur
     // te verdragen.
     spiraalSalvo:function(e){
-      const n=SPIR_N;
+      // Level 4 begint met acht; elke twee levels komen er twee bij, tot twaalf.
+      const n=Math.min(SPIR_MAX_N,SPIR_N+Math.floor(Math.max(0,this.level-SPIR_VANAF)/2)*2);
       for(let i=0;i<n;i++){
         const hk=(i/n)*6.283;
-        const B=this.sigSchot(e,this.sigRicht(e,Math.cos(hk)*0.42,Math.sin(hk)*0.36),
+        const B=this.sigSchot(e,this.sigRicht(e,Math.cos(hk)*SPIR_WIJD,Math.sin(hk)*SPIR_WIJD*0.85),
           {sp:SPIR_SP,hp:5,dmg:SPIR_DMG,zoek:1,draai:SPIR_DRAAI,groot:1.2,
            neus:2,kleur:0xff8020,kop:(e.tp||0)%25});
         if(B){ B.waaier=SPIR_WAAIER; B.wh=hk;
@@ -4038,7 +4052,10 @@
       if(e.dood){ this.doodBaan(e,s); return; }
       // De spiraalwerper stuurt zichzelf: hij staat stil terwijl hij vuurt en
       // sprint daarna weg. Zijn gewone vlieggedrag zou dat overschrijven.
-      if(e.spiraal&&!e.dood2){ this.spiraalTick(e,s); return; }
+      if(e.spiraal&&!e.dood2){
+        // onzichtbaar houden, behalve als hij neerstort
+        if(e.onzicht&&e.bb&&e.bb.m&&e.bb.m.visible&&!e.dood) e.bb.m.visible=false;
+        this.spiraalTick(e,s); return; }
       const eye=this.tmp.copy(this.kop);
       const T=TYPE[e.tp];
       const naar=new THREE.Vector3().subVectors(eye,e.p);
@@ -4214,15 +4231,19 @@
       this.toonMelding('LEVEL '+this.level+'   WAVE '+this.wave+' / '+GOLVEN,'#35e8ff');
       // Vanaf level 4 hangt er in elke golf een spiraalwerper: taai, traag, en
       // hij spuwt om de vijf tellen acht spiralende zoekers. Hoogstens twee.
-      if(this.level>=SPIR_VANAF) this.spiraalT=1.5+Math.random()*2;
+      // Hij hoort bij een golf, net als elke andere vijand: vanaf golf 3, en niet
+      // in elke golf. Hoogstens twee tegelijk in het veld.
+      this.spiraalT=(this.level>=SPIR_VANAF&&this.wave>=SPIR_GOLF&&
+                     Math.random()<SPIR_KANS)?(4+Math.random()*6):1e9;
       this.state='vechten'; },
 
     // Op tijd een spiraalwerper neerzetten, als er nog plek is.
     spiraalSpawn:function(s){
       if(this.level<SPIR_VANAF||this.state!=='vechten') return;
+      if(this.wave<SPIR_GOLF) return;              // nooit in de eerste golven
       this.spiraalT=(this.spiraalT||0)-s;
       if(this.spiraalT>0) return;
-      this.spiraalT=9+Math.random()*7;
+      this.spiraalT=1e9;                           // hoogstens één keer per golf
       let n=0;
       for(let i=0;i<this.enemies.length;i++)
         if(this.enemies[i].live&&this.enemies[i].spiraal) n++;
@@ -4241,7 +4262,12 @@
       e.spiraal=1; e.spF='wacht'; e.spT=1.2;
       e.hp=e.hpM=SPIR_HP;
       e.sc*=1.25; e.r*=1.2; e.bw*=1.25; e.bh*=1.25;
-      this.toonMelding('HEAVY INBOUND','#ff8a30'); },
+      // DE SPOOKJAGER. Zijn tekening bleef eerst achter bij zijn beweging — een
+      // fout, maar Sjoerd vond het beeld juist prachtig: je ziet hem niet, tot
+      // hij zich met een salvo verraadt. Dus nu met opzet onzichtbaar.
+      if(e.bb&&e.bb.m){ e.bb.m.visible=false; e.onzicht=1; }
+      this.toonGroot('WARNING  -  ENEMY NOT ON RADAR','#ff3d55');
+      SND.alarm&&SND.alarm(0); },
 
     // ---- aanvallen loslaten op hun eigen tijdstip ----
     // groep voor groep: de volgende komt pas als de vorige is opgeruimd
@@ -5127,6 +5153,16 @@
           uit.push({u0:mnx/W, u1:(mxx+1)/W, v0:1-(mxy+1)/H, v1:1-mny/H,
                     ar:(mxx-mnx+1)/(mxy-mny+1)}); } }
       return uit.length?uit:null; },
+
+    // Welke kop hoort bij dit schip? Zijn rij op de vlootplaat plus zijn soort,
+    // zodat twee verschillende schepen nooit toevallig dezelfde krijgen.
+    kopVoor:function(e){
+      const n=(this.kopVak&&this.kopVak.length)?this.kopVak.length:25;
+      const rij=(e&&e.rij!==undefined)?e.rij:0;
+      const pl=(e&&e.plaat)?(e.plaat.rijen||12):12;
+      const tp=(e&&e.tp)||0;
+      // rij binnen de plaat, en de plaat zelf verschuift het venster
+      return ((rij*2+Math.floor(tp/pl)*7+tp)%n+n)%n; },
 
     neusPak:function(B,soort,kleur){
       if(!this.neuzen){
@@ -6014,7 +6050,10 @@
     kl('#btnStart',function(){ startSpel(false); });
     kl('#btnDemo',function(){ startSpel(true); });
     kl('#btnCont',function(){ const v=leesVoortgang(); if(!v) return; startSpel(false,v); });
-    let techLv=1;
+    let techLv=1, techWv=1;
+    const wvToon=function(){
+      const t=document.querySelector('#wvTxt');
+      if(t) t.setAttribute('value',techWv>GOLVEN?'BOSS':('WAVE '+techWv)); };
     const techToon=function(aan){ const t=document.querySelector('#tech');
       if(t) t.setAttribute('visible',!!aan); };
     const lvToon=function(){ const t=document.querySelector('#lvTxt');
@@ -6066,7 +6105,7 @@
       location.href=location.origin+(p===location.pathname?'/VR/':p); });
     kl('#btnTech',function(){ techToon(true); lvToon(); });
     kl('#btnTechUit',function(){ techToon(false); });
-    kl('#btnLvMin',function(){ techLv=Math.max(1,techLv-1); lvToon(); });
+    kl('#btnLvMin',function(){ techLv=Math.max(1,techLv-1); lvToon(); wvToon(); });
     kl('#btnLvPlus',function(){ techLv=Math.min(17,techLv+1); lvToon(); });
     const techStart=function(w){
       techToon(false);
@@ -6077,9 +6116,11 @@
         if(c){ c.par9klaar=1; c.paradeStart(); }
         return; }
       startSpel(false,{l:techLv,w:w}); };
-    kl('#btnFaseA',function(){ techStart(0); });
-    kl('#btnFaseB',function(){ techStart(GOLVEN); });
-    kl('#btnFaseC',function(){ techStart(GOLVEN); });
+    // Sjoerd wilde level ÉN golf kunnen kiezen in plaats van begin/mid/boss.
+    // Golf GOLVEN+1 betekent: meteen de baas.
+    kl('#btnFaseA',function(){ techWv=Math.max(1,techWv-1); wvToon(); });
+    kl('#btnFaseB',function(){ techWv=Math.min(GOLVEN+1,techWv+1); wvToon(); });
+    kl('#btnFaseC',function(){ techStart(techWv-1); });
     // Met deze knop zet je de meetregel aan: dan zie je IN DE BRIL hoeveel
     // vijandelijk vuur er leeft en hoeveel daarvan zichtbaar is.
     kl('#btnMeet',function(){
