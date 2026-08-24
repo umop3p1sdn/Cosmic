@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.00';
+  const VERSIE='v12.01';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1171,7 +1171,12 @@
   const SIG_SPREID=0.20;   // strak op je gericht; groter = meer langs je heen
   const SALVO_ELK=7;            // om de hoeveel schoten een baas het salvo afvuurt
   // Het rookspoor achter een zoekende raket: hoe vaak, hoe dun, hoe lang zichtbaar.
-  const SPOOR_ELK=0.045, SPOOR_MAAT=0.55, SPOOR_LEVEN=3.4;
+  // De rookslierten waren dun omdat de VOORRAAD op was: 44 deeltjes voor alle
+  // brandende schepen én alle raketsporen samen, en die zat altijd 100% vol.
+  // Rook is goedkoop — een plat vlakje zonder licht — dus ruim verdrievoudigd,
+  // en de pluimen volgen elkaar dichter op zodat de sliert aaneengesloten is.
+  const ROOK_N=320;
+  const SPOOR_ELK=0.018, SPOOR_MAAT=0.55, SPOOR_LEVEN=3.4;
   const ZWERM_RUST=7;           // tellen tussen twee zwermen bij een drieluik
   // Hoeveel raketten tegelijk een echt lichaam krijgen. De rest blijft een vlak:
   // op een bril kost een lichaam meer dan een plat vlak, en bij kleine kogels
@@ -1479,7 +1484,7 @@
         m.renderOrder=7; return m; },{life:0,vx:0,vy:0,vz:0,sz:1});
       // Rookdeeltjes: GEWONE menging, niet optellend — alleen zo kan rook het
       // beeld verdonkeren in plaats van oplichten.
-      this.rookP=[]; this.mkPool(this.rookP,44,function(){
+      this.rookP=[]; this.mkPool(this.rookP,ROOK_N,function(){
         const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
           new THREE.MeshBasicMaterial({map:self.GLOED,transparent:true,
             depthWrite:false,color:0x333333,opacity:0.7}));
