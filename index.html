@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.88';
+  const VERSIE='v11.92';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -849,6 +849,7 @@
   '      <a-entity id="mLv" position="-0.20 -0.640 -1.25"></a-entity>'+
   '      <a-entity id="mWave" position="0.06 -0.640 -1.25"></a-entity>'+
   '      <a-entity id="mScore" position="0.545 -0.640 -1.25"></a-entity>'+
+  '      <a-entity id="mMeet" position="0 -0.700 -1.25"></a-entity>'+
   '      </a-entity>'+
   '      <a-text id="hudW" value="" align="center" color="#e8f6ff" width="1.6"  position="0 -0.24 -1.25"></a-text>'+
   '      <a-plane id="hurt"  position="0 0 -0.31" width="2.6" height="2.6" material="color:#ff2030;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
@@ -932,6 +933,8 @@
   '        <a-text position="0 0.48 -2.36" value="MID" align="center" color="#8fd8ec" width="2.2"></a-text>'+
   '        <a-plane id="btnFaseC" class="menu-btn" position="0.66 0.48 -2.38" width="0.60" height="0.26" material="color:#3a1420;shader:flat"></a-plane>'+
   '        <a-text position="0.66 0.48 -2.36" value="BOSS" align="center" color="#ff8aa6" width="2.2"></a-text>'+
+  '        <a-plane id="btnMeet" class="menu-btn" position="0 -0.12 -2.38" width="0.70" height="0.20" material="color:#2a1d38;shader:flat"></a-plane>'+
+  '        <a-text position="0 -0.12 -2.37" value="COUNT SHOTS" align="center" color="#b06cff" width="1.8"></a-text>'+
   '        <a-plane id="btnTechUit" class="menu-btn" position="0 0.12 -2.38" width="0.70" height="0.22" material="color:#20182a;shader:flat"></a-plane>'+
   '        <a-text position="0 0.12 -2.36" value="CLOSE" align="center" color="#9a86b8" width="2.2"></a-text>'+
   '      </a-entity>'+
@@ -1080,9 +1083,15 @@
   // Sinds er nog maar ÉÉN wereld tegelijk in het geheugen staat, hoeft er niets
   // meer ingeleverd te worden op scherpte. 4096 is de grootste plaat die Sjoerd
   // aanlevert, dus in de praktijk blijft alles op volle resolutie.
-  const HEMEL_MAX=4096;
-  const PROP_MAX=2048;
+  // Een achtergrond van 4096 px kost in de bril bijna 90 MB en moet elk beeldje
+  // rondom je heen worden getekend. Dat was de hoofdoorzaak van de haperingen.
+  // Op 2048 is hij nog steeds scherp — je kijkt er van binnenuit naar.
+  const HEMEL_MAX=2048;
+  const PROP_MAX=1024;
   const PLANEET_MAX=340;        // breedte van een planeet in meters
+  // Grote planeten eruit: ze vullen je hele blik met een doorzichtig vlak en dat
+  // kost een bril meer dan alle schepen samen. Op 1 komen ze terug.
+  const PLANEET_AAN=0;
   // De overgang na een baas, in seconden: nagenieten, doven, zwart met de
   // aankondiging, en de nieuwe wereld die opkomt. Vijanden wachten tot het eind.
   const RUST_KIJK=2.2, RUST_DOOF=1.6, RUST_ZWART=2.4, RUST_OP=2.0;
@@ -1130,6 +1139,9 @@
   const WIJZERS=8, WIJZER_TIJD=3.2, WIJZER_RAND=0.30;
   // Hoe dicht een schot langs je moet gaan voordat je gewaarschuwd wordt.
   const WIJZER_MIS=14;
+  // De gloeiende kop op elk vijandelijk schot — het vangnet dat garandeert dat je
+  // altijd iets ziet vliegen, ook als een plaatje niet goed uitpakt.
+  const KOP_ELK=0.05, KOP_MAAT=2.6;
   const ULT_DOOF=700;           // milliseconden tussen twee ults
   // Hoe breed een baaswaaier spreidt. Te breed en alles gaat naast je langs;
   // het moet JOU bedreigen, niet de ruimte ernaast.
@@ -1141,7 +1153,15 @@
   // Hoeveel raketten tegelijk een echt lichaam krijgen. De rest blijft een vlak:
   // op een bril kost een lichaam meer dan een plat vlak, en bij kleine kogels
   // zie je het verschil toch niet.
-  const RAKETLIJF=18;
+  // TERUG NAAR HET PLATTE PLAATJE. De cilinder om de raketten heen kwam in de
+  // bril niet goed uit de verf: Sjoerd zag hem na lang spelen vrijwel nooit,
+  // terwijl mijn proeven zeiden dat hij er wel was. Zolang ik dat verschil niet
+  // begrijp, is het platte plaatje — dat aantoonbaar werkte — de betere keuze.
+  // Op 0 gebruikt het spel weer gewoon de sprite; op 18 komt de cilinder terug.
+  // Hoeveel raketten tegelijk hun L-vorm krijgen, en welk deel van de lengte de
+  // haakse kop is (0,28 = de voorste ruim kwart).
+  const RAKETLIJF=20;
+  const KOP_DEEL=0.28;
   // Een los stukje binnen een vak dat kleiner is dan dit deel van het schip zelf
   // wordt weggepoetst. 0,04 = alles onder 4% van het schip.
   const SCHOON_DEEL=0.04;
@@ -1156,6 +1176,7 @@
   const RAKETDMG=24;            // was 6
   const RAKETBLAST=10;          // meter
   const RINGEN=6, RINGPT=44, RINGTIJD=0.42;
+  const RING_DICHT=0.45;        // hoe snel de ring van THE WHEEL naar binnen klapt
   const GAMEOVER_WACHT=3;       // seconden dat GAME OVER blijft staan vóór de keuze
   const BRAND_VER=95;           // tot hoe ver een brandend schip zijn vlammen toont
   const ZUIGR=70;                 // bereik van de vortex op zijn wijdst
@@ -1385,7 +1406,10 @@
       // kant dezelfde schuine tekening. Grote raketten krijgen daarom een echt
       // lichaam: een taps toelopende buis waar de tekening RONDOM omheen zit.
       // Vanaf de zijkant een raket, van voren een neus die op je af komt.
-      const buis=new THREE.CylinderGeometry(0.16,0.5,1,12,1,true);
+      // SJOERDS L-VORM: de staart blijft een plat vlak, de KOP staat er haaks op.
+      // Zo zie je van opzij het hele plaatje, en van voren een echte neus — met
+      // maar twee vlakken in plaats van een hele cilinder.
+      const buis=this.lVorm(KOP_DEEL);
       this.vijBuis=[];
       for(let i=0;i<RAKETLIJF;i++){
         const m=new THREE.Mesh(buis.clone(),
@@ -2949,7 +2973,8 @@
                this.buisPak(B,R,P.mat);
                B.len=5.2; B.br=B.len*(R.arv||R.ar); }
         else { B.m.material=B.eigen; B.len=3.4; B.br=0.5; }
-        this.vonk(e.p.x,e.p.y,e.p.z,0xffb03a,3,5,0.5);
+        this.vonk(e.p.x,e.p.y,e.p.z,0xff2a3d,4,6,0.6);
+        this.wijsDreiging(B);
         gezet++; }
       if(gezet){ SND.boom(e.p.x*0.02); this.toonMelding('INCOMING','#ff8a3d'); }
       return gezet; },
@@ -2987,6 +3012,9 @@
                B.m.material.color.setHex(0xff2a3d);
                B.len=3.4*(o.groot||1); B.br=0.62*(o.groot||1); }
         this.richtQuad(B.m,B.o,B.dir,B.len,B.br);
+        // Ook baasvuur verdient een waarschuwing: die liep alleen langs het gewone
+        // vijandschot, dus alle pijlen die Sjoerd zag kwamen van de hulptroepen.
+        this.wijsDreiging(B);
         return B; }
       return null; },
 
@@ -4187,9 +4215,18 @@
         // een ringkogel draait om je heen en klapt dan naar binnen
         if(B.draaiOm){
           B.hoek0+=B.hoekS*B.draaiOm*s;
-          B.straal0=Math.max(0,B.straal0-s*0.55);
+          // De ring kromp te traag: hij draaide eindeloos om je heen zonder ooit
+          // binnen te komen. Nu klapt hij in ruim twee tellen dicht.
+          B.straal0=Math.max(0,B.straal0-s*RING_DICHT);
           const nr=this.sigRicht2(B,eye);
-          B.dir.lerp(nr,Math.min(1,3.0*s)).normalize(); }
+          B.dir.lerp(nr,Math.min(1,4.5*s)).normalize();
+          // en zodra de cirkel klein is stopt het draaien: dan gaat hij op je af
+          if(B.straal0<=0.06){ B.draaiOm=0; B.zoek=1; B.draai=3.0;
+            // Nu pas draait hij naar binnen. De dreigingstoets rekent vanaf het
+            // beginpunt, dus dat moet zijn HUIDIGE plek worden — anders lijkt hij
+            // nog steeds zijwaarts te vliegen en volgt er geen waarschuwing.
+            B.o.copy(kp.copy(B.o).addScaledVector(B.dir,B.d)); B.d=0;
+            this.wijsDreiging(B); } }
         // een knaller die vlak voor je uiteenvalt in lichtere
         if(B.splijt&&(B.sptijd-=s)<=0){
           const n=B.splijt; B.splijt=0;
@@ -4203,6 +4240,13 @@
               {van:q3,sp:B.sp*1.5,hp:2,dmg:5,groot:0.7,
                splijt:B.splijt2||0,sptijd:B.splijt2?1.1:0}); }
           this.vijVrij2(B); continue; }
+        // ELK vijandelijk schot krijgt een gloeiende kop. Of zijn plaatje nu wel of
+        // niet goed uitpakt: je ziet altijd iets vliegen. Dit is het vangnet.
+        B.gT=(B.gT||0)-s;
+        if(B.gT<=0){ B.gT=KOP_ELK;
+          const qk=kp.copy(B.o).addScaledVector(B.dir,B.d);
+          this.vonk(qk.x,qk.y,qk.z,0xff3d2a,1,KOP_MAAT*(B.zwaar?1.7:1),0.26,true);
+          this.vonk(qk.x,qk.y,qk.z,0xffd9a0,1,KOP_MAAT*0.55,0.16,true); }
         // Een lang, dun rookspoor: zo zie je hem van ver aankomen en blijft zijn
         // baan nog even in de lucht hangen.
         if(B.zoek){
@@ -4217,7 +4261,7 @@
           const L=B.len||2.4, Br=B.br||0.42;
           if(!B.buis.visible) B.buis.visible=true;      // nooit onzichtbaar vliegen
           B.buis.position.copy(p);
-          B.buis.scale.set(Br*1.35,L,Br*1.35);
+          B.buis.scale.set(Br,L,Br);
           this.richtAs(B.buis,B.dir);
           B.m.visible=false;
         } else this.richtQuad(B.m,p,B.dir,B.len||2.4,B.br||0.42);
@@ -4427,6 +4471,14 @@
       this.hudTekst('#mLv','LV '+this.level+'/'+LEVELS,GRZ,0.032,0.26,'hLv');
       this.hudTekst('#mWave','WAVE '+Math.max(1,this.wave)+'/'+GOLVEN,GRZ,0.032,0.26,'hWave');
       this.hudTekst('#mScore',this.punten.toLocaleString('nl-NL'),GRZ,0.034,0.20,'hScore');
+      // Meetregel: hoeveel vijandelijk vuur leeft er, hoeveel heeft een echt
+      // lichaam, en hoeveel staan er zichtbaar. Aan te zetten met de TEST-knop.
+      if(window.METEN){
+        let n=0,bu=0,zi=0;
+        for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(!B.live) continue;
+          n++; if(B.buis) bu++;
+          if(B.m.visible||(B.buis&&B.buis.visible)) zi++; }
+        this.hudTekst('#mMeet','SHOTS '+n+'  BODY '+bu+'  SEEN '+zi,'#ffe45c',0.030,0.20,'hMeet'); }
 
       this.mobKnop();
       if(window.DEMO){ const dd=document.querySelector('#hudC');
@@ -4476,6 +4528,41 @@
         }catch(e){}
       });
       return uit.length===2?uit:null; },
+
+    // Twee vlakken die samen een L maken. De lengte-as is Y (−0,5 achter,
+    // +0,5 voor). De staart ligt in het XY-vlak, de kop staat er haaks op.
+    // De tekening wordt over de lengte verdeeld: staart onder, kop boven.
+    lVorm:function(kopDeel){
+      const k=Math.max(0.08,Math.min(0.6,kopDeel||0.28));
+      const y0=-0.5, y1=0.5-k, y2=0.5;          // staart y0..y1, kop y1..y2
+      const g=new THREE.BufferGeometry();
+      // Recht van voren staan die twee vlakken op hun kant en zie je ze bijna
+      // niet — precies wat er bij de cilinder misging. Daarom een DERDE vlak
+      // dwars op de vliegrichting: de neus. Die kijkt je altijd recht aan.
+      const yn=y2-k*0.34;
+      const p=[
+        // staart, plat (normaal langs Z)
+        -0.5,y0,0,  0.5,y0,0,  0.5,y1,0,
+        -0.5,y0,0,  0.5,y1,0, -0.5,y1,0,
+        // kop, haaks erop (normaal langs X)
+        0,y1,-0.5,  0,y1,0.5,  0,y2,0.5,
+        0,y1,-0.5,  0,y2,0.5,  0,y2,-0.5,
+        // de neus: dwars op de lengte, dus recht naar je toe
+        -0.5,yn,-0.5,  0.5,yn,-0.5,  0.5,yn,0.5,
+        -0.5,yn,-0.5,  0.5,yn,0.5,  -0.5,yn,0.5
+      ];
+      const uv=[
+        0,0,  1,0,  1,1-k,
+        0,0,  1,1-k, 0,1-k,
+        0,1-k, 1,1-k, 1,1,
+        0,1-k, 1,1,  0,1,
+        0,1-k*0.5, 1,1-k*0.5, 1,1,
+        0,1-k*0.5, 1,1,       0,1
+      ];
+      g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(p),3));
+      g.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(uv),2));
+      g.computeVertexNormals();
+      return g; },
 
     // Een plaat echt uit het geheugen van de bril halen.
     losLaten:function(t){
@@ -4809,6 +4896,7 @@
         }
         const px=(t.image&&t.image.height)?t.image.height:1024;
         const planeet=(t.__lijst&&t.__lijst.rol)?(t.__lijst.rol==='planeet'):((t.__rond||0)>0.68);
+        if(planeet&&!PLANEET_AAN) return;              // grote planeten staan uit
         // een planeet is een hemellichaam: zes keer zo groot en drie keer zo traag
         let maat=Math.max(38,Math.min(210,px*0.075))*(0.75+Math.random()*0.6);
         // Een planeet van 900 m op 215 m vult je hele blik met een doorzichtig
@@ -5302,6 +5390,14 @@
     kl('#btnFaseA',function(){ techStart(0); });
     kl('#btnFaseB',function(){ techStart(GOLVEN); });
     kl('#btnFaseC',function(){ techStart(GOLVEN); });
+    // Met deze knop zet je de meetregel aan: dan zie je IN DE BRIL hoeveel
+    // vijandelijk vuur er leeft en hoeveel daarvan zichtbaar is.
+    kl('#btnMeet',function(){
+      window.METEN=!window.METEN;
+      const e=document.querySelector('#mMeet');
+      if(e&&!window.METEN&&e.getObject3D){
+        const m=e.getObject3D('mesh'); if(m) m.visible=false; }
+      SND.boom(0); });
     kl('#btnScores',toonScores);
     kl('#btnHelp',function(){ const e=document.querySelector('#scoreLijst'); if(!e) return;
       e.setAttribute('value','trigger  fire      grip  ultimate\ntop buttons  switch weapon (other hand)\nstick press  pause'); });
