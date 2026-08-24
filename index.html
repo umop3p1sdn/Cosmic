@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.01';
+  const VERSIE='v12.06';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1132,7 +1132,12 @@
   const M=function(){ return MOEILIJK[MSTAND]||MOEILIJK.mid; };
   // Zoekend vuur: hoeveel er hoogstens tegelijk onderweg zijn, hoe vaak een
   // kolos er een stuurt, en hoe snel hij bijdraait (hoger = moeilijker ontwijken).
-  const ZOEKMAX=2, ZOEKKANS=0.28, ZOEKDRAAI=0.30;
+  // Sjoerd zag te weinig zoekende en slingerende raketten: er mochten er maar
+  // twee tegelijk in de lucht zijn, en de kans was klein. Ruim omhoog.
+  const ZOEKMAX=7, ZOEKKANS=0.55, ZOEKDRAAI=0.30;
+  // Sjoerd zag schepen die amper schoten. Dit maakt iedereen sneller aan de
+  // beurt: 0,62 = ruim anderhalf keer zo vaak vuren.
+  const VUURTEMPO=0.62;
   const ZOEKSTOP=34;            // vanaf hier stopt hij met zoeken: te ontwijken
   // Het uitwaaierende salvo: hoeveel raketten, hoe lang ze naar buiten zwenken en
   // hoe hard. Daarna draaien ze pas op je af.
@@ -1169,6 +1174,52 @@
   // Hoe breed een baaswaaier spreidt. Te breed en alles gaat naast je langs;
   // het moet JOU bedreigen, niet de ruimte ernaast.
   const SIG_SPREID=0.20;   // strak op je gericht; groter = meer langs je heen
+  // De derde aanval van elke baas: een eigen groep zoekende raketten. vorm bepaalt
+  // hoe ze aankomen, neus welke kop erop zit, kl de kleur van de gloed.
+  const JACHT={
+    'DREADNOUGHT':{vorm:'golf',    n:12,meer:8, sp:18, draai:2.6, dmg:5, groot:1.0, neus:0, kl:0xff5030, roep:'HUNTERS'},
+    'WARDEN':     {vorm:'tandem',  n:10,meer:6, sp:15, draai:2.2, dmg:7, groot:1.4, neus:1, kl:0xff2020, roep:'PAIRED WARHEADS'},
+    'LANCE':      {vorm:'ketting', n:16,meer:8, sp:26, draai:3.4, dmg:4, groot:0.8, neus:0, kl:0xcfe8ff, roep:'CHAIN LANCE'},
+    'THE WHEEL':  {vorm:'bloem',   n:18,meer:8, sp:17, draai:2.8, dmg:5, groot:1.0, neus:2, kl:0xffd030, roep:'BLOOM'},
+    'RAVEN':      {vorm:'schaar',  n:14,meer:8, sp:21, draai:3.2, dmg:5, groot:1.0, neus:1, kl:0xc060ff, roep:'SCISSOR'},
+    'IRONCLAD':   {vorm:'tandem',  n:10,meer:6, sp:13, draai:1.8, dmg:9, groot:1.6, neus:1, kl:0xc0c8d0, roep:'SIEGE PAIR'},
+    'THE EYES':   {vorm:'regen',   n:15,meer:8, sp:19, draai:3.0, dmg:5, groot:1.1, neus:0, kl:0x60ff90, roep:'RAIN OF EYES'},
+    'THE WALKER': {vorm:'ketting', n:18,meer:10,sp:22, draai:2.4, dmg:4, groot:0.9, neus:0, kl:0xff8a30, roep:'STAMPEDE'},
+    'ARACHNID':   {vorm:'bloem',   n:18,meer:8, sp:16, draai:2.6, dmg:5, groot:1.0, neus:2, kl:0x90ff40, roep:'BROOD'},
+    'SERAPH':     {vorm:'regen',   n:16,meer:9, sp:20, draai:3.4, dmg:5, groot:1.2, neus:2, kl:0xffe8b0, roep:'DESCENT'},
+    'THE CORE':   {vorm:'bloem',   n:20,meer:10,sp:18, draai:3.0, dmg:5, groot:1.0, neus:2, kl:0x40e0ff, roep:'CORE BLOOM'},
+    'DEATHS HEAD':{vorm:'schaar',  n:12,meer:8, sp:16, draai:4.0, dmg:8, groot:1.4, neus:1, kl:0xff2050, roep:'PINCER'},
+    'TITAN PRIME':{vorm:'regen',   n:24,meer:12,sp:19, draai:3.2, dmg:6, groot:1.2, neus:1, kl:0xff4060, roep:'ANNIHILATION'},
+    _:            {vorm:'golf',    n:5, meer:3, sp:18, draai:2.6, dmg:6, groot:1.0, neus:0, kl:0xff4030, roep:'HUNTERS'}
+  };
+  const JACHT_ELK=3;            // om de hoeveel schoten hij zijn jacht inzet
+  // De VIERDE aanval: weinig maar zware zoekers. Traag genoeg om te zien
+  // aankomen, hard genoeg om te voelen als je er één doorlaat.
+  const ZWAAR={
+    'DREADNOUGHT':{n:2,meer:1,sp:10,draai:1.6,hp:8, dmg:14,groot:1.9,spreid:0.30,na:0.35,kl:0xff3020,roep:'HEAVY LOCK'},
+    'WARDEN':     {n:2,meer:1,sp:8, draai:1.3,hp:12,dmg:18,groot:2.3,spreid:0.24,na:0.45,kl:0xff2020,roep:'BREAKER',splijt:4},
+    'LANCE':      {n:3,meer:2,sp:14,draai:2.0,hp:6, dmg:12,groot:1.6,spreid:0.36,na:0.22,kl:0xcfe8ff,roep:'HEAVY LANCE'},
+    'THE WHEEL':  {n:3,meer:2,sp:11,draai:1.8,hp:7, dmg:13,groot:1.8,spreid:0.40,na:0.28,kl:0xffd030,roep:'HAMMER'},
+    'RAVEN':      {n:2,meer:2,sp:12,draai:2.2,hp:7, dmg:13,groot:1.7,spreid:0.34,na:0.30,kl:0xc060ff,roep:'TALON'},
+    'IRONCLAD':   {n:2,meer:1,sp:7, draai:1.1,hp:15,dmg:20,groot:2.6,spreid:0.20,na:0.50,kl:0xc0c8d0,roep:'SIEGE',splijt:6},
+    'THE EYES':   {n:3,meer:2,sp:12,draai:2.4,hp:6, dmg:12,groot:1.6,spreid:0.44,na:0.20,kl:0x60ff90,roep:'JUDGE'},
+    'THE WALKER': {n:3,meer:2,sp:10,draai:1.5,hp:8, dmg:14,groot:1.9,spreid:0.38,na:0.26,kl:0xff8a30,roep:'CRUSHER'},
+    'ARACHNID':   {n:3,meer:2,sp:9, draai:1.7,hp:8, dmg:13,groot:1.8,spreid:0.42,na:0.24,kl:0x90ff40,roep:'VENOM BOMB',splijt:4},
+    'SERAPH':     {n:3,meer:2,sp:13,draai:2.6,hp:7, dmg:14,groot:1.8,spreid:0.32,na:0.22,kl:0xffe8b0,roep:'WRATH'},
+    'THE CORE':   {n:3,meer:2,sp:11,draai:2.0,hp:8, dmg:13,groot:1.8,spreid:0.36,na:0.24,kl:0x40e0ff,roep:'MELTDOWN'},
+    'DEATHS HEAD':{n:3,meer:2,sp:10,draai:3.0,hp:9, dmg:16,groot:2.0,spreid:0.28,na:0.30,kl:0xff2050,roep:'EXECUTION'},
+    'TITAN PRIME':{n:4,meer:3,sp:11,draai:2.4,hp:10,dmg:16,groot:2.2,spreid:0.46,na:0.20,kl:0xff4060,roep:'TITAN FIST',splijt:5},
+    _:            {n:2,meer:1,sp:10,draai:1.6,hp:8, dmg:14,groot:1.9,spreid:0.30,na:0.35,kl:0xff3020,roep:'HEAVY'}
+  };
+  const ZWAAR_ELK=5;            // om de hoeveel schoten de zware salvo komt
+  const SPEC_ELK=8;             // en zijn eigen specialiteit
+  // De zwerm: veel trage raketten tegelijk. Los zijn ze zo kapot, samen dwingen
+  // ze je te kiezen wat je eerst neerhaalt.
+  const ZWERM_N=32, ZWERM_N2=44, ZWERM_SP=11;
+  const ZWERM_KL=[0xff6030,0xffa030,0xff4060];
+  const VIJ_POOL=220;           // hoeveel vijandelijke schoten er tegelijk kunnen vliegen
+  const ZWERM_ELK=6;            // om de hoeveel schoten de zwerm komt
+  const COMBO_ELK=4;            // en hoe vaak hij twee of drie dingen tegelijk doet
   const SALVO_ELK=7;            // om de hoeveel schoten een baas het salvo afvuurt
   // Het rookspoor achter een zoekende raket: hoe vaak, hoe dun, hoe lang zichtbaar.
   // De rookslierten waren dun omdat de VOORRAAD op was: 44 deeltjes voor alle
@@ -1188,13 +1239,13 @@
   // Op 0 gebruikt het spel weer gewoon de sprite; op 18 komt de cilinder terug.
   // Hoeveel raketten tegelijk hun L-vorm krijgen, en welk deel van de lengte de
   // haakse kop is (0,28 = de voorste ruim kwart).
-  const RAKETLIJF=20;
+  const RAKETLIJF=60;
   // Sjoerd wil een MASSIEVE kop: de voorste helft van de raket is nu de haakse
   // neus, en die steekt ook breder uit dan de romp.
   const KOP_DEEL=0.46;
   const KOP_BREED=1.55;
   // De meevliegende neuzen op vijandelijk vuur.
-  const NEUZEN=40, NEUS_MAAT=1.5;
+  const NEUZEN=110, NEUS_MAAT=1.5;
   // De neus pulseert, maar dooft nooit helemaal: NEUS_MIN is de bodem.
   const NEUS_PULS=9.0, NEUS_MIN=0.55;
   // De massieve kop: hoe groot het ondoorzichtige bolletje is ten opzichte van
@@ -1443,7 +1494,9 @@
           new THREE.MeshBasicMaterial({map:self.STREEP,transparent:true,blending:THREE.AdditiveBlending,
             depthWrite:false,color:0xffffff}));
         m.renderOrder=6; return m; },{o:1,dir:1,d:0,pd:0,md:0,sz:1,tol:0,dmg:1,sp:185});
-      this.vij=[]; this.mkPool(this.vij,110,function(){
+      // 110 was te krap geworden: een zwerm van 44 plus een combinatie van drie
+      // aanvallen loopt daar zo overheen, en dan verdwijnen er schoten.
+      this.vij=[]; this.mkPool(this.vij,VIJ_POOL,function(){
         const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
           new THREE.MeshBasicMaterial({map:self.STREEP,transparent:true,blending:THREE.AdditiveBlending,
             depthWrite:false,color:0xff5a3c}));
@@ -2692,7 +2745,7 @@
             // Alleen de trage kolossen sturen zoekend vuur, en nooit allemaal
             // tegelijk — anders komt de hele lucht op je af.
             // een kolos doet het af en toe groots: het uitwaaierende salvo
-            if(e.bw>=20&&this.zoekers()<2&&Math.random()<0.22){
+            if(e.bw>=20&&this.zoekers()<5&&Math.random()<0.40){
               this.salvoBarrage(e,SALVO_KLEIN); return; }
             if(this.zoekers()<ZOEKMAX&&Math.random()<ZOEKKANS){
               B.zoek=1; B.sp*=0.72; B.hp=Math.max(B.hp,3); B.zwaar=1; }
@@ -2701,7 +2754,7 @@
             // De middenmoot mengt zijn vuur: slingeren, een boogje, of soms toch
             // een zoeker. Zo lijkt niet elk schot op het vorige.
             const r2=Math.random();
-            if(r2<0.28) B.wieg=1;
+            if(r2<0.45) B.wieg=1;                      // vaker slingeren
             else if(r2<0.46){ B.boog=0.22+Math.random()*0.20; B.sp*=0.92; }
             else if(r2<0.56&&this.zoekers()<ZOEKMAX&&Math.random()<0.5){
               B.zoek=1; B.sp*=0.78; B.hp=Math.max(B.hp,3); B.zwaar=1; }
@@ -2751,12 +2804,12 @@
         e.bT-=s;
         if(e.bT<=0){ e.bT=0.85; e.burst--; this.spuw(e,1,0.05);
           if(e.burst<=0){ if(e.stap<2){ e.stap++; e.mode='nader'; }
-                          else { e.mode='houden'; e.bT=(T.cd||3.4)+Math.random()*1.6; } } } }
+                          else { e.mode='houden'; e.bT=((T.cd||3.4)+Math.random()*1.6)*VUURTEMPO; } } } }
       else { const doel=AFST[2]+ruim;
         if(afst>doel+1.2) e.p.addScaledVector(naar,sp*0.5*s);
         else if(afst<doel-3) e.p.addScaledVector(naar,-sp*0.5*s);
         e.bT-=s;
-        if(e.bT<=0){ e.bT=(T.cd||3.4)+Math.random()*1.6; this.spuw(e,T.sal||1,0.07); } } },
+        if(e.bT<=0){ e.bT=((T.cd||3.4)+Math.random()*1.6)*VUURTEMPO; this.spuw(e,T.sal||1,0.07); } } },
 
     // =====================================================
     //  DE BAAS
@@ -2829,7 +2882,17 @@
             this.vonk(e.p.x,e.p.y,e.p.z,0xff3d55,18,e.bw*0.4,1.4);
             SND.zeg('Warning'); return; }
           e.cd=SIG[e.baasNaam].cd*(twee?0.86:1)/Math.max(0.4,F.f);
-          this[SIG[e.baasNaam].fn](e,twee); }
+          // Om de paar schoten zijn zoekersalvo in plaats van zijn handtekening,
+          // zodat je nooit op één ritme kunt gaan zitten.
+          // Vijf aanvallen op een rooster: zijn handtekening, het jachtsalvo, de
+          // zware zoekers en zijn eigen specialiteit. Zo blijft het onvoorspelbaar.
+          e.beurtN=(e.beurtN||0)+1;
+          if(e.beurtN%COMBO_ELK===0){ e.cd=Math.max(e.cd,3.4); this.sigCombo(e,twee); }
+          else if(e.beurtN%ZWERM_ELK===0){ e.cd=Math.max(e.cd,3.2); this.sigZwerm(e,twee); }
+          else if(e.beurtN%SPEC_ELK===0){ e.cd=Math.max(e.cd,3.0); this.sigSpeciaal(e,twee); }
+          else if(e.beurtN%ZWAAR_ELK===0){ e.cd=Math.max(e.cd,2.6); this.sigZwaar(e,twee); }
+          else if(e.beurtN%JACHT_ELK===0){ e.cd=Math.max(e.cd,2.2); this.sigJacht(e,twee); }
+          else this[SIG[e.baasNaam].fn](e,twee); }
         else { const V=VUUR[e.vuur]||VUUR.duo;
           e.cd=((T.cd||1.9)*V.cd+Math.random()*0.9)/Math.max(0.4,F.f);
           // Af en toe het grote salvo in plaats van los vuur: tien raketten die
@@ -3334,6 +3397,168 @@
           SND.boom(e.p.x*0.02); }); }
       this.toonGroot('MISSILE STORM','#ff3d55'); },
 
+    // ---- DE DERDE AANVAL: elke baas zijn eigen zoekersalvo ----
+    // Naast zijn handtekening en de raketstorm heeft elke baas nu een eigen groep
+    // zoekende raketten, met een eigen vorm. Ze komen tussendoor, zodat je nooit
+    // op één ritme kunt gaan zitten.
+    sigJacht:function(e,twee){
+      const soort=JACHT[e.baasNaam]||JACHT._;
+      const n=soort.n+(twee?soort.meer:0);
+      const self=this;
+      const kl=soort.kl, neus=soort.neus;
+      const zet=function(zij,op,vertraag,extra){
+        self.sigNa(vertraag||0,function(){
+          if(!e.live||e.dood) return;
+          const B=self.sigSchot(e,self.sigRicht(e,zij,op),
+            {sp:soort.sp,hp:3,dmg:soort.dmg,zoek:1,draai:soort.draai,
+             groot:soort.groot,neus:neus,kleur:kl});
+          if(B&&extra){ B.waaier=extra.w||0; B.wh=extra.h||0; } }); };
+      switch(soort.vorm){
+        case 'ketting':                    // achter elkaar aan, als een sliert
+          for(let i=0;i<n;i++) zet(0.10*Math.sin(i*1.7),0.03,i*0.13);
+          break;
+        case 'schaar':                     // twee groepen die elkaar kruisen
+          for(let i=0;i<n;i++){ const l=(i%2)?1:-1;
+            zet(l*0.55,0.05,Math.floor(i/2)*0.16,{w:0.5,h:l>0?0:3.14}); }
+          break;
+        case 'regen':                      // van boven naar beneden op je af
+          for(let i=0;i<n;i++) zet(((i/(n-1))-0.5)*0.7,0.55,i*0.09);
+          break;
+        case 'bloem':                      // eerst helemaal open, dan naar binnen
+          for(let i=0;i<n;i++){ const hk=(i/n)*6.283;
+            zet(Math.cos(hk)*0.5,Math.sin(hk)*0.42,0,{w:0.6,h:hk}); }
+          break;
+        case 'tandem':                     // paren die samen aankomen
+          for(let i=0;i<n;i++) zet((i%2?0.22:-0.22),0.04,Math.floor(i/2)*0.30);
+          break;
+        default:                           // eenvoudige golf
+          for(let i=0;i<n;i++) zet(((i/Math.max(1,n-1))-0.5)*0.45,0.04,i*0.10); }
+      this.sigMeld(e,soort.roep,'#ff6a3d'); },
+
+    // ---- DE VIERDE AANVAL: trage, zware zoekers ----
+    // Weinig raketten, maar groot, hard en taai. Ze komen langzaam aan, dus je
+    // kunt ze zien en kapotschieten — maar laat je er één door, dan voel je het.
+    sigZwaar:function(e,twee){
+      const Z=ZWAAR[e.baasNaam]||ZWAAR._;
+      const n=Z.n+(twee?Z.meer:0);
+      const self=this;
+      for(let i=0;i<n;i++){
+        const zij=((i/Math.max(1,n-1))-0.5)*Z.spreid;
+        this.sigNa(i*Z.na,function(){
+          if(!e.live||e.dood) return;
+          const B=self.sigSchot(e,self.sigRicht(e,zij,0.05),
+            {sp:Z.sp,hp:Z.hp,dmg:Z.dmg,zoek:1,draai:Z.draai,zwaar:1,
+             groot:Z.groot,neus:1,kleur:Z.kl,
+             splijt:Z.splijt||0,sptijd:Z.splijt?1.6:0});
+          if(B) B.rT=0; }); }
+      this.sigMeld(e,Z.roep,'#ff2a3d');
+      SND.alarm&&SND.alarm(e.p.x*0.02); },
+
+    // ---- DE VIJFDE AANVAL: de eigen specialiteit van elke baas ----
+    // Hier mag elke baas iets doen wat geen ander doet.
+    sigSpeciaal:function(e,twee){
+      const naam=e.baasNaam||'', self=this;
+      const kl=0xffd0a0;
+      if(naam==='DREADNOUGHT'||naam==='THE WALKER'){
+        // MUUR: een brede rij die tegelijk vertrekt en samen op je afdraait
+        const n=twee?14:10;
+        for(let i=0;i<n;i++)
+          this.sigSchot(e,this.sigRicht(e,((i/(n-1))-0.5)*0.9,0.02),
+            {sp:15,hp:2,dmg:6,zoek:1,draai:1.1,groot:0.9,neus:2,kleur:0xff7040});
+        this.sigMeld(e,'WALL','#ff7040'); return; }
+      if(naam==='WARDEN'||naam==='IRONCLAD'){
+        // MIJNENVELD: trage bollen die blijven hangen en dan losbarsten
+        const n=twee?8:6;
+        for(let i=0;i<n;i++){
+          const hk=(i/n)*6.283;
+          const B=this.sigSchot(e,this.sigRicht(e,Math.cos(hk)*0.55,Math.sin(hk)*0.45),
+            {sp:6,hp:6,dmg:9,groot:1.5,neus:1,kleur:0xc0c8d0,
+             splijt:5,sptijd:2.4});
+          if(B) B.md=170; }
+        this.sigMeld(e,'MINEFIELD','#c0c8d0'); return; }
+      if(naam==='LANCE'||naam==='SERAPH'){
+        // SPEER: één zware kop met een sliert kleintjes erachteraan
+        this.sigSchot(e,this.sigRicht(e,0,0.04),
+          {sp:12,hp:12,dmg:14,zoek:1,draai:2.0,zwaar:1,groot:2.1,neus:1,kleur:0xffe8b0});
+        for(let i=0;i<(twee?9:6);i++)
+          this.sigNa(0.10+i*0.08,function(){ if(!e.live) return;
+            self.sigSchot(e,self.sigRicht(e,(Math.random()-0.5)*0.3,0.03),
+              {sp:30,hp:1,dmg:5,streep:1,groot:0.7,neus:0,kleur:0xcfe8ff}); });
+        this.sigMeld(e,'SPEAR','#ffe8b0'); return; }
+      if(naam==='THE WHEEL'||naam==='THE CORE'){
+        // SPIRAAL: ze vertrekken op een cirkel die om je heen krimpt
+        const n=twee?16:11;
+        for(let i=0;i<n;i++){
+          const hk=(i/n)*6.283;
+          this.sigNa(i*0.05,function(){ if(!e.live) return;
+            self.sigSchot(e,self.sigRicht(e,Math.cos(hk)*0.62,Math.sin(hk)*0.52),
+              {sp:16,hp:2,dmg:6,groot:0.9,neus:2,kleur:0x40e0ff,
+               draaiOm:(i%2?1:-1),hoekS:1.7,hoek0:hk,straal0:1}); }); }
+        this.sigMeld(e,'SPIRAL','#40e0ff'); return; }
+      if(naam==='RAVEN'||naam==='DEATHS HEAD'){
+        // SCHADUW: ze zwenken ver weg en komen van ACHTEREN terug
+        const n=twee?8:5;
+        for(let i=0;i<n;i++){
+          const l=(i%2)?1:-1;
+          const B=this.sigSchot(e,this.sigRicht(e,l*1.5,0.1),
+            {sp:23,hp:3,dmg:8,zoek:1,draai:2.0,groot:1.1,neus:1,kleur:0xc060ff});
+          if(B){ B.waaier=1.1; B.wh=(l>0?0:3.14); } }
+        this.sigMeld(e,'FLANK  -  BEHIND YOU','#c060ff'); return; }
+      if(naam==='THE EYES'||naam==='ARACHNID'){
+        // NET: langzame kogels die een raster vormen waar je doorheen moet
+        const n=twee?15:10;
+        for(let i=0;i<n;i++){
+          const rij=Math.floor(i/5), kol2=i%5;
+          const B=this.sigSchot(e,this.sigRicht(e,(kol2-2)*0.22,(rij-0.5)*0.30),
+            {sp:9,hp:2,dmg:6,groot:1.0,neus:2,kleur:0x90ff40});
+          if(B) B.md=200; }
+        this.sigMeld(e,'THE NET','#90ff40'); return; }
+      // TITAN PRIME en de rest: alles tegelijk
+      this.sigZwaar(e,twee);
+      this.sigNa(0.8,function(){ if(e.live) self.sigJacht(e,twee); });
+      this.sigMeld(e,'OVERWHELM','#ff3d55'); },
+
+    // ---- ZWERM: 30 tot 40 trage raketten tegelijk ----
+    // Ze vliegen langzaam en zijn zo kapot, maar met zovelen moet je kiezen wat
+    // je eerst neerhaalt. Dat maakt het een puzzel in plaats van een oefening.
+    sigZwerm:function(e,twee){
+      const n=twee?ZWERM_N2:ZWERM_N;
+      const self=this;
+      const lagen=4;
+      for(let L=0;L<lagen;L++){
+        this.sigNa(L*0.22,function(){
+          if(!e.live||e.dood) return;
+          const per=Math.round(n/lagen);
+          for(let i=0;i<per;i++){
+            const hk=(i/per)*6.283+L*0.4;
+            const r=0.30+L*0.14;
+            self.sigSchot(e,self.sigRicht(e,Math.cos(hk)*r,Math.sin(hk)*r*0.85),
+              {sp:ZWERM_SP,hp:1,dmg:4,zoek:1,draai:1.0,groot:0.75,
+               neus:(L%3),kleur:ZWERM_KL[L%ZWERM_KL.length]}); } }); }
+      this.sigMeld(e,'SWARM','#ff8a30'); },
+
+    // ---- COMBINATIE: twee of drie aanvallen door elkaar ----
+    // Eén aanval schiet je zo uit de lucht. Twee tegelijk dwingt je te kiezen,
+    // drie maakt het echt een baasgevecht.
+    sigCombo:function(e,twee){
+      const self=this;
+      const bak=[
+        function(){ self[SIG[e.baasNaam].fn](e,twee); },
+        function(){ self.sigJacht(e,twee); },
+        function(){ self.sigZwaar(e,twee); },
+        function(){ self.sigSpeciaal(e,twee); },
+        function(){ self.sigZwerm(e,twee); }
+      ];
+      // in zijn tweede vorm drie tegelijk, anders twee
+      const hoeveel=twee?3:2;
+      const gekozen=[];
+      while(gekozen.length<hoeveel){
+        const k=Math.floor(Math.random()*bak.length);
+        if(gekozen.indexOf(k)<0) gekozen.push(k); }
+      gekozen.forEach(function(k,i){
+        self.sigNa(i*0.35,function(){ if(e.live&&!e.dood) bak[k](); }); });
+      this.toonGroot(hoeveel===3?'FULL ASSAULT':'DOUBLE STRIKE','#ff3d55'); },
+
     baasZwerm:function(e,fase){
       if(!this.zwermMag(e)) return;
       // elke fase een ander soort, oplopend in zwaarte
@@ -3529,7 +3754,7 @@
         const nh=hoek+(doel-hoek)*Math.min(1,s*3.0);
         e.p.x=Math.sin(nh)*R2; e.p.z=-Math.cos(nh)*R2; }
       e.bT=(e.bT||0)-s;
-      if(e.bT<=0){ e.bT=(T.cd||3.4)*0.7+Math.random()*1.2;
+      if(e.bT<=0){ e.bT=((T.cd||3.4)*0.7+Math.random()*1.2)*VUURTEMPO;
         this.spuw(e,T.sal||1,0.06); } },
 
     // ---- vaste rondvlucht: van punt naar punt, en dan weer van voren af aan ----
@@ -3550,7 +3775,7 @@
       e.rv.lerp(naarPunt,Math.min(1,s*1.8)).normalize();
       e.p.addScaledVector(e.rv,sp*2.3*s);
       e.bT=(e.bT||0)-s;
-      if(e.bT<=0){ e.bT=(TYPE[e.tp].cd||3.4)*0.8+Math.random()*1.4;
+      if(e.bT<=0){ e.bT=((TYPE[e.tp].cd||3.4)*0.8+Math.random()*1.4)*VUURTEMPO;
         this.spuw(e,TYPE[e.tp].sal||1,0.06); } },
 
     // ---- gedragsprofielen: alleen de zijwaartse beweging verschilt ----
@@ -3716,7 +3941,7 @@
           e.p.z+=(doelz-e.p.z)*Math.min(1,s*1.6);
           e.p.y+=Math.sin(e.t*0.7+e.i0)*4*s;
           e.bT=(e.bT||0)-s;
-          if(e.bT<=0){ e.bT=(TYPE[e.tp].cd||3.4)+Math.random()*1.6;
+          if(e.bT<=0){ e.bT=((TYPE[e.tp].cd||3.4)+Math.random()*1.6)*VUURTEMPO;
             this.spuw(e,TYPE[e.tp].sal||1,0.06); } } }
       else if(e.prof==='baas'){ this.baasBaan(e,s,naar,afst); }
       else if(e.prof==='duiker'){ this.profiel(e,s,naar,afst,sp);
@@ -4333,6 +4558,23 @@
         // De gloeiende neus vliegt mee en kijkt je altijd aan — geen gaten meer.
         // Staan Sjoerds getekende koppen klaar, dan hoeft de rode gloedstip niet
         // meer: die was groot en rood en zou zijn ontwerp overstemmen.
+        // FOUT die Sjoerd zag: met zijn eigen koppen zette ik de gloed uit, maar
+        // de KOP zelf werd in datzelfde blok bijgewerkt — dus die bleef op zijn
+        // startplek hangen en je zag alleen rook. De kop staat nu apart.
+        if(B.kop2){
+          B.kop2.position.copy(p);
+          B.kop2.lookAt(eye);
+          const dz=p.distanceTo(eye);
+          const basis=NEUS_MAAT*(B.zwaar?1.8:1)*(1+Math.min(1.4,60/Math.max(6,dz))*0.5);
+          const kg2=basis*(this.kopVak?KOP_PLAAT:KOP_BOL);
+          if(this.kopVak) B.kop2.scale.set(kg2*(B.kop2.__ar||1),kg2,1);
+          else B.kop2.scale.setScalar(kg2); }
+        // een vlammetje vlak achter de kop, zodat hij niet kaal oogt
+        B.vT=(B.vT||0)-s;
+        if(B.vT<=0){ B.vT=0.05;
+          const vx=p.x-B.dir.x*1.6, vy=p.y-B.dir.y*1.6, vz=p.z-B.dir.z*1.6;
+          this.vonk(vx,vy,vz,0xffd070,1,1.5*(B.zwaar?1.7:1),0.20,true);
+          this.vonk(vx,vy,vz,0xff5a2a,1,2.2*(B.zwaar?1.7:1),0.28,true); }
         if(B.neus&&this.kopVak){ if(B.neus.visible) B.neus.visible=false; }
         else if(B.neus){
           B.neus.position.copy(p);
@@ -4346,11 +4588,7 @@
             *(1+Math.min(1.4,60/Math.max(6,p.distanceTo(eye)))*0.5)
             *(0.88+puls*0.18);
           B.neus.scale.set(gr,gr,1);
-          if(B.kop2){ B.kop2.position.copy(p);
-            const kg2=gr*(this.kopVak?KOP_PLAAT:KOP_BOL);
-            if(this.kopVak){ B.kop2.lookAt(eye);      // getekende kop kijkt je aan
-              B.kop2.scale.set(kg2*(B.kop2.__ar||1),kg2,1); }
-            else B.kop2.scale.setScalar(kg2); } }
+          }
         if(B.buis){
           // Het lichaam wijst met zijn lengte langs de vliegrichting en draait niet
           // naar je toe: daardoor zie je hem van opzij als raket en van voren als neus.
