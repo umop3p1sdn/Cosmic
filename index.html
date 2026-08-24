@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.92';
+  const VERSIE='v11.93';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -388,13 +388,22 @@
         MUSBRON.connect(ANA); ANA.connect(MASTER);            // muziek direct op master: schoten drukken hem niet weg
       }catch(e){ /* geen webaudio-route: gewoon afspelen */ }
       if(DRONE){ try{ DRONE.gain.linearRampToValueAtTime(0.0001,a.currentTime+2); }catch(e){} }
-      const p=CUR.play(); if(p&&p.catch) p.catch(function(){});
+      // De browser kan het afspelen WEIGEREN (geluid nog niet vrijgegeven, of de
+      // audio staat nog op pauze). Dan moeten we CUR weer leegmaken, anders denkt
+      // de rest dat er muziek speelt en wordt het nooit meer geprobeerd.
+      const p=CUR.play();
+      if(p&&p.catch) p.catch(function(){
+        try{ if(CUR){ CUR.pause(); } }catch(e2){}
+        CUR=null;
+        const e3=$('#musTxt'); if(e3) e3.setAttribute('value',''); });
       const e2=$('#musTxt'); if(e2) e2.setAttribute('value','\u25b6 '+PLAY[PIDX].n);
       return true;
     }catch(e){ return false; } }
   function muziekStart(){ AC();
     // Vanaf nu mag er geluid spelen: jouw tik is het startsein van de browser.
     window.__geluidVrij=1;
+    // meteen proberen; lukt het nog niet (lijst nog onderweg), dan blijft
+    // musTick het elke halve seconde opnieuw proberen
     if(!playAt(0)) startDrone(); }
   function beat(){ if(!ANA||!ANAD) return 0;
     try{ ANA.getByteFrequencyData(ANAD);
@@ -405,7 +414,10 @@
     ratel:ratelAan,zeg:zeg,AC:AC,initSFX:initSFX,drone:startDrone,wake:wakeAan,
     muziek:muziekStart,beat:beat,
     // Speelt er nog niets terwijl er wel nummers zijn? Dan alsnog beginnen.
-    speelAls:function(){ if(!CUR&&PLAY.length) playAt(0); },
+    speelAls:function(){
+      // De geluidsmachine kan nog op pauze staan; eerst wakker maken.
+      try{ const a=AC(); if(a&&a.state==='suspended'&&a.resume) a.resume(); }catch(e){}
+      if(!CUR&&PLAY.length) playAt(0); },
     scan:function(){ padenZoek(function(p){ if(p.music) musScan(p.music); }); },
     volgende:function(){ if(PLAY.length) playAt(PIDX+1); }};
   prog(12,'AUDIO');
@@ -3994,6 +4006,7 @@
         return; }
       // Ook op het paneel wil je zien waar je op mikt: bij pauze, bij GAME OVER
       // en in het continue-scherm.
+      this.musTick(s);                      // ook tijdens het spelen blijven proberen
       if(window.PAUSED){ this.overTick(s); wijzerTick(); return; }
       // hervat: de aanwijzer hoort niet in je vizier te blijven hangen
       if(this.wijzerAan){ this.wijzerAan=false;
@@ -4761,12 +4774,20 @@
     // en het menu is rustiger zonder.
     menuVlieg:function(s){},
 
+    // De muziek moet vanzelf beginnen zodra de lijst met nummers binnen is. Eén
+    // poging bij het opstarten is te vroeg, en alleen in het menu proberen is te
+    // weinig: druk je meteen op CONTINUE, dan komt het nooit meer aan bod.
+    musTick:function(s){
+      if(!window.__geluidVrij) return;
+      // De eerste poging meteen, daarna elke halve seconde opnieuw tot er iets
+      // speelt. Zo begint de muziek zodra je in het menu staat.
+      this.musT=(this.musT===undefined)?0:(this.musT-s);
+      if(this.musT>0) return;
+      this.musT=0.5;
+      try{ SND.speelAls(); }catch(e){} },
+
     menuTick:function(s){
-      // De muziek moet vanzelf beginnen zodra de lijst binnen is. Eén poging bij
-      // het opstarten was te vroeg: de lijst kwam pas later.
-      this.musT=(this.musT||0)-s;
-      if(this.musT<=0){ this.musT=2.0;
-        try{ if(window.__geluidVrij) SND.speelAls(); }catch(e){} }
+      this.musTick(s);
       if(this.hudZicht!==false){ this.hudZicht=false;
         const HA=document.querySelector('#hudAlles');
         if(HA) HA.setAttribute('visible',false); }
