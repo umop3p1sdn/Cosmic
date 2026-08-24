@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v11.98';
+  const VERSIE='v11.99';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1175,11 +1175,17 @@
   // Hoeveel raketten tegelijk hun L-vorm krijgen, en welk deel van de lengte de
   // haakse kop is (0,28 = de voorste ruim kwart).
   const RAKETLIJF=20;
-  const KOP_DEEL=0.28;
+  // Sjoerd wil een MASSIEVE kop: de voorste helft van de raket is nu de haakse
+  // neus, en die steekt ook breder uit dan de romp.
+  const KOP_DEEL=0.46;
+  const KOP_BREED=1.55;
   // De meevliegende neuzen op vijandelijk vuur.
   const NEUZEN=40, NEUS_MAAT=1.5;
   // De neus pulseert, maar dooft nooit helemaal: NEUS_MIN is de bodem.
   const NEUS_PULS=9.0, NEUS_MIN=0.55;
+  // De massieve kop: hoe groot het ondoorzichtige bolletje is ten opzichte van
+  // de gloed eromheen. 0 = geen kop, alleen licht.
+  const KOP_BOL=0.26;
   // De raketstorm die een baas afvuurt in plaats van hulptroepen te roepen.
   const STORM_N=7, STORM_GROEI=1.4, STORM_PAUZE=0.55;
   const STORM_SNEL=17, STORM_DRAAI=3.0;
@@ -2019,7 +2025,8 @@
       if(!B) return;
       B.live=false; B.m.visible=false;
       if(B.buis){ B.buis.visible=false; B.buis=null; }
-      if(B.neus){ B.neus.visible=false; B.neus=null; } },
+      if(B.neus){ B.neus.visible=false; B.neus=null; }
+      if(B.kop2){ B.kop2.visible=false; B.kop2=null; } },
 
     buisRect:function(g,R){
       const a=g.attributes.uv;
@@ -4318,7 +4325,10 @@
           const gr=NEUS_MAAT*(B.zwaar?1.8:1)
             *(1+Math.min(1.4,60/Math.max(6,p.distanceTo(eye)))*0.5)
             *(0.88+puls*0.18);
-          B.neus.scale.set(gr,gr,1); }
+          B.neus.scale.set(gr,gr,1);
+          if(B.kop2){ B.kop2.position.copy(p);
+            const kg2=gr*KOP_BOL;
+            B.kop2.scale.setScalar(kg2); } }
         if(B.buis){
           // Het lichaam wijst met zijn lengte langs de vliegrichting en draait niet
           // naar je toe: daardoor zie je hem van opzij als raket en van voren als neus.
@@ -4618,24 +4628,72 @@
         g.moveTo(S*0.80,m-S*0.13); g.lineTo(S*0.80,m+S*0.13); g.stroke(); }
       const t=new THREE.CanvasTexture(c); t.needsUpdate=true; return t; },
 
+    // De massieve tegenhanger van elke neusvorm: een bolletje, een kruis van twee
+    // balkjes, of een dwarsvleugel. Klein maar ondoorzichtig.
+    kopVorm:function(soort){
+      if(soort===0) return new THREE.SphereGeometry(0.5,10,8);
+      if(soort===1){
+        // kruis: een staande en een liggende balk
+        const a=new THREE.BoxGeometry(1.5,0.34,0.34);
+        const b=new THREE.BoxGeometry(0.34,1.5,0.34);
+        return this.samenVoegen([a,b]); }
+      // vleugels: één brede dwarsbalk met een kern
+      const a=new THREE.BoxGeometry(2.0,0.28,0.28);
+      const b=new THREE.BoxGeometry(0.5,0.5,0.5);
+      return this.samenVoegen([a,b]); },
+
+    // Twee vormen tot één geheel maken, zonder extra bibliotheek.
+    samenVoegen:function(lijst){
+      let n=0;
+      lijst.forEach(function(g){ n+=g.attributes.position.count; });
+      const pos=new Float32Array(n*3);
+      const idx=[]; let off=0, po=0;
+      lijst.forEach(function(g){
+        const p=g.attributes.position.array;
+        pos.set(p,po); po+=p.length;
+        const ix=g.index?g.index.array:null;
+        if(ix) for(let i=0;i<ix.length;i++) idx.push(ix[i]+off);
+        off+=g.attributes.position.count; });
+      const uit=new THREE.BufferGeometry();
+      uit.setAttribute('position',new THREE.BufferAttribute(pos,3));
+      if(idx.length) uit.setIndex(idx);
+      uit.computeVertexNormals();
+      return uit; },
+
     // Een gloeiende neus die MEEVLIEGT met het schot. Losse vonkjes lieten gaten
     // vallen — dan zag je het schot even niet. Deze is er altijd.
     neusPak:function(B,soort,kleur){
       if(!this.neuzen){
         this.neusT=[this.neusPlaat(0),this.neusPlaat(1),this.neusPlaat(2)];
-        this.neuzen=[];
+        this.neuzen=[]; this.koppen=[];
+        // Een MASSIEVE kop: een echt bolletje dat licht geeft maar waar je niet
+        // doorheen kijkt. De gloed eromheen blijft doorzichtig, zodat je nog
+        // steeds de vorm en het licht ziet.
+        // Drie massieve vormen die bij de drie neuzen horen: een bolletje, een
+        // kruis en dwarsvleugels. Ondoorzichtig, dus je kijkt er niet doorheen —
+        // de gloed eromheen blijft wel licht geven.
+        const vormen=[this.kopVorm(0),this.kopVorm(1),this.kopVorm(2)];
         for(let i=0;i<NEUZEN;i++){
           const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
             new THREE.MeshBasicMaterial({transparent:true,depthWrite:false,
               blending:THREE.AdditiveBlending,opacity:0.95}));
           m.renderOrder=8; m.visible=false; m.frustumCulled=false;
-          this.par.add(m); this.neuzen.push(m); } }
+          this.par.add(m); this.neuzen.push(m);
+          const k=new THREE.Mesh(vormen[0],new THREE.MeshBasicMaterial({color:0xff3020}));
+          k.__vormen=vormen;
+          k.renderOrder=7; k.visible=false; k.frustumCulled=false;
+          this.par.add(k); this.koppen.push(k); } }
       for(let i=0;i<this.neuzen.length;i++){ const m=this.neuzen[i];
         if(m.visible) continue;
         m.material.map=this.neusT[soort%3];
         m.material.color.setHex(kleur||0xffffff);
         m.material.needsUpdate=true;
-        m.visible=true; B.neus=m; return true; }
+        m.visible=true; B.neus=m;
+        const k=this.koppen[i];
+        k.geometry=k.__vormen[soort%3];          // stip, kruis of vleugels
+        k.material.color.setHex(kleur||0xff3020);
+        k.visible=true; B.kop2=k;
+        return true; }
       return false; },
 
     // Twee vlakken die samen een L maken. De lengte-as is Y (−0,5 achter,
@@ -4644,6 +4702,7 @@
     lVorm:function(kopDeel){
       const k=Math.max(0.08,Math.min(0.6,kopDeel||0.28));
       const y0=-0.5, y1=0.5-k, y2=0.5;          // staart y0..y1, kop y1..y2
+      const kb=KOP_BREED*0.5;                   // de kop steekt breder uit
       const g=new THREE.BufferGeometry();
       // Recht van voren staan die twee vlakken op hun kant en zie je ze bijna
       // niet — precies wat er bij de cilinder misging. Daarom een DERDE vlak
@@ -4653,12 +4712,12 @@
         // staart, plat (normaal langs Z)
         -0.5,y0,0,  0.5,y0,0,  0.5,y1,0,
         -0.5,y0,0,  0.5,y1,0, -0.5,y1,0,
-        // kop, haaks erop (normaal langs X)
-        0,y1,-0.5,  0,y1,0.5,  0,y2,0.5,
-        0,y1,-0.5,  0,y2,0.5,  0,y2,-0.5,
+        // kop, haaks erop (normaal langs X) — breder dan de romp
+        0,y1,-kb,  0,y1,kb,  0,y2,kb,
+        0,y1,-kb,  0,y2,kb,  0,y2,-kb,
         // de neus: dwars op de lengte, dus recht naar je toe
-        -0.5,yn,-0.5,  0.5,yn,-0.5,  0.5,yn,0.5,
-        -0.5,yn,-0.5,  0.5,yn,0.5,  -0.5,yn,0.5
+        -kb,yn,-kb,  kb,yn,-kb,  kb,yn,kb,
+        -kb,yn,-kb,  kb,yn,kb,  -kb,yn,kb
       ];
       const uv=[
         0,0,  1,0,  1,1-k,
