@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.06';
+  const VERSIE='v12.07';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1253,7 +1253,7 @@
   const KOP_BOL=0.26;
   // Sjoerds getekende koppen zijn platte plaatjes; die mogen wat groter dan het
   // massieve bolletje, anders zie je het ontwerp niet.
-  const KOP_PLAAT=0.50;   // Sjoerd: de helft van de oude rode koppen
+  const KOP_PLAAT=0.36;   // kleiner, zodat je het vuur en de rook erachter ziet
   // De raketstorm die een baas afvuurt in plaats van hulptroepen te roepen.
   const STORM_N=7, STORM_GROEI=1.4, STORM_PAUZE=0.55;
   const STORM_SNEL=17, STORM_DRAAI=3.0;
@@ -2095,8 +2095,8 @@
       if(!B) return;
       B.live=false; B.m.visible=false;
       if(B.buis){ B.buis.visible=false; B.buis=null; }
-      if(B.neus){ B.neus.visible=false; B.neus=null; }
-      if(B.kop2){ B.kop2.visible=false; B.kop2=null; } },
+      if(B.neus){ B.neus.visible=false; B.neus.__bezet=0; B.neus=null; }
+      if(B.kop2){ B.kop2.visible=false; B.kop2.__bezet=0; B.kop2=null; } },
 
     buisRect:function(g,R){
       const a=g.attributes.uv;
@@ -2593,13 +2593,14 @@
     // Rook is geen vonk: vonken worden OPTELLEND getekend en dan voegt zwart
     // niets toe — je zag dus nooit donkere rook, hoe donker ik hem ook maakte.
     // Rook krijgt daarom zijn eigen deeltjes die het beeld juist verdonkeren.
-    rook:function(x,y,z,zwart,sz,leven){
+    // spoor=1 → raketrook: lichtgrijs, anders dan de zwarte rook van een schip
+    rook:function(x,y,z,zwart,sz,leven,spoor){
       if(!this.rookP) return;
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(R.live) continue;
         R.live=true; R.life=1; R.leven=leven||1;
         R.sz=(sz||2)*(0.6+Math.random()*0.7);
-        R.m.material.color.setHex(zwart?0x141414:0x585858);
-        R.m.material.opacity=zwart?0.85:0.55;
+        R.m.material.color.setHex(spoor?0xa8adb4:(zwart?0x141414:0x585858));
+        R.m.material.opacity=spoor?0.42:(zwart?0.85:0.55);
         R.m.position.set(x,y,z); R.m.visible=true;
         R.vx=(Math.random()-0.5)*1.6; R.vy=0.5+Math.random()*1.2;
         R.vz=(Math.random()-0.5)*1.6;
@@ -2730,6 +2731,8 @@
       const Tb=TYPE[e.tp]||{};
       const breed=Tb.br||8;
       const soort=(breed<=9)?'streep':((breed>=16)?'zoeker':'raket');
+      // Vuurt een vijand meer dan één raket, dan moeten die NIET hetzelfde doen.
+      // Sjoerd zag twee verschillende koppen die precies dezelfde baan vlogen.
       for(let k=0;k<(n||1);k++){
         for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(B.live) continue;
           B.live=true; B.o.copy(e.p); B.d=0; B.md=140;
@@ -2767,6 +2770,10 @@
           // regel het lichaam dat er net was toegewezen — vandaar dat vijandelijke
           // raketten platte plaatjes bleven én de voorraad lichamen leegliep.
           B.buis=null; B.m.visible=true; B.waaier=0; B.draai=0;
+          // De tweede en derde raket van een salvo krijgen een eigen vlucht: twee
+          // identieke raketten naast elkaar zien er dood uit.
+          if(k===1&&!B.zoek){ B.wieg=1; B.streep=0; B.sp*=0.9; }
+          else if(k===2&&!B.zoek){ B.boog=0.30+Math.random()*0.22; B.streep=0; }
           const R=e.plaat?e.plaat.rect[e.rij][3]:null;   // kolom 4 = zijn eigen projectiel
           if(R){ B.m.material=e.plaat.mat; this.uvRect(B.m.geometry,R,1);
                  B.len=3.4; B.br=3.4*(R.arv||R.ar);
@@ -2777,6 +2784,13 @@
                  B.br=0.5; B.len=2.6;
                  if(B.streep){ B.len*=2.1; B.br*=0.34; }
                  if(B.zoek){ B.len*=1.15; B.br*=1.25; } }
+          // De tweede en derde raket van hetzelfde salvo krijgen een eigen baan:
+          // de een gaat recht, de ander slingert, de derde maakt een boog.
+          if(k===1&&!B.zoek){ B.wieg=1; B.streep=0; B.boog=0; B.sp*=0.9; }
+          else if(k===2&&!B.zoek){ B.boog=0.30+Math.random()*0.22; B.wieg=0;
+            B.streep=0; B.sp*=0.85; }
+          else if(k>=3&&!B.zoek&&this.zoekers()<ZOEKMAX){
+            B.zoek=1; B.draai=1.4; B.sp*=0.8; B.hp=Math.max(B.hp,2); }
           this.richtQuad(B.m,B.o,B.dir,B.len,B.br);
           // Een korte flits bij de loop: je ziet dat hij schiet, en van wie.
           this.vonk(B.o.x,B.o.y,B.o.z,0xffd9a0,3,2.2,0.22);
@@ -4553,7 +4567,7 @@
           B.rT=(B.rT||0)-s;
           if(B.rT<=0){ B.rT=SPOOR_ELK;
             const q2=kp.copy(B.o).addScaledVector(B.dir,B.d);
-            this.rook(q2.x,q2.y,q2.z,false,SPOOR_MAAT,SPOOR_LEVEN); } }
+            this.rook(q2.x,q2.y,q2.z,false,SPOOR_MAAT,SPOOR_LEVEN,1); } }
         const p=kp.copy(B.o).addScaledVector(B.dir,B.d);
         // De gloeiende neus vliegt mee en kijkt je altijd aan — geen gaten meer.
         // Staan Sjoerds getekende koppen klaar, dan hoeft de rode gloedstip niet
@@ -4987,17 +5001,23 @@
           k.__vormen=vormen;
           k.renderOrder=7; k.visible=false; k.frustumCulled=false;
           this.par.add(k); this.koppen.push(k); } }
+      // We keken of het beeldje ZICHTBAAR was om te weten of het vrij is. Maar bij
+      // Sjoerds eigen koppen zetten we de gloed juist onzichtbaar — dus leek elke
+      // neus vrij en werd hij meteen aan het volgende schot gegeven. Daardoor
+      // sprong een kop van de ene raket naar de andere. Nu een eigen vlag.
       for(let i=0;i<this.neuzen.length;i++){ const m=this.neuzen[i];
-        if(m.visible) continue;
+        if(m.__bezet) continue;
+        m.__bezet=1;
         m.material.map=this.neusT[soort%3];
         m.material.color.setHex(kleur||0xffffff);
         m.material.needsUpdate=true;
         m.visible=true; B.neus=m;
-        const k=this.koppen[i];
+        const k=this.koppen[i]; k.__bezet=1;
         if(this.kopVak&&this.kopVak.length){
           // Sjoerds getekende kop: een plat vlak met zijn eigen plaatje, dat je
           // altijd aankijkt. Ondoorzichtig genoeg om niet doorheen te kijken.
-          const nr=(B.kopNr!==undefined)?B.kopNr:(B.kopNr=Math.floor(Math.random()*this.kopVak.length));
+          // vast per scheepssoort: dezelfde vijand geeft altijd dezelfde kop
+          const nr=(B.kopNr!==undefined)?B.kopNr:0;
           const R=this.kopVak[nr%this.kopVak.length];
           // eigen vlak per kop: elk vakje heeft zijn eigen uitsnede
           if(!k.__vlak) k.__vlak=new THREE.PlaneGeometry(1,1);
