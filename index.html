@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.07';
+  const VERSIE='v12.08';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1174,23 +1174,34 @@
   // Hoe breed een baaswaaier spreidt. Te breed en alles gaat naast je langs;
   // het moet JOU bedreigen, niet de ruimte ernaast.
   const SIG_SPREID=0.20;   // strak op je gericht; groter = meer langs je heen
+  // De balans die Sjoerd vroeg: bazen dubbel zo taai, minder raketten in de
+  // grote golven, maar de zoekende raketten doen veel meer schade en zijn
+  // taaier. Vier treffers van een slingerende zoeker en je bent dood.
+  const BAAS_TAAI=2.0;
+  // De spiraalwerper: vanaf level 4, hoogstens twee tegelijk. Acht zoekers die
+  // vanuit zijn midden naar buiten spreiden en spiralend op je af draaien.
+  const SPIR_VANAF=4, SPIR_MAX=2;
+  const SPIR_N=8, SPIR_SP=15, SPIR_DMG=22, SPIR_DRAAI=2.2, SPIR_WAAIER=0.7;
+  const SPIR_ELK=5.0, SPIR_SPRINT=2.2, SPIR_SNEL=34;
+  const SPIR_HP=560;            // ongeveer acht tellen mitrailleur
+  const JACHT_DMG=25, JACHT_HP=7;
   // De derde aanval van elke baas: een eigen groep zoekende raketten. vorm bepaalt
   // hoe ze aankomen, neus welke kop erop zit, kl de kleur van de gloed.
   const JACHT={
-    'DREADNOUGHT':{vorm:'golf',    n:12,meer:8, sp:18, draai:2.6, dmg:5, groot:1.0, neus:0, kl:0xff5030, roep:'HUNTERS'},
-    'WARDEN':     {vorm:'tandem',  n:10,meer:6, sp:15, draai:2.2, dmg:7, groot:1.4, neus:1, kl:0xff2020, roep:'PAIRED WARHEADS'},
-    'LANCE':      {vorm:'ketting', n:16,meer:8, sp:26, draai:3.4, dmg:4, groot:0.8, neus:0, kl:0xcfe8ff, roep:'CHAIN LANCE'},
-    'THE WHEEL':  {vorm:'bloem',   n:18,meer:8, sp:17, draai:2.8, dmg:5, groot:1.0, neus:2, kl:0xffd030, roep:'BLOOM'},
-    'RAVEN':      {vorm:'schaar',  n:14,meer:8, sp:21, draai:3.2, dmg:5, groot:1.0, neus:1, kl:0xc060ff, roep:'SCISSOR'},
-    'IRONCLAD':   {vorm:'tandem',  n:10,meer:6, sp:13, draai:1.8, dmg:9, groot:1.6, neus:1, kl:0xc0c8d0, roep:'SIEGE PAIR'},
-    'THE EYES':   {vorm:'regen',   n:15,meer:8, sp:19, draai:3.0, dmg:5, groot:1.1, neus:0, kl:0x60ff90, roep:'RAIN OF EYES'},
-    'THE WALKER': {vorm:'ketting', n:18,meer:10,sp:22, draai:2.4, dmg:4, groot:0.9, neus:0, kl:0xff8a30, roep:'STAMPEDE'},
-    'ARACHNID':   {vorm:'bloem',   n:18,meer:8, sp:16, draai:2.6, dmg:5, groot:1.0, neus:2, kl:0x90ff40, roep:'BROOD'},
-    'SERAPH':     {vorm:'regen',   n:16,meer:9, sp:20, draai:3.4, dmg:5, groot:1.2, neus:2, kl:0xffe8b0, roep:'DESCENT'},
-    'THE CORE':   {vorm:'bloem',   n:20,meer:10,sp:18, draai:3.0, dmg:5, groot:1.0, neus:2, kl:0x40e0ff, roep:'CORE BLOOM'},
-    'DEATHS HEAD':{vorm:'schaar',  n:12,meer:8, sp:16, draai:4.0, dmg:8, groot:1.4, neus:1, kl:0xff2050, roep:'PINCER'},
-    'TITAN PRIME':{vorm:'regen',   n:24,meer:12,sp:19, draai:3.2, dmg:6, groot:1.2, neus:1, kl:0xff4060, roep:'ANNIHILATION'},
-    _:            {vorm:'golf',    n:5, meer:3, sp:18, draai:2.6, dmg:6, groot:1.0, neus:0, kl:0xff4030, roep:'HUNTERS'}
+    'DREADNOUGHT':{vorm:'golf',    n:5,meer:3, sp:18, draai:2.6, dmg:5, groot:1.0, neus:0, kl:0xff5030, roep:'HUNTERS'},
+    'WARDEN':     {vorm:'tandem',  n:4,meer:2, sp:15, draai:2.2, dmg:7, groot:1.4, neus:1, kl:0xff2020, roep:'PAIRED WARHEADS'},
+    'LANCE':      {vorm:'ketting', n:7,meer:3, sp:26, draai:3.4, dmg:4, groot:0.8, neus:0, kl:0xcfe8ff, roep:'CHAIN LANCE'},
+    'THE WHEEL':  {vorm:'bloem',   n:8,meer:3, sp:17, draai:2.8, dmg:5, groot:1.0, neus:2, kl:0xffd030, roep:'BLOOM'},
+    'RAVEN':      {vorm:'schaar',  n:6,meer:3, sp:21, draai:3.2, dmg:5, groot:1.0, neus:1, kl:0xc060ff, roep:'SCISSOR'},
+    'IRONCLAD':   {vorm:'tandem',  n:4,meer:2, sp:13, draai:1.8, dmg:9, groot:1.6, neus:1, kl:0xc0c8d0, roep:'SIEGE PAIR'},
+    'THE EYES':   {vorm:'regen',   n:7,meer:3, sp:19, draai:3.0, dmg:5, groot:1.1, neus:0, kl:0x60ff90, roep:'RAIN OF EYES'},
+    'THE WALKER': {vorm:'ketting', n:8,meer:4,sp:22, draai:2.4, dmg:4, groot:0.9, neus:0, kl:0xff8a30, roep:'STAMPEDE'},
+    'ARACHNID':   {vorm:'bloem',   n:8,meer:3, sp:16, draai:2.6, dmg:5, groot:1.0, neus:2, kl:0x90ff40, roep:'BROOD'},
+    'SERAPH':     {vorm:'regen',   n:7,meer:4, sp:20, draai:3.4, dmg:5, groot:1.2, neus:2, kl:0xffe8b0, roep:'DESCENT'},
+    'THE CORE':   {vorm:'bloem',   n:9,meer:4,sp:18, draai:3.0, dmg:5, groot:1.0, neus:2, kl:0x40e0ff, roep:'CORE BLOOM'},
+    'DEATHS HEAD':{vorm:'schaar',  n:5,meer:3, sp:16, draai:4.0, dmg:8, groot:1.4, neus:1, kl:0xff2050, roep:'PINCER'},
+    'TITAN PRIME':{vorm:'regen',   n:11,meer:5,sp:19, draai:3.2, dmg:6, groot:1.2, neus:1, kl:0xff4060, roep:'ANNIHILATION'},
+    _:            {vorm:'golf',    n:3,meer:2, sp:18, draai:2.6, dmg:6, groot:1.0, neus:0, kl:0xff4030, roep:'HUNTERS'}
   };
   const JACHT_ELK=3;            // om de hoeveel schoten hij zijn jacht inzet
   // De VIERDE aanval: weinig maar zware zoekers. Traag genoeg om te zien
@@ -1215,11 +1226,11 @@
   const SPEC_ELK=8;             // en zijn eigen specialiteit
   // De zwerm: veel trage raketten tegelijk. Los zijn ze zo kapot, samen dwingen
   // ze je te kiezen wat je eerst neerhaalt.
-  const ZWERM_N=32, ZWERM_N2=44, ZWERM_SP=11;
+  const ZWERM_N=16, ZWERM_N2=24, ZWERM_SP=11;
   const ZWERM_KL=[0xff6030,0xffa030,0xff4060];
   const VIJ_POOL=220;           // hoeveel vijandelijke schoten er tegelijk kunnen vliegen
-  const ZWERM_ELK=6;            // om de hoeveel schoten de zwerm komt
-  const COMBO_ELK=4;            // en hoe vaak hij twee of drie dingen tegelijk doet
+  const ZWERM_ELK=9;            // om de hoeveel schoten de zwerm komt
+  const COMBO_ELK=6;            // en hoe vaak hij twee of drie dingen tegelijk doet
   const SALVO_ELK=7;            // om de hoeveel schoten een baas het salvo afvuurt
   // Het rookspoor achter een zoekende raket: hoe vaak, hoe dun, hoe lang zichtbaar.
   // De rookslierten waren dun omdat de VOORRAAD op was: 44 deeltjes voor alle
@@ -1255,7 +1266,7 @@
   // massieve bolletje, anders zie je het ontwerp niet.
   const KOP_PLAAT=0.36;   // kleiner, zodat je het vuur en de rook erachter ziet
   // De raketstorm die een baas afvuurt in plaats van hulptroepen te roepen.
-  const STORM_N=7, STORM_GROEI=1.4, STORM_PAUZE=0.55;
+  const STORM_N=5, STORM_GROEI=0.8, STORM_PAUZE=0.6;
   const STORM_SNEL=17, STORM_DRAAI=3.0;
   // Kleuren van de neuzen: elk scheepstype een andere, allemaal duidelijk rood
   // tot oranje zodat het altijd als vijandelijk leest.
@@ -2675,10 +2686,10 @@
         const maatHP=(T.prof==='baas')?1:
           (T.br>=16?GROOTHP:(T.br>=11?(1+(GROOTHP-1)*0.45):1));
         e.hp=e.hpM=Math.max(1,Math.round(T.hp*((opt&&opt.hp)||1)*
-          (T.prof==='baas'?1:VIJHP)*maatHP));
+          (T.prof==='baas'?BAAS_TAAI:VIJHP)*maatHP));
         e.sc=T.br*((opt&&opt.sc)||1);
         if(T.prof==='baas'&&e.gedrag==='reus'){ e.sc=134;
-          e.hp=e.hpM=Math.round(6200*((opt&&opt.hp)||1)); }   // de eindbaas blijft zwaarder
+          e.hp=e.hpM=Math.round(6200*BAAS_TAAI*((opt&&opt.hp)||1)); }   // de eindbaas blijft zwaarder
         // de reus is enorm maar zijn raakbol blijft binnen zijn houdafstand,
         // anders ramt hij je onafgebroken terwijl hij gewoon staat te vechten
         e.r=e.sc*(e.gedrag==='reus'?0.30:0.42);
@@ -3128,6 +3139,9 @@
         B.zoek=o.zoek?1:0; B.draai=o.draai||SALVO_DRAAI;
         B.streep=o.streep?1:0; B.boog=o.boog||0; B.wieg=0;
         B.waaier=o.waaier||0; B.wh=o.wh||0;
+        // De kop MOET hier gezet worden. Zonder dit hield een hergebruikt
+        // projectiel de kop van zijn vorige leven, en leek alles hetzelfde.
+        B.kopNr=(o.kop!==undefined)?o.kop:(((e&&e.tp)||0)%25);
         B.rood=1; B.splijt=o.splijt||0; B.sptijd=o.sptijd||0;
         B.splijt2=o.splijt2||0;                    // splijten de scherven zelf ook nog?
         B.draaiOm=o.draaiOm||0; B.hoekS=o.hoekS||0; B.hoek0=o.hoek0||0;
@@ -3424,8 +3438,9 @@
         self.sigNa(vertraag||0,function(){
           if(!e.live||e.dood) return;
           const B=self.sigSchot(e,self.sigRicht(e,zij,op),
-            {sp:soort.sp,hp:3,dmg:soort.dmg,zoek:1,draai:soort.draai,
-             groot:soort.groot,neus:neus,kleur:kl});
+            {sp:soort.sp,hp:JACHT_HP,dmg:JACHT_DMG,zoek:1,draai:soort.draai,
+             groot:soort.groot*1.3,neus:neus,kleur:kl});
+          if(B) B.wieg=1;                    // ze slingeren: veel lastiger te raken
           if(B&&extra){ B.waaier=extra.w||0; B.wh=extra.h||0; } }); };
       switch(soort.vorm){
         case 'ketting':                    // achter elkaar aan, als een sliert
@@ -3531,6 +3546,48 @@
       this.sigZwaar(e,twee);
       this.sigNa(0.8,function(){ if(e.live) self.sigJacht(e,twee); });
       this.sigMeld(e,'OVERWHELM','#ff3d55'); },
+
+    // ---- DE SPIRAALWERPER: een zware vijand vanaf level 4 ----
+    // Hij staat stil terwijl hij vuurt, spreidt acht zoekers vanuit zijn midden
+    // naar buiten, en die draaien slingerend en spiralend op je af. Daarna
+    // sprint hij naar een nieuwe plek. Taai genoeg om acht tellen mitrailleur
+    // te verdragen.
+    spiraalSalvo:function(e){
+      const n=SPIR_N;
+      for(let i=0;i<n;i++){
+        const hk=(i/n)*6.283;
+        const B=this.sigSchot(e,this.sigRicht(e,Math.cos(hk)*0.42,Math.sin(hk)*0.36),
+          {sp:SPIR_SP,hp:5,dmg:SPIR_DMG,zoek:1,draai:SPIR_DRAAI,groot:1.2,
+           neus:2,kleur:0xff8020,kop:(e.tp||0)%25});
+        if(B){ B.waaier=SPIR_WAAIER; B.wh=hk;
+               B.wieg=1;                       // slingeren onderweg
+               B.draaiOm=(i%2?1:-1); B.hoekS=1.15; B.hoek0=hk; B.straal0=1; } }
+      this.vonk(e.p.x,e.p.y,e.p.z,0xff8020,8,e.bw*0.4,0.9);
+      this.toonMelding('SPIRAL BARRAGE','#ff8a30');
+      SND.boom(e.p.x*0.02); },
+
+    // Zijn gedrag: stilstaan en vuren, dan wegsprinten naar een nieuwe plek.
+    spiraalTick:function(e,s){
+      e.spF=e.spF||'wacht';
+      e.spT=(e.spT||0)-s;
+      if(e.spF==='wacht'){
+        if(e.spT<=0){ e.spF='vuur'; e.spT=0.5;
+          this.toonMelding('LOCKING ON','#ffb03a');
+          this.vonk(e.p.x,e.p.y,e.p.z,0xffd070,5,e.bw*0.3,0.6); }
+        return true; }                          // blijft stilstaan
+      if(e.spF==='vuur'){
+        if(e.spT<=0){ this.spiraalSalvo(e); e.spF='sprint'; e.spT=SPIR_SPRINT; }
+        return true; }                          // ook tijdens het vuren stilstaan
+      // sprinten naar een nieuwe plek
+      if(e.spT<=0){ e.spF='wacht'; e.spT=SPIR_ELK; return true; }
+      const d=this.SPD||(this.SPD=new THREE.Vector3());
+      if(!e.spDoel){ e.spDoel=new THREE.Vector3(
+        (Math.random()-0.5)*90, this.kop.y+(Math.random()-0.5)*22,
+        -(60+Math.random()*70)); }
+      d.subVectors(e.spDoel,e.p);
+      if(d.length()<6){ e.spDoel=null; e.spT=0; }
+      else { d.normalize(); e.p.addScaledVector(d,SPIR_SNEL*s); }
+      return true; },
 
     // ---- ZWERM: 30 tot 40 trage raketten tegelijk ----
     // Ze vliegen langzaam en zijn zo kapot, maar met zovelen moet je kiezen wat
@@ -3918,6 +3975,9 @@
 
     baan:function(e,s){
       if(e.dood){ this.doodBaan(e,s); return; }
+      // De spiraalwerper stuurt zichzelf: hij staat stil terwijl hij vuurt en
+      // sprint daarna weg. Zijn gewone vlieggedrag zou dat overschrijven.
+      if(e.spiraal&&!e.dood2){ this.spiraalTick(e,s); return; }
       const eye=this.tmp.copy(this.kop);
       const T=TYPE[e.tp];
       const naar=new THREE.Vector3().subVectors(eye,e.p);
@@ -4091,7 +4151,36 @@
       this.planT=0; this.rij=[]; this.veldMax=0; this.gi=0; this.groepT=0;
       for(let i=0;i<this.plan.length;i++) this.plan[i].uit=0;
       this.toonMelding('LEVEL '+this.level+'   WAVE '+this.wave+' / '+GOLVEN,'#35e8ff');
+      // Vanaf level 4 hangt er in elke golf een spiraalwerper: taai, traag, en
+      // hij spuwt om de vijf tellen acht spiralende zoekers. Hoogstens twee.
+      if(this.level>=SPIR_VANAF) this.spiraalT=1.5+Math.random()*2;
       this.state='vechten'; },
+
+    // Op tijd een spiraalwerper neerzetten, als er nog plek is.
+    spiraalSpawn:function(s){
+      if(this.level<SPIR_VANAF||this.state!=='vechten') return;
+      this.spiraalT=(this.spiraalT||0)-s;
+      if(this.spiraalT>0) return;
+      this.spiraalT=9+Math.random()*7;
+      let n=0;
+      for(let i=0;i<this.enemies.length;i++)
+        if(this.enemies[i].live&&this.enemies[i].spiraal) n++;
+      if(n>=SPIR_MAX) return;
+      // een groot scheepstype uitkiezen zodat hij er zwaar uitziet
+      let tp=-1, best=0;
+      for(let t=0;t<TYPE.length;t++){
+        const T=TYPE[t];
+        if(!T||T.prof==='baas') continue;
+        if(T.br>best&&T.br<=26){ best=T.br; tp=t; } }
+      if(tp<0) return;
+      const hk=(Math.random()-0.5)*1.2;
+      const e=this.spawn(tp,{x:Math.sin(hk)*70, z:-(70+Math.random()*40),
+                             y:this.kop.y+(Math.random()-0.5)*16});
+      if(!e) return;
+      e.spiraal=1; e.spF='wacht'; e.spT=1.2;
+      e.hp=e.hpM=SPIR_HP;
+      e.sc*=1.25; e.r*=1.2; e.bw*=1.25; e.bh*=1.25;
+      this.toonMelding('HEAVY INBOUND','#ff8a30'); },
 
     // ---- aanvallen loslaten op hun eigen tijdstip ----
     // groep voor groep: de volgende komt pas als de vorige is opgeruimd
@@ -4411,6 +4500,7 @@
         const xVoor=e.p.x;
         this.baan(e,s); if(!e.dood&&!e.dood2&&e.prof!=='baas') levend++;
         if(e.fase>=1&&!e.dood2) this.brandTick(e,s);
+
         // Dit is een spel dat alleen vooruit kijkt. Alles wat achter je zit, te
         // ver opzij, te hoog of te laag hangt heeft daar niets te zoeken: het
         // wordt weggehaald en opnieuw ver vóór je neergezet. Geen rondjes, geen
@@ -4626,7 +4716,7 @@
         B.m.material.opacity=Math.min(1,B.life*1.6);
         if(B.life<=0){ B.live=false; B.m.visible=false; } }
 
-      this.ringTick(s); this.sigRijTick(s); this.wijzerTickD(s);
+      this.ringTick(s); this.sigRijTick(s); this.wijzerTickD(s); this.spiraalSpawn(s);
       // ---- rook: drijft op, dijt uit en vervaagt ----
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(!R.live) continue;
         R.life-=s/Math.max(0.3,R.leven);
