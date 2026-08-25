@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.14';
+  const VERSIE='v12.16';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1188,7 +1188,10 @@
   const SPIR_ELK=5.0, SPIR_SPRINT=2.2, SPIR_SNEL=34;
   const SPIR_MAX_N=12;          // vanaf level 8 vuurt hij er twaalf
   const SPIR_WIJD=0.62;         // hoe wijd de bloem opengaat
-  const SPOOK_FLITS=0.16;       // hoe lang hij oplicht als je hem raakt
+  const SPOOK_FLITS=0.30;       // hoe lang hij oplicht als je hem raakt
+  const SPOOK_FASE1=0.66, SPOOK_FASE2=0.33;   // bij welk deel kracht hij gaat branden
+  // De golven in zijn camouflage bij een treffer.
+  const CAMO_N=14, CAMO_TIJD=0.42, CAMO_MAAT=5.0;
   const SPIR_HP=820;            // taaier: Sjoerd wilde meer schade om hem te breken
   const JACHT_DMG=25, JACHT_HP=7;
   // De derde aanval van elke baas: een eigen groep zoekende raketten. vorm bepaalt
@@ -2456,13 +2459,15 @@
     //  TREFFERS
     // =====================================================
     raak:function(e,dmg,px,py,pz){
-      // Een spook dat je raakt hoort even op te lichten. Zonder dat weet je niet
-      // of je hem hebt, en voelt hij onraakbaar — precies wat Sjoerd merkte.
+      // Een treffer op het spook geeft VUUR en ROOK, geen tekening. Zo weet je
+      // dat je raak zat zonder dat hij zichtbaar wordt.
       if(e&&e.onzicht&&!e.dood){
-        e.zichtT=SPOOK_FLITS;
-        if(e.bb&&e.bb.m) e.bb.m.visible=true;
-        this.vonk(px,py,pz,0x66f0ff,5,3.5,0.45);
-        this.vonk(px,py,pz,0xffffff,3,2.0,0.25); }
+        this.vonk(px,py,pz,0xfff2c0,3,2.4,0.30);
+        this.vonk(px,py,pz,0xff8a3d,5,3.6,0.45);
+        this.rook(px,py,pz,false,1.6,1.2,1);
+        // Sjoerds idee: zijn camouflage krijgt schade. Op het inslagpunt trekt
+        // een golf door het veld — je ziet de klap, niet het schip.
+        this.camoGolf(px,py,pz); }
       if(window.DEMO&&e===this.dDoel) this.dRaak=1;
       if(e.dood2) return;                            // gaat al ten onder
       if(e.intro){ this.vonk(px||e.p.x,py||e.p.y,pz||e.p.z,0x9fe4f5,3,6,0.5); return; }
@@ -3634,6 +3639,62 @@
     // naar buiten, en die draaien slingerend en spiralend op je af. Daarna
     // sprint hij naar een nieuwe plek. Taai genoeg om acht tellen mitrailleur
     // te verdragen.
+    // Zijn kracht in drieën: gaaf, gehavend, bijna op. Bij elke stap brandt en
+    // rookt hij heftiger — dat spoor is hoe je hem vindt en volgt.
+    // Een rimpeling in de camouflage: een dun ringetje dat opengaat en vervaagt,
+    // altijd naar je toe gekeerd. Zo weet je dat je raak zat.
+    camoGolf:function(x,y,z){
+      if(!this.camo){
+        this.camo=[];
+        const g=new THREE.RingGeometry(0.62,0.78,20);
+        for(let i=0;i<CAMO_N;i++){
+          const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0x9fe4f5,
+            transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide,
+            blending:THREE.AdditiveBlending}));
+          m.renderOrder=10; m.visible=false; m.frustumCulled=false;
+          this.par.add(m); this.camo.push({m:m,live:false,t:0}); } }
+      for(let i=0;i<this.camo.length;i++){ const C2=this.camo[i];
+        if(C2.live) continue;
+        C2.live=true; C2.t=CAMO_TIJD;
+        C2.m.position.set(x,y,z); C2.m.visible=true;
+        return; } },
+
+    camoTick:function(s){
+      if(!this.camo) return;
+      const eye=this.kop;
+      for(let i=0;i<this.camo.length;i++){ const C2=this.camo[i]; if(!C2.live) continue;
+        C2.t-=s;
+        if(C2.t<=0){ C2.live=false; C2.m.visible=false; continue; }
+        const k=1-C2.t/CAMO_TIJD;                    // 0 = net geraakt
+        C2.m.scale.setScalar(CAMO_MAAT*(0.25+k*1.5));
+        C2.m.material.opacity=0.85*(1-k)*(1-k);
+        C2.m.lookAt(eye); } },
+
+    spookBrand:function(e,s){
+      const deel=e.hp/Math.max(1,e.hpM);
+      const fase=(deel<=SPOOK_FASE2)?2:((deel<=SPOOK_FASE1)?1:0);
+      if(fase!==e.spookFase){
+        e.spookFase=fase;
+        if(fase>0){
+          this.vonk(e.p.x,e.p.y,e.p.z,0xfff2c0,8,e.bw*0.3,0.7);
+          this.vonk(e.p.x,e.p.y,e.p.z,0xff5a2a,10,e.bw*0.4,0.9);
+          this.rook(e.p.x,e.p.y,e.p.z,fase>1,3.0,2.2,1); } }
+      if(!fase) return;
+      e.brT3=(e.brT3||0)-s;
+      if(e.brT3>0) return;
+      e.brT3=(fase>1)?0.05:0.09;
+      const n=(fase>1)?3:2;
+      for(let i=0;i<n;i++){
+        const hk=Math.random()*6.283, af=e.r*(0.25+Math.random()*0.5);
+        const px=e.p.x+Math.cos(hk)*af, py=e.p.y+Math.sin(hk)*af*0.7,
+              pz=e.p.z+(Math.random()-0.5)*af;
+        const gr=(fase>1)?1.7:1.1;
+        this.vonk(px,py,pz,0xfff2c0,1,1.8*gr,0.18);
+        this.vonk(px,py,pz,0xffb03a,1,2.8*gr,0.30);
+        if(Math.random()<0.6) this.vonk(px,py,pz,0xff5a2a,1,3.4*gr,0.42);
+        if(Math.random()<(fase>1?0.9:0.5))
+          this.rook(px,py,pz,fase>1,(fase>1?2.2:1.5),(fase>1?2.4:1.7),0); } },
+
     spiraalSalvo:function(e){
       // Level 4 begint met acht; elke twee levels komen er twee bij, tot twaalf.
       const n=Math.min(SPIR_MAX_N,SPIR_N+Math.floor(Math.max(0,this.level-SPIR_VANAF)/2)*2);
@@ -4061,11 +4122,9 @@
       // De spiraalwerper stuurt zichzelf: hij staat stil terwijl hij vuurt en
       // sprint daarna weg. Zijn gewone vlieggedrag zou dat overschrijven.
       if(e.spiraal&&!e.dood2){
-        // onzichtbaar houden — behalve heel even nadat je hem hebt geraakt, en
-        // als hij neerstort.
-        if(e.zichtT>0){ e.zichtT-=s;
-          if(e.bb&&e.bb.m) e.bb.m.visible=true; }
-        else if(e.onzicht&&e.bb&&e.bb.m&&e.bb.m.visible&&!e.dood) e.bb.m.visible=false;
+        // ONZICHTBAAR, punt. Zijn vuur en rook zijn zijn zichtbaarheid.
+        if(e.bb&&e.bb.m&&e.bb.m.visible&&!e.dood) e.bb.m.visible=false;
+        this.spookBrand(e,s);
         this.spiraalTick(e,s); return; }
       const eye=this.tmp.copy(this.kop);
       const T=TYPE[e.tp];
@@ -4276,7 +4335,13 @@
       // DE SPOOKJAGER. Zijn tekening bleef eerst achter bij zijn beweging — een
       // fout, maar Sjoerd vond het beeld juist prachtig: je ziet hem niet, tot
       // hij zich met een salvo verraadt. Dus nu met opzet onzichtbaar.
-      if(e.bb&&e.bb.m){ e.bb.m.visible=false; e.onzicht=1; }
+      // Volledig onzichtbaar werd een kip-en-ei: je moet hem raken om hem te
+      // zien, en zien om hem te raken. Nu DOORZICHTIG: je ziet een vage
+      // schim die je kunt volgen, en bij een treffer licht hij vol op.
+      // ONZICHTBAAR. Raak je hem, dan zie je vuur en rook — dat wordt zijn
+      // zichtbaarheid. Hoe kapotter, hoe beter je hem kunt volgen.
+      if(e.bb&&e.bb.m) e.bb.m.visible=false;
+      e.onzicht=1; e.spookFase=0;
       this.toonGroot('WARNING  -  ENEMY NOT ON RADAR','#ff3d55');
       SND.alarm&&SND.alarm(0); },
 
@@ -4815,6 +4880,7 @@
         if(B.life<=0){ B.live=false; B.m.visible=false; } }
 
       this.ringTick(s); this.sigRijTick(s); this.wijzerTickD(s); this.spiraalSpawn(s);
+      this.camoTick(s);
       this.straalTick(s);
       // ---- rook: drijft op, dijt uit en vervaagt ----
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(!R.live) continue;
