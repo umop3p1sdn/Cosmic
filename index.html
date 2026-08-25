@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.16';
+  const VERSIE='v12.17';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -955,8 +955,10 @@
   '        <a-text id="wvTxt" position="0 0.48 -2.36" value="WAVE 1" align="center" color="#e8f6ff" width="2.4"></a-text>'+
   '        <a-plane id="btnFaseB" class="menu-btn" position="0.66 0.48 -2.38" width="0.42" height="0.26" material="color:#1a2c3a;shader:flat"></a-plane>'+
   '        <a-text position="0.66 0.48 -2.36" value="WAVE +" align="center" color="#8fd8ec" width="2.0"></a-text>'+
-  '        <a-plane id="btnFaseC" class="menu-btn" position="0 0.16 -2.38" width="0.90" height="0.24" material="color:#123a4e;shader:flat"></a-plane>'+
-  '        <a-text position="0 0.16 -2.36" value="START HERE" align="center" color="#eafcff" width="2.6"></a-text>'+
+  '        <a-plane id="btnFaseC" class="menu-btn" position="-0.34 0.16 -2.38" width="0.62" height="0.24" material="color:#123a4e;shader:flat"></a-plane>'+
+  '        <a-text position="-0.34 0.16 -2.36" value="START HERE" align="center" color="#eafcff" width="2.3"></a-text>'+
+  '        <a-plane id="btnTestDemo" class="menu-btn" position="0.34 0.16 -2.38" width="0.62" height="0.24" material="color:#1d3a24;shader:flat"></a-plane>'+
+  '        <a-text position="0.34 0.16 -2.36" value="DEMO HERE" align="center" color="#8fd84a" width="2.3"></a-text>'+
   '        <a-plane id="btnMeet" class="menu-btn" position="0 -0.12 -2.38" width="0.70" height="0.20" material="color:#2a1d38;shader:flat"></a-plane>'+
   '        <a-text position="0 -0.12 -2.37" value="COUNT SHOTS" align="center" color="#b06cff" width="1.8"></a-text>'+
   '        <a-plane id="btnTechUit" class="menu-btn" position="0 0.12 -2.38" width="0.70" height="0.22" material="color:#20182a;shader:flat"></a-plane>'+
@@ -6184,20 +6186,22 @@
     kl('#btnTechUit',function(){ techToon(false); });
     kl('#btnLvMin',function(){ techLv=Math.max(1,techLv-1); lvToon(); wvToon(); });
     kl('#btnLvPlus',function(){ techLv=Math.min(17,techLv+1); lvToon(); });
-    const techStart=function(w){
+    const techStart=function(w,demo){
       techToon(false);
-      if(techLv>16){ startSpel(false,{l:1,w:0});
+      if(techLv>16){ startSpel(!!demo,{l:1,w:0});
         // hier bestaat de verkorte C() niet; het spel zit op de rig
         const rg=document.querySelector('#rig');
         const c=rg&&rg.components&&rg.components.cosmic;
         if(c){ c.par9klaar=1; c.paradeStart(); }
         return; }
-      startSpel(false,{l:techLv,w:w}); };
+      startSpel(!!demo,{l:techLv,w:w}); };
     // Sjoerd wilde level ÉN golf kunnen kiezen in plaats van begin/mid/boss.
     // Golf GOLVEN+1 betekent: meteen de baas.
     kl('#btnFaseA',function(){ techWv=Math.max(1,techWv-1); wvToon(); });
     kl('#btnFaseB',function(){ techWv=Math.min(GOLVEN+1,techWv+1); wvToon(); });
     kl('#btnFaseC',function(){ techStart(techWv-1); });
+    // Sjoerd wil kunnen meekijken: dezelfde plek, maar dan met de autopiloot.
+    kl('#btnTestDemo',function(){ techStart(techWv-1,true); });
     // Met deze knop zet je de meetregel aan: dan zie je IN DE BRIL hoeveel
     // vijandelijk vuur er leeft en hoeveel daarvan zichtbaar is.
     kl('#btnMeet',function(){
