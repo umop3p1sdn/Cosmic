@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.20';
+  const VERSIE='v12.22';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1192,9 +1192,6 @@
   const SPIR_WIJD=0.62;         // hoe wijd de bloem opengaat
   const SPOOK_FLITS=0.30;       // hoe lang hij oplicht als je hem raakt
   const SPOOK_FASE1=0.66, SPOOK_FASE2=0.33;   // bij welk deel kracht hij gaat branden
-  // Na hoeveel seconden zijn camouflage begint te haperen. Hij verdwijnt NIET
-  // vanzelf — je moet hem doden — maar hij verraadt zich wel steeds vaker.
-  const SPOOK_HAPER=18;
   // De golven in zijn camouflage bij een treffer.
   const CAMO_N=14, CAMO_TIJD=0.42, CAMO_MAAT=5.0;
   const SPIR_HP=820;            // taaier: Sjoerd wilde meer schade om hem te breken
@@ -3686,17 +3683,8 @@
     // zich terug — anders hangt er een onvindbare vijand in je golf die de ronde
     // blokkeert.
     spookTijd:function(e,s){
-      // Sjoerd: verdwijnen na een minuut is te makkelijk, hij moet verdiend zijn.
-      // Hij blijft dus tot je hem sloopt. Wel verraadt hij zich steeds meer: hoe
-      // langer hij leeft, hoe vaker zijn camouflage hapert.
-      e.spookLeeft=(e.spookLeeft||0)+s;
-      if(e.spookLeeft>SPOOK_HAPER){
-        e.haperT=(e.haperT||0)-s;
-        if(e.haperT<=0){ e.haperT=1.6+Math.random()*2.0;
-          // een korte storing in zijn camouflage: golven op zijn eigen plek
-          this.camoGolf(e.p.x,e.p.y,e.p.z);
-          this.vonk(e.p.x,e.p.y,e.p.z,0x9fe4f5,3,e.r*0.5,0.35);
-          this.toonMelding('SIGNAL GLITCH','#9fe4f5'); } }
+      // Hij blijft tot je hem sloopt. Verder niets: je vindt hem via zijn
+      // salvo's, je eigen treffers en het vuur dat hij oploopt.
       return false;
       this.vonk(e.p.x,e.p.y,e.p.z,0x9fe4f5,10,e.bw*0.4,1.0);
       this.rook(e.p.x,e.p.y,e.p.z,false,3.0,2.0,1);
@@ -4501,14 +4489,6 @@
       const al=!!this.gezien[naam]; this.gezien[naam]=1; return al; },
 
     baasKomt:function(){
-      // Een spook uit de laatste golf bleef tijdens het baasgevecht rondhangen —
-      // onzichtbaar, onvindbaar en niet dood te krijgen. Hij trekt zich nu terug
-      // zodra de baas komt: het baasgevecht is tussen jou en de baas.
-      for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
-        if(e.live&&e.spiraal&&!e.dood){
-          this.vonk(e.p.x,e.p.y,e.p.z,0x9fe4f5,10,e.bw*0.4,1.0);
-          this.rook(e.p.x,e.p.y,e.p.z,false,3.0,2.0,1);
-          this.bbVrij(e.bb); e.bb=null; e.live=false; } }
       this.state='baaswacht'; this.golfT=3.4; this.baasWeg=false;
       SND.alarm(); SND.zeg('Warning');
       this.toonGroot('!!  WARNING  !!','#ff3d55'); },
@@ -4708,7 +4688,8 @@
         // dan bleef de ronde hangen zolang je hem niet vond — en hij is met opzet
         // moeilijk te vinden.
         this.baan(e,s);
-        if(!e.dood&&!e.dood2&&e.prof!=='baas'&&!e.spiraal) levend++;
+        // Het spook hoort bij zijn golf: de golf is pas af als hij ook dood is.
+        if(!e.dood&&!e.dood2&&e.prof!=='baas') levend++;
         if(e.fase>=1&&!e.dood2) this.brandTick(e,s);
 
         // Dit is een spel dat alleen vooruit kijkt. Alles wat achter je zit, te
@@ -5019,7 +5000,7 @@
         const klaar=this.planTick(s,levend);
         levend=0;                                     // opnieuw tellen: planTick heeft net gespawnd
         for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
-          if(e.live&&!e.dood&&!e.spiraal) levend++; }
+          if(e.live&&!e.dood) levend++; }
         // een gevallen schip maakt plek voor de volgende uit dezelfde groep
         while(this.rij.length&&levend<this.veldMax){
           if(!this.spawnVorm(this.rij.shift())) break; levend++; }
