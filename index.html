@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.17';
+  const VERSIE='v12.18';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1178,7 +1178,7 @@
   const STRAAL_TIJD=2.2, STRAAL_DIK=9, STRAAL_VER=340, STRAAL_DMG=46;
   // Hoe breed een baaswaaier spreidt. Te breed en alles gaat naast je langs;
   // het moet JOU bedreigen, niet de ruimte ernaast.
-  const SIG_SPREID=0.20;   // strak op je gericht; groter = meer langs je heen
+  const SIG_SPREID=0.72;   // WIJD: Sjoerd wil dat je buiten de baas moet mikken
   // De balans die Sjoerd vroeg: bazen dubbel zo taai, minder raketten in de
   // grote golven, maar de zoekende raketten doen veel meer schade en zijn
   // taaier. Vier treffers van een slingerende zoeker en je bent dood.
@@ -1195,24 +1195,26 @@
   // De golven in zijn camouflage bij een treffer.
   const CAMO_N=14, CAMO_TIJD=0.42, CAMO_MAAT=5.0;
   const SPIR_HP=820;            // taaier: Sjoerd wilde meer schade om hem te breken
-  const JACHT_DMG=25, JACHT_HP=7;
+  // Sjoerd: minder raketten, maar moeilijker. Twaalf taaie zoekers waar je echt
+  // op moet blijven schieten, en daarna even niets.
+  const JACHT_DMG=25, JACHT_HP=26;
   // De derde aanval van elke baas: een eigen groep zoekende raketten. vorm bepaalt
   // hoe ze aankomen, neus welke kop erop zit, kl de kleur van de gloed.
   const JACHT={
-    'DREADNOUGHT':{vorm:'golf',    n:5,meer:3, sp:18, draai:2.6, dmg:5, groot:1.0, neus:0, kl:0xff5030, roep:'HUNTERS'},
-    'WARDEN':     {vorm:'tandem',  n:4,meer:2, sp:15, draai:2.2, dmg:7, groot:1.4, neus:1, kl:0xff2020, roep:'PAIRED WARHEADS'},
-    'LANCE':      {vorm:'ketting', n:7,meer:3, sp:26, draai:3.4, dmg:4, groot:0.8, neus:0, kl:0xcfe8ff, roep:'CHAIN LANCE'},
-    'THE WHEEL':  {vorm:'bloem',   n:8,meer:3, sp:17, draai:2.8, dmg:5, groot:1.0, neus:2, kl:0xffd030, roep:'BLOOM'},
-    'RAVEN':      {vorm:'schaar',  n:6,meer:3, sp:21, draai:3.2, dmg:5, groot:1.0, neus:1, kl:0xc060ff, roep:'SCISSOR'},
-    'IRONCLAD':   {vorm:'tandem',  n:4,meer:2, sp:13, draai:1.8, dmg:9, groot:1.6, neus:1, kl:0xc0c8d0, roep:'SIEGE PAIR'},
-    'THE EYES':   {vorm:'regen',   n:7,meer:3, sp:19, draai:3.0, dmg:5, groot:1.1, neus:0, kl:0x60ff90, roep:'RAIN OF EYES'},
-    'THE WALKER': {vorm:'ketting', n:8,meer:4,sp:22, draai:2.4, dmg:4, groot:0.9, neus:0, kl:0xff8a30, roep:'STAMPEDE'},
-    'ARACHNID':   {vorm:'bloem',   n:8,meer:3, sp:16, draai:2.6, dmg:5, groot:1.0, neus:2, kl:0x90ff40, roep:'BROOD'},
-    'SERAPH':     {vorm:'regen',   n:7,meer:4, sp:20, draai:3.4, dmg:5, groot:1.2, neus:2, kl:0xffe8b0, roep:'DESCENT'},
-    'THE CORE':   {vorm:'bloem',   n:9,meer:4,sp:18, draai:3.0, dmg:5, groot:1.0, neus:2, kl:0x40e0ff, roep:'CORE BLOOM'},
-    'DEATHS HEAD':{vorm:'schaar',  n:5,meer:3, sp:16, draai:4.0, dmg:8, groot:1.4, neus:1, kl:0xff2050, roep:'PINCER'},
-    'TITAN PRIME':{vorm:'regen',   n:11,meer:5,sp:19, draai:3.2, dmg:6, groot:1.2, neus:1, kl:0xff4060, roep:'ANNIHILATION'},
-    _:            {vorm:'golf',    n:3,meer:2, sp:18, draai:2.6, dmg:6, groot:1.0, neus:0, kl:0xff4030, roep:'HUNTERS'}
+    'DREADNOUGHT':{vorm:'golf',    n:12,meer:4, sp:14, draai:2.6, dmg:5, groot:1.0, neus:0, kl:0xff5030, roep:'HUNTERS'},
+    'WARDEN':     {vorm:'tandem',  n:12,meer:4, sp:11, draai:2.2, dmg:7, groot:1.4, neus:1, kl:0xff2020, roep:'PAIRED WARHEADS'},
+    'LANCE':      {vorm:'ketting', n:12,meer:4, sp:22, draai:3.4, dmg:4, groot:0.8, neus:0, kl:0xcfe8ff, roep:'CHAIN LANCE'},
+    'THE WHEEL':  {vorm:'bloem',   n:12,meer:4, sp:13, draai:2.8, dmg:5, groot:1.0, neus:2, kl:0xffd030, roep:'BLOOM'},
+    'RAVEN':      {vorm:'schaar',  n:12,meer:4, sp:17, draai:3.2, dmg:5, groot:1.0, neus:1, kl:0xc060ff, roep:'SCISSOR'},
+    'IRONCLAD':   {vorm:'tandem',  n:12,meer:4, sp:11, draai:1.8, dmg:9, groot:1.6, neus:1, kl:0xc0c8d0, roep:'SIEGE PAIR'},
+    'THE EYES':   {vorm:'regen',   n:12,meer:4, sp:15, draai:3.0, dmg:5, groot:1.1, neus:0, kl:0x60ff90, roep:'RAIN OF EYES'},
+    'THE WALKER': {vorm:'ketting', n:12,meer:4,sp:18, draai:2.4, dmg:4, groot:0.9, neus:0, kl:0xff8a30, roep:'STAMPEDE'},
+    'ARACHNID':   {vorm:'bloem',   n:12,meer:4, sp:12, draai:2.6, dmg:5, groot:1.0, neus:2, kl:0x90ff40, roep:'BROOD'},
+    'SERAPH':     {vorm:'regen',   n:12,meer:4, sp:16, draai:3.4, dmg:5, groot:1.2, neus:2, kl:0xffe8b0, roep:'DESCENT'},
+    'THE CORE':   {vorm:'bloem',   n:12,meer:4,sp:14, draai:3.0, dmg:5, groot:1.0, neus:2, kl:0x40e0ff, roep:'CORE BLOOM'},
+    'DEATHS HEAD':{vorm:'schaar',  n:12,meer:4, sp:12, draai:4.0, dmg:8, groot:1.4, neus:1, kl:0xff2050, roep:'PINCER'},
+    'TITAN PRIME':{vorm:'regen',   n:12,meer:4,sp:15, draai:3.2, dmg:6, groot:1.2, neus:1, kl:0xff4060, roep:'ANNIHILATION'},
+    _:            {vorm:'golf',    n:12,meer:4, sp:14, draai:2.6, dmg:6, groot:1.0, neus:0, kl:0xff4030, roep:'HUNTERS'}
   };
   const JACHT_ELK=3;            // om de hoeveel schoten hij zijn jacht inzet
   // De VIERDE aanval: weinig maar zware zoekers. Traag genoeg om te zien
@@ -1235,13 +1237,16 @@
   };
   const ZWAAR_ELK=5;            // om de hoeveel schoten de zware salvo komt
   const SPEC_ELK=8;             // en zijn eigen specialiteit
+  // Hoeveel rust er ná een aanval is. Zonder rust wordt het een brij; mét rust
+  // kun je zijn raketten opruimen en dan pas de volgende vorm aan.
+  const RUST_NA=4.2;
   // De zwerm: veel trage raketten tegelijk. Los zijn ze zo kapot, samen dwingen
   // ze je te kiezen wat je eerst neerhaalt.
   const ZWERM_N=16, ZWERM_N2=24, ZWERM_SP=11;
   const ZWERM_KL=[0xff6030,0xffa030,0xff4060];
   const VIJ_POOL=220;           // hoeveel vijandelijke schoten er tegelijk kunnen vliegen
-  const ZWERM_ELK=9;            // om de hoeveel schoten de zwerm komt
-  const COMBO_ELK=6;            // en hoe vaak hij twee of drie dingen tegelijk doet
+  const ZWERM_ELK=1e9;   // uit: veel losse raketten werd een brij            // om de hoeveel schoten de zwerm komt
+  const COMBO_ELK=1e9;   // uit: Sjoerd wil één patroon tegelijk, geen brij            // en hoe vaak hij twee of drie dingen tegelijk doet
   const SALVO_ELK=7;            // om de hoeveel schoten een baas het salvo afvuurt
   // Het rookspoor achter een zoekende raket: hoe vaak, hoe dun, hoe lang zichtbaar.
   // De rookslierten waren dun omdat de VOORRAAD op was: 44 deeltjes voor alle
@@ -3000,13 +3005,15 @@
           // zodat je nooit op één ritme kunt gaan zitten.
           // Vijf aanvallen op een rooster: zijn handtekening, het jachtsalvo, de
           // zware zoekers en zijn eigen specialiteit. Zo blijft het onvoorspelbaar.
+          // ÉÉN patroon per beurt, en daarna echt even rust. Dat maakt het een
+          // puzzel: je krijgt de tijd om zijn raketten op te ruimen voordat de
+          // volgende vorm komt.
           e.beurtN=(e.beurtN||0)+1;
-          if(e.beurtN%COMBO_ELK===0){ e.cd=Math.max(e.cd,3.4); this.sigCombo(e,twee); }
-          else if(e.beurtN%ZWERM_ELK===0){ e.cd=Math.max(e.cd,3.2); this.sigZwerm(e,twee); }
-          else if(e.beurtN%SPEC_ELK===0){ e.cd=Math.max(e.cd,3.0); this.sigSpeciaal(e,twee); }
-          else if(e.beurtN%ZWAAR_ELK===0){ e.cd=Math.max(e.cd,2.6); this.sigZwaar(e,twee); }
-          else if(e.beurtN%JACHT_ELK===0){ e.cd=Math.max(e.cd,2.2); this.sigJacht(e,twee); }
-          else this[SIG[e.baasNaam].fn](e,twee); }
+          const beurt=e.beurtN%4;
+          if(beurt===0){ e.cd=Math.max(e.cd,RUST_NA); this.sigSpeciaal(e,twee); }
+          else if(beurt===1){ e.cd=Math.max(e.cd,RUST_NA); this.sigJacht(e,twee); }
+          else if(beurt===2){ e.cd=Math.max(e.cd,RUST_NA); this.sigZwaar(e,twee); }
+          else { e.cd=Math.max(e.cd,RUST_NA*0.75); this[SIG[e.baasNaam].fn](e,twee); } }
         else { const V=VUUR[e.vuur]||VUUR.duo;
           e.cd=((T.cd||1.9)*V.cd+Math.random()*0.9)/Math.max(0.4,F.f);
           // Af en toe het grote salvo in plaats van los vuur: tien raketten die
