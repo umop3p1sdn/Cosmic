@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.22';
+  const VERSIE='v12.25';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1272,7 +1272,9 @@
   const KOP_DEEL=0.46;
   const KOP_BREED=1.55;
   // De meevliegende neuzen op vijandelijk vuur.
-  const NEUZEN=110, NEUS_MAAT=1.5;
+  // Er konden 220 schoten tegelijk vliegen maar er waren maar 110 koppen: de
+  // rest vloog zonder kop, met het projectielplaatje van de vlootplaat.
+  const NEUZEN=VIJ_POOL, NEUS_MAAT=1.5;
   // De neus pulseert, maar dooft nooit helemaal: NEUS_MIN is de bodem.
   const NEUS_PULS=9.0, NEUS_MIN=0.55;
   // De massieve kop: hoe groot het ondoorzichtige bolletje is ten opzichte van
@@ -2515,6 +2517,11 @@
           // De uv aanpassen zou op hem als een zoom werken. Hij toont zijn schade
           // met rook en vonken in plaats van met een ander vak.
           if(e.bb&&e.gedrag){ this.baasRook(e,f); }
+          // Het spook heeft geen tekening in beeld; zijn schade lees je aan de
+          // kringen bij een treffer en aan het vuur dat hij oploopt. Van vak
+          // wisselen zou zijn beschadigde plaatje alsnog laten zien.
+          else if(e.onzicht){ }
+          else if(e.onzicht){ /* spook: geen plaatje, alleen vuur en rook */ }
           else if(e.bb){ if(e.plaat) this.uvRect(e.bb.g,e.plaat.rect[e.rij][f]);
                     else if(f>=1&&!e.gedrag) this.bbCel(e.bb,Math.min(7,e.cel)+8); }
           this.vonk(e.p.x,e.p.y,e.p.z,0xffb03a,10,9,0.9); }
@@ -4363,7 +4370,10 @@
       // schim die je kunt volgen, en bij een treffer licht hij vol op.
       // ONZICHTBAAR. Raak je hem, dan zie je vuur en rook — dat wordt zijn
       // zichtbaarheid. Hoe kapotter, hoe beter je hem kunt volgen.
-      if(e.bb&&e.bb.m) e.bb.m.visible=false;
+      // Het spook heeft HELEMAAL geen tekening meer — ook geen beschadigde. Zijn
+      // schade lees je aan vuur en rook, en een treffer aan de kringen. Zijn
+      // sprite gaat terug naar de voorraad, zodat hij nergens meer opduikt.
+      if(e.bb){ this.bbVrij(e.bb); e.bb=null; }
       e.onzicht=1; e.spookFase=0;
       this.toonGroot('WARNING  -  ENEMY NOT ON RADAR','#ff3d55');
       SND.alarm&&SND.alarm(0); },
@@ -4884,6 +4894,10 @@
             *(0.88+puls*0.18);
           B.neus.scale.set(gr,gr,1);
           }
+        // Het projectielplaatje van de VLOOTPLAAT is er helemaal uit: Sjoerds
+        // eigen koppen zijn nu de raket. Zo zie je nooit meer het oude raketje
+        // uit de atlas ertussen.
+        if(this.kopVak&&B.m.visible) B.m.visible=false;
         if(B.buis){
           // Het lichaam wijst met zijn lengte langs de vliegrichting en draait niet
           // naar je toe: daardoor zie je hem van opzij als raket en van voren als neus.
