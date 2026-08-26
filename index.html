@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.28';
+  const VERSIE='v12.29';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2742,6 +2742,11 @@
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i]; if(e.live) continue;
         const bb=this.bbPak(0); if(!bb) return null;
         e.live=true; e.tp=tp; e.cel=tp; e.bb=bb; e.fase=0; e.flash=0;
+        // DE OORZAAK dat er in elke golf een spook opdook: schepen worden
+        // hergebruikt uit een voorraad, en de spookvlaggen werden nooit gewist.
+        // Elk schip dat later hetzelfde plekje kreeg was dus óók een spook.
+        e.spiraal=0; e.onzicht=0; e.spookFase=0; e.spookOp=0; e.spookLeeft=0;
+        e.spF=null; e.spT=0; e.spDoel=null; e.zichtT=0; e.valT=0; e.brT3=0;
         e.stap=0; e.mode='nader'; e.wacht=0; e.burst=0; e.bT=0;
         e.prof=T.prof; e.form=null; e.uit=0; e.dood=0; e.doodT=0; e.ring=null;
         e.stijl=(opt&&opt.stijl)||'halte'; e.zij=(opt&&opt.zij)||1; e.overs=0;
