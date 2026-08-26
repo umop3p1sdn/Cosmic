@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.34';
+  const VERSIE='v12.39';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -902,25 +902,26 @@
   '      <a-entity id="contTxt" position="0 1.205 -2.57"></a-entity>'+
   '      <a-entity id="contSub" position="0 1.115 -2.57"></a-entity>'+
   '      <a-entity id="moeiKop" position="0 0.940 -2.57"></a-entity>'+
-  '      <a-plane id="btnEasy" class="menu-btn" position="-0.50 0.815 -2.58" width="0.44" height="0.145" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
-  '      <a-plane id="btnNorm" class="menu-btn" position="0 0.815 -2.58" width="0.44" height="0.145" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
-  '      <a-plane id="btnHard" class="menu-btn" position="0.50 0.815 -2.58" width="0.44" height="0.145" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
-  '      <a-entity id="mEasy" position="-0.50 0.815 -2.57"></a-entity>'+
-  '      <a-entity id="mNorm" position="0 0.815 -2.57"></a-entity>'+
-  '      <a-entity id="mHard" position="0.50 0.815 -2.57"></a-entity>'+
+  '      <a-plane id="btnEasy" class="menu-btn" position="-0.58 0.815 -2.58" width="0.50" height="0.20" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
+  '      <a-plane id="btnNorm" class="menu-btn" position="0.00 0.815 -2.58" width="0.50" height="0.20" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
+  '      <a-plane id="btnHard" class="menu-btn" position="0.58 0.815 -2.58" width="0.50" height="0.20" material="color:#0a1d28;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
+  '      <a-entity id="mEasy" position="-0.58 0.815 -2.57"></a-entity>'+
+  '      <a-entity id="mNorm" position="0.00 0.815 -2.57"></a-entity>'+
+  '      <a-entity id="mHard" position="0.58 0.815 -2.57"></a-entity>'+
   '      <a-plane position="0 0.610 -2.59" width="1.90" height="0.003" material="color:#35e8ff;shader:flat;opacity:0.18;transparent:true;depthWrite:false"></a-plane>'+
-  '      <a-plane id="btnDemo" class="menu-btn" position="-0.72 0.500 -2.58" width="0.34" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-plane id="btnScores" class="menu-btn" position="-0.36 0.500 -2.58" width="0.34" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-plane id="btnHelp" class="menu-btn" position="0 0.500 -2.58" width="0.40" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-plane id="btnTech" class="menu-btn" position="0.36 0.500 -2.58" width="0.30" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-plane id="btnShare" class="menu-btn" position="0.76 0.24 -2.58" width="0.44" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-entity id="mShare" position="0.76 0.24 -2.57"></a-entity>'+
-  '      <a-plane id="btnVR" class="menu-btn" position="0.76 0.500 -2.58" width="0.44" height="0.15" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-entity id="mDemo" position="-0.72 0.500 -2.57"></a-entity>'+
-  '      <a-entity id="mScores" position="-0.36 0.500 -2.57"></a-entity>'+
-  '      <a-entity id="mHelp" position="0 0.500 -2.57"></a-entity>'+
+  '      <a-plane id="btnDemo" class="menu-btn" position="-0.86 0.470 -2.58" width="0.50" height="0.20" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-plane id="btnScores" class="menu-btn" position="-0.29 0.470 -2.58" width="0.50" height="0.20" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-plane id="btnHelp" class="menu-btn" position="0.29 0.470 -2.58" width="0.50" height="0.20" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-plane id="btnTech" class="menu-btn" position="0.86 0.470 -2.58" width="0.50" height="0.20" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-entity id="mTech" position="0.86 0.470 -2.57"></a-entity>'+
+  '      <a-plane id="btnShare" class="menu-btn" position="0.86 0.185 -2.58" width="0.50" height="0.20" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-entity id="mShare" position="0.86 0.185 -2.57"></a-entity>'+
+  '      <a-plane id="btnVR" class="menu-btn" position="-0.86 0.185 -2.58" width="0.50" height="0.20" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-entity id="mDemo" position="-0.86 0.470 -2.57"></a-entity>'+
+  '      <a-entity id="mScores" position="-0.29 0.470 -2.57"></a-entity>'+
+  '      <a-entity id="mHelp" position="0.29 0.470 -2.57"></a-entity>'+
   '      <a-entity id="mTest" position="0.36 0.500 -2.57"></a-entity>'+
-  '      <a-entity id="mVR" position="0.76 0.500 -2.57"></a-entity>'+
+  '      <a-entity id="mVR" position="-0.86 0.185 -2.57"></a-entity>'+
   '      <a-entity id="scoreLijst" position="0 0.260 -2.57"></a-entity>'+
   '      <a-text id="verTxt" position="0 0.060 -2.57" value="v11.69" align="center" color="#37586b" width="1.1"></a-text>'+
   '      <a-text id="artTxt" value="" align="center" color="#37586b" width="1.0" position="-0.62 0.060 -2.57"></a-text>'+
@@ -1050,89 +1051,89 @@
   const DANS={
     // statig slagschip: ver naar achter voor de zware zet, dan traag naar voren
     'DREADNOUGHT':[
-      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:6.5,d:186,v:1.3,zw:0.16,zb:34,hb:6, aanval:'zwaar', zeg:'TARGETING'},
-      {t:5.0,d:115, v:1.1,zw:0.24,zb:26,hb:7, aanval:'sig',   zeg:''},
-      {t:4.0,d:59, v:1.8,zw:0.40,zb:14,hb:5, aanval:'kort',  zeg:'CLOSING IN'},
-      {t:4.5,d:149, v:1.6,zw:0.20,zb:32,hb:6, aanval:'niets', zeg:'FALLING BACK'} ],
+      {t:4.0,d:230,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:6.5,d:134,v:1.3,zw:0.16,zb:34,hb:6, aanval:'zwaar', zeg:'TARGETING'},
+      {t:5.0,d:83, v:1.1,zw:0.24,zb:26,hb:7, aanval:'sig',   zeg:''},
+      {t:4.0,d:42, v:1.8,zw:0.40,zb:14,hb:5, aanval:'kort',  zeg:'CLOSING IN'},
+      {t:4.5,d:107, v:1.6,zw:0.20,zb:32,hb:6, aanval:'niets', zeg:'FALLING BACK'} ],
     // beukt langzaam maar onverstoorbaar naar voren; hoe dichterbij, hoe erger
     'IRONCLAD':[
-      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:7.0,d:170,v:0.8,zw:0.10,zb:20,hb:4, aanval:'zwaar', zeg:'SIEGE MODE'},
-      {t:6.0,d:102, v:0.9,zw:0.12,zb:16,hb:4, aanval:'sig',   zeg:''},
-      {t:5.5,d:46, v:1.0,zw:0.14,zb:10,hb:3, aanval:'kort',  zeg:'BREACHING'},
-      {t:4.0,d:155,v:1.4,zw:0.10,zb:22,hb:5, aanval:'niets', zeg:''} ],
+      {t:4.0,d:230,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:7.0,d:122,v:0.8,zw:0.10,zb:20,hb:4, aanval:'zwaar', zeg:'SIEGE MODE'},
+      {t:6.0,d:73, v:0.9,zw:0.12,zb:16,hb:4, aanval:'sig',   zeg:''},
+      {t:5.5,d:34, v:1.0,zw:0.14,zb:10,hb:3, aanval:'kort',  zeg:'BREACHING'},
+      {t:4.0,d:112,v:1.4,zw:0.10,zb:22,hb:5, aanval:'niets', zeg:''} ],
     // zware knallers van ver; komt nooit echt dichtbij
     'WARDEN':[
-      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:7.5,d:202,v:1.2,zw:0.14,zb:38,hb:6, aanval:'zwaar', zeg:'HEAVY LOCK'},
-      {t:5.0,d:136, v:1.1,zw:0.22,zb:30,hb:7, aanval:'sig',   zeg:''},
-      {t:5.0,d:174,v:1.2,zw:0.18,zb:34,hb:6, aanval:'jacht', zeg:''} ],
+      {t:4.0,d:230,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:7.5,d:145,v:1.2,zw:0.14,zb:38,hb:6, aanval:'zwaar', zeg:'HEAVY LOCK'},
+      {t:5.0,d:98, v:1.1,zw:0.22,zb:30,hb:7, aanval:'sig',   zeg:''},
+      {t:5.0,d:125,v:1.2,zw:0.18,zb:34,hb:6, aanval:'jacht', zeg:''} ],
     // schiet vooruit, staat stil, vuurt één strakke streep, trekt terug
     'LANCE':[
-      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:3.0,d:68, v:2.6,zw:0.10,zb:8, hb:3, aanval:'sig',   zeg:'LANCE READY'},
-      {t:2.5,d:68, v:0.2,zw:0.05,zb:4, hb:2, aanval:'kort',  zeg:''},
-      {t:5.0,d:195,v:2.2,zw:0.24,zb:30,hb:7, aanval:'zwaar', zeg:'REPOSITIONING'},
-      {t:3.5,d:140, v:1.4,zw:0.30,zb:24,hb:6, aanval:'niets', zeg:''} ],
+      {t:4.0,d:230,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:3.0,d:49, v:2.6,zw:0.10,zb:8, hb:3, aanval:'sig',   zeg:'LANCE READY'},
+      {t:2.5,d:49, v:0.2,zw:0.05,zb:4, hb:2, aanval:'kort',  zeg:''},
+      {t:5.0,d:140,v:2.2,zw:0.24,zb:30,hb:7, aanval:'zwaar', zeg:'REPOSITIONING'},
+      {t:3.5,d:101, v:1.4,zw:0.30,zb:24,hb:6, aanval:'niets', zeg:''} ],
     // cirkelt om je heen op vaste afstand, altijd in beweging
     'THE WHEEL':[
-      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:7.0,d:130, v:1.1,zw:0.62,zb:52,hb:14,aanval:'sig',   zeg:''},
-      {t:5.0,d:167,v:1.2,zw:0.48,zb:60,hb:12,aanval:'zwaar', zeg:'WHEEL TURNS'},
-      {t:4.5,d:90, v:1.5,zw:0.85,zb:34,hb:16,aanval:'kort',  zeg:''} ],
+      {t:4.0,d:230,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:7.0,d:94, v:1.1,zw:0.62,zb:52,hb:14,aanval:'sig',   zeg:''},
+      {t:5.0,d:120,v:1.2,zw:0.48,zb:60,hb:12,aanval:'zwaar', zeg:'WHEEL TURNS'},
+      {t:4.5,d:65, v:1.5,zw:0.85,zb:34,hb:16,aanval:'kort',  zeg:''} ],
     // duikt weg naar links of rechts en valt van opzij aan
     'RAVEN':[
-      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:4.0,d:149, v:2.2,zw:0.70,zb:66,hb:12,aanval:'niets', zeg:'FLANKING'},
-      {t:3.5,d:81, v:2.4,zw:0.90,zb:52,hb:14,aanval:'kort',  zeg:''},
-      {t:6.0,d:192,v:1.8,zw:0.34,zb:44,hb:10,aanval:'zwaar', zeg:'TALON'},
-      {t:4.0,d:108, v:2.0,zw:0.75,zb:58,hb:13,aanval:'jacht', zeg:''} ],
+      {t:4.0,d:230,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:4.0,d:107, v:2.2,zw:0.70,zb:66,hb:12,aanval:'niets', zeg:'FLANKING'},
+      {t:3.5,d:58, v:2.4,zw:0.90,zb:52,hb:14,aanval:'kort',  zeg:''},
+      {t:6.0,d:138,v:1.8,zw:0.34,zb:44,hb:10,aanval:'zwaar', zeg:'TALON'},
+      {t:4.0,d:78, v:2.0,zw:0.75,zb:58,hb:13,aanval:'jacht', zeg:''} ],
     // drie ogen: trekken ver terug, draaien om elkaar heen, vuren om beurten
     'THE EYES':[
-      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:6.0,d:205,v:1.4,zw:0.90,zb:30,hb:18,aanval:'zwaar', zeg:'THE EYES ALIGN'},
-      {t:5.0,d:143, v:1.2,zw:1.20,zb:24,hb:22,aanval:'sig',   zeg:''},
-      {t:4.0,d:93, v:1.6,zw:1.50,zb:18,hb:26,aanval:'kort',  zeg:'GAZE'} ],
+      {t:4.0,d:230,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:6.0,d:148,v:1.4,zw:0.90,zb:30,hb:18,aanval:'zwaar', zeg:'THE EYES ALIGN'},
+      {t:5.0,d:103, v:1.2,zw:1.20,zb:24,hb:22,aanval:'sig',   zeg:''},
+      {t:4.0,d:67, v:1.6,zw:1.50,zb:18,hb:26,aanval:'kort',  zeg:'GAZE'} ],
     // stampt heen en weer, breed en zwaar
     'THE WALKER':[
-      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:6.0,d:161,v:1.0,zw:0.26,zb:56,hb:5, aanval:'zwaar', zeg:'HEAVY STEPS'},
-      {t:5.5,d:96, v:1.2,zw:0.34,zb:48,hb:5, aanval:'sig',   zeg:''},
-      {t:4.0,d:56, v:1.6,zw:0.44,zb:30,hb:4, aanval:'kort',  zeg:'STOMP'} ],
+      {t:4.0,d:230,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:6.0,d:116,v:1.0,zw:0.26,zb:56,hb:5, aanval:'zwaar', zeg:'HEAVY STEPS'},
+      {t:5.5,d:69, v:1.2,zw:0.34,zb:48,hb:5, aanval:'sig',   zeg:''},
+      {t:4.0,d:40, v:1.6,zw:0.44,zb:30,hb:4, aanval:'kort',  zeg:'STOMP'} ],
     // kruipt om je heen, valt uit en trekt terug
     'ARACHNID':[
-      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:5.0,d:136, v:1.3,zw:0.55,zb:50,hb:10,aanval:'sig',   zeg:''},
-      {t:3.0,d:53, v:2.8,zw:0.30,zb:16,hb:6, aanval:'kort',  zeg:'POUNCE'},
-      {t:6.5,d:198,v:1.6,zw:0.40,zb:44,hb:12,aanval:'zwaar', zeg:'VENOM'},
-      {t:4.0,d:115, v:1.4,zw:0.60,zb:46,hb:11,aanval:'jacht', zeg:''} ],
+      {t:4.0,d:230,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:5.0,d:98, v:1.3,zw:0.55,zb:50,hb:10,aanval:'sig',   zeg:''},
+      {t:3.0,d:38, v:2.8,zw:0.30,zb:16,hb:6, aanval:'kort',  zeg:'POUNCE'},
+      {t:6.5,d:143,v:1.6,zw:0.40,zb:44,hb:12,aanval:'zwaar', zeg:'VENOM'},
+      {t:4.0,d:83, v:1.4,zw:0.60,zb:46,hb:11,aanval:'jacht', zeg:''} ],
     // zweeft hoog, daalt neer, stijgt weer op
     'SERAPH':[
-      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:6.0,d:183,v:1.2,zw:0.30,zb:28,hb:24,aanval:'zwaar', zeg:'ASCENDING'},
-      {t:5.0,d:124, v:1.3,zw:0.40,zb:24,hb:20,aanval:'sig',   zeg:''},
-      {t:4.0,d:71, v:1.7,zw:0.50,zb:18,hb:16,aanval:'kort',  zeg:'DESCENT'} ],
+      {t:4.0,d:230,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:6.0,d:132,v:1.2,zw:0.30,zb:28,hb:24,aanval:'zwaar', zeg:'ASCENDING'},
+      {t:5.0,d:89, v:1.3,zw:0.40,zb:24,hb:20,aanval:'sig',   zeg:''},
+      {t:4.0,d:51, v:1.7,zw:0.50,zb:18,hb:16,aanval:'kort',  zeg:'DESCENT'} ],
     // hangt in het midden en pulseert; beweegt weinig, vuurt veel vormen
     'THE CORE':[
-      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:6.0,d:149, v:0.9,zw:0.20,zb:14,hb:8, aanval:'sig',   zeg:''},
-      {t:5.5,d:202,v:1.1,zw:0.16,zb:10,hb:6, aanval:'zwaar', zeg:'OVERCHARGE'},
-      {t:4.5,d:99, v:1.3,zw:0.28,zb:18,hb:10,aanval:'kort',  zeg:''} ],
+      {t:4.0,d:230,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:6.0,d:107, v:0.9,zw:0.20,zb:14,hb:8, aanval:'sig',   zeg:''},
+      {t:5.5,d:145,v:1.1,zw:0.16,zb:10,hb:6, aanval:'zwaar', zeg:'OVERCHARGE'},
+      {t:4.5,d:71, v:1.3,zw:0.28,zb:18,hb:10,aanval:'kort',  zeg:''} ],
     // sluipt langzaam dichterbij en slaat dan hard toe
     'DEATHS HEAD':[
-      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:7.0,d:189,v:1.0,zw:0.12,zb:26,hb:6, aanval:'zwaar', zeg:'MARKED'},
-      {t:5.0,d:108, v:1.1,zw:0.20,zb:22,hb:7, aanval:'jacht', zeg:''},
-      {t:3.5,d:50, v:2.2,zw:0.36,zb:12,hb:5, aanval:'kort',  zeg:'EXECUTION'},
-      {t:4.0,d:161,v:1.8,zw:0.18,zb:28,hb:6, aanval:'niets', zeg:''} ],
+      {t:4.0,d:230,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:7.0,d:136,v:1.0,zw:0.12,zb:26,hb:6, aanval:'zwaar', zeg:'MARKED'},
+      {t:5.0,d:78, v:1.1,zw:0.20,zb:22,hb:7, aanval:'jacht', zeg:''},
+      {t:3.5,d:36, v:2.2,zw:0.36,zb:12,hb:5, aanval:'kort',  zeg:'EXECUTION'},
+      {t:4.0,d:116,v:1.8,zw:0.18,zb:28,hb:6, aanval:'niets', zeg:''} ],
     // de eindbaas: alle bewegingen, in wisselende volgorde
     'TITAN PRIME':[
-      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:6.0,d:195,v:1.4,zw:0.24,zb:40,hb:10,aanval:'zwaar', zeg:'TITAN AWAKENS'},
-      {t:4.5,d:115, v:1.8,zw:0.50,zb:34,hb:12,aanval:'sig',   zeg:''},
-      {t:3.5,d:56, v:2.4,zw:0.70,zb:20,hb:8, aanval:'kort',  zeg:'CRUSH'},
-      {t:5.0,d:155,v:2.0,zw:0.36,zb:44,hb:11,aanval:'jacht', zeg:''} ]
+      {t:4.0,d:230,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:6.0,d:140,v:1.4,zw:0.24,zb:40,hb:10,aanval:'zwaar', zeg:'TITAN AWAKENS'},
+      {t:4.5,d:83, v:1.8,zw:0.50,zb:34,hb:12,aanval:'sig',   zeg:''},
+      {t:3.5,d:40, v:2.4,zw:0.70,zb:20,hb:8, aanval:'kort',  zeg:'CRUSH'},
+      {t:5.0,d:112,v:2.0,zw:0.36,zb:44,hb:11,aanval:'jacht', zeg:''} ]
   };
 
   const TRIPS={
@@ -1348,6 +1349,9 @@
   // waren dan al 9 seconden werk — te veel voor één cyclus.
   const DANS_ZWAAR=3, DANS_ZW_HP=30, DANS_ZW_DMG=30, DANS_ZW_SNEL=13;
   const DANS_KORT=10;
+  // Na hoeveel seconden vrije vlucht een baasschot alsnog gaat zoeken, en hoe
+  // strak het dan bijdraait. Zo bereikt ALLES wat een baas afvuurt je uiteindelijk.
+  const LAATZOEK=1.8, LAATDRAAI=1.5;
   // De BAAN van elke baas: 0 heen en weer · 1 liggende acht · 2 cirkel ·
   // 3 schokken (stilhangen en dan opzij schieten) · 4 duiken · 5 wiegen met tik.
   // puls = hoeveel zijn tempo golft, zodat hij niet als een metronoom beweegt.
@@ -1843,7 +1847,21 @@
         P.forEach(function(o){ o.live=false; o.m.visible=false; }); });
       this.dozen.forEach(function(D){ D.live=false; D.g.visible=false; });
       this.zuigT=0; this.zuig.visible=false;
-      this.blastT=0; if(this.blast) this.blast.visible=false; },
+      this.blastT=0; if(this.blast) this.blast.visible=false;
+      // ALLES wat er sindsdien is bijgekomen ook opruimen, anders blijft de
+      // lucht vol hangen als je halverwege terug naar het menu gaat.
+      if(this.rookP) this.rookP.forEach(function(o){ o.live=false; o.m.visible=false; });
+      if(this.neuzen) this.neuzen.forEach(function(m){ m.visible=false; m.__bezet=0; });
+      if(this.koppen) this.koppen.forEach(function(m){ m.visible=false; m.__bezet=0; });
+      if(this.vijBuis) this.vijBuis.forEach(function(m){ m.visible=false; });
+      if(this.ringen) this.ringen.forEach(function(o){ o.live=false; if(o.m) o.m.visible=false; });
+      if(this.camo) this.camo.forEach(function(o){ o.live=false; o.m.visible=false; });
+      if(this.wijzers) this.wijzers.forEach(function(w){ w.live=false; w.B=null;
+        if(w.m) w.m.visible=false; });
+      this.sigRij=[];
+      this.straalT=0;
+      if(this.straal){ this.straal.visible=false; if(this.straalK) this.straalK.visible=false; }
+      this.spiraalT=1e9; },
 
     // Op de telefoon zijn er twee tikhanden. Die lenen elk het wapen van een
     // echte hand, zodat oppakken, niveaus en de HUD gewoon blijven werken:
@@ -3417,9 +3435,21 @@
         B.waaier=o.waaier||0; B.wh=o.wh||0;
         // De kop MOET hier gezet worden. Zonder dit hield een hergebruikt
         // projectiel de kop van zijn vorige leven, en leek alles hetzelfde.
-        B.kopNr=(o.kop!==undefined)?o.kop:(((e&&e.tp)||0)%25);
+        // Elke AANVALSSOORT zijn eigen raket: de zware zet ziet er anders uit dan
+        // het jachtsalvo, de barrage weer anders. Zo herken je aan de kop wat er
+        // op je afkomt — niet alleen wie hem afvuurde.
+        // 0 zware zet · 1 barrage · 2 jachtsalvo · 3 specialiteit-zwaar ·
+        // 4 handtekening · 5 specialiteit. Elke aanval zijn eigen raket, zodat
+        // je aan de kop ziet WELKE aanval eraan komt — niet alleen wie hem stuurt.
+        B.kopNr=(o.kop!==undefined)?o.kop
+              :(((((e&&e.baasNaam)?this.baasNr(e.baasNaam):((e&&e.tp)||0))*6)
+                 +(o.soort||0))%25);
         // de vliegstijl van deze baas, tenzij het schot er zelf een meekrijgt
         const V=(e&&e.baasNaam&&VLUCHT[e.baasNaam])||null;
+        // ALLES wat een baas afvuurt komt uiteindelijk op je af. Een raket die
+        // wijd uitwaaiert en dan de ruimte in vliegt is geen dreiging maar sier.
+        // Na een korte vrije vlucht draait hij alsnog bij.
+        B.leef=0; B.laatZoek=(o.laatZoek!==undefined)?o.laatZoek:LAATZOEK;
         B.stijl=(o.stijl!==undefined)?o.stijl:(V?V.s:0);
         B.sf=Math.random()*6.283;
         B.sfS=o.sfS||(V?V.sfS:3.0); B.sfK=o.sfK||(V?V.k:0.55);
@@ -3553,14 +3583,14 @@
       for(let i=0;i<n;i++){
         const zij=((i/(n-1))-0.5)*2*spreid+Math.sin(dr)*0.5;
         this.sigSchot(e,this.sigRicht(e,zij,0.02),
-          {sp:twee?21:24,hp:2,dmg:6,streep:0,groot:0.8,zoek:1,draai:twee?1.5:1.0,neus:0,kleur:0xff3040}); }
+          {soort:4,sp:twee?21:24,hp:2,dmg:6,streep:0,groot:0.8,zoek:1,draai:twee?1.5:1.0,neus:0,kleur:0xff3040}); }
       this.sigMeld(e,twee?'SPREAD  -  SWEEP':'SPREAD','#ffb03a'); },
 
     // ---- 2. WARDEN: twee zware knallers; in fase 2 splijten ze ----
     sigKnaller:function(e,twee){
       for(let i=0;i<2;i++){
         this.sigSchot(e,this.sigRicht(e,(i?0.16:-0.16),0),
-          {sp:11,hp:9,dmg:16,zwaar:1,groot:1.9,zoek:1,draai:1.3,neus:1,kleur:0xff2020,
+          {soort:4,sp:11,hp:9,dmg:16,zwaar:1,groot:1.9,zoek:1,draai:1.3,neus:1,kleur:0xff2020,
            splijt:twee?4:0,sptijd:twee?1.9:0}); }
       this.sigMeld(e,twee?'HEAVY  -  SPLIT':'HEAVY','#ff3d55'); },
 
@@ -3572,7 +3602,7 @@
         for(let i=0;i<n;i++){
           const hk=(i/n)*6.283+(r?0.26:0);
           this.sigSchot(e,this.sigRicht(e,Math.cos(hk)*0.6,Math.sin(hk)*0.6),
-            {sp:twee?16:18,hp:2,dmg:5,groot:0.85,neus:2,kleur:0xffd030,
+            {soort:4,sp:twee?16:18,hp:2,dmg:5,groot:0.85,neus:2,kleur:0xffd030,
              draaiOm:om,hoekS:1.5,hoek0:hk,straal0:1}); } }
       this.sigMeld(e,twee?'WHEEL  -  DOUBLE':'WHEEL','#ffe45c'); },
 
@@ -3585,7 +3615,7 @@
         this.sigNa(i*0.11,function(){
           if(!e.live) return;
           self.sigSchot(e,self.sigRicht(e,zij,0),
-            {sp:46,hp:1,dmg:8,streep:1,groot:0.7,neus:0,kleur:0xffd0e0}); }); }
+            {soort:4,sp:46,hp:1,dmg:8,streep:1,groot:0.7,neus:0,kleur:0xffd0e0}); }); }
       this.sigMeld(e,twee?'LANCE  -  VOLLEY':'LANCE','#cfe8ff'); },
 
     // ---- 5. RAVEN: groepjes die van opzij omvliegen; fase 2 ook van boven ----
@@ -3594,7 +3624,7 @@
       kanten.forEach(function(k,gi){
         for(let i=0;i<4;i++){
           const B=this.sigSchot(e,this.sigRicht(e,k[0]*1.4,k[1]*1.2),
-            {sp:24,hp:2,dmg:5,zoek:1,draai:3.0,groot:0.8,neus:1,kleur:0xc060ff});
+            {soort:4,sp:24,hp:2,dmg:5,zoek:1,draai:3.0,groot:0.8,neus:1,kleur:0xc060ff});
           if(B){ B.waaier=0.55+i*0.05; B.wh=Math.atan2(k[1],k[0]); } }
       },this);
       this.sigMeld(e,twee?'FLANK  -  TRIPLE':'FLANK','#c07dff'); },
@@ -3602,7 +3632,7 @@
     // ---- 6. IRONCLAD: rolbom die opensplijt; fase 2 splijt nog eens ----
     sigRolbom:function(e,twee){
       this.sigSchot(e,this.sigRicht(e,0,0.04),
-        {sp:9,hp:14,dmg:16,zwaar:1,groot:2.4,zoek:1,draai:0.9,neus:1,kleur:0xc0c8d0,splijt:6,sptijd:2.2,
+        {soort:4,sp:9,hp:14,dmg:16,zwaar:1,groot:2.4,zoek:1,draai:0.9,neus:1,kleur:0xc0c8d0,splijt:6,sptijd:2.2,
          splijt2:twee?3:0});
       this.sigMeld(e,twee?'BREACH  -  CLUSTER':'BREACH','#b8c4cc'); },
 
@@ -3612,11 +3642,11 @@
       if(twee){ T3.forEach(function(b,i){
           if(!b.live) return;
           this.sigSchot(b,this.sigRicht(b,(i-1)*0.5,0.1),
-            {sp:17,hp:4,dmg:9,zoek:1,draai:3.2,groot:1.1,neus:0,kleur:0x60ff90}); },this); }
+            {soort:4,sp:17,hp:4,dmg:9,zoek:1,draai:3.2,groot:1.1,neus:0,kleur:0x60ff90}); },this); }
       else { const i=(e.oogB=((e.oogB||0)+1)%T3.length);
         const b=T3[i]||e;
         if(b.live) this.sigSchot(b,this.sigRicht(b,0,0.05),
-          {sp:16,hp:4,dmg:9,zoek:1,draai:3.0,groot:1.1,neus:0,kleur:0x60ff90}); }
+          {soort:4,sp:16,hp:4,dmg:9,zoek:1,draai:3.0,groot:1.1,neus:0,kleur:0x60ff90}); }
       this.sigMeld(e,twee?'GAZE  -  ALL EYES':'GAZE','#6ce2a0'); },
 
     // ---- 8. THE WALKER: sliert als een zweep; fase 2 twee kruisende ----
@@ -3630,7 +3660,7 @@
           this.sigNa(i*0.07,function(){
             if(!e.live) return;
             self.sigSchot(e,self.sigRicht(e,zij,0.02),
-              {sp:26,hp:1,dmg:6,groot:0.65,zoek:1,draai:0.8,neus:0,kleur:0xff8a30}); }); } }
+              {soort:4,sp:26,hp:1,dmg:6,groot:0.65,zoek:1,draai:0.8,neus:0,kleur:0xff8a30}); }); } }
       this.sigMeld(e,twee?'LASH  -  CROSS':'LASH','#d98a4a'); },
 
     // ---- 9. ARACHNID: poten spuwen uit en trekken samen; fase 2 een web ----
@@ -3638,7 +3668,7 @@
       for(let i=0;i<8;i++){
         const hk=(i/8)*6.283;
         const B=this.sigSchot(e,this.sigRicht(e,Math.cos(hk)*0.75,Math.sin(hk)*0.6),
-          {sp:twee?11:20,hp:2,dmg:5,zoek:twee?0:1,draai:2.6,groot:0.8,neus:2,kleur:0x90ff40});
+          {soort:4,sp:twee?11:20,hp:2,dmg:5,zoek:twee?0:1,draai:2.6,groot:0.8,neus:2,kleur:0x90ff40});
         if(B&&!twee){ B.waaier=0.5; B.wh=hk; }
         if(B&&twee){ B.md=190; }                    // blijft hangen als een web
       }
@@ -3657,11 +3687,11 @@
       for(let i=0;i<n;i++){
         const hk=(i/n)*6.283+(e.pulsF=(e.pulsF||0)+0.31);
         this.sigSchot(e,this.sigRicht(e,Math.cos(hk)*0.62,Math.sin(hk)*0.5),
-          {sp:15,hp:3,dmg:7,groot:0.8,zoek:1,draai:1.8,neus:2,kleur:0x40e0ff}); }
+          {soort:4,sp:15,hp:3,dmg:7,groot:0.8,zoek:1,draai:1.8,neus:2,kleur:0x40e0ff}); }
       if(twee){ for(let i=0;i<4;i++){
         const hk=(e.pulsF||0)*2+i*1.57;
         this.sigSchot(e,this.sigRicht(e,Math.cos(hk)*0.85,Math.sin(hk)*0.7),
-          {sp:34,hp:1,dmg:6,streep:1,groot:0.7}); } }
+          {soort:4,sp:34,hp:1,dmg:6,streep:1,groot:0.7}); } }
       this.sigMeld(e,twee?'PULSE  -  BEAM':'PULSE','#66f0ff'); },
 
     // ---- 12. DEATHS HEAD: trage onverbiddelijke zoekers ----
@@ -3669,7 +3699,7 @@
       const n=twee?6:3;
       for(let i=0;i<n;i++){
         this.sigSchot(e,this.sigRicht(e,((i/(n-1))-0.5)*0.8,0.05),
-          {sp:twee?15:13,hp:5,dmg:11,zoek:1,draai:twee?5.6:4.2,groot:1.3,neus:1,kleur:0xff2050}); }
+          {soort:4,sp:twee?15:13,hp:5,dmg:11,zoek:1,draai:twee?5.6:4.2,groot:1.3,neus:1,kleur:0xff2050}); }
       this.sigMeld(e,twee?'REAPER  -  SWARM':'REAPER','#ff4060'); },
 
     // ---- 16. TITAN PRIME: alles, in fasen ----
@@ -3700,7 +3730,7 @@
           for(let i=0;i<perVlaag;i++){
             const hk=(i/perVlaag)*6.283+v*0.7;
             const B=self.sigSchot(e,self.sigRicht(e,Math.cos(hk)*0.5,Math.sin(hk)*0.4),
-              {sp:STORM_SNEL,hp:3,dmg:6,zoek:1,draai:STORM_DRAAI,groot:0.9,
+              {soort:4,sp:STORM_SNEL,hp:3,dmg:6,zoek:1,draai:STORM_DRAAI,groot:0.9,
                neus:1,kleur:0xff4020});
             if(B){ B.waaier=0.45+Math.random()*0.3; B.wh=hk; } }
           self.vonk(e.p.x,e.p.y,e.p.z,0xff2a3d,6,e.bw*0.3,0.8);
@@ -3716,6 +3746,12 @@
     //   sig    = zijn eigen handtekening, waaraan je hem herkent
     //   jacht  = een groep zoekers, minder zwaar
     //   kort   = een snelle barrage van makkelijk kapot te schieten raketten
+    // Een vast nummer per baas, zodat zijn koppen altijd dezelfde zijn.
+    baasNr:function(naam){
+      if(!this.bnCache){ this.bnCache={}; let n=0;
+        for(const k in DANS) this.bnCache[k]=n++; }
+      return (this.bnCache[naam]!==undefined)?this.bnCache[naam]:0; },
+
     dansAanval:function(e,wat){
       const twee=(e.hp/Math.max(1,e.hpM))<SIG_OMSLAG;
       if(wat==='zwaar') this.dansZwaar(e,twee);
@@ -3734,8 +3770,8 @@
         this.sigNa(i*0.28,function(){
           if(!e.live||e.dood) return;
           const B=self.sigSchot(e,self.sigRicht(e,zij,0.05),
-            {sp:DANS_ZW_SNEL,hp:DANS_ZW_HP,dmg:DANS_ZW_DMG,zoek:1,draai:2.4,
-             zwaar:1,groot:2.0,neus:1,kleur:Z.kl,kop:(e.tp||0)%25});
+            {soort:0,sp:DANS_ZW_SNEL,hp:DANS_ZW_HP,dmg:DANS_ZW_DMG,zoek:1,draai:2.4,
+             zwaar:1,groot:2.0,neus:1,kleur:Z.kl});
           if(B){ B.wieg=1; B.wf=Math.random()*6; } }); }
       this.toonGroot(Z.roep,'#ff3d55');
       SND.alarm&&SND.alarm(e.p.x*0.02); },
@@ -3747,7 +3783,7 @@
       for(let i=0;i<n;i++){
         const hk=(i/n)*6.283;
         this.sigSchot(e,this.sigRicht(e,Math.cos(hk)*0.55,Math.sin(hk)*0.45),
-          {sp:26,hp:1,dmg:5,groot:0.8,neus:0,kleur:0xff7a30,kop:(e.tp||0)%25}); }
+          {soort:1,sp:26,hp:1,dmg:5,groot:0.8,neus:0,kleur:0xff7a30}); }
       this.toonMelding('BARRAGE','#ff8a30'); },
 
     sigJacht:function(e,twee){
@@ -3759,7 +3795,7 @@
         self.sigNa(vertraag||0,function(){
           if(!e.live||e.dood) return;
           const B=self.sigSchot(e,self.sigRicht(e,zij,op),
-            {sp:soort.sp,hp:JACHT_HP,dmg:JACHT_DMG,zoek:1,draai:soort.draai,
+            {soort:2,sp:soort.sp,hp:JACHT_HP,dmg:JACHT_DMG,zoek:1,draai:soort.draai,
              groot:soort.groot*1.3,neus:neus,kleur:kl});
           if(B) B.wieg=1;                    // ze slingeren: veel lastiger te raken
           if(B&&extra){ B.waaier=extra.w||0; B.wh=extra.h||0; } }); };
@@ -3797,7 +3833,7 @@
         this.sigNa(i*Z.na,function(){
           if(!e.live||e.dood) return;
           const B=self.sigSchot(e,self.sigRicht(e,zij,0.05),
-            {sp:Z.sp,hp:Z.hp,dmg:Z.dmg,zoek:1,draai:Z.draai,zwaar:1,
+            {soort:3,sp:Z.sp,hp:Z.hp,dmg:Z.dmg,zoek:1,draai:Z.draai,zwaar:1,
              groot:Z.groot,neus:1,kleur:Z.kl,
              splijt:Z.splijt||0,sptijd:Z.splijt?1.6:0});
           if(B) B.rT=0; }); }
@@ -3969,7 +4005,7 @@
         const hk=(i/n)*6.283;
         const B=this.sigSchot(e,this.sigRicht(e,Math.cos(hk)*SPIR_WIJD,Math.sin(hk)*SPIR_WIJD*0.85),
           {sp:SPIR_SP,hp:5,dmg:SPIR_DMG,zoek:1,draai:SPIR_DRAAI,groot:1.2,
-           neus:2,kleur:0xff8020,kop:(e.tp||0)%25});
+           neus:2,kleur:0xff8020});
         if(B){ B.waaier=SPIR_WAAIER; B.wh=hk;
                B.wieg=1;                       // slingeren onderweg
                B.draaiOm=(i%2?1:-1); B.hoekS=1.15; B.hoek0=hk; B.straal0=1; } }
@@ -5063,6 +5099,13 @@
         else if(B.wieg){
           B.wf=(B.wf||Math.random()*6)+s*3.2;
           B.dir.x+=Math.sin(B.wf)*0.9*s; B.dir.normalize(); }
+        // Wijd mag, maar daarna moet hij komen: na zijn vrije vlucht wordt elk
+        // baasschot alsnog zoekend.
+        if(B.laatZoek&&!B.zoek){
+          B.leef=(B.leef||0)+s;
+          if(B.leef>B.laatZoek){ B.zoek=1; B.draai=B.draai||LAATDRAAI;
+            this.vonk(B.o.x+B.dir.x*B.d,B.o.y+B.dir.y*B.d,B.o.z+B.dir.z*B.d,
+                      0xff8a3d,2,2.0,0.22); } }
         // ---- VLIEGSTIJLEN: hoe een raket zich door de lucht beweegt ----
         // Elke baas heeft zijn eigen stijl, zodat je aan de baan al ziet wie er
         // schiet. Ze werken bovenop het zoeken, niet ernaast.
@@ -5873,7 +5916,8 @@
           // de vaste opschriften ook in dezelfde letters
           const self3=this;
           this.letterZet('#moeiKop','DIFFICULTY','#bfe4f2','#1b6f8a',0.058,0.34);
-          [['#mDemo','DEMO','#cfeeff',0.104],
+          [['#mTech','TEST','#cfeeff',0.104],
+           ['#mDemo','DEMO','#cfeeff',0.104],
            ['#mScores','SCORES','#cfeeff',0.104],
            ['#mHelp','CONTROLS','#cfeeff',0.104],
            ['#mTest','TEST','#cfeeff',0.104],
@@ -6443,8 +6487,13 @@
     const wvToon=function(){
       const t=document.querySelector('#wvTxt');
       if(t) t.setAttribute('value',techWv>GOLVEN?'BOSS':('WAVE '+techWv)); };
-    const techToon=function(aan){ const t=document.querySelector('#tech');
-      if(t) t.setAttribute('visible',!!aan); };
+    // Het testpaneel EN het hoofdmenu stonden allebei aan: dan kijk je door de
+    // ene knoppenrij heen naar de andere. Ze wisselen elkaar nu af.
+    const techToon=function(aan){
+      const t=document.querySelector('#tech');
+      if(t) t.setAttribute('visible',!!aan);
+      const m=document.querySelector('#menu');
+      if(m) m.setAttribute('visible',!aan); };
     const lvToon=function(){ const t=document.querySelector('#lvTxt');
       if(t) t.setAttribute('value',techLv>16?'PARADE':('LEVEL '+techLv)); };
     kl('#btnNieuw',function(){ versieHerlaad(); });
