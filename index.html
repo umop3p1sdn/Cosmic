@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.29';
+  const VERSIE='v12.34';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1037,6 +1037,104 @@
   // Wat een baas doet en waar hij daarbij hangt. d = afstand, v = snelheid,
   // zw/zb = hoe breed en hoe snel hij heen en weer gaat, hb = hoogtezwaai,
   // f = hoe vaak hij vuurt (1 is gewoon).
+  // ======================================================================
+  //  DE DANS VAN ELKE BAAS
+  //  Beweging en aanval horen bij elkaar. Elke baas doorloopt zijn eigen
+  //  cyclus van plekken; op elke plek hoort één aanval. Ver weg = zijn zware
+  //  zet (weinig raketten, keihard, je hebt tijd). Dichtbij = kort en fel.
+  //  Zo voelt elke baas anders, ook al gebruiken ze dezelfde bouwstenen.
+  //    d  = afstand tot jou      v  = hoe snel hij daarheen gaat
+  //    zb = hoe breed hij zwaait zw = hoe snel hij zwaait
+  //    hb = hoe hoog hij deint   aanval = wat hij daar doet
+  // ======================================================================
+  const DANS={
+    // statig slagschip: ver naar achter voor de zware zet, dan traag naar voren
+    'DREADNOUGHT':[
+      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:6.5,d:186,v:1.3,zw:0.16,zb:34,hb:6, aanval:'zwaar', zeg:'TARGETING'},
+      {t:5.0,d:115, v:1.1,zw:0.24,zb:26,hb:7, aanval:'sig',   zeg:''},
+      {t:4.0,d:59, v:1.8,zw:0.40,zb:14,hb:5, aanval:'kort',  zeg:'CLOSING IN'},
+      {t:4.5,d:149, v:1.6,zw:0.20,zb:32,hb:6, aanval:'niets', zeg:'FALLING BACK'} ],
+    // beukt langzaam maar onverstoorbaar naar voren; hoe dichterbij, hoe erger
+    'IRONCLAD':[
+      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:7.0,d:170,v:0.8,zw:0.10,zb:20,hb:4, aanval:'zwaar', zeg:'SIEGE MODE'},
+      {t:6.0,d:102, v:0.9,zw:0.12,zb:16,hb:4, aanval:'sig',   zeg:''},
+      {t:5.5,d:46, v:1.0,zw:0.14,zb:10,hb:3, aanval:'kort',  zeg:'BREACHING'},
+      {t:4.0,d:155,v:1.4,zw:0.10,zb:22,hb:5, aanval:'niets', zeg:''} ],
+    // zware knallers van ver; komt nooit echt dichtbij
+    'WARDEN':[
+      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:7.5,d:202,v:1.2,zw:0.14,zb:38,hb:6, aanval:'zwaar', zeg:'HEAVY LOCK'},
+      {t:5.0,d:136, v:1.1,zw:0.22,zb:30,hb:7, aanval:'sig',   zeg:''},
+      {t:5.0,d:174,v:1.2,zw:0.18,zb:34,hb:6, aanval:'jacht', zeg:''} ],
+    // schiet vooruit, staat stil, vuurt één strakke streep, trekt terug
+    'LANCE':[
+      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:3.0,d:68, v:2.6,zw:0.10,zb:8, hb:3, aanval:'sig',   zeg:'LANCE READY'},
+      {t:2.5,d:68, v:0.2,zw:0.05,zb:4, hb:2, aanval:'kort',  zeg:''},
+      {t:5.0,d:195,v:2.2,zw:0.24,zb:30,hb:7, aanval:'zwaar', zeg:'REPOSITIONING'},
+      {t:3.5,d:140, v:1.4,zw:0.30,zb:24,hb:6, aanval:'niets', zeg:''} ],
+    // cirkelt om je heen op vaste afstand, altijd in beweging
+    'THE WHEEL':[
+      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:7.0,d:130, v:1.1,zw:0.62,zb:52,hb:14,aanval:'sig',   zeg:''},
+      {t:5.0,d:167,v:1.2,zw:0.48,zb:60,hb:12,aanval:'zwaar', zeg:'WHEEL TURNS'},
+      {t:4.5,d:90, v:1.5,zw:0.85,zb:34,hb:16,aanval:'kort',  zeg:''} ],
+    // duikt weg naar links of rechts en valt van opzij aan
+    'RAVEN':[
+      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:4.0,d:149, v:2.2,zw:0.70,zb:66,hb:12,aanval:'niets', zeg:'FLANKING'},
+      {t:3.5,d:81, v:2.4,zw:0.90,zb:52,hb:14,aanval:'kort',  zeg:''},
+      {t:6.0,d:192,v:1.8,zw:0.34,zb:44,hb:10,aanval:'zwaar', zeg:'TALON'},
+      {t:4.0,d:108, v:2.0,zw:0.75,zb:58,hb:13,aanval:'jacht', zeg:''} ],
+    // drie ogen: trekken ver terug, draaien om elkaar heen, vuren om beurten
+    'THE EYES':[
+      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:6.0,d:205,v:1.4,zw:0.90,zb:30,hb:18,aanval:'zwaar', zeg:'THE EYES ALIGN'},
+      {t:5.0,d:143, v:1.2,zw:1.20,zb:24,hb:22,aanval:'sig',   zeg:''},
+      {t:4.0,d:93, v:1.6,zw:1.50,zb:18,hb:26,aanval:'kort',  zeg:'GAZE'} ],
+    // stampt heen en weer, breed en zwaar
+    'THE WALKER':[
+      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:6.0,d:161,v:1.0,zw:0.26,zb:56,hb:5, aanval:'zwaar', zeg:'HEAVY STEPS'},
+      {t:5.5,d:96, v:1.2,zw:0.34,zb:48,hb:5, aanval:'sig',   zeg:''},
+      {t:4.0,d:56, v:1.6,zw:0.44,zb:30,hb:4, aanval:'kort',  zeg:'STOMP'} ],
+    // kruipt om je heen, valt uit en trekt terug
+    'ARACHNID':[
+      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:5.0,d:136, v:1.3,zw:0.55,zb:50,hb:10,aanval:'sig',   zeg:''},
+      {t:3.0,d:53, v:2.8,zw:0.30,zb:16,hb:6, aanval:'kort',  zeg:'POUNCE'},
+      {t:6.5,d:198,v:1.6,zw:0.40,zb:44,hb:12,aanval:'zwaar', zeg:'VENOM'},
+      {t:4.0,d:115, v:1.4,zw:0.60,zb:46,hb:11,aanval:'jacht', zeg:''} ],
+    // zweeft hoog, daalt neer, stijgt weer op
+    'SERAPH':[
+      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:6.0,d:183,v:1.2,zw:0.30,zb:28,hb:24,aanval:'zwaar', zeg:'ASCENDING'},
+      {t:5.0,d:124, v:1.3,zw:0.40,zb:24,hb:20,aanval:'sig',   zeg:''},
+      {t:4.0,d:71, v:1.7,zw:0.50,zb:18,hb:16,aanval:'kort',  zeg:'DESCENT'} ],
+    // hangt in het midden en pulseert; beweegt weinig, vuurt veel vormen
+    'THE CORE':[
+      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:6.0,d:149, v:0.9,zw:0.20,zb:14,hb:8, aanval:'sig',   zeg:''},
+      {t:5.5,d:202,v:1.1,zw:0.16,zb:10,hb:6, aanval:'zwaar', zeg:'OVERCHARGE'},
+      {t:4.5,d:99, v:1.3,zw:0.28,zb:18,hb:10,aanval:'kort',  zeg:''} ],
+    // sluipt langzaam dichterbij en slaat dan hard toe
+    'DEATHS HEAD':[
+      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:7.0,d:189,v:1.0,zw:0.12,zb:26,hb:6, aanval:'zwaar', zeg:'MARKED'},
+      {t:5.0,d:108, v:1.1,zw:0.20,zb:22,hb:7, aanval:'jacht', zeg:''},
+      {t:3.5,d:50, v:2.2,zw:0.36,zb:12,hb:5, aanval:'kort',  zeg:'EXECUTION'},
+      {t:4.0,d:161,v:1.8,zw:0.18,zb:28,hb:6, aanval:'niets', zeg:''} ],
+    // de eindbaas: alle bewegingen, in wisselende volgorde
+    'TITAN PRIME':[
+      {t:5.5,d:420,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:6.0,d:195,v:1.4,zw:0.24,zb:40,hb:10,aanval:'zwaar', zeg:'TITAN AWAKENS'},
+      {t:4.5,d:115, v:1.8,zw:0.50,zb:34,hb:12,aanval:'sig',   zeg:''},
+      {t:3.5,d:56, v:2.4,zw:0.70,zb:20,hb:8, aanval:'kort',  zeg:'CRUSH'},
+      {t:5.0,d:155,v:2.0,zw:0.36,zb:44,hb:11,aanval:'jacht', zeg:''} ]
+  };
+
   const TRIPS={
     // een slagschip komt statig dichtbij en zakt weer weg
     schip:[ {t:9,  d:88, v:1.0, zw:0.18, zb:30, hb:7,  f:0.8, zeg:''},
@@ -1199,24 +1297,24 @@
   const SPIR_HP=820;            // taaier: Sjoerd wilde meer schade om hem te breken
   // Sjoerd: minder raketten, maar moeilijker. Twaalf taaie zoekers waar je echt
   // op moet blijven schieten, en daarna even niets.
-  const JACHT_DMG=25, JACHT_HP=26;
+  const JACHT_DMG=25, JACHT_HP=12;
   // De derde aanval van elke baas: een eigen groep zoekende raketten. vorm bepaalt
   // hoe ze aankomen, neus welke kop erop zit, kl de kleur van de gloed.
   const JACHT={
-    'DREADNOUGHT':{vorm:'golf',    n:12,meer:4, sp:14, draai:2.6, dmg:5, groot:1.0, neus:0, kl:0xff5030, roep:'HUNTERS'},
-    'WARDEN':     {vorm:'tandem',  n:12,meer:4, sp:11, draai:2.2, dmg:7, groot:1.4, neus:1, kl:0xff2020, roep:'PAIRED WARHEADS'},
-    'LANCE':      {vorm:'ketting', n:12,meer:4, sp:22, draai:3.4, dmg:4, groot:0.8, neus:0, kl:0xcfe8ff, roep:'CHAIN LANCE'},
-    'THE WHEEL':  {vorm:'bloem',   n:12,meer:4, sp:13, draai:2.8, dmg:5, groot:1.0, neus:2, kl:0xffd030, roep:'BLOOM'},
-    'RAVEN':      {vorm:'schaar',  n:12,meer:4, sp:17, draai:3.2, dmg:5, groot:1.0, neus:1, kl:0xc060ff, roep:'SCISSOR'},
-    'IRONCLAD':   {vorm:'tandem',  n:12,meer:4, sp:11, draai:1.8, dmg:9, groot:1.6, neus:1, kl:0xc0c8d0, roep:'SIEGE PAIR'},
-    'THE EYES':   {vorm:'regen',   n:12,meer:4, sp:15, draai:3.0, dmg:5, groot:1.1, neus:0, kl:0x60ff90, roep:'RAIN OF EYES'},
-    'THE WALKER': {vorm:'ketting', n:12,meer:4,sp:18, draai:2.4, dmg:4, groot:0.9, neus:0, kl:0xff8a30, roep:'STAMPEDE'},
-    'ARACHNID':   {vorm:'bloem',   n:12,meer:4, sp:12, draai:2.6, dmg:5, groot:1.0, neus:2, kl:0x90ff40, roep:'BROOD'},
-    'SERAPH':     {vorm:'regen',   n:12,meer:4, sp:16, draai:3.4, dmg:5, groot:1.2, neus:2, kl:0xffe8b0, roep:'DESCENT'},
-    'THE CORE':   {vorm:'bloem',   n:12,meer:4,sp:14, draai:3.0, dmg:5, groot:1.0, neus:2, kl:0x40e0ff, roep:'CORE BLOOM'},
-    'DEATHS HEAD':{vorm:'schaar',  n:12,meer:4, sp:12, draai:4.0, dmg:8, groot:1.4, neus:1, kl:0xff2050, roep:'PINCER'},
-    'TITAN PRIME':{vorm:'regen',   n:12,meer:4,sp:15, draai:3.2, dmg:6, groot:1.2, neus:1, kl:0xff4060, roep:'ANNIHILATION'},
-    _:            {vorm:'golf',    n:12,meer:4, sp:14, draai:2.6, dmg:6, groot:1.0, neus:0, kl:0xff4030, roep:'HUNTERS'}
+    'DREADNOUGHT':{vorm:'golf',    n:6, meer:2, sp:14, draai:2.6, dmg:5, groot:1.0, neus:0, kl:0xff5030, roep:'HUNTERS'},
+    'WARDEN':     {vorm:'tandem',  n:6, meer:2, sp:11, draai:2.2, dmg:7, groot:1.4, neus:1, kl:0xff2020, roep:'PAIRED WARHEADS'},
+    'LANCE':      {vorm:'ketting', n:6, meer:2, sp:22, draai:3.4, dmg:4, groot:0.8, neus:0, kl:0xcfe8ff, roep:'CHAIN LANCE'},
+    'THE WHEEL':  {vorm:'bloem',   n:6, meer:2, sp:13, draai:2.8, dmg:5, groot:1.0, neus:2, kl:0xffd030, roep:'BLOOM'},
+    'RAVEN':      {vorm:'schaar',  n:6, meer:2, sp:17, draai:3.2, dmg:5, groot:1.0, neus:1, kl:0xc060ff, roep:'SCISSOR'},
+    'IRONCLAD':   {vorm:'tandem',  n:6, meer:2, sp:11, draai:1.8, dmg:9, groot:1.6, neus:1, kl:0xc0c8d0, roep:'SIEGE PAIR'},
+    'THE EYES':   {vorm:'regen',   n:6, meer:2, sp:15, draai:3.0, dmg:5, groot:1.1, neus:0, kl:0x60ff90, roep:'RAIN OF EYES'},
+    'THE WALKER': {vorm:'ketting', n:6, meer:2,sp:18, draai:2.4, dmg:4, groot:0.9, neus:0, kl:0xff8a30, roep:'STAMPEDE'},
+    'ARACHNID':   {vorm:'bloem',   n:6, meer:2, sp:12, draai:2.6, dmg:5, groot:1.0, neus:2, kl:0x90ff40, roep:'BROOD'},
+    'SERAPH':     {vorm:'regen',   n:6, meer:2, sp:16, draai:3.4, dmg:5, groot:1.2, neus:2, kl:0xffe8b0, roep:'DESCENT'},
+    'THE CORE':   {vorm:'bloem',   n:6, meer:2,sp:14, draai:3.0, dmg:5, groot:1.0, neus:2, kl:0x40e0ff, roep:'CORE BLOOM'},
+    'DEATHS HEAD':{vorm:'schaar',  n:6, meer:2, sp:12, draai:4.0, dmg:8, groot:1.4, neus:1, kl:0xff2050, roep:'PINCER'},
+    'TITAN PRIME':{vorm:'regen',   n:6, meer:2,sp:15, draai:3.2, dmg:6, groot:1.2, neus:1, kl:0xff4060, roep:'ANNIHILATION'},
+    _:            {vorm:'golf',    n:6, meer:2, sp:14, draai:2.6, dmg:6, groot:1.0, neus:0, kl:0xff4030, roep:'HUNTERS'}
   };
   const JACHT_ELK=3;            // om de hoeveel schoten hij zijn jacht inzet
   // De VIERDE aanval: weinig maar zware zoekers. Traag genoeg om te zien
@@ -1242,6 +1340,38 @@
   // Hoeveel rust er ná een aanval is. Zonder rust wordt het een brij; mét rust
   // kun je zijn raketten opruimen en dan pas de volgende vorm aan.
   const RUST_NA=4.2;
+  // De dans: hoe lang de aankondiging duurt, en hoe zwaar zijn zware zet is.
+  const DANS_MELD=0.7;
+  // Gemeten: met de mitrailleur op niveau 1 doe je 60 schade per seconde, maar
+  // omdat je elke raket apart moet raken terwijl hij slingert kom je in de
+  // praktijk op ongeveer een derde daarvan. Drie zware raketten van 60 kracht
+  // waren dan al 9 seconden werk — te veel voor één cyclus.
+  const DANS_ZWAAR=3, DANS_ZW_HP=30, DANS_ZW_DMG=30, DANS_ZW_SNEL=13;
+  const DANS_KORT=10;
+  // De BAAN van elke baas: 0 heen en weer · 1 liggende acht · 2 cirkel ·
+  // 3 schokken (stilhangen en dan opzij schieten) · 4 duiken · 5 wiegen met tik.
+  // puls = hoeveel zijn tempo golft, zodat hij niet als een metronoom beweegt.
+  const BAAN={
+    'DREADNOUGHT':{vorm:5,puls:0.5,pulsS:0.7},  'WARDEN':    {vorm:0,puls:0.3,pulsS:0.5},
+    'LANCE':      {vorm:3,puls:1.1,pulsS:1.3},  'THE WHEEL': {vorm:2,puls:0.4,pulsS:0.9},
+    'RAVEN':      {vorm:3,puls:1.3,pulsS:1.6},  'IRONCLAD':  {vorm:0,puls:0.2,pulsS:0.4},
+    'THE EYES':   {vorm:2,puls:0.6,pulsS:1.1},  'THE WALKER':{vorm:5,puls:0.7,pulsS:0.8},
+    'ARACHNID':   {vorm:3,puls:1.2,pulsS:1.9},  'SERAPH':    {vorm:4,puls:0.5,pulsS:0.6},
+    'THE CORE':   {vorm:2,puls:0.35,pulsS:1.4}, 'DEATHS HEAD':{vorm:1,puls:0.6,pulsS:0.7},
+    'TITAN PRIME':{vorm:1,puls:0.9,pulsS:1.2},  _:           {vorm:0,puls:0.4,pulsS:0.8}
+  };
+  // Hoe de raketten van elke baas VLIEGEN. 1 spiraal · 2 sluipwesp (schokt en
+  // staat stil) · 3 vallend blad · 4 golfslag · 5 stootsgewijs. Zo herken je
+  // aan de baan al wie er geschoten heeft.
+  const VLUCHT={
+    'DREADNOUGHT':{s:4,sfS:2.6,k:0.55},   'WARDEN':    {s:5,sfS:1.7,k:0.5},
+    'LANCE':      {s:0,sfS:3.0,k:0.5},    'THE WHEEL': {s:1,sfS:4.2,k:0.8},
+    'RAVEN':      {s:2,sfS:3.4,k:0.5},    'IRONCLAD':  {s:5,sfS:1.3,k:0.5},
+    'THE EYES':   {s:1,sfS:2.2,k:0.45},   'THE WALKER':{s:3,sfS:2.0,k:0.6},
+    'ARACHNID':   {s:2,sfS:4.6,k:0.5},    'SERAPH':    {s:3,sfS:1.6,k:0.7},
+    'THE CORE':   {s:1,sfS:5.5,k:0.95},   'DEATHS HEAD':{s:4,sfS:1.2,k:0.4},
+    'TITAN PRIME':{s:1,sfS:3.2,k:0.7},    _:           {s:0,sfS:3.0,k:0.5}
+  };
   // De zwerm: veel trage raketten tegelijk. Los zijn ze zo kapot, samen dwingen
   // ze je te kiezen wat je eerst neerhaalt.
   const ZWERM_N=16, ZWERM_N2=24, ZWERM_SP=11;
@@ -2967,13 +3097,24 @@
       const hoogte=(e.trioI!==undefined&&e.trioI!==null)?((e.trioI-1)*9):0;
 
       // ---- de trip: elke baas komt dichtbij en trekt zich weer terug ----
-      const R=TRIPS[e.gedrag]||TRIPS.schip;
+      // Heeft deze baas een eigen dans, dan volgt hij die: elke plek in zijn
+      // cyclus hoort bij één aanval, zodat beweging en vuur samen één geheel
+      // vormen in plaats van los van elkaar te lopen.
+      const R=DANS[e.baasNaam]||TRIPS[e.gedrag]||TRIPS.schip;
       // LET OP: e.trip is 0 in de eerste fase, dus !e.trip is dan waar en zette
       // de klok elke beurt terug. Een eigen vlag lost dat op.
       if(!e.tripAan){ e.tripAan=1; e.trip=0; e.tripT=R[0].t; }
       e.tripT-=s;
-      if(e.tripT<=0){ e.trip=(e.trip+1)%R.length; e.tripT=R[e.trip].t*(0.8+Math.random()*0.5);
-        if(R[e.trip].zeg) this.toonMelding(R[e.trip].zeg,'#ff8aa6'); }
+      if(e.tripT<=0){ e.trip=(e.trip+1)%R.length; e.tripT=R[e.trip].t*(0.85+Math.random()*0.3);
+        if(R[e.trip].zeg) this.toonMelding(R[e.trip].zeg,'#ff8aa6');
+        // de aanval die bij deze plek hoort, na een korte aankondiging
+        if(R[e.trip].aanval&&!e.intro&&!e.dood&&!e.dood2){
+          const wat=R[e.trip].aanval, self=this;
+          if(wat!=='niets'){
+            this.vonk(e.p.x,e.p.y,e.p.z,0xffd9a0,5,e.bw*0.22,0.5);
+            this.sigNa(DANS_MELD,function(){
+              if(!e.live||e.dood||e.dood2) return;
+              self.dansAanval(e,wat); }); } } }
       const F=R[e.trip];
       const doel=reus?REUSAFSTAND:(F.d+e.r*0.32);
       // naar zijn plek toe, sneller als hij aanvalt dan als hij terugzakt
@@ -2992,9 +3133,31 @@
       e.zw=(e.zw===undefined)?zwW:e.zw+(zwW-e.zw)*Math.min(1,s*0.9);
       e.hb=(e.hb===undefined)?hbW:e.hb+(hbW-e.hb)*Math.min(1,s*0.9);
       e.fase2=(e.fase2||0)+e.zw*s;                   // eigen hoek, zodat het tempo mag wijzigen
-      e.p.x=zijPlek+Math.sin(e.fase2)*e.zb;
+      // ---- DE BAAN: elke baas beweegt anders door de ruimte ----
+      // Alleen een sinus van links naar rechts leest als schommelen. Elke baas
+      // krijgt daarom zijn eigen figuur, en zijn tempo golft: soms schiet hij
+      // een stuk door, dan hangt hij weer bijna stil.
+      const BB=(BAAN[e.baasNaam]||BAAN._);
+      const tempo=1+BB.puls*Math.sin(e.fase2*BB.pulsS);   // versnellen en inhouden
+      e.fase2+=e.zw*s*(tempo-1);                          // bovenop de gewone hoek
+      const f=e.fase2;
+      let bx=Math.sin(f)*e.zb, by=0;
+      if(BB.vorm===1){          // ACHT: een liggende acht, hij kruist zijn eigen baan
+        bx=Math.sin(f)*e.zb; by=Math.sin(f*2)*e.hb*1.5; }
+      else if(BB.vorm===2){     // CIRKEL: rond je heen, altijd in beweging
+        bx=Math.sin(f)*e.zb; by=Math.cos(f)*e.hb*1.6; }
+      else if(BB.vorm===3){     // SCHOK: hangt stil en schiet dan opzij
+        const q=Math.sin(f); bx=Math.sign(q)*Math.pow(Math.abs(q),0.35)*e.zb;
+        by=Math.sin(f*1.7)*e.hb*0.8; }
+      else if(BB.vorm===4){     // DUIK: laag naar links, hoog naar rechts
+        bx=Math.sin(f)*e.zb; by=Math.cos(f*0.5)*e.hb*2.1; }
+      else if(BB.vorm===5){     // WIEG: brede trage zwaai met een korte tik erin
+        bx=(Math.sin(f)*0.8+Math.sin(f*3)*0.2)*e.zb; by=Math.sin(f*1.3)*e.hb; }
+      e.p.x=zijPlek+bx;
+      e.baanY=by;
       // Zoals iets wat vliegt een bocht maakt: gaat hij naar links, dan komt
       // zijn rechterkant omhoog. Hoe sneller opzij, hoe schuiner.
+      if(e.baanY) e.p.y+=(e.baanY-(e.baanY0||0)); e.baanY0=e.baanY||0;
       const zijV=(e.p.x-xv)/Math.max(0.004,s);
       e.rol=(e.rol||0)+((Math.max(-1,Math.min(1,zijV/13))*0.50)-(e.rol||0))*Math.min(1,s*2.4);
       if(e.bb) e.bb.m.rotation.z=e.rol;
@@ -3022,9 +3185,9 @@
           // zodat je nooit op één ritme kunt gaan zitten.
           // Vijf aanvallen op een rooster: zijn handtekening, het jachtsalvo, de
           // zware zoekers en zijn eigen specialiteit. Zo blijft het onvoorspelbaar.
-          // ÉÉN patroon per beurt, en daarna echt even rust. Dat maakt het een
-          // puzzel: je krijgt de tijd om zijn raketten op te ruimen voordat de
-          // volgende vorm komt.
+          // Heeft deze baas een dans, dan bepaalt die wat en wanneer hij vuurt.
+          // Het losse ritme hieronder zou daar dwars doorheen schieten.
+          if(DANS[e.baasNaam]){ e.cd=2.0; return; }
           e.beurtN=(e.beurtN||0)+1;
           const beurt=e.beurtN%4;
           if(beurt===0){ e.cd=Math.max(e.cd,RUST_NA); this.sigSpeciaal(e,twee); }
@@ -3255,6 +3418,12 @@
         // De kop MOET hier gezet worden. Zonder dit hield een hergebruikt
         // projectiel de kop van zijn vorige leven, en leek alles hetzelfde.
         B.kopNr=(o.kop!==undefined)?o.kop:(((e&&e.tp)||0)%25);
+        // de vliegstijl van deze baas, tenzij het schot er zelf een meekrijgt
+        const V=(e&&e.baasNaam&&VLUCHT[e.baasNaam])||null;
+        B.stijl=(o.stijl!==undefined)?o.stijl:(V?V.s:0);
+        B.sf=Math.random()*6.283;
+        B.sfS=o.sfS||(V?V.sfS:3.0); B.sfK=o.sfK||(V?V.k:0.55);
+        B.sp0=o.sp||20;
         B.rood=1; B.splijt=o.splijt||0; B.sptijd=o.sptijd||0;
         B.splijt2=o.splijt2||0;                    // splijten de scherven zelf ook nog?
         B.draaiOm=o.draaiOm||0; B.hoekS=o.hoekS||0; B.hoek0=o.hoek0||0;
@@ -3542,6 +3711,45 @@
     // Naast zijn handtekening en de raketstorm heeft elke baas nu een eigen groep
     // zoekende raketten, met een eigen vorm. Ze komen tussendoor, zodat je nooit
     // op één ritme kunt gaan zitten.
+    // Wat hoort er bij welke plek in de dans?
+    //   zwaar  = weinig maar keiharde slingerende zoekers (hij staat ver weg)
+    //   sig    = zijn eigen handtekening, waaraan je hem herkent
+    //   jacht  = een groep zoekers, minder zwaar
+    //   kort   = een snelle barrage van makkelijk kapot te schieten raketten
+    dansAanval:function(e,wat){
+      const twee=(e.hp/Math.max(1,e.hpM))<SIG_OMSLAG;
+      if(wat==='zwaar') this.dansZwaar(e,twee);
+      else if(wat==='kort') this.dansKort(e,twee);
+      else if(wat==='jacht') this.sigJacht(e,twee);
+      else if(SIG[e.baasNaam]) this[SIG[e.baasNaam].fn](e,twee); },
+
+    // DRIE OF VIER hele sterke raketten die slingeren. Weinig, maar je moet er
+    // echt op blijven schieten — en omdat hij ver weg staat heb je de tijd.
+    dansZwaar:function(e,twee){
+      const Z=ZWAAR[e.baasNaam]||ZWAAR._;
+      const n=DANS_ZWAAR+(twee?1:0);
+      const self=this;
+      for(let i=0;i<n;i++){
+        const zij=((i/Math.max(1,n-1))-0.5)*0.5;
+        this.sigNa(i*0.28,function(){
+          if(!e.live||e.dood) return;
+          const B=self.sigSchot(e,self.sigRicht(e,zij,0.05),
+            {sp:DANS_ZW_SNEL,hp:DANS_ZW_HP,dmg:DANS_ZW_DMG,zoek:1,draai:2.4,
+             zwaar:1,groot:2.0,neus:1,kleur:Z.kl,kop:(e.tp||0)%25});
+          if(B){ B.wieg=1; B.wf=Math.random()*6; } }); }
+      this.toonGroot(Z.roep,'#ff3d55');
+      SND.alarm&&SND.alarm(e.p.x*0.02); },
+
+    // Een korte barrage: veel, maar zwak en zo kapot. Bedoeld om je te laten
+    // schieten terwijl hij dichtbij is, niet om je te overspoelen.
+    dansKort:function(e,twee){
+      const n=DANS_KORT+(twee?4:0);
+      for(let i=0;i<n;i++){
+        const hk=(i/n)*6.283;
+        this.sigSchot(e,this.sigRicht(e,Math.cos(hk)*0.55,Math.sin(hk)*0.45),
+          {sp:26,hp:1,dmg:5,groot:0.8,neus:0,kleur:0xff7a30,kop:(e.tp||0)%25}); }
+      this.toonMelding('BARRAGE','#ff8a30'); },
+
     sigJacht:function(e,twee){
       const soort=JACHT[e.baasNaam]||JACHT._;
       const n=soort.n+(twee?soort.meer:0);
@@ -4855,6 +5063,37 @@
         else if(B.wieg){
           B.wf=(B.wf||Math.random()*6)+s*3.2;
           B.dir.x+=Math.sin(B.wf)*0.9*s; B.dir.normalize(); }
+        // ---- VLIEGSTIJLEN: hoe een raket zich door de lucht beweegt ----
+        // Elke baas heeft zijn eigen stijl, zodat je aan de baan al ziet wie er
+        // schiet. Ze werken bovenop het zoeken, niet ernaast.
+        if(B.stijl){
+          B.sf=(B.sf||Math.random()*6.283)+s*(B.sfS||3.0);
+          if(B.stijl===1){                     // SPIRAAL: draait om zijn eigen baan
+            const zij=this.SV1||(this.SV1=new THREE.Vector3());
+            const op =this.SV2||(this.SV2=new THREE.Vector3());
+            zij.set(-B.dir.z,0,B.dir.x).normalize();
+            op.crossVectors(B.dir,zij).normalize();
+            const k=(B.sfK||0.55)*s;
+            B.dir.addScaledVector(zij,Math.cos(B.sf)*k);
+            B.dir.addScaledVector(op ,Math.sin(B.sf)*k);
+            B.dir.normalize(); }
+          else if(B.stijl===2){                // SLUIPWESP: schokt, staat stil, schiet weer
+            const puls=Math.sin(B.sf);
+            B.sp=(B.sp0||B.sp)*(puls>0.2?1.9:(puls<-0.5?0.15:0.8)); }
+          else if(B.stijl===3){                // VALLEND BLAD: zwiept breed heen en weer
+            const zij=this.SV1||(this.SV1=new THREE.Vector3());
+            zij.set(-B.dir.z,0,B.dir.x).normalize();
+            B.dir.addScaledVector(zij,Math.sin(B.sf)*1.35*s);
+            B.dir.y-=Math.cos(B.sf*0.7)*0.35*s;
+            B.dir.normalize(); }
+          else if(B.stijl===4){                // GOLFSLAG: rustige brede sinus
+            const zij=this.SV1||(this.SV1=new THREE.Vector3());
+            zij.set(-B.dir.z,0,B.dir.x).normalize();
+            B.dir.addScaledVector(zij,Math.sin(B.sf)*0.85*s);
+            B.dir.normalize(); }
+          else if(B.stijl===5){                // STOOTSGEWIJS: versnelt in vlagen
+            B.sp=(B.sp0||B.sp)*(0.45+1.5*Math.max(0,Math.sin(B.sf))); }
+        }
         // een ringkogel draait om je heen en klapt dan naar binnen
         if(B.draaiOm){
           B.hoek0+=B.hoekS*B.draaiOm*s;
