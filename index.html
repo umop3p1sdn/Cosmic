@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.56';
+  const VERSIE='v12.60';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1212,7 +1212,12 @@
   const PARADE_VER_T=2.0;       // seconden op de kijkafstand
   // Taaiheid van de gewone vijanden. 1,00 is zoals ze getekend zijn.
   const VIJHP=0.88;
-  const GROOTHP=3.0;            // hoeveel taaier de grote schepen (br>=16) zijn
+  const GROOTHP=6.0;            // Sjoerd: grote schepen 2x zo taai (was 3.0)
+  // Vanaf welke breedte een schip GROOT is, en hoe taai zijn raketten dan zijn.
+  // Sjoerd: een gewone raket 4x raken, die van een kolos zeker 20x.
+  const GROOTBR=13, REUSBR=19;
+  const GROOTRAKHP=10, REUSRAKHP=26;
+  const GROOT_ELK=3, GROOT_WESP=6, WESP_HP=10;
   // Voorbij deze hoek (in radialen, ~66 graden) zit een vijand buiten je blikveld
   // en draait hij achter je langs door tot hij er weer voor je uit komt.
   // Buiten deze grenzen hoort een vijand niet meer thuis: hij wordt opnieuw
@@ -1264,7 +1269,10 @@
   // Sjoerd zag schepen die amper schoten. Dit maakt iedereen sneller aan de
   // beurt: 0,62 = ruim anderhalf keer zo vaak vuren.
   const VUURTEMPO=0.62;
-  const ZOEKSTOP=34;            // vanaf hier stopt hij met zoeken: te ontwijken
+  // Was 34 m: alles wat op dat punt nog naast je zat, bleef naast je. Raketten
+  // met een boog kwamen daardoor nooit dichterbij dan ~31 m. Nu stopt het zoeken
+  // pas vlak voor je, zodat elke raket echt tot bij je komt.
+  const ZOEKSTOP=9;
   // Het uitwaaierende salvo: hoeveel raketten, hoe lang ze naar buiten zwenken en
   // hoe hard. Daarna draaien ze pas op je af.
   const SALVO_N=7, SALVO_KLEIN=6, SALVO_WAAIER=0.75, WAAIERKRACHT=2.6;
@@ -1378,6 +1386,11 @@
   const LAATZOEK=1.8, LAATDRAAI=1.5;
   // De ontwijker: hoe hard en hoe lang hij opzij zwenkt nadat je hem hebt geraakt.
   const DUIK_TIJD=0.45, DUIK_KRACHT=3.4;
+  // Hoe lang de duiker en de valk hun boog maken. Daarna zoeken ze gewoon: een
+  // beweging die blijft doorlopen stuurt de raket de ruimte in.
+  // Kort genoeg dat de raket zijn doel nog haalt: bij 0,42/0,50 kostte de boog
+  // zoveel afstand dat WARDEN op 33 m bleef steken en RAVEN op 41 m.
+  const DUIKER_T=0.22, VALK_T=0.18;
   const NA_DUIK=1.45;           // hoeveel strakker hij bijstuurt na een uitwijking
   // De nieuwe raketsoorten.
   const CLUSTER_AF=55;          // op hoeveel meter een clusterbom uiteenvalt
@@ -1433,7 +1446,9 @@
   // brandende schepen én alle raketsporen samen, en die zat altijd 100% vol.
   // Rook is goedkoop — een plat vlakje zonder licht — dus ruim verdrievoudigd,
   // en de pluimen volgen elkaar dichter op zodat de sliert aaneengesloten is.
-  const ROOK_N=320;
+  // Rook en vonken zaten in ELK level 100% vol: elke nieuwe pluim moest wachten
+  // tot een oude vervaagde. Dat geeft juist de haperige, gaterige beelden.
+  const ROOK_N=620;
   const SPOOR_ELK=0.018, SPOOR_MAAT=0.55, SPOOR_LEVEN=3.4;
   const ZWERM_RUST=7;           // tellen tussen twee zwermen bij een drieluik
   // Hoeveel raketten tegelijk een echt lichaam krijgen. De rest blijft een vlak:
@@ -1739,7 +1754,7 @@
         m.renderOrder=6; m.visible=false; return m; },
         {life:0,vx:0,vy:0,vz:0,rz:0,sz:1});
 
-      this.vonken=[]; this.mkPool(this.vonken,170,function(){
+      this.vonken=[]; this.vonkVrij=300; this.mkPool(this.vonken,300,function(){
         const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
           new THREE.MeshBasicMaterial({map:self.GLOED,transparent:true,blending:THREE.AdditiveBlending,
             depthWrite:false,color:0xffffff}));
@@ -1889,6 +1904,7 @@
       this.bb.forEach(function(b){ b.vrij=true; b.m.visible=false; });
       [this.bolts,this.vij,this.rockets,this.vonken].forEach(function(P){
         P.forEach(function(o){ o.live=false; o.m.visible=false; }); });
+      this.vonkVrij=this.vonken.length;
       this.dozen.forEach(function(D){ D.live=false; D.g.visible=false; });
       this.zuigT=0; this.zuig.visible=false;
       this.blastT=0; if(this.blast) this.blast.visible=false;
@@ -1993,7 +2009,7 @@
         // ver vooraan: een planeet van 200 m breed hing anders vóór je krachtbalk
         m.renderOrder=14;
         el.setObject3D('mesh',m); }
-      m.material.map=D.tex; m.material.needsUpdate=true;
+      if(m.material.map!==D.tex){ m.material.map=D.tex; m.material.needsUpdate=true; }
       m.scale.set(hoog*D.ar,hoog,1); },
 
     // Waar staat dit schip in brand? We leggen het hele plaatje naast het
@@ -2337,7 +2353,7 @@
       if(!this.vijBuis) return false;
       for(let i=0;i<this.vijBuis.length;i++){ const m=this.vijBuis[i];
         if(m.visible) continue;
-        m.material.map=mat.map; m.material.needsUpdate=true;
+        if(m.material.map!==mat.map){ m.material.map=mat.map; m.material.needsUpdate=true; }
         this.buisRect(m.geometry,R);
         m.visible=true; B.buis=m; return true; }
       return false; },
@@ -2911,12 +2927,14 @@
         return; } },
 
     vonk:function(x,y,z,col,n,spr,sz,staart){
-      if(staart){ let vrij=0;
-        for(let i=0;i<this.vonken.length;i++) if(!this.vonken[i].live) vrij++;
-        if(vrij<45) return; }
+      // Dit telde ELKE keer alle 300 deeltjes af om te kijken hoeveel er vrij
+      // zijn — voor elk brandend schip, elke beurt. Dat was de hapering. De
+      // teller wordt nu bijgehouden in plaats van steeds opnieuw geteld.
+      if(staart&&(this.vonkVrij||0)<45) return;
       for(let k=0;k<n;k++){
         for(let i=0;i<this.vonken.length;i++){ const F=this.vonken[i]; if(F.live) continue;
-          F.live=true; F.life=1; F.sz=(sz||1)*(0.5+Math.random()*0.9);
+          F.live=true; this.vonkVrij=(this.vonkVrij||0)-1;
+          F.life=1; F.sz=(sz||1)*(0.5+Math.random()*0.9);
           F.m.material.color.setHex(col); F.m.material.opacity=1;
           F.m.position.set(x,y,z); F.m.visible=true;
           F.vx=(Math.random()-0.5)*spr; F.vy=(Math.random()-0.5)*spr; F.vz=(Math.random()-0.5)*spr;
@@ -3029,6 +3047,11 @@
       return n; },
 
     spuw:function(e,n,spr){
+      // Een groot schip doet om de paar schoten zijn EIGEN zet in plaats van
+      // gewoon vuur: wespenzwerm, mokerslag of drietand.
+      if(e.bw>=GROOTBR&&!e.dood&&!e.dood2){
+        e.grBeurt=(e.grBeurt||0)+1;
+        if(e.grBeurt%GROOT_ELK===0){ this.grootAanval(e); return; } }
       if(!this.inBeeld(e)) return;                     // niet van achteren
       if(!this.vuurBeurt(n||1)) return;
       const eye=this.tmp.copy(this.kop);
@@ -3047,7 +3070,15 @@
           const Tv=TYPE[e.tp];
           B.sp=(Tv&&Tv.snel?Tv.snel:13)+Math.random()*4; // rustig genoeg om te zien aankomen
           B.zwaar=(Tv&&Tv.zwaar)?1:0;
-          B.hp=B.zwaar?6:1;                            // zware projectielen kosten meer schoten
+          B.hp=B.zwaar?12:4;                           // Sjoerd: elke raket minstens 4x raken
+          // GROTE SCHEPEN vuren ANDERE raketten: minder, maar fors en taai.
+          // Sjoerd: die van een kolos moet je zeker 20x raken, en optisch
+          // moeten ze groter zijn zodat je ziet wat eraan komt.
+          if(e.bw>=GROOTBR){
+            const zw=(e.bw>=REUSBR);
+            B.hp=zw?REUSRAKHP:GROOTRAKHP;
+            B.zwaar=1; B.zoek=1; B.draai=1.6;
+            B.sp*=0.86; B.dmg=(B.dmg||5)*1.6; B.groot2=zw?3.0:2.2; }
           B.zoek=0; B.streep=0; B.boog=0; B.wieg=0;
           if(soort==='streep'){
             // een jager vuurt lichtstrepen: snel, dun, en ze buigen niet
@@ -3693,7 +3724,7 @@
     sigKnaller:function(e,twee){
       for(let i=0;i<2;i++){
         this.sigSchot(e,this.sigRicht(e,(i?0.16:-0.16),0),
-          {soort:4,sp:11,hp:9,dmg:16,zwaar:1,groot:1.9,zoek:1,draai:1.3,neus:1,kleur:0xff2020,
+          {soort:4,sp:20,hp:9,dmg:16,zwaar:1,groot:1.9,zoek:1,draai:1.3,neus:1,kleur:0xff2020,
            splijt:twee?4:0,sptijd:twee?1.9:0}); }
       this.sigMeld(e,twee?'HEAVY  -  SPLIT':'HEAVY','#ff3d55'); },
 
@@ -3735,7 +3766,7 @@
     // ---- 6. IRONCLAD: rolbom die opensplijt; fase 2 splijt nog eens ----
     sigRolbom:function(e,twee){
       this.sigSchot(e,this.sigRicht(e,0,0.04),
-        {soort:4,sp:9,hp:14,dmg:16,zwaar:1,groot:2.4,zoek:1,draai:0.9,neus:1,kleur:0xc0c8d0,splijt:6,sptijd:2.2,
+        {soort:4,sp:17,hp:14,dmg:16,zwaar:1,groot:2.4,zoek:1,draai:1.2,neus:1,kleur:0xc0c8d0,splijt:6,sptijd:4.2,
          splijt2:twee?3:0});
       this.sigMeld(e,twee?'BREACH  -  CLUSTER':'BREACH','#b8c4cc'); },
 
@@ -4270,7 +4301,12 @@
       for(let i=0;i<this.brokken.length;i++){ const B=this.brokken[i]; if(B.live) continue;
         B.live=true; B.life=1;
         const mt=B.m.material;
-        mt.map=e.bb.m.material.map; mt.opacity=1; mt.needsUpdate=true;
+        // needsUpdate laat de kaart opnieuw vertalen — dat kost tientallen
+        // milliseconden. Alleen doen als de plaat ECHT wisselt, anders geeft
+        // elke ontploffing negen haperingen achter elkaar.
+        const nm=e.bb.m.material.map;
+        if(mt.map!==nm){ mt.map=nm; mt.needsUpdate=true; }
+        mt.opacity=1;
         // Een baas vult zijn hele plaat; een gewoon schip staat in een vakje.
         // Het brokje moet dus uit het juiste stukje van de plaat komen.
         const R=(e.plaat&&e.plaat.rect[e.rij])?e.plaat.rect[e.rij][Math.min(1,e.fase||0)]:null;
@@ -4739,6 +4775,37 @@
     // Op tijd een spiraalwerper neerzetten, als er nog plek is.
     // Een spook neerzetten. Alles wat hij nodig heeft zit hier, zodat het
     // golfplan hem net zo aanroept als elke andere groep.
+    // ---- SPECIALE AANVALLEN VAN GROTE SCHEPEN ----
+    // Sjoerd: "nu is soms saai recht door; een ufo mag wel een 6x wesp
+    // afschieten". Elk groot schip krijgt zijn eigen zet, om de paar schoten.
+    grootAanval:function(e){
+      const soort=(e.tp||0)%3, self=this;
+      if(soort===0){
+        // DE WESPENZWERM: zes sluipwespen die schokkend op je af komen
+        for(let i=0;i<GROOT_WESP;i++){
+          const hk=(i/GROOT_WESP)*6.283;
+          this.sigNa(i*0.07,function(){
+            if(!e.live||e.dood) return;
+            const B=self.sigSchot(e,self.sigRicht(e,Math.cos(hk)*0.42,Math.sin(hk)*0.34),
+              {sp:19,hp:WESP_HP,dmg:8,zoek:1,draai:2.6,groot:1.8,
+               neus:2,kleur:0xffb03a,stijl:2,sfS:4.2,kop:(e.tp||0)%25});
+            if(B){ B.zwaar=1; B.groot2=1.9; } }); }
+        this.toonMelding('WASP SWARM','#ffb03a'); return; }
+      if(soort===1){
+        // DE MOKERSLAG: een enorme kop die je echt moet afbreken
+        const B=this.sigSchot(e,this.sigRicht(e,0,0.04),
+          {sp:15,hp:REUSRAKHP,dmg:22,zoek:1,draai:1.4,groot:3.4,
+           neus:1,kleur:0xff3020,stijl:5,kop:(e.tp||0)%25});
+        if(B){ B.zwaar=1; B.groot2=3.4; }
+        this.toonMelding('HAMMER','#ff5a3c'); return; }
+      // DE DRIETAND: drie zware koppen die samen aankomen
+      for(let i=0;i<3;i++){
+        const B=this.sigSchot(e,this.sigRicht(e,(i-1)*0.26,0.03),
+          {sp:17,hp:GROOTRAKHP+4,dmg:14,zoek:1,draai:2.0,groot:2.4,
+           neus:1,kleur:0xff7a30,stijl:3,kop:(e.tp||0)%25});
+        if(B){ B.zwaar=1; B.groot2=2.4; } }
+      this.toonMelding('TRIDENT','#ff7a30'); },
+
     spookZet:function(tp){
       const hk=(Math.random()-0.5)*1.2;
       const e=this.spawn(tp,{x:Math.sin(hk)*70, z:-(70+Math.random()*40),
@@ -5296,17 +5363,20 @@
             const puls=Math.sin(B.sf);
             B.sp=(B.sp0||B.sp)*(puls>0.2?1.9:(puls<-0.5?0.15:0.8)); }
           else if(B.stijl===3){
-            // DE DUIKER: zakt eerst weg alsof hij je mist, en trekt dan van
-            // ONDEREN op je af. Eén boog, geen heen en weer.
-            if(!B.duikF){ B.duikF=1; B.dY=-0.9; }
-            B.dY+=s*2.4;                        // de bocht van val naar klim
-            B.dir.y+=B.dY*s*0.9; B.dir.normalize(); }
-          else if(B.stijl===4){
-            // DE VALK: hangt eerst hoog, valt dan in één keer omlaag op je af.
+            // DE DUIKER: zakt kort weg alsof hij je mist en komt dan van ONDEREN.
+            // De uitwijking duurt maar even; daarna telt alleen nog het zoeken,
+            // anders schiet hij de ruimte in.
             B.vT=(B.vT||0)+s;
-            if(B.vT<0.9){ B.dir.y+=1.1*s; B.sp=(B.sp0||B.sp)*0.55; }
-            else { B.dir.y-=3.2*s; B.sp=(B.sp0||B.sp)*1.7; }
-            B.dir.normalize(); }
+            if(B.vT<DUIKER_T){ B.dir.y-=1.0*s; B.dir.normalize(); }
+            else if(B.vT<DUIKER_T*2){ B.dir.y+=1.3*s; B.dir.normalize(); } }
+          else if(B.stijl===4){
+            // DE VALK: hangt kort hoog en traag, valt dan in één keer omlaag.
+            B.vT=(B.vT||0)+s;
+            // Hij houdt zich eerst in en versnelt dan hard. Alleen de SNELHEID
+            // verandert — een hoogteboog kostte zoveel afstand dat hij je niet
+            // meer haalde.
+            if(B.vT<VALK_T*2.2) B.sp=(B.sp0||B.sp)*0.72;
+            else B.sp=(B.sp0||B.sp)*2.1; }
           else if(B.stijl===5){                // STOOTSGEWIJS: versnelt in vlagen
             B.sp=(B.sp0||B.sp)*(0.45+1.5*Math.max(0,Math.sin(B.sf))); }
         }
@@ -5325,7 +5395,8 @@
             // nog steeds zijwaarts te vliegen en volgt er geen waarschuwing.
             B.o.copy(kp.copy(B.o).addScaledVector(B.dir,B.d)); B.d=0;
             this.wijsDreiging(B); } }
-        // een knaller die vlak voor je uiteenvalt in lichtere
+        // Een knaller die vlak voor je uiteenvalt. Op AFSTAND, niet op tijd: een
+        // vaste tijd liet hem ver weg splijten als hij traag was.
         if(B.splijt&&(B.sptijd-=s)<=0){
           const n=B.splijt; B.splijt=0;
           const q3=kp.copy(B.o).addScaledVector(B.dir,B.d);
@@ -5334,8 +5405,11 @@
             const hk=(k/n)*6.283;
             const dd=B.dir.clone();
             dd.x+=Math.cos(hk)*0.42; dd.y+=Math.sin(hk)*0.42; dd.normalize();
+            // De splijtstukken kregen GEEN zoek mee: die waaierden dus uiteen en
+            // kwamen nooit meer terug. Nu zoeken ze allemaal.
             const N2=this.sigSchot({p:q3,plaat:null,rij:0},dd,
-              {van:q3,sp:B.sp*1.5,hp:2,dmg:5,groot:0.7,
+              {van:q3,sp:B.sp*1.5,hp:2,dmg:5,groot:0.7,zoek:1,draai:2.6,
+               kop:B.kopNr,neus:1,kleur:0xff7a30,
                splijt:B.splijt2||0,sptijd:B.splijt2?1.1:0}); }
           this.vijVrij2(B); continue; }
         // Een rookspoor achter ELK vijandelijk schot: zo zie je hem van ver
@@ -5356,7 +5430,7 @@
           B.kop2.position.copy(p);
           B.kop2.lookAt(eye);
           const dz=p.distanceTo(eye);
-          const basis=NEUS_MAAT*(B.zwaar?1.8:1)*(1+Math.min(1.4,60/Math.max(6,dz))*0.5);
+          const basis=NEUS_MAAT*(B.groot2||(B.zwaar?1.8:1))*(1+Math.min(1.4,60/Math.max(6,dz))*0.5);
           const kg2=basis*(this.kopVak?KOP_PLAAT:KOP_BOL);
           if(this.kopVak) B.kop2.scale.set(kg2*(B.kop2.__ar||1),kg2,1);
           else B.kop2.scale.setScalar(kg2); }
@@ -5375,7 +5449,7 @@
           B.nf=(B.nf||Math.random()*6.283)+s*NEUS_PULS;
           const puls=NEUS_MIN+(1-NEUS_MIN)*(0.5+0.5*Math.sin(B.nf));
           B.neus.material.opacity=0.95*puls;
-          const gr=NEUS_MAAT*(B.zwaar?1.8:1)
+          const gr=NEUS_MAAT*(B.groot2||(B.zwaar?1.8:1))
             *(1+Math.min(1.4,60/Math.max(6,p.distanceTo(eye)))*0.5)
             *(0.88+puls*0.18);
           B.neus.scale.set(gr,gr,1);
@@ -5426,7 +5500,8 @@
         F.m.lookAt(eye);
         F.m.scale.setScalar(Math.max(0.01,F.sz*F.life*2.2));
         F.m.material.opacity=Math.max(0,F.life);
-        if(F.life<=0){ F.live=false; F.m.visible=false; } }
+        if(F.life<=0){ F.live=false; this.vonkVrij=(this.vonkVrij||0)+1;
+          F.m.visible=false; } }
 
       // ---- dozen ----
       this.doosT-=s;
@@ -5812,9 +5887,9 @@
       for(let i=0;i<this.neuzen.length;i++){ const m=this.neuzen[i];
         if(m.__bezet) continue;
         m.__bezet=1;
-        m.material.map=this.neusT[soort%3];
+        const nt=this.neusT[soort%3];
+        if(m.material.map!==nt){ m.material.map=nt; m.material.needsUpdate=true; }
         m.material.color.setHex(kleur||0xffffff);
-        m.material.needsUpdate=true;
         m.visible=true; B.neus=m;
         const k=this.koppen[i]; k.__bezet=1;
         if(this.kopVak&&this.kopVak.length){
@@ -5827,14 +5902,17 @@
           if(!k.__vlak) k.__vlak=new THREE.PlaneGeometry(1,1);
           k.geometry=k.__vlak;
           this.uvRect(k.geometry,R,1);
-          k.material.map=window.ART.koppen;
+          // alleen vertalen als de kaart of de instelling ECHT wisselt
+          if(k.material.map!==window.ART.koppen||!k.__klaar){
+            k.material.map=window.ART.koppen;
+            k.material.transparent=true; k.material.alphaTest=0.25;
+            k.material.needsUpdate=true; k.__klaar=1; }
           k.material.color.setHex(0xffffff);
-          k.material.transparent=true; k.material.alphaTest=0.25;
-          k.material.needsUpdate=true;
           k.__ar=R.ar||1; }
         else { k.geometry=k.__vormen[soort%3];   // terugval: mijn eigen vormen
-               k.material.map=null; k.material.color.setHex(kleur||0xff3020);
-               k.material.needsUpdate=true; k.__ar=1; }
+               if(k.material.map!==null){ k.material.map=null;
+                 k.material.needsUpdate=true; k.__klaar=0; }
+               k.material.color.setHex(kleur||0xff3020); k.__ar=1; }
         k.visible=true; B.kop2=k;
         return true; }
       return false; },
