@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.48';
+  const VERSIE='v12.49';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -917,15 +917,15 @@
   '      <a-entity id="mNorm" position="0.00 0.815 -2.57"></a-entity>'+
   '      <a-entity id="mHard" position="0.58 0.815 -2.57"></a-entity>'+
   '      <a-plane position="0 0.610 -2.59" width="1.90" height="0.003" material="color:#35e8ff;shader:flat;opacity:0.18;transparent:true;depthWrite:false"></a-plane>'+
-  '      <a-plane id="btnDemo" class="menu-btn" position="-0.86 0.470 -2.58" width="0.50" height="0.20" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-plane id="btnScores" class="menu-btn" position="-0.29 0.470 -2.58" width="0.50" height="0.20" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-plane id="btnHelp" class="menu-btn" position="0.29 0.470 -2.58" width="0.50" height="0.20" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-plane id="btnTech" class="menu-btn" position="0.86 0.470 -2.58" width="0.50" height="0.20" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-plane id="btnStop" class="menu-btn" position="0.29 0.185 -2.58" width="0.50" height="0.20" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-plane id="btnDemo" class="menu-btn" position="-0.86 0.470 -2.58" width="0.50" height="0.20" material="color:#0a1420;shader:flat;opacity:0.82;transparent:true"></a-plane>'+
+  '      <a-plane id="btnScores" class="menu-btn" position="-0.29 0.470 -2.58" width="0.50" height="0.20" material="color:#0a1420;shader:flat;opacity:0.82;transparent:true"></a-plane>'+
+  '      <a-plane id="btnHelp" class="menu-btn" position="0.29 0.470 -2.58" width="0.50" height="0.20" material="color:#0a1420;shader:flat;opacity:0.82;transparent:true"></a-plane>'+
+  '      <a-plane id="btnTech" class="menu-btn" position="0.86 0.470 -2.58" width="0.50" height="0.20" material="color:#0a1420;shader:flat;opacity:0.82;transparent:true"></a-plane>'+
+  '      <a-plane id="btnStop" class="menu-btn" position="0.29 0.185 -2.58" width="0.50" height="0.20" material="color:#0a1420;shader:flat;opacity:0.82;transparent:true"></a-plane>'+
   '      <a-entity id="mStop" position="0.29 0.185 -2.57"></a-entity>'+
-  '      <a-plane id="btnShare" class="menu-btn" position="0.86 0.185 -2.58" width="0.50" height="0.20" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-plane id="btnShare" class="menu-btn" position="0.86 0.185 -2.58" width="0.50" height="0.20" material="color:#0a1420;shader:flat;opacity:0.82;transparent:true"></a-plane>'+
   '      <a-entity id="mShare" position="0.86 0.185 -2.57"></a-entity>'+
-  '      <a-plane id="btnVR" class="menu-btn" position="-0.86 0.185 -2.58" width="0.50" height="0.20" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      <a-plane id="btnVR" class="menu-btn" position="-0.86 0.185 -2.58" width="0.50" height="0.20" material="color:#0a1420;shader:flat;opacity:0.82;transparent:true"></a-plane>'+
   '      <a-entity id="mDemo" position="-0.86 0.470 -2.57"></a-entity>'+
   '      <a-entity id="mScores" position="-0.29 0.470 -2.57"></a-entity>'+
   '      <a-entity id="mHelp" position="0.29 0.470 -2.57"></a-entity>'+
@@ -6062,14 +6062,17 @@
           // de vaste opschriften ook in dezelfde letters
           const self3=this;
           this.letterZet('#moeiKop','DIFFICULTY','#bfe4f2','#1b6f8a',0.058,0.34);
-          [['#mStop','QUIT','#ff8aa6',0.104],
-           ['#mDemo','DEMO','#cfeeff',0.104],
-           ['#mScores','SCORES','#cfeeff',0.104],
-           ['#mHelp','CONTROLS','#cfeeff',0.104],
-           ['#mTest','TEST','#cfeeff',0.104],
-           ['#mVR','OTHER GAME','#cfeeff',0.104],
-           ['#mShare','SHARE','#cfeeff',0.104]].forEach(function(q){
-            try{ self3.letterZet(q[0],q[1],q[2],'#1b6f8a',q[3],0.30); }catch(e){} });
+          // Groter en helderder: op 2,6 m waren deze opschriften nauwelijks te
+          // lezen, zeker met sterren erdoorheen. Ze staan nu ook op een donker
+          // vlak, zodat er rust achter de letters zit.
+          [['#mStop','QUIT','#ffc6d2',0.150],
+           ['#mDemo','DEMO','#eafcff',0.150],
+           ['#mScores','SCORES','#eafcff',0.135],
+           ['#mHelp','CONTROLS','#eafcff',0.120],
+           ['#mTest','TEST','#eafcff',0.150],
+           ['#mVR','OTHER GAME','#eafcff',0.112],
+           ['#mShare','SHARE','#eafcff',0.145]].forEach(function(q){
+            try{ self3.letterZet(q[0],q[1],q[2],'#2a9fc4',q[3],0.30); }catch(e){} });
         }catch(e){} }
       this.menuVlieg(s);
       wijzerTick();
