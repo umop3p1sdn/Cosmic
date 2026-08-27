@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.49';
+  const VERSIE='v12.52';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -932,6 +932,21 @@
   '      <a-entity id="mTest" position="0.86 0.470 -2.57"></a-entity>'+
   '      <a-entity id="mVR" position="-0.86 0.185 -2.57"></a-entity>'+
   '      <a-entity id="scoreLijst" position="0 0.260 -2.57"></a-entity>'+
+  '      <a-entity id="hulp" visible="false">'+
+  '        <a-plane position="0 0.55 -2.50" width="2.40" height="1.62" material="color:#08111c;shader:flat;opacity:0.94;transparent:true"></a-plane>'+
+  '        <a-plane position="0 0.55 -2.51" width="2.46" height="1.68" material="color:#2a9fc4;shader:flat;opacity:0.55;transparent:true"></a-plane>'+
+  '        <a-entity id="hTitel" position="0 1.17 -2.49"></a-entity>'+
+  '        <a-entity id="hR1" position="0 0.98 -2.49"></a-entity>'+
+  '        <a-entity id="hR2" position="0 0.83 -2.49"></a-entity>'+
+  '        <a-entity id="hR3" position="0 0.68 -2.49"></a-entity>'+
+  '        <a-entity id="hR4" position="0 0.53 -2.49"></a-entity>'+
+  '        <a-entity id="hR5" position="0 0.38 -2.49"></a-entity>'+
+  '        <a-entity id="hR6" position="0 0.23 -2.49"></a-entity>'+
+  '        <a-entity id="hR7" position="0 0.08 -2.49"></a-entity>'+
+  '        <a-entity id="hR8" position="0 -0.06 -2.49"></a-entity>'+
+  '        <a-plane id="btnHulpUit" class="menu-btn" position="0 -0.22 -2.49" width="0.50" height="0.20" material="color:#12283a;shader:flat"></a-plane>'+
+  '        <a-entity id="mHulpUit" position="0 -0.22 -2.48"></a-entity>'+
+  '      </a-entity>'+
   '      <a-text id="verTxt" position="0 0.060 -2.57" value="v11.69" align="center" color="#37586b" width="1.1"></a-text>'+
   '      <a-text id="artTxt" value="" align="center" color="#37586b" width="1.0" position="-0.62 0.060 -2.57"></a-text>'+
   '      <a-text id="musTxt" value="" align="center" color="#37586b" width="1.0" position="0.62 0.060 -2.57"></a-text>'+
@@ -2309,6 +2324,10 @@
 
     // Een vrije buis pakken voor een grote raket; is er geen, dan blijft het een vlak.
     buisPak:function(B,R,mat){
+      // HIER kwamen de printjes vandaan: het raketlichaam krijgt de vlootplaat
+      // als textuur, met het projectielvakje erop. Zolang Sjoerds eigen koppen
+      // er zijn hoeft dat lichaam er helemaal niet te zijn.
+      if(this.kopVak&&this.kopVak.length) return false;
       if(!this.vijBuis) return false;
       for(let i=0;i<this.vijBuis.length;i++){ const m=this.vijBuis[i];
         if(m.visible) continue;
@@ -2515,7 +2534,7 @@
       for(let i=0;i<this.bolts.length;i++){ const B=this.bolts[i]; if(B.live) continue;
         B.o.copy(o); B.dir.copy(d); B.d=0; B.pd=0; B.md=md; B.sz=sz; B.tol=tol; B.dmg=dmg||1;
         B.sp=snel||185;
-        B.live=true; B.m.material.color.setHex(col); B.m.visible=true;
+        B.live=true; B.m.material.color.setHex(col); B.m.visible=true;   // JOUW kogel: altijd zichtbaar
         this.richtQuad(B.m,o,d,sz*3.2,sz*0.5); return; } },
 
     raket:function(o,d,rad,swarm,ph){
@@ -3069,7 +3088,9 @@
           // EERST schoonmaken, DAN pas zijn lichaam pakken. Andersom wiste deze
           // regel het lichaam dat er net was toegewezen — vandaar dat vijandelijke
           // raketten platte plaatjes bleven én de voorraad lichamen leegliep.
-          B.buis=null; B.m.visible=true; B.waaier=0; B.draai=0;
+          B.buis=null; B.m.visible=!(this.kopVak&&this.kopVak.length); B.waaier=0; B.draai=0;
+          // met Sjoerds koppen hoeft het platte plaatje er niet te zijn
+          if(this.kopVak&&this.kopVak.length) B.m.visible=false;
           B.cluster=0; B.schuw=0; B.schuwOp=0; B.slaper=0; B.moeder=0;
           B.ontwijk=0; B.duikT=0; B.maat=null; B.boog=0; B.wieg=0; B.streep=0;
           // Ook een gewoon vijandschot komt uiteindelijk op je af: na een vrije
@@ -3086,7 +3107,7 @@
             B.moeder=3; B.moedT=MOEDER_ELK; B.hp=Math.max(B.hp,3); B.zwaar=1; }
           this.laatsteB=B;
           const R=e.plaat?e.plaat.rect[e.rij][3]:null;   // kolom 4 = zijn eigen projectiel
-          if(R){ B.m.material=e.plaat.mat; this.uvRect(B.m.geometry,R,1);
+          if(R&&!(this.kopVak&&this.kopVak.length)){ B.m.material=e.plaat.mat; this.uvRect(B.m.geometry,R,1);
                  B.len=3.4; B.br=3.4*(R.arv||R.ar);
                  if(B.streep){ B.len*=2.1; B.br*=0.34; }
                  if(B.zoek){ B.len*=1.15; B.br*=1.25; }
@@ -3334,7 +3355,7 @@
         B.o.set(e.p.x+z*e.bw*0.085, oy, e.p.z+2);
         this.vijRicht(B,0.03,26,3);
         B.m.material=B.eigen; B.m.material.color.setHex(0xff2a2a);
-        B.br=0.9; B.len=4.4; B.m.visible=true;
+        B.br=0.9; B.len=4.4; B.m.visible=!(this.kopVak&&this.kopVak.length);
         this.richtQuad(B.m,B.o,B.dir,B.len,B.br);
         this.vonk(B.o.x,B.o.y,B.o.z,0xff4040,5,5,0.7); }
       SND.gun(0,1); SND.boom(0); },
@@ -3349,11 +3370,11 @@
         B.dir.y+=0.30; B.dir.normalize();              // eerst omhoog, dan naar je toe
         const P=this.plaatVoor(1);
         const R=P?P.rect[TYPE[1].rij][3]:null;
-        if(R){ B.m.material=P.mat; this.uvRect(B.m.geometry,R,1);
+        if(R&&!(this.kopVak&&this.kopVak.length)){ B.m.material=P.mat; this.uvRect(B.m.geometry,R,1);
                this.buisPak(B,R,P.mat);
                B.len=4.6; B.br=4.6*(R.arv||R.ar); }
         else { B.m.material=B.eigen; B.m.material.color.setHex(0xffb03a); B.br=0.8; B.len=3.6; }
-        B.m.visible=true; B.boog=0.42;
+        B.m.visible=!(this.kopVak&&this.kopVak.length); B.boog=0.42;
         this.richtQuad(B.m,B.o,B.dir,B.len,B.br); }
       SND.boom(e.p.x*0.02); },
 
@@ -3412,13 +3433,13 @@
         B.dir.normalize();
         const P=this.plaatVoor(tp);
         const R=P?P.rect[TYPE[tp].rij][3]:null;
-        if(R){ B.m.material=P.mat; this.uvRect(B.m.geometry,R,1);
+        if(R&&!(this.kopVak&&this.kopVak.length)){ B.m.material=P.mat; this.uvRect(B.m.geometry,R,1);
                this.buisPak(B,R,P.mat);
                B.len=5.0*V.gr; B.br=B.len*(R.arv||R.ar); }
         else { B.m.material=B.eigen; B.m.material.color.setHex(0xffd24a);
                B.br=0.7*V.gr; B.len=3.4*V.gr; }
         B.zwaar=1; B.hp=V.hp;                           // hoe taai zijn raketten zijn
-        B.m.visible=true;
+        B.m.visible=!(this.kopVak&&this.kopVak.length);
         this.richtQuad(B.m,B.o,B.dir,B.len,B.br);
         SND.gun(e.p.x*0.02,1);
         return; } },
@@ -3440,7 +3461,7 @@
       let gezet=0;
       for(let i=0;i<this.vij.length&&gezet<N;i++){ const B=this.vij[i]; if(B.live) continue;
         const hoek=(gezet/N)*6.283+Math.random()*0.25;
-        B.live=true; B.buis=null; B.m.visible=true;
+        B.live=true; B.buis=null; B.m.visible=!(this.kopVak&&this.kopVak.length);
         B.o.copy(e.p); B.d=0; B.dir.subVectors(this.kop,e.p).normalize();
         B.sp=34+Math.random()*10; B.md=420;
         B.zoek=1; B.zwaar=1; B.hp=3; B.streep=0; B.boog=0; B.wieg=0;
@@ -3449,7 +3470,7 @@
         B.wh=hoek;                                       // welke kant hij uitgaat
         B.dmg=6;
         const P=e.plaat, R=P&&P.rect[e.rij]&&P.rect[e.rij][3];
-        if(R){ B.m.material=P.mat; this.uvRect(B.m.geometry,R,1);
+        if(R&&!(this.kopVak&&this.kopVak.length)){ B.m.material=P.mat; this.uvRect(B.m.geometry,R,1);
                this.buisPak(B,R,P.mat);
                B.len=5.2; B.br=B.len*(R.arv||R.ar); }
         else { B.m.material=B.eigen; B.len=3.4; B.br=0.5; }
@@ -3470,7 +3491,7 @@
     sigSchot:function(e,dir,opt){
       const o=opt||{};
       for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(B.live) continue;
-        B.live=true; B.buis=null; B.m.visible=true;
+        B.live=true; B.buis=null; B.m.visible=!(this.kopVak&&this.kopVak.length);
         B.o.copy(o.van||e.p); B.d=0;
         B.dir.copy(dir).normalize();
         B.sp=o.sp||20; B.md=o.md||420;
@@ -3508,7 +3529,7 @@
         B.draaiOm=o.draaiOm||0; B.hoekS=o.hoekS||0; B.hoek0=o.hoek0||0;
         B.straal0=o.straal0||0;
         const P=e.plaat, R=P&&P.rect[e.rij]&&P.rect[e.rij][3];
-        if(R){ B.m.material=P.mat; this.uvRect(B.m.geometry,R,1);
+        if(R&&!(this.kopVak&&this.kopVak.length)){ B.m.material=P.mat; this.uvRect(B.m.geometry,R,1);
                this.buisPak(B,R,P.mat);
                B.len=(o.groot||1)*4.6; B.br=B.len*(R.arv||R.ar); }
         else { B.m.material=B.eigen;
@@ -4253,7 +4274,7 @@
         B.vy=(knal?(Math.random()-0.35)*11:(2+Math.random()*7))*kr;
         B.vz=(Math.random()-0.5)*8*kr;
         B.rz=(Math.random()-0.5)*4.2;
-        B.m.visible=true; return; } },
+        B.m.visible=!(this.kopVak&&this.kopVak.length); return; } },
 
     baasRook:function(e,f){
       const n=(f>=2)?16:9;
@@ -6638,11 +6659,22 @@
       if(t) t.setAttribute('value',techWv>GOLVEN?'BOSS':('WAVE '+techWv)); };
     // Het testpaneel EN het hoofdmenu stonden allebei aan: dan kijk je door de
     // ene knoppenrij heen naar de andere. Ze wisselen elkaar nu af.
+    // LET OP: #tech zit BINNEN #menu. Het menu onzichtbaar maken nam dus het
+    // testpaneel mee, en dan gebeurde er niets zichtbaars. In plaats daarvan
+    // verbergen we alleen de losse menu-onderdelen.
+    const MENUDEEL=['#btnStart','#btnCont','#btnEasy','#btnNorm','#btnHard',
+      '#btnDemo','#btnScores','#btnHelp','#btnTech','#btnVR','#btnShare','#btnStop',
+      '#mStart','#mCont','#mEasy','#mNorm','#mHard','#mDemo','#mScores','#mHelp',
+      '#mTest','#mVR','#mShare','#mStop','#scoreLijst','#titel','#menuSchip',
+      '#handL','#handR','#handLt','#handRt','#handHint'];
+    const menuDeelToon=function(aan){
+      MENUDEEL.forEach(function(id){
+        const e=document.querySelector(id);
+        if(e) e.setAttribute('visible',!!aan); }); };
     const techToon=function(aan){
       const t=document.querySelector('#tech');
       if(t) t.setAttribute('visible',!!aan);
-      const m=document.querySelector('#menu');
-      if(m) m.setAttribute('visible',!aan); };
+      menuDeelToon(!aan); };
     const lvToon=function(){ const t=document.querySelector('#lvTxt');
       if(t) t.setAttribute('value',techLv>16?'PARADE':('LEVEL '+techLv)); };
     kl('#btnNieuw',function(){ versieHerlaad(); });
@@ -6740,8 +6772,37 @@
         const m=e.getObject3D('mesh'); if(m) m.visible=false; }
       SND.boom(0); });
     kl('#btnScores',toonScores);
-    kl('#btnHelp',function(){ const e=document.querySelector('#scoreLijst'); if(!e) return;
-      e.setAttribute('value','trigger  fire      grip  ultimate\ntop buttons  switch weapon (other hand)\nstick press  pause'); });
+    // CONTROLS deed niets: #scoreLijst is een entity zonder tekst, dus
+    // setAttribute('value') kwam nergens terecht. Nu een echt paneel met alle
+    // knoppen erop.
+    // Alle knoppen van de bril op een rij. Het menu gaat uit zolang dit
+    // openstaat, anders kijk je door twee panelen tegelijk.
+    let HULPAAN=false;
+    const hulpToon=function(aan){
+      HULPAAN=!!aan;
+      const p=document.querySelector('#hulp');
+      if(p) p.setAttribute('visible',HULPAAN);
+      menuDeelToon(!HULPAAN);
+      if(!HULPAAN) return;
+      const rg=document.querySelector('#rig');
+      const c=rg&&rg.components&&rg.components.cosmic;
+      if(!c) return;
+      const rij=[
+        ['#hTitel','CONTROLS','#ffb03a',0.115],
+        ['#hR1','TRIGGER   -   schieten','#eafcff',0.082],
+        ['#hR2','GRIP   -   ultimate','#eafcff',0.082],
+        ['#hR3','JOYSTICK OMHOOG   -   raketten','#eafcff',0.078],
+        ['#hR4','JOYSTICK RECHTS   -   shotgun','#eafcff',0.078],
+        ['#hR5','JOYSTICK OMLAAG   -   laser','#eafcff',0.078],
+        ['#hR6','JOYSTICK LINKS   -   electro','#eafcff',0.078],
+        ['#hR7','A B X Y   -   terug naar mitrailleur','#8fd8ec',0.072],
+        ['#hR8','JOYSTICK INDRUKKEN   -   pauze','#8fd8ec',0.072],
+        ['#mHulpUit','BACK','#eafcff',0.120]
+      ];
+      rij.forEach(function(q){
+        try{ c.letterZet(q[0],q[1],q[2],'#2a9fc4',q[3],0.30); }catch(e){} }); };
+    kl('#btnHelp',function(){ hulpToon(true); });
+    kl('#btnHulpUit',function(){ hulpToon(false); });
     kl('#btnGo',function(){ const rig=document.querySelector('#rig'),
         C=rig&&rig.components&&rig.components.cosmic; if(!C) return;
       if(C.klaar) naarMenu(); else C.verder(); });
