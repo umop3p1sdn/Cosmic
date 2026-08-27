@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.53';
+  const VERSIE='v12.56';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -931,7 +931,7 @@
   '      <a-entity id="mHelp" position="0.29 0.470 -2.57"></a-entity>'+
   '      <a-entity id="mTest" position="0.86 0.470 -2.57"></a-entity>'+
   '      <a-entity id="mVR" position="-0.86 0.185 -2.57"></a-entity>'+
-  '      <a-entity id="scoreLijst" position="0 0.260 -2.57"></a-entity>'+
+  '      <a-entity id="scoreLijst" position="0 -0.115 -2.57"></a-entity>'+
   '      <a-entity id="hulp" visible="false">'+
   '        <a-plane position="0 0.55 -2.50" width="2.40" height="1.62" material="color:#08111c;shader:flat;opacity:0.94;transparent:true"></a-plane>'+
   '        <a-plane position="0 0.55 -2.51" width="2.46" height="1.68" material="color:#2a9fc4;shader:flat;opacity:0.55;transparent:true"></a-plane>'+
@@ -1406,13 +1406,19 @@
   // staat stil) · 3 vallend blad · 4 golfslag · 5 stootsgewijs. Zo herken je
   // aan de baan al wie er geschoten heeft.
   const VLUCHT={
-    'DREADNOUGHT':{s:4,sfS:2.6,k:0.55},   'WARDEN':    {s:5,sfS:1.7,k:0.5},
-    'LANCE':      {s:0,sfS:3.0,k:0.5},    'THE WHEEL': {s:1,sfS:4.2,k:0.8},
-    'RAVEN':      {s:2,sfS:3.4,k:0.5},    'IRONCLAD':  {s:5,sfS:1.3,k:0.5},
-    'THE EYES':   {s:1,sfS:2.2,k:0.45},   'THE WALKER':{s:3,sfS:2.0,k:0.6},
-    'ARACHNID':   {s:2,sfS:4.6,k:0.5},    'SERAPH':    {s:3,sfS:1.6,k:0.7},
-    'THE CORE':   {s:1,sfS:5.5,k:0.95},   'DEATHS HEAD':{s:4,sfS:1.2,k:0.4},
-    'TITAN PRIME':{s:1,sfS:3.2,k:0.7},    _:           {s:0,sfS:3.0,k:0.5}
+    // Alleen stijlen die de SNELHEID veranderen, niet de richting: slingeren is
+    // slingeren, ook als je het golfslag of vallend blad noemt. 0 recht ·
+    // 2 sluipwesp (schokt en staat stil) · 5 stootsgewijs (versnelt in vlagen).
+    // 0 recht · 2 sluipwesp (schokt, staat stil, schiet weer) · 3 duiker (zakt
+    // weg en komt van onderen) · 4 valk (hangt hoog, valt dan neer) ·
+    // 5 stootsgewijs (versnelt in vlagen). GEEN slingeren, in welke vorm ook.
+    'DREADNOUGHT':{s:5,sfS:1.9,k:0.5},    'WARDEN':    {s:3,sfS:1.7,k:0.5},
+    'LANCE':      {s:0,sfS:3.0,k:0.5},    'THE WHEEL': {s:3,sfS:4.2,k:0.5},
+    'RAVEN':      {s:4,sfS:3.4,k:0.5},    'IRONCLAD':  {s:5,sfS:1.3,k:0.5},
+    'THE EYES':   {s:0,sfS:2.2,k:0.5},    'THE WALKER':{s:5,sfS:2.0,k:0.5},
+    'ARACHNID':   {s:2,sfS:4.6,k:0.5},    'SERAPH':    {s:4,sfS:1.6,k:0.5},
+    'THE CORE':   {s:0,sfS:5.5,k:0.5},    'DEATHS HEAD':{s:2,sfS:1.2,k:0.5},
+    'TITAN PRIME':{s:3,sfS:3.2,k:0.5},    _:           {s:0,sfS:3.0,k:0.5}
   };
   // De zwerm: veel trage raketten tegelijk. Los zijn ze zo kapot, samen dwingen
   // ze je te kiezen wat je eerst neerhaalt.
@@ -3091,8 +3097,18 @@
           B.buis=null; B.m.visible=!(this.kopVak&&this.kopVak.length); B.waaier=0; B.draai=0;
           // met Sjoerds koppen hoeft het platte plaatje er niet te zijn
           if(this.kopVak&&this.kopVak.length) B.m.visible=false;
+          // DE VLIEGSTIJL WISSEN. Die werd alleen in het baasvuur gezet en
+          // nergens gewist — dus erfde elk gewoon schot dat later hetzelfde
+          // projectiel kreeg de beweging van de baas. Vandaar dat na een
+          // baasgevecht ALLES zich zo ging bewegen.
+          B.stijl=0; B.sf=0; B.duikF=0; B.dY=0; B.vT=0;
           B.cluster=0; B.schuw=0; B.schuwOp=0; B.slaper=0; B.moeder=0;
           B.ontwijk=0; B.duikT=0; B.maat=null; B.boog=0; B.wieg=0; B.streep=0;
+          // DEZELFDE VAL als bij het spook: de vliegstijl van een baas werd
+          // alleen GEZET, nooit gewist. Elk gewoon schot dat later hetzelfde
+          // projectiel kreeg erfde zijn zigzag — dus na de eerste baas zigzagde
+          // alles.
+          B.stijl=0; B.sf=0; B.sp0=0; B.draaiOm=0; B.splijt=0; B.splijt2=0;
           // Ook een gewoon vijandschot komt uiteindelijk op je af: na een vrije
           // vlucht draait hij alsnog bij. Alles wat afgevuurd wordt is dreiging.
           B.leef=0; B.laatZoek=LAATZOEK*1.6;
@@ -3106,7 +3122,9 @@
           if(n===1&&e.bw>=15&&Math.random()<0.5&&!B.cluster&&!B.slaper){
             B.moeder=3; B.moedT=MOEDER_ELK; B.hp=Math.max(B.hp,3); B.zwaar=1; }
           this.laatsteB=B;
-          const R=e.plaat?e.plaat.rect[e.rij][3]:null;   // kolom 4 = zijn eigen projectiel
+          // KOLOM 4 (het oude projectielplaatje van de vlootplaat) wordt NIET
+          // meer gebruikt. Sjoerds eigen raketkoppen zijn de raket.
+          const R=null;
           if(R&&!(this.kopVak&&this.kopVak.length)){ B.m.material=e.plaat.mat; this.uvRect(B.m.geometry,R,1);
                  B.len=3.4; B.br=3.4*(R.arv||R.ar);
                  if(B.streep){ B.len*=2.1; B.br*=0.34; }
@@ -3369,7 +3387,7 @@
         this.vijRicht(B,0.12,15,5);
         B.dir.y+=0.30; B.dir.normalize();              // eerst omhoog, dan naar je toe
         const P=this.plaatVoor(1);
-        const R=P?P.rect[TYPE[1].rij][3]:null;
+        const R=null;   // geen projectielplaatje meer
         if(R&&!(this.kopVak&&this.kopVak.length)){ B.m.material=P.mat; this.uvRect(B.m.geometry,R,1);
                this.buisPak(B,R,P.mat);
                B.len=4.6; B.br=4.6*(R.arv||R.ar); }
@@ -3432,7 +3450,7 @@
         B.dir.x+=(Math.random()-0.5)*0.09; B.dir.y+=(Math.random()-0.5)*0.07;
         B.dir.normalize();
         const P=this.plaatVoor(tp);
-        const R=P?P.rect[TYPE[tp].rij][3]:null;
+        const R=null;   // geen projectielplaatje meer
         if(R&&!(this.kopVak&&this.kopVak.length)){ B.m.material=P.mat; this.uvRect(B.m.geometry,R,1);
                this.buisPak(B,R,P.mat);
                B.len=5.0*V.gr; B.br=B.len*(R.arv||R.ar); }
@@ -3469,7 +3487,7 @@
         B.draai=SALVO_DRAAI;                             // en dan strak terugdraaien
         B.wh=hoek;                                       // welke kant hij uitgaat
         B.dmg=6;
-        const P=e.plaat, R=P&&P.rect[e.rij]&&P.rect[e.rij][3];
+        const P=e.plaat, R=null;   // geen projectielplaatje meer
         if(R&&!(this.kopVak&&this.kopVak.length)){ B.m.material=P.mat; this.uvRect(B.m.geometry,R,1);
                this.buisPak(B,R,P.mat);
                B.len=5.2; B.br=B.len*(R.arv||R.ar); }
@@ -3516,6 +3534,7 @@
         // wijd uitwaaiert en dan de ruimte in vliegt is geen dreiging maar sier.
         // Na een korte vrije vlucht draait hij alsnog bij.
         B.leef=0; B.laatZoek=(o.laatZoek!==undefined)?o.laatZoek:LAATZOEK;
+        B.duikF=0; B.dY=0; B.vT=0;
         // de nieuwe soorten wissen, anders erft een baasschot ze van zijn
         // vorige leven — dezelfde val als bij het spook
         B.cluster=0; B.schuw=0; B.schuwOp=0; B.slaper=0; B.moeder=0;
@@ -3528,7 +3547,7 @@
         B.splijt2=o.splijt2||0;                    // splijten de scherven zelf ook nog?
         B.draaiOm=o.draaiOm||0; B.hoekS=o.hoekS||0; B.hoek0=o.hoek0||0;
         B.straal0=o.straal0||0;
-        const P=e.plaat, R=P&&P.rect[e.rij]&&P.rect[e.rij][3];
+        const P=e.plaat, R=null;   // geen projectielplaatje meer
         if(R&&!(this.kopVak&&this.kopVak.length)){ B.m.material=P.mat; this.uvRect(B.m.geometry,R,1);
                this.buisPak(B,R,P.mat);
                B.len=(o.groot||1)*4.6; B.br=B.len*(R.arv||R.ar); }
@@ -5273,28 +5292,20 @@
         // schiet. Ze werken bovenop het zoeken, niet ernaast.
         if(B.stijl){
           B.sf=(B.sf||Math.random()*6.283)+s*(B.sfS||3.0);
-          if(B.stijl===1){                     // SPIRAAL: draait om zijn eigen baan
-            const zij=this.SV1||(this.SV1=new THREE.Vector3());
-            const op =this.SV2||(this.SV2=new THREE.Vector3());
-            zij.set(-B.dir.z,0,B.dir.x).normalize();
-            op.crossVectors(B.dir,zij).normalize();
-            const k=(B.sfK||0.55)*s;
-            B.dir.addScaledVector(zij,Math.cos(B.sf)*k);
-            B.dir.addScaledVector(op ,Math.sin(B.sf)*k);
-            B.dir.normalize(); }
-          else if(B.stijl===2){                // SLUIPWESP: schokt, staat stil, schiet weer
+          if(B.stijl===2){                // SLUIPWESP: schokt, staat stil, schiet weer
             const puls=Math.sin(B.sf);
             B.sp=(B.sp0||B.sp)*(puls>0.2?1.9:(puls<-0.5?0.15:0.8)); }
-          else if(B.stijl===3){                // VALLEND BLAD: zwiept breed heen en weer
-            const zij=this.SV1||(this.SV1=new THREE.Vector3());
-            zij.set(-B.dir.z,0,B.dir.x).normalize();
-            B.dir.addScaledVector(zij,Math.sin(B.sf)*1.35*s);
-            B.dir.y-=Math.cos(B.sf*0.7)*0.35*s;
-            B.dir.normalize(); }
-          else if(B.stijl===4){                // GOLFSLAG: rustige brede sinus
-            const zij=this.SV1||(this.SV1=new THREE.Vector3());
-            zij.set(-B.dir.z,0,B.dir.x).normalize();
-            B.dir.addScaledVector(zij,Math.sin(B.sf)*0.85*s);
+          else if(B.stijl===3){
+            // DE DUIKER: zakt eerst weg alsof hij je mist, en trekt dan van
+            // ONDEREN op je af. Eén boog, geen heen en weer.
+            if(!B.duikF){ B.duikF=1; B.dY=-0.9; }
+            B.dY+=s*2.4;                        // de bocht van val naar klim
+            B.dir.y+=B.dY*s*0.9; B.dir.normalize(); }
+          else if(B.stijl===4){
+            // DE VALK: hangt eerst hoog, valt dan in één keer omlaag op je af.
+            B.vT=(B.vT||0)+s;
+            if(B.vT<0.9){ B.dir.y+=1.1*s; B.sp=(B.sp0||B.sp)*0.55; }
+            else { B.dir.y-=3.2*s; B.sp=(B.sp0||B.sp)*1.7; }
             B.dir.normalize(); }
           else if(B.stijl===5){                // STOOTSGEWIJS: versnelt in vlagen
             B.sp=(B.sp0||B.sp)*(0.45+1.5*Math.max(0,Math.sin(B.sf))); }
