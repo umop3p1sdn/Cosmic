@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.52';
+  const VERSIE='v12.53';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -4827,8 +4827,14 @@
 
     levelKlaar:function(){
       if(this.level>=LEVELS){ this.gehaald(); return; }
-      // De baas is dood: een echte overwinning. Alles wat nog vliegt stort neer
-      // en al het vijandelijke vuur verdwijnt.
+      // De baas is dood: een echte overwinning. Je gaat het volgende level dus
+      // met volle kracht in — anders sleept een zwaar gevecht je de rest van het
+      // spel achterna.
+      if(this.power<100){
+        this.power=100;
+        this.toonGroot('HULL RESTORED','#8fd84a');
+        this.vonk(this.kop.x,this.kop.y,this.kop.z-6,0x8fd84a,14,4,1.0); }
+      // Alles wat nog vliegt stort neer en al het vijandelijke vuur verdwijnt.
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
         if(e.live&&!e.dood&&!e.dood2&&e.prof!=='baas'){ e.vrede=1; this.kill(e); } }
       for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(!B.live) continue;
