@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.75';
+  const VERSIE='v12.77';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -174,6 +174,8 @@
   function laadWeg(){ /* het scherm gaat nu pas weg als jij erop tikt */ }
 
   window.PHASE='menu'; window.PAUSED=false; window.PRIMHAND='left';
+  // pijltjes en muis voor de pc; doet niets in een bril
+  setTimeout(function(){ try{ toetsenAan(); }catch(e){} },600);
 
   // =========================================================
   //  GELUID
@@ -1040,6 +1042,98 @@
   // Waar wijs je heen? Eerst met je hand. Raakt die niets, dan telt je
   // KIJKRICHTING — dan werkt "kijk naar de knop en knijp" altijd, ongeacht hoe je
   // je controller houdt. Dat was de reden dat de knoppen soms niets deden.
+  // ======================================================================
+  //  TOETSENBORD EN MUIS — voor testen op de pc, zonder bril.
+  //  Pijltjes bewegen door de knoppen, Enter of spatie drukt hem in, en met de
+  //  muis kun je gewoon aanwijzen en klikken.
+  // ======================================================================
+  let TOETSI=-1;                      // welke knop is met de pijltjes gekozen
+  function menuKnoppen(){
+    const uit=[];
+    document.querySelectorAll('.menu-btn').forEach(function(el){
+      if(!el.object3D) return;
+      let p=el.object3D, zicht=true;
+      while(p){ if(p.visible===false){ zicht=false; break; } p=p.parent; }
+      if(zicht) uit.push(el); });
+    // van boven naar beneden, en binnen een rij van links naar rechts
+    uit.sort(function(a,b){
+      const pa=a.object3D.position, pb=b.object3D.position;
+      if(Math.abs(pa.y-pb.y)>0.06) return pb.y-pa.y;
+      return pa.x-pb.x; });
+    return uit; }
+
+  function toetsWijs(){
+    const L=menuKnoppen();
+    L.forEach(function(el,i){
+      const m=el.getObject3D('mesh');
+      if(!m||!m.material) return;
+      // de gekozen knop licht op
+      if(i===TOETSI){ if(el.__kl===undefined) el.__kl=m.material.color.getHex();
+        m.material.color.setHex(0x2a9fc4); }
+      else if(el.__kl!==undefined){ m.material.color.setHex(el.__kl); } }); }
+
+  function toetsStap(dx,dy){
+    const L=menuKnoppen(); if(!L.length) return;
+    if(TOETSI<0||TOETSI>=L.length){ TOETSI=0; toetsWijs(); return; }
+    const nu=L[TOETSI].object3D.position;
+    let best=-1, bd=1e9;
+    L.forEach(function(el,i){
+      if(i===TOETSI) return;
+      const p=el.object3D.position;
+      const vx=p.x-nu.x, vy=p.y-nu.y;
+      // alleen knoppen in de gevraagde richting
+      if(dy> 0&&vy<=0.05) return;
+      if(dy< 0&&vy>=-0.05) return;
+      if(dx> 0&&vx<=0.05) return;
+      if(dx< 0&&vx>=-0.05) return;
+      // dichtstbijzijnde in die richting, met voorkeur voor recht ervoor
+      const d=Math.hypot(vx*(dy?2.2:1),vy*(dx?2.2:1));
+      if(d<bd){ bd=d; best=i; } });
+    if(best>=0){ TOETSI=best; toetsWijs(); } }
+
+  function toetsDruk(){
+    const L=menuKnoppen();
+    if(TOETSI<0||TOETSI>=L.length){ TOETSI=0; toetsWijs(); return; }
+    try{ L[TOETSI].emit('click',{}); }catch(e){} }
+
+  // De luisteraars aanhaken. Alleen actief in het menu of bij pauze, zodat de
+  // pijltjes tijdens het spelen niets in de weg zitten.
+  function toetsenAan(){
+    if(window.__toetsen) return; window.__toetsen=1;
+    window.addEventListener('keydown',function(ev){
+      if(window.PHASE!=='menu'&&!window.PAUSED) return;
+      const k=ev.key;
+      if(k==='ArrowUp'){ toetsStap(0,1); ev.preventDefault(); }
+      else if(k==='ArrowDown'){ toetsStap(0,-1); ev.preventDefault(); }
+      else if(k==='ArrowLeft'){ toetsStap(-1,0); ev.preventDefault(); }
+      else if(k==='ArrowRight'){ toetsStap(1,0); ev.preventDefault(); }
+      else if(k==='Enter'||k===' '){ toetsDruk(); ev.preventDefault(); } });
+    // met de MUIS aanwijzen en klikken
+    const raak=function(ev){
+      const cam=document.querySelector('#cam');
+      if(!cam||!cam.object3D) return null;
+      const rc=new THREE.Raycaster();
+      const nx=(ev.clientX/window.innerWidth)*2-1;
+      const ny=-(ev.clientY/window.innerHeight)*2+1;
+      let c3=null; try{ c3=cam.getObject3D('camera'); }catch(e){}
+      if(!c3) return null;
+      rc.setFromCamera({x:nx,y:ny},c3);
+      const L=menuKnoppen();
+      const mesh=L.map(function(el){ return el.getObject3D('mesh'); }).filter(Boolean);
+      const tr=rc.intersectObjects(mesh,false);
+      if(!tr.length) return null;
+      for(let i=0;i<L.length;i++)
+        if(L[i].getObject3D('mesh')===tr[0].object) return {el:L[i],i:i};
+      return null; };
+    window.addEventListener('mousemove',function(ev){
+      if(window.PHASE!=='menu'&&!window.PAUSED) return;
+      const g=raak(ev);
+      if(g&&g.i!==TOETSI){ TOETSI=g.i; toetsWijs(); } });
+    window.addEventListener('click',function(ev){
+      if(window.PHASE!=='menu'&&!window.PAUSED) return;
+      const g=raak(ev);
+      if(g){ TOETSI=g.i; toetsWijs(); try{ g.el.emit('click',{}); }catch(e){} } }); }
+
   function menuKlik(h){
     if(!h||!h.object3D) return;
     const nu=performance.now(); if(nu-KLIKT<250) return; KLIKT=nu;
@@ -1268,6 +1362,8 @@
   // Grote planeten eruit: ze vullen je hele blik met een doorzichtig vlak en dat
   // kost een bril meer dan alle schepen samen. Op 1 komen ze terug.
   const PLANEET_AAN=1;   // weer aan, maar kleiner en alleen bij donkere ruimte
+  // In welke levels de losse objecten helemaal uit staan.
+  const PROPS_UIT=[9];
   // De overgang na een baas, in seconden: nagenieten, doven, zwart met de
   // aankondiging, en de nieuwe wereld die opkomt. Vijanden wachten tot het eind.
   const RUST_KIJK=2.2, RUST_DOOF=1.6, RUST_ZWART=2.4, RUST_OP=2.0;
@@ -6511,6 +6607,11 @@
       const N=H?nummerVan(H.naam):null;
       const ruimte=N?!N.grond:(hel<RUIMTE_HEL);
       let kies=-1;
+      // Level 9 hapert bij Sjoerd terwijl andere levels met props soepel lopen.
+      // Props hier uit, zodat we weten of zij het zijn of de achtergrond.
+      if(PROPS_UIT.indexOf(L)>=0){
+        for(let i=0;i<this.skyObjs.length;i++) this.skyObjs[i].visible=false;
+        this.objI=-1; return; }
       if(ruimte&&L>2){
         // alleen door de planeten en props lopen die bij een ruimtehemel passen
         kies=(L-3)%this.skyObjs.length; }
@@ -6914,7 +7015,8 @@
     const r=document.querySelector('#richt'); if(r) r.setAttribute('visible',true);
     ['#hudL','#hudR','#hudC','#hudW'].forEach(function(id){
       const e=document.querySelector(id); if(e) e.setAttribute('value',''); });
-    laserAan(true); toonScores(); toonVoortgang(); }
+    laserAan(true); toonScores(); toonVoortgang();
+    try{ toetsenAan(); }catch(e){} }
 
   function knoppen(){
     const kl=function(id,fn){ const e=document.querySelector(id); if(e) e.addEventListener('click',fn); };
