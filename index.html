@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.60';
+  const VERSIE='v12.66';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -527,6 +527,12 @@
     {nr:'9573', rol:'baas', beurt:99, naam:'TITAN PRIME', gedrag:'reus', vuur:'reus'},
     // achtergronden waar je met beide benen op de grond staat: daar hoort geen
     // planeet in de lucht. Helderheid alleen is niet genoeg — dit landschap is donker.
+    // Twee nieuwe ruimtehemels van Sjoerd, allebei ruim onder de drempel van 78.
+    // 9823 heeft al ringplaneten en manen in de plaat zelf, dus die staat vast op
+    // level 13. 9822 heeft veel lege ruimte en draait mee in de rotatie, zodat de
+    // zwevende planeten daar goed tot hun recht komen.
+    {nr:'9823', rol:'hemel', grond:0, level:13, naam:'planetenstelsel met ringen'},
+    {nr:'9822', rol:'hemel', grond:0, level:9, naam:'zwart gat met komeet'},
     {nr:'9523', rol:'hemel', grond:1, naam:'landschap met paddenstoelbomen'},
     {nr:'9510', rol:'hemel', grond:1, naam:'wolken boven water'},
     {nr:'9516', rol:'hemel', grond:1, naam:'blauwe lucht'},
@@ -1242,10 +1248,10 @@
   // Op 2048 is hij nog steeds scherp — je kijkt er van binnenuit naar.
   const HEMEL_MAX=2048;
   const PROP_MAX=1024;
-  const PLANEET_MAX=340;        // breedte van een planeet in meters
+  const PLANEET_MAX=190;        // breedte van een planeet in meters (was 340)
   // Grote planeten eruit: ze vullen je hele blik met een doorzichtig vlak en dat
   // kost een bril meer dan alle schepen samen. Op 1 komen ze terug.
-  const PLANEET_AAN=0;
+  const PLANEET_AAN=1;   // weer aan, maar kleiner en alleen bij donkere ruimte
   // De overgang na een baas, in seconden: nagenieten, doven, zwart met de
   // aankondiging, en de nieuwe wereld die opkomt. Vijanden wachten tot het eind.
   const RUST_KIJK=2.2, RUST_DOOF=1.6, RUST_ZWART=2.4, RUST_OP=2.0;
@@ -2301,9 +2307,11 @@
     // welke plaat en welk vak hoort bij dit scheepstype?
     plaatVoor:function(tp){
       const T=TYPE[tp];
-      const P=(T.pl===12)?this.plaat12:((T.pl===13)?this.plaat13:((T.pl===6)?this.plaat6:null));
-      if(!P||!P.rect[T.rij]) return null;
-      return P; },
+      let P=(T.pl===12)?this.plaat12:((T.pl===13)?this.plaat13:((T.pl===6)?this.plaat6:null));
+      // Elk schip houdt ZIJN EIGEN plaat: zijn tekening, zijn raket en zijn
+      // vliegtrucjes horen bij elkaar. Een vangnet dat de tekening van een ander
+      // schip pakt maakt daar een rommeltje van.
+      return (P&&P.rect[T.rij])?P:null; },
 
     // welke helft van het vak is het zwaarst? daar zit de kop van het projectiel
     // Welke kant is de kop van een LIGGEND projectiel?
@@ -6202,9 +6210,27 @@
       if(at&&window.ART) at.setAttribute('value',window.ART.vondst); },
 
     // welke hemel hoort bij dit level?
+    // Een hemel op een VASTE plek zetten: de nummerlijst kan een level noemen,
+    // en dan hoort die achtergrond daar en nergens anders. Zonder dit hangt het
+    // van de laadvolgorde af welke plaat waar terechtkomt.
+    hemelVoorLevel:function(L){
+      if(!this.hemels||!this.hemels.length) return 0;
+      // eerst kijken of een plaat expliciet voor dit level bedoeld is
+      for(let k=0;k<this.hemels.length;k++){
+        const N=nummerVan(this.hemels[k].naam);
+        if(N&&N.level===L) return k; }
+      // anders de gewone volgorde, maar sla de vast toegewezen platen over
+      let n=0;
+      for(let k=0;k<this.hemels.length;k++){
+        const N=nummerVan(this.hemels[k].naam);
+        if(N&&N.level) continue;
+        if(n===((L-1)%Math.max(1,this.hemels.length))) return k;
+        n++; }
+      return (L-1)%this.hemels.length; },
+
     hemelZet:function(){
       if(!this.hemels||!this.hemels.length) return;
-      const i=(Math.max(1,this.level||1)-1)%this.hemels.length;
+      const i=this.hemelVoorLevel(Math.max(1,this.level||1));
       // Ook opnieuw zetten als de plaat intussen is opgeruimd en teruggehaald:
       // anders blijft de hemel naar een leeggemaakte textuur wijzen en zie je niets.
       const H0=this.hemels[i];
@@ -6229,12 +6255,21 @@
           // de rest verhuist naar de losse hemelobjecten.
           const echt=P&&P.hoe.indexOf('gemeten')===0&&P.kol.length===4&&P.rijen>=4;
           if(!echt){ window.ART.objs.push(t); return; }
+          // DE VIERKANTE VIJANDEN. De platen werden gekozen op hun VERHOUDING,
+          // maar twee vlootplaten zijn allebei 1024x1536 — dus wisselden die
+          // willekeurig van rol. Kwam de plaat met 6 rijen op de plek van een
+          // plaat met 12, dan hadden zes scheepstypes geen vak en werden ze een
+          // blokje. Nu kiest hij op het AANTAL RIJEN dat hij zelf heeft ingemeten.
           const ar2=t.image.width/t.image.height;
           // Vlootplaten zijn ELK level nodig. Ze worden nooit vrijgegeven, anders
           // staat er ineens een vierkant blokje in plaats van een schip.
           t.__vast=1; if(P.mat&&P.mat.map) P.mat.map.__vast=1;
-          if(P.rijen>=10){ if(ar2>=0.85) self2.plaat12=P; else self2.plaat13=P; }
-          else self2.plaat6=P;
+          if(P.rijen>=10){
+            // twee platen met 12 rijen: de vierkante is plaat12, de hoge plaat13
+            if(ar2>=0.85){ if(!self2.plaat12) self2.plaat12=P; else self2.plaat13=P; }
+            else { if(!self2.plaat13) self2.plaat13=P; else self2.plaat12=P; } }
+          else { if(!self2.plaat6) self2.plaat6=P;
+                 else if(!self2.plaat13) self2.plaat13=P; }
           window.ART.vondst='fleet '+(self2.plaat6?'6 ':'')+(self2.plaat12?'12a ':'')+
             (self2.plaat13?'12b ':'')+P.hoe; }); }
       // hemels gaan in de wachtrij; ze worden één per beurt klaargemaakt zodat het
@@ -6301,12 +6336,12 @@
         }
         const px=(t.image&&t.image.height)?t.image.height:1024;
         const planeet=(t.__lijst&&t.__lijst.rol)?(t.__lijst.rol==='planeet'):((t.__rond||0)>0.68);
-        if(planeet&&!PLANEET_AAN) return;              // grote planeten staan uit
-        // een planeet is een hemellichaam: zes keer zo groot en drie keer zo traag
+        if(planeet&&!PLANEET_AAN) return;
+        // Een planeet is een hemellichaam, maar hij mag je blik niet vullen: op
+        // 900 m breed kostte hij een bril meer dan alle schepen samen. Nu klein
+        // genoeg om als bol in de verte te lezen.
         let maat=Math.max(38,Math.min(210,px*0.075))*(0.75+Math.random()*0.6);
-        // Een planeet van 900 m op 215 m vult je hele blik met een doorzichtig
-        // vlak. Dat kost een bril meer dan alle schepen samen. Kleiner en verder.
-        if(planeet) maat=Math.min(PLANEET_MAX,maat*6);
+        if(planeet) maat=Math.min(PLANEET_MAX,maat*3.2);
         const hh=maat, w=maat*ar;
         const m=new THREE.Mesh(new THREE.PlaneGeometry(w,hh),
           new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false}));
@@ -6333,7 +6368,7 @@
       // wolken. De helderheid van de achtergrond verraadt welke het is: lucht
       // en land zijn licht, diepe ruimte is donker.
       const H=(this.hemels&&this.hemels.length)
-        ? this.hemels[(L-1)%this.hemels.length] : null;
+        ? this.hemels[this.hemelVoorLevel(L)] : null;
       const hel=H?H.hel:0;
       // een nummer uit de lijst wint van de helderheidsmeting
       const N=H?nummerVan(H.naam):null;
