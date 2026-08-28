@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.66';
+  const VERSIE='v12.67';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -990,10 +990,8 @@
   '        <a-text position="-0.34 0.16 -2.36" value="START HERE" align="center" color="#eafcff" width="2.3"></a-text>'+
   '        <a-plane id="btnTestDemo" class="menu-btn" position="0.34 0.16 -2.38" width="0.62" height="0.24" material="color:#1d3a24;shader:flat"></a-plane>'+
   '        <a-text position="0.34 0.16 -2.36" value="DEMO HERE" align="center" color="#8fd84a" width="2.3"></a-text>'+
-  '        <a-plane id="btnMeet" class="menu-btn" position="0 -0.12 -2.38" width="0.70" height="0.20" material="color:#2a1d38;shader:flat"></a-plane>'+
-  '        <a-text position="0 -0.12 -2.37" value="COUNT SHOTS" align="center" color="#b06cff" width="1.8"></a-text>'+
-  '        <a-plane id="btnTechUit" class="menu-btn" position="0 0.12 -2.38" width="0.70" height="0.22" material="color:#20182a;shader:flat"></a-plane>'+
-  '        <a-text position="0 0.12 -2.36" value="CLOSE" align="center" color="#9a86b8" width="2.2"></a-text>'+
+  '        <a-plane id="btnTechUit" class="menu-btn" position="0 -0.22 -2.38" width="0.70" height="0.22" material="color:#20182a;shader:flat"></a-plane>'+
+  '        <a-text position="0 -0.22 -2.36" value="CLOSE" align="center" color="#9a86b8" width="2.2"></a-text>'+
   '      </a-entity>'+
   '    </a-entity>'+
 
@@ -5698,13 +5696,6 @@
       this.hudTekst('#mScore',this.punten.toLocaleString('nl-NL'),GRZ,0.034,0.20,'hScore');
       // Meetregel: hoeveel vijandelijk vuur leeft er, hoeveel heeft een echt
       // lichaam, en hoeveel staan er zichtbaar. Aan te zetten met de TEST-knop.
-      if(window.METEN){
-        let n=0,bu=0,zi=0;
-        for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(!B.live) continue;
-          n++; if(B.buis) bu++;
-          if(B.m.visible||(B.buis&&B.buis.visible)) zi++; }
-        this.hudTekst('#mMeet','SHOTS '+n+'  BODY '+bu+'  SEEN '+zi,'#ffe45c',0.030,0.20,'hMeet'); }
-
       this.mobKnop();
       if(window.DEMO){ const dd=document.querySelector('#hudC');
         if(dd&&this.meldC<=0){ dd.setAttribute('value','DEMO  -  press trigger to stop');
@@ -6895,12 +6886,6 @@
     kl('#btnTestDemo',function(){ techStart(techWv-1,true); });
     // Met deze knop zet je de meetregel aan: dan zie je IN DE BRIL hoeveel
     // vijandelijk vuur er leeft en hoeveel daarvan zichtbaar is.
-    kl('#btnMeet',function(){
-      window.METEN=!window.METEN;
-      const e=document.querySelector('#mMeet');
-      if(e&&!window.METEN&&e.getObject3D){
-        const m=e.getObject3D('mesh'); if(m) m.visible=false; }
-      SND.boom(0); });
     kl('#btnScores',toonScores);
     // CONTROLS deed niets: #scoreLijst is een entity zonder tekst, dus
     // setAttribute('value') kwam nergens terecht. Nu een echt paneel met alle
