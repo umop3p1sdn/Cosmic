@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.82';
+  const VERSIE='v12.83';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1847,7 +1847,10 @@
 
       // ---- sterrenhemel ----
       const sterMat=new THREE.MeshBasicMaterial({map:mkSterren(),side:THREE.BackSide,depthWrite:false});
-      this.hemel=new THREE.Mesh(new THREE.SphereGeometry(300,32,20),sterMat);
+      // De bol had 32x20 segmenten: de plaat werd dus over grove vlakken
+      // gespannen en vervormde zichtbaar, hoe scherp de plaat zelf ook was.
+      // 96x56 kost nauwelijks meer en laat de tekening tot zijn recht komen.
+      this.hemel=new THREE.Mesh(new THREE.SphereGeometry(300,96,56),sterMat);
       this.hemel.renderOrder=-20; this.par.add(this.hemel);
       this.skyObjs=[];
       window.ART.nieuw=function(){ self.artVernieuw(); };
@@ -6541,6 +6544,21 @@
       this.hemelI=i; this.panoAan=true;
       const H=this.hemels[i];
       this.panoBreed=H.breed;
+      // Scherpte: laat de videokaart de plaat onder een schuine hoek fijner
+      // bemonsteren. Zonder dit wordt een hemel op afstand zacht, hoe scherp de
+      // plaat zelf ook is.
+      if(H.tex&&!H.tex.__scherp){
+        H.tex.__scherp=1;
+        try{
+          const rn=(this.el&&this.el.sceneEl&&this.el.sceneEl.renderer)||null;
+          const mx=rn&&rn.capabilities&&rn.capabilities.getMaxAnisotropy
+            ? rn.capabilities.getMaxAnisotropy() : 8;
+          H.tex.anisotropy=Math.min(16,Math.max(1,mx));
+          H.tex.generateMipmaps=true;
+          H.tex.minFilter=THREE.LinearMipmapLinearFilter;
+          H.tex.magFilter=THREE.LinearFilter;
+          H.tex.needsUpdate=true;
+        }catch(e){} }
       this.hemel.material.map=H.tex; this.hemel.material.needsUpdate=true;
       this.hemel.rotation.y=Math.PI/2;                 // naad achter je rug
       if(H.tex.offset) H.tex.offset.x=H.basisU; },
