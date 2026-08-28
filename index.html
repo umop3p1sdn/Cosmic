@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.67';
+  const VERSIE='v12.68';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -178,7 +178,7 @@
   // =========================================================
   //  GELUID
   // =========================================================
-  let A=null,MASTER=null,DUCK=null,DELAY=null,LIM=null,DRONE=null;
+  let A=null,MASTER=null,DUCK=null,DELAY=null,LIM=null,DRONE=null,BEZIG=false;
   function AC(){ if(A) return A; A=new (window.AudioContext||window.webkitAudioContext)();
     MASTER=A.createGain(); MASTER.gain.value=0.5;
     LIM=A.createDynamicsCompressor();
@@ -375,6 +375,13 @@
     }).catch(function(){}); }
   function playAt(i){
     if(!PLAY.length) return false;
+    // DUBBELE MUZIEK. Het opnieuw proberen loopt elke halve seconde, maar CUR
+    // wordt pas gezet als het nummer is aangemaakt. Twee pogingen kort na elkaar
+    // zagen dus allebei "er speelt niets" en startten allebei een nummer. Deze
+    // grendel staat meteen aan het begin.
+    if(BEZIG) return false;
+    BEZIG=true;
+    setTimeout(function(){ BEZIG=false; },900);
     PIDX=((i%PLAY.length)+PLAY.length)%PLAY.length;
     try{
       if(CUR){ try{ CUR.pause(); }catch(e){} }
@@ -392,9 +399,10 @@
       // audio staat nog op pauze). Dan moeten we CUR weer leegmaken, anders denkt
       // de rest dat er muziek speelt en wordt het nooit meer geprobeerd.
       const p=CUR.play();
+      if(p&&p.then) p.then(function(){ BEZIG=false; });
       if(p&&p.catch) p.catch(function(){
         try{ if(CUR){ CUR.pause(); } }catch(e2){}
-        CUR=null;
+        CUR=null; BEZIG=false;         // meteen weer vrij: de volgende poging mag
         const e3=$('#musTxt'); if(e3) e3.setAttribute('value',''); });
       const e2=$('#musTxt'); if(e2) e2.setAttribute('value','\u25b6 '+PLAY[PIDX].n);
       return true;
