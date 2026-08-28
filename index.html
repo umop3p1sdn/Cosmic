@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.74';
+  const VERSIE='v12.75';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1333,7 +1333,9 @@
   const STRAAL_TIJD=2.2, STRAAL_DIK=9, STRAAL_VER=340, STRAAL_DMG=46;
   // DE ATOOMBOM: hoe ver hij vliegt voor hij openbarst, hoe groot de vuurbal is
   // en hoe hard hij aankomt. 50x de schade van een gewone treffer.
-  const BOM_VLUCHT=0.9, BOM_VER=120, BOM_FLITS=1.4, BOM_BAL=34, BOM_DMG=50;
+  // DE ATOOMBOM. De vuurbal is met opzet enorm: hij hoort je hele blik te
+  // vullen, want alles in beeld gaat er toch aan.
+  const BOM_VLUCHT=0.9, BOM_VER=120, BOM_FLITS=1.8, BOM_BAL=110, BOM_DMG=50;
   // Hoe breed een baaswaaier spreidt. Te breed en alles gaat naast je langs;
   // het moet JOU bedreigen, niet de ruimte ernaast.
   const SIG_SPREID=0.72;   // WIJD: Sjoerd wil dat je buiten de baas moet mikken
@@ -2647,8 +2649,16 @@
         // Tegen een baas is het één zware treffer; tegen een volle lucht ruimt
         // het alles in één keer op.
         this.ults--; SND.boom(0,true); SND.zeg('Nuke');
-        const d0=(window.AIM?window.AIM.clone():this.dir.clone()).normalize();
-        this.bomO=this.ori.clone();
+        // Hij vertrok vanaf je HAND en langs je handrichting — die wijst omlaag,
+        // dus de bal ontplofte onder in beeld. Nu vertrekt hij op ooghoogte en
+        // vliegt hij recht vooruit waar je kijkt.
+        const d0=this.KIJK||(this.KIJK=new THREE.Vector3());
+        if(this.cam&&this.cam.object3D){
+          // getWorldDirection geeft de kijkrichting al goed: recht vooruit
+          this.cam.object3D.getWorldDirection(d0); }
+        else d0.set(0,0,-1);
+        d0.normalize();
+        this.bomO=this.kop.clone();
         this.bomD=d0;
         this.bomT=BOM_VLUCHT;                 // hij vliegt eerst naar het midden
         this.bomFase=1;
@@ -6336,8 +6346,15 @@
       // hij niet wisselt terwijl je in het menu staat.
       let i;
       if(window.PHASE==='menu'){
+        // De platen komen ÉÉN VOOR ÉÉN binnen. Kozen we meteen bij de eerste,
+        // dan viel de keuze altijd op hemel 0 — die van level 1. Daarom pas
+        // kiezen als het laden klaar is, en tot die tijd de eerste tonen.
+        const klaar=!!(window.ART&&window.ART.af);
+        if(klaar&&!this.menuGekozen){
+          this.menuGekozen=1;
+          this.menuHemel=Math.floor(Math.random()*this.hemels.length); }
         if(this.menuHemel===undefined||this.menuHemel>=this.hemels.length)
-          this.menuHemel=Math.floor(Math.random()*this.hemels.length);
+          this.menuHemel=0;
         i=this.menuHemel; }
       else i=this.hemelVoorLevel(Math.max(1,this.level||1));
       // Ook opnieuw zetten als de plaat intussen is opgeruimd en teruggehaald:
@@ -6890,7 +6907,7 @@
     const rig=document.querySelector('#rig'), C=rig&&rig.components&&rig.components.cosmic;
     if(C){ C.demoStop(); C.reset(); C.over=false; C.klaar=false; C.paneel(false);
       // elke keer dat je in het menu komt een andere wereld
-      C.menuHemel=undefined; C.hemelI=-1;
+      C.menuHemel=undefined; C.menuGekozen=0; C.hemelI=-1;
       try{ C.hemelZet(); C.objZet(); }catch(e){} }
     window.DEMO=false; window.AIM=null;
     const m=document.querySelector('#menu'); if(m) m.setAttribute('visible',true);
