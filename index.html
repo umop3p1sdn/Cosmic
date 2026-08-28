@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.70';
+  const VERSIE='v12.72';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1236,6 +1236,7 @@
   const GROOTHP=6.0;            // Sjoerd: grote schepen 2x zo taai (was 3.0)
   // Vanaf welke breedte een schip GROOT is, en hoe taai zijn raketten dan zijn.
   // Sjoerd: een gewone raket 4x raken, die van een kolos zeker 20x.
+  const RAAKBOL=0.52;           // aandeel van de breedte; 0.50 = precies de tekening
   const GROOTBR=13, REUSBR=19;
   const GROOTRAKHP=10, REUSRAKHP=26;
   const GROOT_ELK=3, GROOT_WESP=6, WESP_HP=10;
@@ -1328,6 +1329,9 @@
   const ULT_DOOF=700;           // milliseconden tussen twee ults
   // De straal-ult: dik, ver, en hij verdampt alles in zijn koker.
   const STRAAL_TIJD=2.2, STRAAL_DIK=9, STRAAL_VER=340, STRAAL_DMG=46;
+  // DE ATOOMBOM: hoe ver hij vliegt voor hij openbarst, hoe groot de vuurbal is
+  // en hoe hard hij aankomt. 50x de schade van een gewone treffer.
+  const BOM_VLUCHT=0.9, BOM_VER=120, BOM_FLITS=1.4, BOM_BAL=34, BOM_DMG=50;
   // Hoe breed een baaswaaier spreidt. Te breed en alles gaat naast je langs;
   // het moet JOU bedreigen, niet de ruimte ernaast.
   const SIG_SPREID=0.72;   // WIJD: Sjoerd wil dat je buiten de baas moet mikken
@@ -1942,6 +1946,8 @@
       this.sigRij=[];
       this.straalT=0;
       if(this.straal){ this.straal.visible=false; if(this.straalK) this.straalK.visible=false; }
+      this.bomFase=0; this.bomT=0;
+      if(this.bomBal) this.bomBal.visible=false;
       this.spiraalT=1e9; },
 
     // Op de telefoon zijn er twee tikhanden. Die lenen elk het wapen van een
@@ -2632,18 +2638,87 @@
           const R=this.raket(this.ori,dd,6.0,1.6+Math.random()*1.4,Math.random()*6.283);
           if(R&&T.length) R.zoek=T[k%T.length]; }
         this.toonMelding('SALVO','#ff8a3d'); }
-      else {                                                  // DE STRAAL
-        // Sjoerds wens: alle kracht van een raketsalvo in één dikke straal
-        // vanuit je vizier. Alles wat erin staat gaat eraan — en tegen een baas
-        // is dit je zwaarste zet.
-        this.ults--; SND.boom(0,true); SND.zeg('Beam');
-        this.straalT=STRAAL_TIJD;
-        this.straalO=this.ori.clone();
-        // hij mikt waar je vizier staat, niet waar je hand toevallig wijst
-        this.straalD=(window.AIM?window.AIM.clone():this.dir.clone()).normalize();
-        if(this.straal){ this.straal.visible=true; }
-        this.toonGroot('BEAM','#66f0ff');
-        this.toonMelding('BEAM','#66f0ff'); } },
+      else {                                                  // DE ATOOMBOM
+        // Sjoerds ontwerp: een raket die naar het midden vliegt en daar
+        // ontploft als een atoombom. Grote witte flits, vuurbal, en ALLES in
+        // beeld krijgt dezelfde klap — schepen én al het vijandelijke vuur.
+        // Tegen een baas is het één zware treffer; tegen een volle lucht ruimt
+        // het alles in één keer op.
+        this.ults--; SND.boom(0,true); SND.zeg('Nuke');
+        const d0=(window.AIM?window.AIM.clone():this.dir.clone()).normalize();
+        this.bomO=this.ori.clone();
+        this.bomD=d0;
+        this.bomT=BOM_VLUCHT;                 // hij vliegt eerst naar het midden
+        this.bomFase=1;
+        this.toonGroot('NUKE  -  ARMED','#fff2c0');
+        this.toonMelding('NUKE','#fff2c0'); } },
+
+    // De atoombom: eerst vliegt hij, dan barst hij open.
+    bomTick:function(s){
+      if(!this.bomFase) return;
+      const p=this.BP||(this.BP=new THREE.Vector3());
+      if(this.bomFase===1){
+        // ---- de vlucht: een gloeiende kop die naar het midden trekt ----
+        this.bomT-=s;
+        const k=1-Math.max(0,this.bomT)/BOM_VLUCHT;
+        p.copy(this.bomO).addScaledVector(this.bomD,BOM_VER*k);
+        this.vonk(p.x,p.y,p.z,0xffffff,1,1.2,0.16,true);
+        this.vonk(p.x,p.y,p.z,0xfff2c0,1,2.4,0.22,true);
+        if(this.bomT<=0){ this.bomFase=2; this.bomT=BOM_FLITS;
+          this.bomP=p.clone(); this.bomKnal(); }
+        return; }
+      // ---- de flits dooft ----
+      this.bomT-=s;
+      if(this.bomT<=0){ this.bomFase=0;
+        if(this.bomBal) this.bomBal.visible=false; return; }
+      const k2=this.bomT/BOM_FLITS;
+      if(this.bomBal){
+        const gr=BOM_BAL*(1.6-k2*0.6);
+        this.bomBal.scale.setScalar(gr);
+        this.bomBal.material.opacity=k2*k2;
+        this.bomBal.position.copy(this.bomP); }
+      // het scherm wit laten oplichten
+      const F=document.querySelector('#flits');
+      if(F) F.setAttribute('material','color:#ffffff;shader:flat;opacity:'+
+        (k2*0.85).toFixed(2)+';transparent:true;depthTest:false'); },
+
+    // De klap zelf: de flits, de vuurbal, en de schade aan alles in beeld.
+    bomKnal:function(){
+      const p=this.bomP;
+      // de vuurbal
+      if(!this.bomBal){
+        const g=new THREE.SphereGeometry(1,20,14);
+        const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0xffffff,
+          transparent:true,opacity:0.9,depthWrite:false,
+          blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+        m.renderOrder=13; m.frustumCulled=false;
+        this.par.add(m); this.bomBal=m; }
+      this.bomBal.visible=true;
+      this.bomBal.position.copy(p);
+      this.bomBal.scale.setScalar(BOM_BAL);
+      this.bomBal.material.opacity=0.95;
+      // wit, dan geel, dan oranje naar buiten
+      this.vonk(p.x,p.y,p.z,0xffffff,26,BOM_BAL*0.5,1.6);
+      this.vonk(p.x,p.y,p.z,0xfff2c0,30,BOM_BAL*1.1,1.8);
+      this.vonk(p.x,p.y,p.z,0xffb03a,30,BOM_BAL*1.9,1.5);
+      this.vonk(p.x,p.y,p.z,0xff5a2a,24,BOM_BAL*2.8,1.2);
+      for(let i=0;i<4;i++) this.schokRing(p);
+      for(let i=0;i<14;i++){
+        const hk=Math.random()*6.283, af=BOM_BAL*(0.3+Math.random()*1.2);
+        this.rook(p.x+Math.cos(hk)*af,p.y+Math.sin(hk)*af*0.7,
+                  p.z+(Math.random()-0.5)*af,true,4.0+Math.random()*3.0,3.4); }
+      SND.boom(0,true); SND.boom(0.3,true);
+      // ---- ALLES in beeld krijgt de klap ----
+      let raak=0, weg=0;
+      for(let i=this.enemies.length-1;i>=0;i--){ const e=this.enemies[i];
+        if(!e.live||e.dood||e.dood2) continue;
+        this.raak(e,BOM_DMG,e.p.x,e.p.y,e.p.z); raak++; }
+      for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(!B.live) continue;
+        const q=this.tmp.copy(B.o).addScaledVector(B.dir,B.d);
+        this.vonk(q.x,q.y,q.z,0xfff2c0,3,3.0,0.4);
+        this.vijVrij2(B); weg++; }
+      this.toonGroot('NUKE','#fff2c0');
+      this.toonMelding(raak+' HIT   '+weg+' MISSILES DOWN','#fff2c0'); },
 
     // De straal leeft een paar tellen: hij groeit open, brandt, en dooft. Elke
     // beurt raakt hij alles binnen zijn koker — schepen én vijandelijk vuur.
@@ -3032,7 +3107,11 @@
           e.hp=e.hpM=Math.round(6200*BAAS_TAAI*((opt&&opt.hp)||1)); }   // de eindbaas blijft zwaarder
         // de reus is enorm maar zijn raakbol blijft binnen zijn houdafstand,
         // anders ramt hij je onafgebroken terwijl hij gewoon staat te vechten
-        e.r=e.sc*(e.gedrag==='reus'?0.30:0.42);
+        // De raakbol was 42% van de breedte: dat is 84% van de HALVE breedte, dus
+        // de buitenrand van de tekening telde niet mee. Op een schip van zes meter
+        // scheelt dat een halve meter aan elke kant — precies genoeg om net naast
+        // te schieten terwijl je op het plaatje mikt.
+        e.r=e.sc*(e.gedrag==='reus'?0.30:RAAKBOL);
         e.t=0; e.cd=0.8+Math.random()*1.6; e.ex={}; e.i0=Math.random()*6.28;
         const zij=(Math.random()<0.5)?-1:1;
         e.romp=this.romp[i];
@@ -5508,7 +5587,7 @@
 
       this.ringTick(s); this.sigRijTick(s); this.wijzerTickD(s);
       this.camoTick(s);
-      this.straalTick(s);
+      this.straalTick(s); this.bomTick(s);
       // ---- rook: drijft op, dijt uit en vervaagt ----
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(!R.live) continue;
         R.life-=s/Math.max(0.3,R.leven);
