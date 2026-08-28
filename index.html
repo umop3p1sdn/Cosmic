@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.73';
+  const VERSIE='v12.74';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -6331,7 +6331,15 @@
 
     hemelZet:function(){
       if(!this.hemels||!this.hemels.length) return;
-      const i=this.hemelVoorLevel(Math.max(1,this.level||1));
+      // In het MENU een willekeurige wereld: je zag altijd die van level 1,
+      // terwijl er dertien mooie platen zijn. Eén keer kiezen per opstart, zodat
+      // hij niet wisselt terwijl je in het menu staat.
+      let i;
+      if(window.PHASE==='menu'){
+        if(this.menuHemel===undefined||this.menuHemel>=this.hemels.length)
+          this.menuHemel=Math.floor(Math.random()*this.hemels.length);
+        i=this.menuHemel; }
+      else i=this.hemelVoorLevel(Math.max(1,this.level||1));
       // Ook opnieuw zetten als de plaat intussen is opgeruimd en teruggehaald:
       // anders blijft de hemel naar een leeggemaakte textuur wijzen en zie je niets.
       const H0=this.hemels[i];
@@ -6479,7 +6487,8 @@
       // wolken. De helderheid van de achtergrond verraadt welke het is: lucht
       // en land zijn licht, diepe ruimte is donker.
       const H=(this.hemels&&this.hemels.length)
-        ? this.hemels[this.hemelVoorLevel(L)] : null;
+        ? this.hemels[(window.PHASE==='menu'&&this.menuHemel!==undefined)
+            ? this.menuHemel : this.hemelVoorLevel(L)] : null;
       const hel=H?H.hel:0;
       // een nummer uit de lijst wint van de helderheidsmeting
       const N=H?nummerVan(H.naam):null;
@@ -6879,7 +6888,10 @@
     { const rg=document.querySelector('#rig');
       const c=rg&&rg.components&&rg.components.cosmic; if(c) c.besAan=false; }
     const rig=document.querySelector('#rig'), C=rig&&rig.components&&rig.components.cosmic;
-    if(C){ C.demoStop(); C.reset(); C.over=false; C.klaar=false; C.paneel(false); }
+    if(C){ C.demoStop(); C.reset(); C.over=false; C.klaar=false; C.paneel(false);
+      // elke keer dat je in het menu komt een andere wereld
+      C.menuHemel=undefined; C.hemelI=-1;
+      try{ C.hemelZet(); C.objZet(); }catch(e){} }
     window.DEMO=false; window.AIM=null;
     const m=document.querySelector('#menu'); if(m) m.setAttribute('visible',true);
     const r=document.querySelector('#richt'); if(r) r.setAttribute('visible',true);
