@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.68';
+  const VERSIE='v12.70';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -513,6 +513,15 @@
   // Sjoerds plaat met 25 raketkoppen, 5 bij 5. Wordt herkend aan het begin van
   // de bestandsnaam; het spel knipt hem zelf in vakken.
   const KOPPEN_BESTAND='537ED456';
+  // De VASTE rol van elke vlootplaat, aan zijn bestandsnaam. Zo staan dezelfde
+  // schepen altijd op dezelfde plaat, en zie je in level 1 altijd hetzelfde.
+  // Ingemeten, niet aangenomen: 3522DF48 en CADE4B23 hebben 12 rijen,
+  // 49DC8F85 heeft er 6.
+  const VLOOTNAAM={
+    '3522DF48':'p12',      // vierkant, 12 rijen
+    'CADE4B23':'p13',      // hoog, 12 rijen
+    '49DC8F85':'p6'        // hoog, 6 rijen
+  };
   const KOPPEN_RIJ=5, KOPPEN_KOL=5;
 
   const NUMMERS=[
@@ -3001,11 +3010,13 @@
           e.plaat=null;
           e.baasAr=(bt.image&&bt.image.width)?bt.image.width/bt.image.height:1.7; }
         else if(P){ bb.m.material=P.mat; this.uvRect(bb.g,P.rect[T.rij][0]); }
-        else if(window.ART&&!window.ART.af&&window.ART.schepen&&window.ART.schepen.length){
+        else if(window.ART&&window.ART.schepen&&window.ART.schepen.length&&
+                (!window.ART.af||!this.plaat12||!this.plaat13||!this.plaat6)){
           // De platen zijn nog binnen aan het komen. Liever even geen schip dan een
-          // vierkant blokje: de golf vult zich een tel later vanzelf. Is het laden
-          // klaar en ontbreekt een plaat echt, dan valt hij alsnog terug op een
-          // blokje — beter een blokje dan een soort die nooit verschijnt.
+          // vierkant blokje: de golf vult zich een tel later vanzelf.
+          // LET OP: er werd alleen gekeken of het LADEN klaar was, niet of de drie
+          // vlootplaten er ook echt alle drie zijn. Een schip van de laatste plaat
+          // verscheen dus als blokje zolang die nog niet was ingemeten.
           this.bbVrij(bb); e.live=false; return null; }
         else { bb.m.material=this.bbMat; this.bbCel(bb,Math.min(7,tp)); }
         // Eén knop voor de taaiheid van alle gewone vijanden, zodat hun
@@ -6002,8 +6013,11 @@
     // Welke platen heeft dit level nodig?
     rondeNodig:function(L){
       const uit={namen:[],lijst:[]};
+      // MOEST MEE met hemelVoorLevel. Deze regel laadde nog de hemel volgens de
+      // oude volgorde, terwijl het spel er een andere toont — dus werd de
+      // verkeerde plaat geladen en bleef het beeld zwart.
       const hemNaam=(this.hemels&&this.hemels.length)
-        ? this.hemels[(Math.max(1,L)-1)%this.hemels.length].naam : null;
+        ? this.hemels[this.hemelVoorLevel(Math.max(1,L))].naam : null;
       if(hemNaam){ uit.namen.push(hemNaam); uit.lijst.push({s:'hemel',naam:hemNaam}); }
       const zet=function(k){ (k&&k.delen||[]).forEach(function(t){
         if(t&&t.__naam&&uit.namen.indexOf(t.__naam)<0){
@@ -6263,12 +6277,22 @@
           // Vlootplaten zijn ELK level nodig. Ze worden nooit vrijgegeven, anders
           // staat er ineens een vierkant blokje in plaats van een schip.
           t.__vast=1; if(P.mat&&P.mat.map) P.mat.map.__vast=1;
-          if(P.rijen>=10){
-            // twee platen met 12 rijen: de vierkante is plaat12, de hoge plaat13
-            if(ar2>=0.85){ if(!self2.plaat12) self2.plaat12=P; else self2.plaat13=P; }
-            else { if(!self2.plaat13) self2.plaat13=P; else self2.plaat12=P; } }
-          else { if(!self2.plaat6) self2.plaat6=P;
-                 else if(!self2.plaat13) self2.plaat13=P; }
+          // ELKE PLAAT ZIJN VASTE ROL, herkend aan het begin van zijn bestandsnaam.
+          // Eerder werd er gekozen op verhouding of op laadvolgorde, en dan
+          // wisselden platen van rol — met andere schepen in de beginlevels en
+          // vierkante blokjes als gevolg. Een naam wisselt nooit.
+          const nm2=String(t.__naam||'');
+          let rol=null;
+          for(const k in VLOOTNAAM) if(nm2.indexOf(k)===0){ rol=VLOOTNAAM[k]; break; }
+          if(rol==='p12') self2.plaat12=P;
+          else if(rol==='p13') self2.plaat13=P;
+          else if(rol==='p6') self2.plaat6=P;
+          else {
+            // onbekende plaat: dan alsnog op het aantal rijen, en op de eerste
+            // vrije plek — zodat een nieuwe plaat het spel niet breekt
+            if(P.rijen>=10){ if(!self2.plaat12) self2.plaat12=P;
+                             else if(!self2.plaat13) self2.plaat13=P; }
+            else if(!self2.plaat6) self2.plaat6=P; }
           window.ART.vondst='fleet '+(self2.plaat6?'6 ':'')+(self2.plaat12?'12a ':'')+
             (self2.plaat13?'12b ':'')+P.hoe; }); }
       // hemels gaan in de wachtrij; ze worden één per beurt klaargemaakt zodat het
