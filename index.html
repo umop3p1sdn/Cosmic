@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.84';
+  const VERSIE='v12.87';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1021,10 +1021,12 @@
   '        <a-text position="0.66 0.48 -2.36" value="WAVE +" align="center" color="#8fd8ec" width="2.0"></a-text>'+
   '        <a-plane id="btnFaseC" class="menu-btn" position="-0.34 0.16 -2.38" width="0.62" height="0.24" material="color:#123a4e;shader:flat"></a-plane>'+
   '        <a-text position="-0.34 0.16 -2.36" value="START HERE" align="center" color="#eafcff" width="2.3"></a-text>'+
+  '        <a-plane id="btnProps" class="menu-btn" position="0 -0.10 -2.38" width="0.90" height="0.22" material="color:#1a2c3a;shader:flat"></a-plane>'+
+  '        <a-text id="propsTxt" position="0 -0.10 -2.36" value="PROPS: ON" align="center" color="#8fd8ec" width="2.4"></a-text>'+
   '        <a-plane id="btnTestDemo" class="menu-btn" position="0.34 0.16 -2.38" width="0.62" height="0.24" material="color:#1d3a24;shader:flat"></a-plane>'+
   '        <a-text position="0.34 0.16 -2.36" value="DEMO HERE" align="center" color="#8fd84a" width="2.3"></a-text>'+
-  '        <a-plane id="btnTechUit" class="menu-btn" position="0 -0.22 -2.38" width="0.70" height="0.22" material="color:#20182a;shader:flat"></a-plane>'+
-  '        <a-text position="0 -0.22 -2.36" value="CLOSE" align="center" color="#9a86b8" width="2.2"></a-text>'+
+  '        <a-plane id="btnTechUit" class="menu-btn" position="0 -0.36 -2.38" width="0.70" height="0.22" material="color:#20182a;shader:flat"></a-plane>'+
+  '        <a-text position="0 -0.36 -2.36" value="CLOSE" align="center" color="#9a86b8" width="2.2"></a-text>'+
   '      </a-entity>'+
   '    </a-entity>'+
 
@@ -1132,6 +1134,16 @@
       else if(k==='ArrowLeft'){ toetsStap(-1,0); ev.preventDefault(); }
       else if(k==='ArrowRight'){ toetsStap(1,0); ev.preventDefault(); }
       else if(k==='Enter'||k===' '){ toetsDruk(); ev.preventDefault(); } });
+    // Met P schakel je de props aan en uit, ook MIDDEN in het spel. Zo kun je in
+    // hetzelfde level vergelijken of zij het haperen veroorzaken.
+    window.addEventListener('keydown',function(ev){
+      if(ev.key!=='p'&&ev.key!=='P') return;
+      window.PROPSUIT=!window.PROPSUIT;
+      const t=document.querySelector('#propsTxt');
+      if(t) t.setAttribute('value','PROPS: '+(window.PROPSUIT?'OFF':'ON'));
+      const rg=document.querySelector('#rig');
+      const c=rg&&rg.components&&rg.components.cosmic;
+      if(c){ try{ c.objZet(); c.toonMelding('PROPS '+(window.PROPSUIT?'OFF':'ON'),'#8fd8ec'); }catch(e){} } });
     // met de MUIS aanwijzen en klikken
     const raak=function(ev){
       const cam=document.querySelector('#cam');
@@ -1389,12 +1401,13 @@
   // scherpte, 16 MB.
   const HEMEL_MAX=2720;
   const PROP_MAX=1024;
+  const LOS_MAX=640;            // maat van een los scheepsplaatje
   const PLANEET_MAX=190;        // breedte van een planeet in meters (was 340)
   // Grote planeten eruit: ze vullen je hele blik met een doorzichtig vlak en dat
   // kost een bril meer dan alle schepen samen. Op 1 komen ze terug.
   const PLANEET_AAN=1;   // weer aan, maar kleiner en alleen bij donkere ruimte
   // In welke levels de losse objecten helemaal uit staan.
-  const PROPS_UIT=[9];
+  const PROPS_UIT=[];   // vaste uitzonderingen; leeg, want er is nu een knop
   // De overgang na een baas, in seconden: nagenieten, doven, zwart met de
   // aankondiging, en de nieuwe wereld die opkomt. Vijanden wachten tot het eind.
   const RUST_KIJK=2.2, RUST_DOOF=1.6, RUST_ZWART=2.4, RUST_OP=2.0;
@@ -2358,6 +2371,9 @@
       let schoon=tex;
       if(pix&&kol&&rij&&hoe.indexOf('gemeten')===0){
         try{ schoon=this.plaatSchoon(img,W,H,kol,rij,pix,tex.__naam)||tex; }catch(e){ schoon=tex; } }
+      // Zonder mipmaps zoekt de bril bij ELK beeldpunt door de volle plaat, en
+      // dat is permanente belasting — precies wat Sjoerd voelt.
+      this.losScherp(schoon);
       const mat=new THREE.MeshBasicMaterial({map:schoon,transparent:true,alphaTest:0.06,
         side:THREE.DoubleSide,depthWrite:false});
       const P={tex:tex,mat:mat,rect:{},hoe:hoe,kol:kol,rij:rij,rijen:rij.length,data:pix,vuur:{}};
@@ -2495,9 +2511,46 @@
       const k=tex.__naam||'x';
       if(!this.losM[k]){
         tex.__vast=1;
+        // Een los schip is 1800 px breed; op tientallen meters afstand zie je
+        // daar niets van, maar een bril moet die hele plaat per oog opnieuw
+        // bemonsteren. Verkleinen en mipmaps erbij: veel lichter, even scherp.
+        tex=this.losKlein(tex);
         this.losM[k]=new THREE.MeshBasicMaterial({map:tex,transparent:true,
           alphaTest:0.06,side:THREE.DoubleSide,depthWrite:false}); }
       return this.losM[k]; },
+
+    // Een los schip verkleinen tot LOS_MAX, en mipmaps aanzetten. Zonder mipmaps
+    // moet de bril bij elk beeldpunt door de volle plaat zoeken — dat is
+    // permanente belasting, niet iets bij het laden.
+    losKlein:function(tex){
+      if(tex.__klein2) return tex.__klein2;
+      const img=tex.image;
+      if(!img||!img.width||img.width<=LOS_MAX){ this.losScherp(tex); return tex; }
+      try{
+        const sch=LOS_MAX/img.width;
+        const w=LOS_MAX, hh=Math.max(2,Math.round(img.height*sch));
+        const c=document.createElement('canvas'); c.width=w; c.height=hh;
+        const g=c.getContext('2d');
+        if(g.imageSmoothingQuality) g.imageSmoothingQuality='high';
+        g.drawImage(img,0,0,w,hh);
+        const nt=new THREE.CanvasTexture(c);
+        nt.__naam=tex.__naam; nt.__lijst=tex.__lijst; nt.__vast=1;
+        nt.needsUpdate=true;
+        this.losScherp(nt);
+        tex.__klein2=nt; return nt;
+      }catch(e){ this.losScherp(tex); return tex; } },
+
+    losScherp:function(t){
+      try{
+        const rn=(this.el&&this.el.sceneEl&&this.el.sceneEl.renderer)||null;
+        const mx=rn&&rn.capabilities&&rn.capabilities.getMaxAnisotropy
+          ? rn.capabilities.getMaxAnisotropy() : 8;
+        t.anisotropy=Math.min(8,Math.max(1,mx));
+        t.generateMipmaps=true;
+        t.minFilter=THREE.LinearMipmapLinearFilter;
+        t.magFilter=THREE.LinearFilter;
+        t.needsUpdate=true;
+      }catch(e){} },
 
     plaatVoor:function(tp){
       const T=TYPE[tp];
@@ -6211,6 +6264,7 @@
           this.uvRect(k.geometry,R,1);
           // alleen vertalen als de kaart of de instelling ECHT wisselt
           if(k.material.map!==window.ART.koppen||!k.__klaar){
+            this.losScherp(window.ART.koppen);
             k.material.map=window.ART.koppen;
             k.material.transparent=true; k.material.alphaTest=0.25;
             k.material.needsUpdate=true; k.__klaar=1; }
@@ -6663,7 +6717,10 @@
           return; }
         // grote platen worden grote objecten: een planeet van 2000 px hoort geen keitje te zijn
         // ook een planeet hoeft geen 2000 pixels te zijn op 240 m afstand
-        if(t.image&&t.image.width>PROP_MAX){
+        // Ook dit verkleinen werd bij elke opbouw herhaald. Eén keer is genoeg.
+        if(t.__klein){ t=t.__klein; }
+        else if(t.image&&t.image.width>PROP_MAX){
+          const bron2=t;
           try{
             const sch=PROP_MAX/t.image.width;
             const c=document.createElement('canvas');
@@ -6673,7 +6730,7 @@
             g.drawImage(t.image,0,0,c.width,c.height);
             const nt=new THREE.CanvasTexture(c);
             nt.__naam=t.__naam; nt.__lijst=t.__lijst; nt.__rond=t.__rond;
-            nt.needsUpdate=true; t=nt;
+            nt.needsUpdate=true; bron2.__klein=nt; t=nt;
           }catch(e){}
         }
         const px=(t.image&&t.image.height)?t.image.height:1024;
@@ -6688,7 +6745,10 @@
         const m=new THREE.Mesh(new THREE.PlaneGeometry(w,hh),
           new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false}));
         // hoe groter, hoe verder weg — anders staat een planeet bovenop je
-        const d=planeet?(300+Math.random()*90):Math.min(275,80+maat*1.35+Math.random()*40);
+        // De hemelbol heeft een straal van 300 m. Planeten stonden op 300 tot 390
+        // en zaten dus ER OP of erbuiten: dan vecht hun vlak met de hemel om wie
+        // er voor staat, en dat flikkert. Nu ruim ervoor.
+        const d=planeet?(215+Math.random()*45):Math.min(275,80+maat*1.35+Math.random()*40);
         const a=Math.random()*6.283;
         m.position.set(Math.cos(a)*d,(Math.random()*0.5-0.12)*d*0.5,Math.sin(a)*d);
         m.renderOrder=-14;
@@ -6717,9 +6777,9 @@
       const N=H?nummerVan(H.naam):null;
       const ruimte=N?!N.grond:(hel<RUIMTE_HEL);
       let kies=-1;
-      // Level 9 hapert bij Sjoerd terwijl andere levels met props soepel lopen.
-      // Props hier uit, zodat we weten of zij het zijn of de achtergrond.
-      if(PROPS_UIT.indexOf(L)>=0){
+      // Met de knop PROPS in het testpaneel kun je ze in het spel aan- en
+      // uitzetten, zodat je in hetzelfde level kunt vergelijken.
+      if(window.PROPSUIT||PROPS_UIT.indexOf(L)>=0){
         for(let i=0;i<this.skyObjs.length;i++) this.skyObjs[i].visible=false;
         this.objI=-1; return; }
       if(ruimte&&L>2){
@@ -7245,6 +7305,16 @@
     kl('#btnFaseC',function(){ techStart(techWv-1); });
     // Sjoerd wil kunnen meekijken: dezelfde plek, maar dan met de autopiloot.
     kl('#btnTestDemo',function(){ techStart(techWv-1,true); });
+    // PROPS aan of uit — werkt ook midden in het spel, zodat je in hetzelfde
+    // level kunt vergelijken of zij het haperen veroorzaken.
+    kl('#btnProps',function(){
+      window.PROPSUIT=!window.PROPSUIT;
+      const t=document.querySelector('#propsTxt');
+      if(t) t.setAttribute('value','PROPS: '+(window.PROPSUIT?'OFF':'ON'));
+      const rg=document.querySelector('#rig');
+      const c=rg&&rg.components&&rg.components.cosmic;
+      if(c){ try{ c.objZet(); }catch(e){} }
+      SND.boom(0); });
     // Met deze knop zet je de meetregel aan: dan zie je IN DE BRIL hoeveel
     // vijandelijk vuur er leeft en hoeveel daarvan zichtbaar is.
     kl('#btnScores',toonScores);
