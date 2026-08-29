@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.91';
+  const VERSIE='v12.97';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1375,6 +1375,9 @@
   const LVMAAT=0.052;           // hoogte van de niveautekst (was 0.034)
   const BAL_N=6, BAL_TIJD=0.55;  // vuurballen bij een raketinslag
   const KOGELSNEL=185;          // meter per seconde — moet kloppen met bolt()
+  // Het nabranden van de laser: hoeveel schade per tik, hoe vaak, en hoeveel
+  // brand een schip hoogstens kan oplopen.
+  const BRAND_DMG=3, BRAND_TIK=0.25, BRAND_MAX=60;
   const BEREIK=150;             // hoe ver een kogel komt
   const GROOTBR=13, REUSBR=19;
   const GROOTRAKHP=10, REUSRAKHP=26;
@@ -1673,7 +1676,82 @@
   // Hoeveel stukken er hoogstens van een ontploffend schip af spatten.
   const BROKKNAL=9;
   // Wat een raket van jou aanricht: schade in het midden en hoe ver hij reikt.
-  const RAKETDMG=50;            // was 24
+  // DE ZEVEN TRAPPEN van de raketwerper: hoeveel raketten, en hoe zwaar hun
+  // explosie. n = aantal, ex = explosietrap (1, 2 of 3).
+  // Elke trap moet STERKER voelen dan de vorige: eerst meer raketten, dan een
+  // zwaardere klap met er eentje minder, en dan weer opbouwen. Zo krijg je acht
+  // momenten van vooruitgang in plaats van drie.
+  // Sjoerds indeling. Bij trap 4 en 7 gaat er een raket AF maar wordt de klap
+  // groter: minder totale schade, meer diameter. Dat is een ruil, geen terugval —
+  // tegen een groep is het beter, tegen één schip slechter.
+  const RAKTRAP=[
+    {n:1,ex:1},   // trap 1: één raket, kleine klap
+    {n:2,ex:1},   // trap 2
+    {n:5,ex:1},   // trap 3
+    {n:2,ex:2},   // trap 4: minder raketten, grotere diameter
+    {n:3,ex:2},   // trap 5
+    {n:5,ex:2},   // trap 6
+    {n:3,ex:3},   // trap 7: weer een stap in diameter
+    {n:5,ex:3}    // trap 8: het maximum — big boom
+  ];
+  // schade en straal per explosietrap
+  const EXDMG=[0,26,38,50], EXSTRAAL=[0,12,18,25];
+  // DE ACHT TRAPPEN VAN DE ELECTRO. n = hoeveel schepen de ketting raakt,
+  // dmg = schade per schakel, vuur = vlammen bij elke inslag,
+  // blast = straal van de explosie bij elke inslag (0 = geen).
+  // DE ACHT TRAPPEN VAN DE SHOTGUN. n = korrels, dmg = schade per korrel,
+  // spreid = hoe wijd, sz = hoe dik de korrel oogt, raket = explosietrap
+  // (0 = gewone hagel). Van breed en licht naar weinig maar explosief.
+  // DE ACHT TRAPPEN VAN DE LASER. n = hoeveel flitsen in de streep,
+  // tel = hoeveel stralen naast elkaar, dmg = schade per flits,
+  // brand = hoeveel nabranden hij aansteekt (0 = niet).
+  // De laser raakt ALLES in zijn streep, dus zijn getallen moeten laag blijven:
+  // hij vuurt tientallen flitsen achter elkaar. Zijn kracht zit in het volhouden
+  // en in het nabranden, niet in de klap per flits.
+  const LASTRAP=[
+    {n:20,tel:1,dmg:2, sz:1.5,brand:0},   // trap 1: één korte streep
+    {n:26,tel:1,dmg:2, sz:1.5,brand:0},   // trap 2: langer volhouden
+    {n:32,tel:1,dmg:2, sz:1.6,brand:0},   // trap 3
+    {n:30,tel:2,dmg:2, sz:1.6,brand:0},   // trap 4: twee stralen
+    {n:34,tel:2,dmg:3, sz:1.7,brand:0},   // trap 5
+    {n:32,tel:2,dmg:3, sz:1.8,brand:9},   // trap 6: hij zet in BRAND
+    {n:34,tel:3,dmg:3, sz:1.9,brand:14},  // trap 7: drie stralen
+    {n:36,tel:3,dmg:4, sz:2.1,brand:20}   // trap 8: en de zwaarste brand
+  ];
+  const SHOTTRAP=[
+    {n:12,dmg:1, spreid:0.13,sz:0.9, raket:0},   // trap 1: gewone hagel
+    {n:16,dmg:1, spreid:0.13,sz:0.9, raket:0},   // trap 2
+    {n:22,dmg:1, spreid:0.13,sz:0.9, raket:0},   // trap 3
+    {n:16,dmg:3, spreid:0.10,sz:1.3, raket:0},   // trap 4: zwaardere korrels
+    {n:22,dmg:3, spreid:0.10,sz:1.3, raket:0},   // trap 5
+    {n:26,dmg:4, spreid:0.09,sz:1.5, raket:0},   // trap 6
+    {n:8, dmg:0, spreid:0.11,sz:1.6, raket:1},   // trap 7: RAKETJES
+    {n:12,dmg:0, spreid:0.11,sz:1.8, raket:2}    // trap 8: zwaardere raketjes
+  ];
+  const ZAPTRAP=[
+    {n:3, dmg:3,  vuur:0, blast:0},    // trap 1: drie schakels
+    {n:5, dmg:3,  vuur:0, blast:0},    // trap 2
+    {n:7, dmg:4,  vuur:0, blast:0},    // trap 3
+    {n:7, dmg:6,  vuur:1, blast:0},    // trap 4: vuur bij de inslagen
+    {n:9, dmg:7,  vuur:1, blast:0},    // trap 5
+    {n:11,dmg:8,  vuur:1, blast:0},    // trap 6
+    {n:9, dmg:10, vuur:1, blast:9},    // trap 7: explosies met diameter
+    {n:11,dmg:12, vuur:1, blast:14}    // trap 8: het maximum
+  ];
+  // Hoe de klap ERUITZIET per trap. Trap 1: scherpe, bleke pof zonder vuurbal.
+  // Trap 2: gele bal. Trap 3: de dikke oranje knal met zwarte rook.
+  // De inslag van een HAGELRAKETJE: koeler en scherper dan die van de raketwerper.
+  const EXHAGEL=[null,
+    {wit:8, n1:10,n2:8, kl1:0xcfffe8,kl2:0x6ce2c0, rook:2, ring:1, duur:0.7},
+    {wit:11,n1:16,n2:14,kl1:0xcfffe8,kl2:0x3fd8a8, rook:4, ring:2, duur:1.0},
+    {wit:13,n1:20,n2:20,kl1:0xeaffff,kl2:0x2fc8ff, rook:6, ring:3, duur:1.3}
+  ];
+  const EXVORM=[null,
+    {wit:9, n1:10,n2:8, kl1:0xcfe8ff,kl2:0xffd9a0, rook:3, ring:1, duur:0.9},
+    {wit:12,n1:18,n2:18,kl1:0xfff2c0,kl2:0xffb03a, rook:6, ring:2, duur:1.3},
+    {wit:14,n1:22,n2:26,kl1:0xfff2c0,kl2:0xffb03a, rook:9, ring:3, duur:1.7}
+  ];
+  const RAKETDMG=50;            // het maximum, trap 3
   const RAKETBLAST=25;          // meter (was 10)
   const RINGEN=6, RINGPT=44, RINGTIJD=0.42;
   const RING_DICHT=0.45;        // hoe snel de ring van THE WHEEL naar binnen klapt
@@ -2731,7 +2809,13 @@
           if(W.t===5) W.lvl=W.lvlT[5];
           this.toonZak(5,W); SND.boom(0); return true; }
         const had=((W.mag[k]||0)>0)||(W.lvlT[k]>=1);
-        W.lvlT[k]=had?Math.min(3,(W.lvlT[k]||1)+1):1;              // niveau per wapensoort, blijft bewaard
+        // De raketwerper heeft ACHT trappen; de andere wapens houden er drie.
+        // Raketwerper en electro hebben acht trappen; shotgun en laser drie.
+        // Raketwerper, shotgun en electro hebben acht trappen; de laser drie.
+        // Alle vier de bijwapens hebben nu acht trappen.
+        const top=(k===1)?RAKTRAP.length:((k===2)?SHOTTRAP.length:
+                  ((k===3)?LASTRAP.length:((k===4)?ZAPTRAP.length:3)));
+        W.lvlT[k]=had?Math.min(top,(W.lvlT[k]||1)+1):1;
         W.mag[k]=(W.mag[k]||0)+Math.round(20*M().mag);
         if(W.t===k){ W.lvl=W.lvlT[k]; this.toonWissel(W); } else this.toonZak(k,W);
         SND.boom(0); return true; }
@@ -2756,15 +2840,28 @@
       const col=WCOL[W.t], lv=this.kr(W);
 
       if(W.t===1){ SND.gun(this.dir.x*0.6,1); SND.boom(this.dir.x*0.3);
-        const n=(lv<=1)?1:((lv===2)?3:5);
-        for(let k=0;k<n;k++) this.raket(this.ori,this.dir,W.up?7.0:4.5,
-          (k===0)?0:(1.4+Math.random()*1.0), k*(6.283/Math.max(1,n-1))+Math.random()*0.4); }
+        // ZEVEN TRAPPEN. Aantal en explosiekracht groeien apart, dus je voelt
+        // vaker vooruitgang dan met drie stappen: eerst meer raketten, dan een
+        // zwaardere klap, dan weer meer.
+        const T=RAKTRAP[Math.min(RAKTRAP.length-1,Math.max(0,lv-1))];
+        const n=T.n;
+        for(let k=0;k<n;k++){
+          const R=this.raket(this.ori,this.dir,W.up?7.0:4.5,
+            (k===0)?0:(1.4+Math.random()*1.0),
+            k*(6.283/Math.max(1,n-1))+Math.random()*0.4);
+          // elke raket onthoudt zijn eigen kracht, zodat de klap erbij past
+          if(R){ R.ex=T.ex; } } }
 
       else if(W.t===2){ SND.gun(this.dir.x*0.9,2);
-        const T=W.up?this.doelen():null, korrels=Math.min(26,12+lv*5);
+        // DE ACHT TRAPPEN VAN DE SHOTGUN. Sjoerds ontwerp: begint als gewone
+        // hagel, groeit naar zwaardere korrels, en op het eind vuurt hij
+        // RAKETJES af die bij inslag ontploffen.
+        const ST=SHOTTRAP[Math.min(SHOTTRAP.length-1,Math.max(0,lv-1))];
+        const T=W.up?this.doelen():null, korrels=ST.n;
         for(let k=0;k<korrels;k++){
           let dd=this.dir.clone();
-          dd.x+=(Math.random()-0.5)*0.13; dd.y+=(Math.random()-0.5)*0.13; dd.z+=(Math.random()-0.5)*0.03;
+          dd.x+=(Math.random()-0.5)*ST.spreid; dd.y+=(Math.random()-0.5)*ST.spreid;
+          dd.z+=(Math.random()-0.5)*0.03;
           dd.normalize();
           if(T&&T.length){ let bt=null,bq=1e9;
             for(let i=0;i<T.length;i++){ const v=this.tmp.copy(T[i].p).sub(this.ori);
@@ -2772,10 +2869,22 @@
               const q=v.addScaledVector(dd,-t2).length();
               if(q<11&&q<bq){ bq=q; bt=T[i]; } }
             if(bt) dd=bt.p.clone().sub(this.ori).normalize(); }
-          this.bolt(this.ori,dd,col,150,0.9,0.6,1); } }
+          if(ST.raket){
+            // korrels zijn nu kleine raketten: ze ontploffen bij inslag
+            // RECHT VOORUIT: hagel hoort niet te sturen. Geen zoeken, geen
+            // zwenken — waar je op mikt, daar gaan ze heen.
+            const R=this.raket(this.ori,dd,3.4,0,0);
+            if(R){ R.ex=ST.raket; R.hagel=1; R.zoek=null; R.swarm=0; R.ph=0; } }
+          else this.bolt(this.ori,dd,col,150,ST.sz,0.6,ST.dmg); } }
 
       else if(W.t===3){                                   // LASER: een streep van losse flitsen
-        W.laz={n:(lv>=2?30:20), k:0, t:0, tel:(lv>=3?2:1), up:W.up?1:0};
+        // DE ACHT TRAPPEN VAN DE LASER. Zijn karakter is DUUR: hij blijft
+        // branden. Dus eerst langer volhouden, dan meer stralen naast elkaar,
+        // en op het eind zetten zijn treffers het doel in BRAND — schade die
+        // doorloopt nadat de straal al weg is.
+        const LT=LASTRAP[Math.min(LASTRAP.length-1,Math.max(0,lv-1))];
+        W.laz={n:LT.n, k:0, t:0, tel:LT.tel, up:W.up?1:0,
+               dmg:LT.dmg, brand:LT.brand, sz:LT.sz};
         SND.boom(this.dir.x*0.3); }
 
       else if(W.t===4){ SND.gun(this.dir.x*0.4,4);
@@ -2791,15 +2900,19 @@
           const punt=q/Math.max(0.01,ruim)*0.7+t2/ZAPBEREIK*0.3;   // dichtbij het kruis wint
           if(punt<bs){ bs=punt; bi=i; } }
         if(bi<0) return;
-        const used={}, pts=[this.ori.clone()], max=Math.min(14,(4+lv*2)*(W.up?2:1));
+        // DE ACHT TRAPPEN van de electro: eerst meer sprongen, dan vuur bij elke
+        // inslag, dan een echte explosie met diameter. Zelfde opbouw als de
+        // raketwerper, maar met de ketting als eigen karakter.
+        const ET=ZAPTRAP[Math.min(ZAPTRAP.length-1,Math.max(0,lv-1))];
+        const used={}, pts=[this.ori.clone()], max=Math.min(14,ET.n*(W.up?2:1));
         let cur=T[bi];
         // Elke oversprong laadt de flits verder op: de tiende treffer doet ruim
         // vier keer zoveel als de eerste. Zo beloont een lange ketting zichzelf.
         for(let k=0;k<max&&cur;k++){
           used[T.indexOf(cur)]=1; pts.push(cur.p.clone());
-          const kracht=(2+lv)*(1+k*ZAPGROEI);
+          const kracht=ET.dmg*(1+k*ZAPGROEI);
           this.raak(cur,kracht,cur.p.x,cur.p.y,cur.p.z);
-          if(k>0) this.vonk(cur.p.x,cur.p.y,cur.p.z,0xffffff,3+Math.min(8,k),5+k,0.5);
+          this.zapInslag(cur.p,ET,k);
           let nb=null, nd=ZAPSPRONG*ZAPSPRONG;
           for(let i=0;i<T.length;i++){ if(used[i]||!T[i].live) continue;
             const d2=T[i].p.distanceToSquared(cur.p); if(d2<nd){ nd=d2; nb=T[i]; } }
@@ -2817,14 +2930,15 @@
     bolt:function(o,d,col,md,sz,tol,dmg,snel){
       for(let i=0;i<this.bolts.length;i++){ const B=this.bolts[i]; if(B.live) continue;
         B.o.copy(o); B.dir.copy(d); B.d=0; B.pd=0; B.md=md; B.sz=sz; B.tol=tol; B.dmg=dmg||1;
+        B.brand=0;
         B.sp=snel||185;
         B.live=true; B.m.material.color.setHex(col); B.m.visible=true;   // JOUW kogel: altijd zichtbaar
-        this.richtQuad(B.m,o,d,sz*3.2,sz*0.5); return; } },
+        this.richtQuad(B.m,o,d,sz*3.2,sz*0.5); return B; } },   // teruggeven: de laser zet er brand op
 
     raket:function(o,d,rad,swarm,ph){
       for(let i=0;i<this.rockets.length;i++){ const R=this.rockets[i]; if(R.live) continue;
         R.o.copy(o); R.dir.copy(d); R.d=0; R.tot=0; R.live=true; R.zoek=null;
-        R.rad=rad; R.ph=ph||0; R.swarm=swarm||0;
+        R.rad=rad; R.ph=ph||0; R.swarm=swarm||0; R.ex=1; R.hagel=0;
         R.m.position.copy(o); R.m.visible=true; R.m.scale.set(1.6,1.6,1); return R; }
       return null; },
 
@@ -2869,7 +2983,9 @@
           const dd=this.dir.clone();
           dd.x+=(Math.random()-0.5)*0.5; dd.y+=(Math.random()-0.5)*0.35; dd.normalize();
           const R=this.raket(this.ori,dd,6.0,1.6+Math.random()*1.4,Math.random()*6.283);
-          if(R&&T.length) R.zoek=T[k%T.length]; }
+          // De ult vuurt ALTIJD de zwaarste trap, ongeacht je wapenniveau —
+          // dat is waar hij voor is.
+          if(R){ R.ex=3; if(T.length) R.zoek=T[k%T.length]; } }
         this.toonMelding('SALVO','#ff8a3d'); }
       else {                                                  // DE ATOOMBOM
         // Sjoerds ontwerp: een raket die naar het midden vliegt en daar
@@ -2925,7 +3041,7 @@
 
     // Een vuurbal die opengaat op de ECHTE klapstraal en dan dooft. Zo zie je
     // precies hoe ver de klap reikte — dat maakt de inslag pas voelbaar.
-    vuurBal:function(p,straal){
+    vuurBal:function(p,straal,tr){
       if(!this.ballen){
         this.ballen=[];
         const g=new THREE.SphereGeometry(1,16,12);
@@ -2937,7 +3053,8 @@
           this.par.add(m); this.ballen.push({m:m,live:false,t:0,r:1}); } }
       for(let i=0;i<this.ballen.length;i++){ const B=this.ballen[i];
         if(B.live) continue;
-        B.live=true; B.t=BAL_TIJD; B.r=straal;
+        B.live=true; B.t=BAL_TIJD*(0.7+0.25*(tr||3)); B.r=straal; B.tr=tr||3;
+        B.t0=B.t;
         B.m.visible=true; B.m.position.copy(p);
         B.m.scale.setScalar(straal*0.2);
         B.m.material.opacity=0.85; return; } },
@@ -2948,10 +3065,11 @@
         if(!B.live) continue;
         B.t-=s;
         if(B.t<=0){ B.live=false; B.m.visible=false; continue; }
-        const k=1-B.t/BAL_TIJD;                   // 0 net ontploft, 1 bijna weg
+        const k=1-B.t/(B.t0||BAL_TIJD);           // 0 net ontploft, 1 bijna weg
         // snel open, dan langzaam doven op de volle straal
         B.m.scale.setScalar(B.r*(0.2+Math.min(1,k*2.4)*0.9));
-        B.m.material.opacity=0.85*(1-k)*(1-k);
+        // een lichte klap is bleker en doorzichtiger dan een zware
+        B.m.material.opacity=(B.tr>=3?0.85:0.55)*(1-k)*(1-k);
         B.m.material.color.setHex(k<0.3?0xfff2c0:(k<0.6?0xffb03a:0xff5a2a)); } },
 
     // De klap zelf: de flits, de vuurbal, en de schade aan alles in beeld.
@@ -3334,6 +3452,7 @@
         // Elk schip dat later hetzelfde plekje kreeg was dus óók een spook.
         e.spiraal=0; e.onzicht=0; e.spookFase=0; e.spookOp=0; e.spookLeeft=0;
         e.los=0; e.losAr=0;   // ook de losse-schepenvlag wissen bij hergebruik
+        e.vlam=0; e.vlamT=0;  // en de brand van de laser
         e.spF=null; e.spT=0; e.spDoel=null; e.zichtT=0; e.valT=0; e.brT3=0;
         e.stap=0; e.mode='nader'; e.wacht=0; e.burst=0; e.bT=0;
         e.prof=T.prof; e.form=null; e.uit=0; e.dood=0; e.doodT=0; e.ring=null;
@@ -3993,6 +4112,37 @@
       d.addScaledVector(rechts,zij||0);
       d.y+=op||0;
       return d.normalize(); },
+
+    // Wat er bij elke schakel van de ketting gebeurt. Bij lage trappen alleen
+    // een flits, daarna vuur, en bij de hoogste een echte explosie met bereik.
+    zapInslag:function(p,ET,k){
+      // de flits zelf: altijd, maar feller naarmate de ketting vordert
+      this.vonk(p.x,p.y,p.z,0xffffff,3+Math.min(8,k),5+k,0.5);
+      this.vonk(p.x,p.y,p.z,0xc07dff,4+Math.min(6,k),6+k,0.45);
+      if(ET.vuur){
+        // vuur bij de inslag
+        this.vonk(p.x,p.y,p.z,0xfff2c0,6,7,0.7);
+        this.vonk(p.x,p.y,p.z,0xffb03a,8,10,0.8);
+        this.rook(p.x,p.y,p.z,false,1.6,1.5); }
+      if(ET.blast){
+        // een echte klap met diameter: ook wat ernaast vliegt gaat eraan
+        const st=ET.blast;
+        this.vonk(p.x,p.y,p.z,0xffffff,10,st*0.5,1.0);
+        this.vonk(p.x,p.y,p.z,0xffb03a,14,st*1.1,1.1);
+        this.vonk(p.x,p.y,p.z,0xff5a2a,10,st*1.6,0.9);
+        for(let q=0;q<4;q++){
+          const hk=(q/4)*6.283, af=st*(0.5+Math.random()*0.5);
+          this.rook(p.x+Math.cos(hk)*af,p.y+Math.sin(hk)*af*0.7,
+                    p.z+(Math.random()-0.5)*af,false,2.0+Math.random()*1.4,1.8); }
+        this.schokRing(p); this.schokRing(p);
+        this.knal(p,st*0.5);
+        // schade in de straal, aan schepen én aan vijandelijk vuur
+        for(let a=0;a<this.enemies.length;a++){ const e2=this.enemies[a];
+          if(!e2.live||e2.dood||e2.dood2) continue;
+          const af2=e2.p.distanceTo(p);
+          if(af2>st+e2.r) continue;
+          this.raak(e2,ET.dmg*0.8,p.x,p.y,p.z); }
+        for(let a=0;a<8;a++) if(!this.vijTreffer(p,9,st*0.7)) break; } },
 
     // Een ontwijkmanoeuvre: hij zwenkt hard opzij, rolt om zijn as en pakt
     // daarna zijn koers weer op. Zo werkt een vliegtuig dat een raket ontwijkt —
@@ -5467,10 +5617,14 @@
 
       this.beurt=(this.beurt||0)+s*(1.5+this.level*0.30);
       // hemel schuift door: een brede plaat in ~10 min helemaal rond, een 2:1 in ~25 min
+      // HIER ZAT DE BLIJVENDE VERTRAGING. De plaat schuift elke beurt een stukje
+      // op, en daarna stond needsUpdate=true. Dat betekent: stuur de héle plaat
+      // opnieuw naar de videokaart — vier miljoen pixels, elk beeldje, in een
+      // bril twee keer. Terwijl alleen de VERSCHUIVING verandert, en die wordt
+      // vanzelf doorgegeven: needsUpdate is daar niet voor nodig.
       if(this.panoAan&&this.hemel.material.map&&this.hemel.material.map.offset){
         const m=this.hemel.material.map;
-        m.offset.x=(m.offset.x+s/(this.panoBreed?600:1500))%1;
-        m.needsUpdate=true; }
+        m.offset.x=(m.offset.x+s/(this.panoBreed?600:1500))%1; }
       if(this.hurtCd>0) this.hurtCd-=s;
       if(this.melding>0){ this.melding-=s; if(this.melding<=0){
         const e=document.querySelector('#hudW'); if(e) e.setAttribute('value',''); } }
@@ -5519,10 +5673,14 @@
           if(window.AIM) this.dir.copy(window.AIM).normalize();
           for(let b=0;b<L.tel;b++){
             const dd=this.dir.clone();
-            const zij=(L.tel>1)?((b?1:-1)*0.020):0;       // niveau 3: twee stralen naast elkaar
+            // de stralen waaieren netjes uit om de middenlijn
+            const zij=(L.tel>1)?((b-(L.tel-1)/2)*0.026):0;
             dd.x+=zij+(Math.random()-0.5)*0.004;
             dd.y+=(Math.random()-0.5)*0.004; dd.normalize();
-            this.bolt(this.ori,dd,WCOL[3],170,1.5,0.9,L.up?6:4,300); }
+            const B=this.bolt(this.ori,dd,WCOL[3],170,L.sz,0.9,
+              (L.up?1.5:1)*L.dmg,300);
+            // een brandende straal steekt aan wat hij raakt
+            if(L.brand&&B) B.brand=L.brand; }
           SND.laz(this.dir.x*0.5,L.k,L.n); }
         if(L.k>=L.n) W.laz=null; }
 
@@ -5573,6 +5731,19 @@
           if(e.romp){ e.romp.visible=false; e.romp=null; } }               // ontsnapt
         if(window.PAUSED) return; }
 
+      // ---- schepen die in BRAND staan door de laser ----
+      for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
+        if(!e.live||!e.vlam||e.dood||e.dood2) continue;
+        e.vlamT=(e.vlamT||0)-s;
+        if(e.vlamT<=0){ e.vlamT=BRAND_TIK;
+          this.raak(e,BRAND_DMG,e.p.x,e.p.y,e.p.z);
+          e.vlam-=BRAND_DMG;
+          if(e.vlam<=0){ e.vlam=0; continue; }
+          // je ziet hem branden: vlammen en rook zolang het duurt
+          this.vonk(e.p.x,e.p.y,e.p.z,0x6cf0ff,3,e.sc*0.3,0.35);
+          this.vonk(e.p.x,e.p.y,e.p.z,0xcfe8ff,2,e.sc*0.4,0.30);
+          if(Math.random()<0.5) this.rook(e.p.x,e.p.y,e.p.z,false,1.2,1.1); } }
+
       // ---- eigen kogels ----
       for(let i=0;i<this.bolts.length;i++){ const B=this.bolts[i]; if(!B.live) continue;
         B.pd=B.d; B.d+=(B.sp||185)*s;
@@ -5592,6 +5763,10 @@
         if(vg){ B.live=false; B.m.visible=false; continue; }
         const g=this.treffer(B.o,B.dir,B.pd,B.d,B.tol);
         if(g){ this.raak(g.e,B.dmg,g.x,g.y,g.z);
+          // Een brandende laserstraal steekt zijn doel aan: de schade loopt door
+          // nadat de straal al weg is. Meerdere treffers stapelen op.
+          if(B.brand){ g.e.vlam=Math.min(BRAND_MAX,(g.e.vlam||0)+B.brand);
+            g.e.vlamT=g.e.vlamT||0; }
           this.vonk(g.x,g.y,g.z,B.m.material.color.getHex(),4,8,0.6);
           B.live=false; B.m.visible=false; continue; }
         if(B.d>=B.md){ B.live=false; B.m.visible=false; } }
@@ -5642,26 +5817,37 @@
             // DE KLAP OP ZIJN ECHTE GROOTTE. Hij reikt 25 m, dus laat dat ook
             // zien: vonken tot aan de rand, een groeiende vuurbal, drie ringen
             // die naar buiten dijen en rook rondom.
-            const straal=RAKETBLAST;
-            this.vonk(P.x,P.y,P.z,0xffffff,14,straal*0.30,1.5);
-            this.vonk(P.x,P.y,P.z,0xfff2c0,22,straal*0.60,1.7);
-            this.vonk(P.x,P.y,P.z,0xffb03a,26,straal*1.10,1.5);
-            this.vonk(P.x,P.y,P.z,0xff5a2a,20,straal*1.70,1.2);
-            // rook langs de hele rand, zodat je ziet hoe ver hij reikt
-            for(let k=0;k<8;k++){
-              const hk=(k/8)*6.283, af=straal*(0.45+Math.random()*0.5);
+            // De klap past bij de TRAP van deze raket: een lichte raket geeft
+            // een kleinere bal en minder bereik dan een zware.
+            // DE KLAP GROEIT MEE MET DE TRAP. Trap 1 is een scherpe, bleke pof;
+            // trap 3 is de dikke gele vuurbal. Zo zie je aan de explosie welke
+            // kracht je hebt, en voelt de ruil bij trap 4 en 7 als winst.
+            const tr=Math.min(3,Math.max(1,R.ex||1));
+            const straal=EXSTRAAL[tr];
+            const dmg=EXDMG[tr];
+            // Hagelraketjes ontploffen in een eigen kleur — koel blauwgroen in
+            // plaats van het oranje van de raketwerper, zodat je meteen ziet
+            // welk wapen er heeft ingeslagen.
+            const V=R.hagel?EXHAGEL[tr]:EXVORM[tr];
+            this.vonk(P.x,P.y,P.z,0xffffff,V.wit,straal*0.30,V.duur*0.9);
+            this.vonk(P.x,P.y,P.z,V.kl1,V.n1,straal*0.60,V.duur);
+            this.vonk(P.x,P.y,P.z,V.kl2,V.n2,straal*1.10,V.duur*0.9);
+            if(tr>=2) this.vonk(P.x,P.y,P.z,0xff5a2a,V.n2,straal*1.70,V.duur*0.7);
+            // rook langs de rand: hoe zwaarder, hoe meer pluimen en hoe dikker
+            for(let k=0;k<V.rook;k++){
+              const hk=(k/V.rook)*6.283, af=straal*(0.45+Math.random()*0.5);
               this.rook(P.x+Math.cos(hk)*af,P.y+Math.sin(hk)*af*0.7,
                         P.z+(Math.random()-0.5)*af*0.6,
-                        false,3.0+Math.random()*2.0,2.4); }
-            this.knal(P,straal*0.55);
-            this.vuurBal(P,straal);
-            this.schokRing(P); this.schokRing(P); this.schokRing(P);
+                        tr>=3,(1.4+tr*0.7)+Math.random()*1.6,1.4+tr*0.4); }
+            this.knal(P,straal*(0.35+tr*0.10));
+            if(tr>=2) this.vuurBal(P,straal,tr);
+            for(let k=0;k<V.ring;k++) this.schokRing(P);
             for(let a=0;a<this.enemies.length;a++){ const e=this.enemies[a]; if(!e.live) continue;
               const af=e.p.distanceTo(P);
               if(af>straal+e.r) continue;
               // vol in het midden, minder aan de rand
               const deel=1-Math.max(0,af-e.r)/straal;
-              this.raak(e,RAKETDMG*Math.max(0.25,deel),P.x,P.y,P.z); }
+              this.raak(e,dmg*Math.max(0.25,deel),P.x,P.y,P.z); }
             for(let k=0;k<14;k++) if(!this.vijTreffer(P,9,straal*0.6)) break; }
           R.live=false; R.m.visible=false; } }
 
@@ -6718,7 +6904,8 @@
           H.tex.magFilter=THREE.LinearFilter;
           H.tex.needsUpdate=true;
         }catch(e){} }
-      this.hemel.material.map=H.tex; this.hemel.material.needsUpdate=true;
+      if(this.hemel.material.map!==H.tex){
+        this.hemel.material.map=H.tex; this.hemel.material.needsUpdate=true; }
       this.hemel.rotation.y=Math.PI/2;                 // naad achter je rug
       if(H.tex.offset) H.tex.offset.x=H.basisU; },
 
@@ -6787,7 +6974,8 @@
         // De naad van de bol ligt op x=-300 (90 graden links). Draai hem naar achteren,
         // zodat je er alleen tegenaan kijkt als je je omdraait.
         this.hemel.rotation.y=Math.PI/2;
-        this.hemel.material.map=t; this.hemel.material.needsUpdate=true; }
+        if(this.hemel.material.map!==t){
+        this.hemel.material.map=t; this.hemel.material.needsUpdate=true; } }
       // Losse objecten: planeten, stations, wrakken. Ze hangen rondom je in de ruimte
       // en drijven heel langzaam mee, zodat de wereld leeft zonder af te leiden.
       window.ART.objs.forEach(function(t){
