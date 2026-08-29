@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v12.87';
+  const VERSIE='v12.91';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1370,6 +1370,12 @@
   // Hoe fijn het traject van je kogel wordt afgelopen bij het toetsen op
   // vijandelijk vuur, en hoe ruim de trefstraal om een raket is.
   const RAAKSTAP=1.1, RAAKSTRAAL=1.8;
+  // Een ontploffende raket raakt zijn buren: hoe ver de klap reikt en hoe hard.
+  const RAKETKLAP=7, RAKETKLAP_ZW=13, RAKETKLAP_DMG=3;
+  const LVMAAT=0.052;           // hoogte van de niveautekst (was 0.034)
+  const BAL_N=6, BAL_TIJD=0.55;  // vuurballen bij een raketinslag
+  const KOGELSNEL=185;          // meter per seconde — moet kloppen met bolt()
+  const BEREIK=150;             // hoe ver een kogel komt
   const GROOTBR=13, REUSBR=19;
   const GROOTRAKHP=10, REUSRAKHP=26;
   const GROOT_ELK=3, GROOT_WESP=6, WESP_HP=10;
@@ -1667,8 +1673,8 @@
   // Hoeveel stukken er hoogstens van een ontploffend schip af spatten.
   const BROKKNAL=9;
   // Wat een raket van jou aanricht: schade in het midden en hoe ver hij reikt.
-  const RAKETDMG=24;            // was 6
-  const RAKETBLAST=10;          // meter
+  const RAKETDMG=50;            // was 24
+  const RAKETBLAST=25;          // meter (was 10)
   const RINGEN=6, RINGPT=44, RINGTIJD=0.42;
   const RING_DICHT=0.45;        // hoe snel de ring van THE WHEEL naar binnen klapt
   const GAMEOVER_WACHT=3;       // seconden dat GAME OVER blijft staan vóór de keuze
@@ -2098,6 +2104,7 @@
       if(this.straal){ this.straal.visible=false; if(this.straalK) this.straalK.visible=false; }
       this.bomFase=0; this.bomT=0;
       if(this.bomBal) this.bomBal.visible=false;
+      if(this.ballen) this.ballen.forEach(function(B){ B.live=false; B.m.visible=false; });
       this.spiraalT=1e9; },
 
     // Op de telefoon zijn er twee tikhanden. Die lenen elk het wapen van een
@@ -2915,6 +2922,37 @@
       const F=document.querySelector('#flits');
       if(F) F.setAttribute('material','color:#ffffff;shader:flat;opacity:'+
         (k2*0.85).toFixed(2)+';transparent:true;depthTest:false'); },
+
+    // Een vuurbal die opengaat op de ECHTE klapstraal en dan dooft. Zo zie je
+    // precies hoe ver de klap reikte — dat maakt de inslag pas voelbaar.
+    vuurBal:function(p,straal){
+      if(!this.ballen){
+        this.ballen=[];
+        const g=new THREE.SphereGeometry(1,16,12);
+        for(let i=0;i<BAL_N;i++){
+          const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0xffd070,
+            transparent:true,opacity:0,depthWrite:false,
+            blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+          m.renderOrder=12; m.visible=false; m.frustumCulled=false;
+          this.par.add(m); this.ballen.push({m:m,live:false,t:0,r:1}); } }
+      for(let i=0;i<this.ballen.length;i++){ const B=this.ballen[i];
+        if(B.live) continue;
+        B.live=true; B.t=BAL_TIJD; B.r=straal;
+        B.m.visible=true; B.m.position.copy(p);
+        B.m.scale.setScalar(straal*0.2);
+        B.m.material.opacity=0.85; return; } },
+
+    balTick:function(s){
+      if(!this.ballen) return;
+      for(let i=0;i<this.ballen.length;i++){ const B=this.ballen[i];
+        if(!B.live) continue;
+        B.t-=s;
+        if(B.t<=0){ B.live=false; B.m.visible=false; continue; }
+        const k=1-B.t/BAL_TIJD;                   // 0 net ontploft, 1 bijna weg
+        // snel open, dan langzaam doven op de volle straal
+        B.m.scale.setScalar(B.r*(0.2+Math.min(1,k*2.4)*0.9));
+        B.m.material.opacity=0.85*(1-k)*(1-k);
+        B.m.material.color.setHex(k<0.3?0xfff2c0:(k<0.6?0xffb03a:0xff5a2a)); } },
 
     // De klap zelf: de flits, de vuurbal, en de schade aan alles in beeld.
     bomKnal:function(){
@@ -5601,13 +5639,23 @@
           if(bum){ SND.boom(P.x*0.02,true);
             // Een raket slaat nu echt in: felle flits, brokstukken, en schade over
             // een straal — ook schepen die er náást vlogen krijgen ervan langs.
-            this.vonk(P.x,P.y,P.z,0xfff2c0,10,6,1.6);
-            this.vonk(P.x,P.y,P.z,0xffb03a,20,14,1.4);
-            this.vonk(P.x,P.y,P.z,0xff5a2a,12,20,1.0);
-            this.rook(P.x,P.y,P.z,false,2.6,1.6);
-            this.knal(P,7);
-            this.schokRing(P);
+            // DE KLAP OP ZIJN ECHTE GROOTTE. Hij reikt 25 m, dus laat dat ook
+            // zien: vonken tot aan de rand, een groeiende vuurbal, drie ringen
+            // die naar buiten dijen en rook rondom.
             const straal=RAKETBLAST;
+            this.vonk(P.x,P.y,P.z,0xffffff,14,straal*0.30,1.5);
+            this.vonk(P.x,P.y,P.z,0xfff2c0,22,straal*0.60,1.7);
+            this.vonk(P.x,P.y,P.z,0xffb03a,26,straal*1.10,1.5);
+            this.vonk(P.x,P.y,P.z,0xff5a2a,20,straal*1.70,1.2);
+            // rook langs de hele rand, zodat je ziet hoe ver hij reikt
+            for(let k=0;k<8;k++){
+              const hk=(k/8)*6.283, af=straal*(0.45+Math.random()*0.5);
+              this.rook(P.x+Math.cos(hk)*af,P.y+Math.sin(hk)*af*0.7,
+                        P.z+(Math.random()-0.5)*af*0.6,
+                        false,3.0+Math.random()*2.0,2.4); }
+            this.knal(P,straal*0.55);
+            this.vuurBal(P,straal);
+            this.schokRing(P); this.schokRing(P); this.schokRing(P);
             for(let a=0;a<this.enemies.length;a++){ const e=this.enemies[a]; if(!e.live) continue;
               const af=e.p.distanceTo(P);
               if(af>straal+e.r) continue;
@@ -5843,7 +5891,7 @@
 
       this.ringTick(s); this.sigRijTick(s); this.wijzerTickD(s);
       this.camoTick(s);
-      this.straalTick(s); this.bomTick(s);
+      this.straalTick(s); this.bomTick(s); this.balTick(s);
       // ---- rook: drijft op, dijt uit en vervaagt ----
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(!R.live) continue;
         R.life-=s/Math.max(0.3,R.leven);
@@ -5976,10 +6024,44 @@
           const mq=this.KP3||(this.KP3=new THREE.Vector3());
           mq.copy(M.o).addScaledVector(M.dir,M.d);
           this.vonk(mq.x,mq.y,mq.z,0xff3d55,6,3.5,0.5); }
+        // ---- EEN RAKET GAAT NIET STILLETJES ----
+        // Sjoerd: hij verdween gewoon. Nu een echte klap: brokstukken, vuur,
+        // rook, een schokring en schade in een straal om hem heen.
+        const zw=!!B.zwaar, gr=zw?1.9:1.0;
         this.vijVrij2(B);
         SND.kill(q.x*0.02,0.5);
-        this.vonk(q.x,q.y,q.z,B.zwaar?0xffe45c:0xff8a3d,B.zwaar?12:6,B.zwaar?9:6,B.zwaar?1.1:0.6);
-        this.punten+=B.zwaar?60:10;
+        SND.boom(q.x*0.02,zw);
+        // de kern van de klap
+        this.vonk(q.x,q.y,q.z,0xffffff,zw?8:4,3.0*gr,0.30);
+        this.vonk(q.x,q.y,q.z,0xfff2c0,zw?14:8,4.5*gr,0.45);
+        this.vonk(q.x,q.y,q.z,zw?0xffe45c:0xff8a3d,zw?16:9,7.0*gr,0.75);
+        this.vonk(q.x,q.y,q.z,0xff5a2a,zw?12:6,9.5*gr,0.95);
+        // brokstukken van de raket zelf
+        for(let k=0;k<(zw?7:4);k++){
+          const hk=Math.random()*6.283, sn=(2.5+Math.random()*4)*gr;
+          this.vonk(q.x+Math.cos(hk)*1.2,q.y+Math.sin(hk)*0.9,q.z,
+            0xc8c8c8,1,sn,0.55); }
+        // rook die blijft hangen
+        for(let k=0;k<(zw?5:3);k++){
+          const hk=Math.random()*6.283, af=(1.0+Math.random()*2.4)*gr;
+          this.rook(q.x+Math.cos(hk)*af,q.y+Math.sin(hk)*af*0.7,
+                    q.z+(Math.random()-0.5)*af,false,(1.6+Math.random()*1.4)*gr,1.9,1); }
+        this.schokRing(q);
+        // ---- SCHADE IN EEN STRAAL: een raket die ontploft raakt zijn buren ----
+        const straal=zw?RAKETKLAP_ZW:RAKETKLAP;
+        const r2b=straal*straal;
+        for(let k=0;k<this.vij.length;k++){ const N=this.vij[k];
+          if(!N.live||N===B) continue;
+          const nq=this.KP4||(this.KP4=new THREE.Vector3());
+          nq.copy(N.o).addScaledVector(N.dir,N.d);
+          const dx2=nq.x-q.x, dy2=nq.y-q.y, dz2=nq.z-q.z;
+          if(dx2*dx2+dy2*dy2+dz2*dz2>r2b) continue;
+          N.hp-=zw?RAKETKLAP_DMG*2:RAKETKLAP_DMG;
+          this.vonk(nq.x,nq.y,nq.z,0xffd070,2,2.0,0.30);
+          if(N.hp<=0){ this.vijVrij2(N);
+            this.vonk(nq.x,nq.y,nq.z,0xff8a3d,6,5,0.6);
+            this.punten+=8; } }
+        this.punten+=zw?60:10;
         return 1; }
       return 0; },
 
@@ -6022,7 +6104,18 @@
       // ---- wapen rechtsonder: naam, niveau, munitie, magazijnbalk ----
       const wn=(W2?(WNAAM[W2.t]||'MACHINE GUN'):'');
       this.hudTekst('#mWap',wn,GR,0.052,0.18,'hWap');
-      this.hudTekst('#mWapLv','LV '+(W2?this.kr(W2):1),GRZ,0.034,0.22,'hWapLv');
+      // Het niveau stond op dezelfde maat als al het andere: 1,6 graden hoog,
+      // half zo groot als een menuknop. Nu forser en in een eigen kleur, en het
+      // licht kort op zodra je een niveau erbij krijgt.
+      const lvNu=W2?this.kr(W2):1;
+      if(this.lvVorig===undefined) this.lvVorig=lvNu;
+      if(lvNu>this.lvVorig){ this.lvVorig=lvNu; this.lvFlits=1.4;
+        this.toonMelding('WEAPON  LV '+lvNu,'#ffe45c');
+        SND.zeg&&SND.zeg('Level up'); }
+      else if(lvNu<this.lvVorig) this.lvVorig=lvNu;
+      this.lvFlits=Math.max(0,(this.lvFlits||0)-0.02);
+      this.hudTekst('#mWapLv','LV '+lvNu,
+        (this.lvFlits>0?'#ffe45c':'#9fe4c0'),LVMAAT,0.24,'hWapLv');
       const eindeloos=!(W2&&W2.t>=1&&W2.t<=4);
       const mag=eindeloos?0:(W2.mag[W2.t]||0);
       this.hudTekst('#mAmmo',eindeloos?'\u221E':String(mag),GR,0.072,0.10,'hAmmo');
@@ -6853,13 +6946,27 @@
         if(this.dVorig){ v.subVectors(best.p,this.dVorig).multiplyScalar(1/Math.max(0.004,s)); }
         else v.set(0,0,0);
         this.dVorig=this.dVorig||new THREE.Vector3(); this.dVorig.copy(best.p);
-        const vlieg=best.p.distanceTo(this.kop)/150;             // reistijd van de kogel
+        // DE JUISTE REISTIJD. Hij rekende met 150 m/s terwijl een kogel er 185
+        // gaat, en mat vanaf het HOOFD terwijl het schot vanaf de HAND vertrekt.
+        // Bij een schip op 80 m dat zijwaarts vliegt scheelt dat meters.
+        const hp=this.DHP||(this.DHP=new THREE.Vector3());
+        hA.object3D.getWorldPosition(hp);
+        const afstD=best.p.distanceTo(hp);
+        const vlieg=afstD/KOGELSNEL;
         // Altijd volledig voorhouden op de gemeten snelheid — zijwaartse snelle
         // schepen werden anders pas geraakt nadat het misser-mechanisme was
         // opgelopen. dHou is nu alleen nog de correctie daarbovenop.
-        mik.copy(best.p).addScaledVector(v,vlieg*(1.0+this.dHou)).sub(this.kop).normalize();
+        // Twee ronden voorspellen: waar staat hij als de kogel daar is, en hoe
+        // lang doet de kogel er dan over? Dat scheelt bij snelle zijwaartse
+        // schepen nog eens een halve meter.
+        mik.copy(best.p).addScaledVector(v,vlieg);
+        const vlieg2=mik.distanceTo(hp)/KOGELSNEL;
+        mik.copy(best.p).addScaledVector(v,vlieg2*(1.0+this.dHou)).sub(hp).normalize();
         window.AIM=mik; }
       else { window.AIM=null; return; }
+      // Niet vuren op wat buiten bereik ligt: een kogel haalt 150 m, dus daarbuiten
+      // schiet hij alleen maar zijn magazijn leeg zonder ooit te raken.
+      if(best&&best.p.distanceTo(this.kop)>BEREIK*0.95){ window.AIM=null; return; }
       this.fire(hA);
       this.fire(hB);
       // ---- ook op de raketten schieten die op je afkomen ----
