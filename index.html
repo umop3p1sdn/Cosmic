@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.40';
+  const VERSIE='v13.42';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1445,15 +1445,21 @@
   // drie plekken vijftien pluimen per seconde: veel te veel.
   // Was 0,34 per brandplek per beurt — bij drie plekken een dikke prop op het
   // schip. Op 0,12 hangt er een sliert achter hem zonder dat het een wolk wordt.
-  const BRANDROOK=0.12, ROOKLEEF=1.0;
+  const BRANDROOK=0.12, ROOKLEEF=1.0, PLUIMMAAT=0.30;
+  const VALROOK=0.40;           // seconden tussen twee pluimen van een wrak
   const STORTMAX=40;            // hoeveel wrakken er tegelijk mogen neerstorten
   // Hoe hard schepen vliegen in de eerste levels: level 1 op 62 procent,
   // oplopend tot vol vanaf level 4.
   // Sjoerd: "houd hem maar wat trager, er komen gewoon zwaardere en sterkere."
   // De uitdaging komt van de vijanden zelf, niet van hun tempo. Rustiger begin
   // en een langere aanloop: pas op level 8 vliegt iedereen vol.
-  const SNELSTART=0.55, SNELVOL=8, SNELTOP=0.82;
+  // Sjoerd vroeg om IETSJE langzamer, niet om half zo snel. In v13.41 ging ik
+  // van 11 naar 8 — veel te ver. Terug naar de waarden van v13.38, met één
+  // stapje eraf: NEEDLE gaat van 11,1 naar ongeveer 10 in level 1.
+  const SNELSTART=0.50, SNELVOL=8, SNELTOP=0.82;
   const SNELDREMPEL=11;         // hieronder wordt niemand afgeremd
+  const AANVLIEG=2.0;           // hoeveel sneller een schip van ver aan komt vliegen
+  const HALTEVLIEG=2.2;         // was 3,4: hoe hard hij van ver komt aanvliegen
   // Hoe lang een EIGEN raket leeft: normaal negen seconden jagen, hoogstens vier
   // seconden daarvan wachten zonder doel, en nooit langer dan twintig seconden.
   const RAK_LEEF=9.0, RAK_WACHT=4.0, RAK_MAX=45;   // hoogstens 45 s in de lucht
@@ -1775,7 +1781,9 @@
   // Rook en vonken zaten in ELK level 100% vol: elke nieuwe pluim moest wachten
   // tot een oude vervaagde. Dat geeft juist de haperige, gaterige beelden.
   const ROOK_N=620;
-  const SPOOR_ELK=0.018, SPOOR_MAAT=0.55, SPOOR_LEVEN=3.4;
+  // Sjoerd: "een lange rookstaart achter een raket is overdreven, die mag korter
+  // en sneller weg." Minder vaak een pluim, en hij lost sneller op.
+  const SPOOR_ELK=0.16, SPOOR_MAAT=0.9, SPOOR_LEVEN=0.45;
   const ZWERM_RUST=7;           // tellen tussen twee zwermen bij een drieluik
   // Hoeveel raketten tegelijk een echt lichaam krijgen. De rest blijft een vlak:
   // op een bril kost een lichaam meer dan een plat vlak, en bij kleine kogels
@@ -3066,13 +3074,16 @@
       if(e.bb&&e.bb.m){
         e.bb.m.rotation.z=e.valR;
         e.bb.m.material.opacity=Math.max(0,1-(e.doodT||0)*0.35); }
+      // GEMETEN: hij maakte 38 vonken en 29 rookpluimen in twee seconden, en die
+      // vielen met hem mee — dat zag Sjoerd als "rokende brokstukken". Nu een
+      // rustige sliert: één pluim per vier tienden, en vuur alleen af en toe.
       e.valT=(e.valT||0)-s;
-      if(e.valT<=0){ e.valT=0.06;
-        this.vonk(e.p.x,e.p.y,e.p.z,0xff8a3d,2,e.sc*0.25,0.45);
-        // de sliert blijft achter terwijl het wrak doorvalt
+      if(e.valT<=0){ e.valT=VALROOK;
         const wv=this.RWV||(this.RWV=new THREE.Vector3());
-        wv.set(0,-(e.valV||0),6);
-        this.rook(e.p.x,e.p.y,e.p.z,true,1.6,1.9,0,wv); } },
+        wv.set(0,-(e.valV||0)*0.5,7);
+        this.rook(e.p.x,e.p.y,e.p.z,true,1.5,1.6,0,wv);
+        if(Math.random()<0.45)
+          this.vonk(e.p.x,e.p.y,e.p.z,0xff8a3d,1,e.sc*0.2,0.35); } },
 
     // ELK SCHIP ZIJN EIGEN MATERIAAL. Ze deelden er één per soort, dus zodra er
     // eentje neerstortte en vervaagde, werden ALLE schepen van die soort
@@ -4292,12 +4303,25 @@
       SND.gun(e.p.x*0.02,0); },
 
     // nadert in drie haltes: 60m schieten, 40m schieten, 20m schieten, dan blijven hangen
+    // De snelheidsrem van de eerste levels, als losse functie zodat elke
+    // vliegroutine hem kan gebruiken.
+    snelRem:function(T){
+      if(!T||T.sp<=SNELDREMPEL) return 1;
+      const L=Math.max(1,this.level||1);
+      const lv=(L>=SNELVOL)?1:(SNELSTART+(1-SNELSTART)*(L-1)/(SNELVOL-1));
+      const mate=Math.min(1,(T.sp-SNELDREMPEL)/12);
+      return (1-(1-lv)*mate)*(1-(1-SNELTOP)*mate); },
+
     halte:function(e,s,naar,afst,sp){
       const T=TYPE[e.tp];
       const ruim=e.r*1.3;                            // grote schepen houden meer afstand
       if(e.mode==='nader'){
         const doel=AFST[Math.min(2,e.stap)]+ruim;
-        const vlieg=(afst>75)?3.4:1;                 // van ver komt hij aanvliegen
+        // GEMETEN: NEEDLE haalde hier 88 m/s bij het binnenvliegen. Deze factor
+        // van 3,4 staat helemaal los van de snelheidsrem, dus bleef het
+        // aanvliegen even hard hoe laag ik die rem ook zette. Nu loopt hij mee
+        // met dezelfde rem als de rest.
+        const vlieg=(afst>75)?(1+(HALTEVLIEG-1)*this.snelRem(T)):1;
         if(afst>doel+1.2) e.p.addScaledVector(naar,sp*vlieg*s);
         else { e.mode='wacht'; e.wacht=5.0; } }              // eerst 5 seconden stilhangen
       else if(e.mode==='wacht'){
@@ -4378,7 +4402,12 @@
         const lv=(L0>=SNELVOL)?1:(SNELSTART+(1-SNELSTART)*(L0-1)/(SNELVOL-1));
         const mate=Math.min(1,(T.sp-SNELDREMPEL)/12);
         rem=(1-(1-lv)*mate)*(1-(1-SNELTOP)*mate); }
-      const wil=Math.max(-1,Math.min(1,dv/26))*T.sp*(afst>110?3.0:1)*F.v*
+      // HIER ZAT HET. Boven 110 m vliegt een schip DRIE KEER zo snel naar binnen:
+      // NEEDLE haalde daar 86 m/s. Mijn rem raakte alleen het laatste stukje,
+      // dus bleef het binnenvliegen even hard. Die aanvliegfactor loopt nu mee
+      // met dezelfde rem als de rest.
+      const inv=(afst>110)?(1+(AANVLIEG-1)*rem):1;
+      const wil=Math.max(-1,Math.min(1,dv/26))*T.sp*inv*F.v*
         (e.snelX||1)*rem;
       e.vv=(e.vv||0)+(wil-(e.vv||0))*Math.min(1,s*1.8);
       e.p.addScaledVector(naar,e.vv*s);
@@ -5509,8 +5538,11 @@
         // met een piek van 192 — een muur van rook die op hem bleef plakken.
         // Nu een vaste, lage kans en een korte levensduur, zodat er altijd een
         // paar slierten achter hem aan hangen in plaats van een prop.
+        // Sjoerd: "die zwarte pluim is echt heel dik zwart, die moet heel klein.
+        // Klein bij de bron, wat groter erachter." De maat is nu een derde van
+        // wat hij was; het uitgroeien onderweg doet de rest.
         if(Math.random()<BRANDROOK)
-          this.rook(px,py,pz+2.5,zwaar,zwaar?1.1:0.85,ROOKLEEF); } },
+          this.rook(px,py,pz+2.5,zwaar,zwaar?PLUIMMAAT*1.3:PLUIMMAAT,ROOKLEEF); } },
 
     // Een gehavende baas rookt en vonkt over zijn hele romp; hoe zwaarder
     // beschadigd, hoe meer. Zijn plaatje blijft heel.
