@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.48';
+  const VERSIE='v13.49';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1447,6 +1447,9 @@
   // schip. Op 0,12 hangt er een sliert achter hem zonder dat het een wolk wordt.
   const BRANDROOK=0.12, ROOKLEEF=1.0, PLUIMMAAT=0.30;
   const LOSBRAND_ELK=0.12;      // seconden tussen twee vlammetjes van een los schip
+  // Hoe de brand meeschaalt met het schip: 1 = de maat die bij een jager van
+  // vijf meter hoort. Een kolos van 24 brandt dan bijna vijf keer zo groot.
+  const BRANDSCHAAL=0.20, BRANDMIN=1.35;   // en een ondergrens voor kleine jagers
   const VALROOK=0.40;           // seconden tussen twee pluimen van een wrak
   // Hoe hard een neerstortend wrak draait, per manier van vallen.
   // Het neerstorten: versnelling omlaag, hoe hij kantelt, hoe lang, hoe diep.
@@ -5494,14 +5497,20 @@
       // niet elke beurt, anders 350 vonken per seconde
       e.brT=(e.brT||0)-s; if(e.brT>0) return; e.brT=LOSBRAND_ELK;
       const zw=(e.fase>=2);
-      for(let i=0;i<(zw?2:1);i++){
-        const px=e.p.x+(i?0.22:-0.28)*e.bw, py=e.p.y+(i?-0.08:0.12)*e.bh, pz=e.p.z+0.8;
+      // IN VERHOUDING. Sjoerd: "het moet wel mooi in verhouding zijn." De vlam
+      // was 0,3 m op elk schip: 6% van een jager, 1% van een kolos — die brandde
+      // als een aansteker. Alles schaalt nu mee met de breedte van het schip.
+      const sch=Math.max(BRANDMIN,e.bw*BRANDSCHAAL);
+      // een groot schip brandt op meer plekken
+      const nPlek=zw?(e.bw>=16?3:2):1;
+      for(let i=0;i<nPlek;i++){
+        const px=e.p.x+[-0.28,0.22,0.02][i]*e.bw, py=e.p.y+[0.12,-0.08,0.2][i]*e.bh, pz=e.p.z+0.8;
         const fel=0.55+Math.random()*0.9;
-        this.vonk(px,py,pz,0xfff2c0,1,1.4*fel,0.18);
-        this.vonk(px,py,pz,0xffb03a,1,2.0*fel,0.32);
-        if(zw&&Math.random()<0.5) this.vonk(px,py,pz,0xff6a2a,1,2.6,0.45);
+        this.vonk(px,py,pz,0xfff2c0,1,1.4*fel*sch,0.18*sch);
+        this.vonk(px,py,pz,0xffb03a,1,2.0*fel*sch,0.32*sch);
+        if(zw&&Math.random()<0.5) this.vonk(px,py,pz,0xff6a2a,1,2.6*sch,0.45*sch);
         if(Math.random()<0.35)
-          this.rook(px,py,pz+2,zw,zw?PLUIMMAAT*1.3:PLUIMMAAT,ROOKLEEF); } },
+          this.rook(px,py,pz+2,zw,(zw?PLUIMMAAT*1.3:PLUIMMAAT)*sch,ROOKLEEF); } },
 
     brandTick:function(e,s){
       if(e.fase<1||!e.bb) return;
