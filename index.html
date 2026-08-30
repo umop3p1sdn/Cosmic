@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.05';
+  const VERSIE='v13.09';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1394,6 +1394,7 @@
   // brand een schip hoogstens kan oplopen.
   const BRAND_DMG=3, BRAND_TIK=0.25, BRAND_MAX=60;
   const BEREIK=150;             // hoe ver een kogel komt
+  const LASBEREIK=170;          // NAGEMETEN: de laser haalt 170 m, niet 300
   const GROOTBR=13, REUSBR=19;
   // Hoe ver grote schepen extra naar achteren beginnen, en hoe ver iedereen
   // minstens opzij begint. Recht voor je neus verschijnen leest als een truc.
@@ -1426,6 +1427,9 @@
   const MOEDERS=['TITAN'];
   const MOEDER_AAN=4, MOEDER_UIT=4, MOEDER_N=4, MOEDER_WEG=15;
   const MOEDER_HP=200, MOEDER_SNEL=1.6, VELD_MAAT=0.62;
+  // De demo: hoe vaak hij van wapen mag wisselen, wanneer hij een groep ziet, en
+  // wanneer het zo druk wordt dat hij zijn ult inzet.
+  const DEMO_WISSEL=1.2, DEMO_GROEP=4, DEMO_NOOD=22, DEMO_NOODS=9;
   const GROOTRAKHP=10, REUSRAKHP=26;
   const GROOT_ELK=3, GROOT_WESP=6, WESP_HP=10;
   // Voorbij deze hoek (in radialen, ~66 graden) zit een vijand buiten je blikveld
@@ -3081,7 +3085,10 @@
         else if(W.t!==4) W.mag[W.t]--; }
       h.object3D.getWorldPosition(this.ori); h.object3D.getWorldQuaternion(this.q);
       this.dir.set(0,-0.7071,-0.7071).applyQuaternion(this.q).normalize();
-      if(window.AIM) this.dir.copy(window.AIM).normalize();
+      // TWEE HANDEN, TWEE DOELEN. Elke hand kan zijn eigen richting krijgen;
+      // window.AIM blijft gelden als er maar één is opgegeven.
+      const mikH=(h&&h.id&&window.AIM2&&window.AIM2[h.id])||window.AIM;
+      if(mikH) this.dir.copy(mikH).normalize();
       if(this.grab(this.ori,this.dir,h)) return;
       this.schoten++;
       const col=WCOL[W.t], lv=this.kr(W);
@@ -3222,7 +3229,8 @@
       if(this.ults<=0){ this.toonMelding('NO ULT','#ff8aa6'); return; }
       h.object3D.getWorldPosition(this.ori); h.object3D.getWorldQuaternion(this.q);
       this.dir.set(0,-0.7071,-0.7071).applyQuaternion(this.q).normalize();
-      if(window.AIM) this.dir.copy(window.AIM).normalize();
+      { const mk=(h&&h.id&&window.AIM2&&window.AIM2[h.id])||window.AIM;
+        if(mk) this.dir.copy(mk).normalize(); }
       if(this.isPrim(h)){                                     // salvo van 50 raketten
         this.ults--; SND.boom(0); SND.zeg('Salvo');
         const T=this.doelen();
@@ -6014,7 +6022,8 @@
           L.t+=dt; L.k++;
           H.object3D.getWorldPosition(this.ori); H.object3D.getWorldQuaternion(this.q);
           this.dir.set(0,-0.7071,-0.7071).applyQuaternion(this.q).normalize();
-          if(window.AIM) this.dir.copy(window.AIM).normalize();
+          { const mk=(h&&h.id&&window.AIM2&&window.AIM2[h.id])||window.AIM;
+        if(mk) this.dir.copy(mk).normalize(); }
           for(let b=0;b<L.tel;b++){
             const dd=this.dir.clone();
             // de stralen waaieren netjes uit om de middenlijn
@@ -7436,6 +7445,61 @@
     // =====================================================
     //  DEMO — de autopiloot speelt, jij kijkt
     // =====================================================
+    // Welk wapen past bij wat er in beeld staat? Sjoerds indeling:
+    //   laser    op bazen en taaie vijanden
+    //   electro  op groepen lichte vijanden
+    //   raket    op verspreide losse vijanden en bazen
+    //   shotgun  op grote sterke vijanden en bazen dichtbij
+    // en de ULT als het te druk wordt om alles te kunnen raken.
+    demoWapen:function(h,doel,doos){
+      this.dWapT=(this.dWapT||0)-1/72;
+      if(this.dWapT>0||doos) return;
+      this.dWapT=DEMO_WISSEL;
+      const W=this.wp(h); if(!W) return;
+      // tellen wat er staat
+      let licht=0, zwaar=0, dichtbij=0, spreid=0;
+      const eye=this.kop;
+      for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
+        if(!e.live||e.dood||e.dood2) continue;
+        const af=e.p.distanceTo(eye);
+        if(af>150) continue;
+        if(e.bw<=9) licht++; else zwaar++;
+        if(af<55) dichtbij++;
+        if(Math.abs(e.p.x)>28) spreid++; }
+      // Tijdens de WARNING-fase ketst alles af: dan heeft schieten geen zin.
+      const baas=!!(this.baas&&this.baas.live&&!this.baas.intro);
+      const vuur=this.vij.filter(function(B){ return B.live; }).length;
+      // ---- de ULT in nood: veel vuur en veel schepen tegelijk ----
+      // De ULT ook tegen een baas die te ver staat en waar je raketten voor op
+      // zijn: dan is dat je enige manier om schade te doen.
+      const baasVer=!!(this.baas&&this.baas.live&&!this.baas.intro&&
+        this.baas.p.distanceTo(eye)>LASBEREIK*0.95&&
+        (this.wp(h).mag[1]||0)<=0);
+      if(this.ults>0&&(vuur>=DEMO_NOOD||(licht+zwaar)>=DEMO_NOODS||baasVer)){
+        try{ this.ultimate(h); }catch(e){}
+        this.dWapT=DEMO_WISSEL*3; return; }
+      // ---- anders het passende wapen ----
+      let wil=5;                                   // mitrailleur als terugval
+      if(baas){
+        // NAGEMETEN: mitrailleur en shotgun halen 150 m, de laser 170 m. Een
+        // baas staat op zijn verste punt 195 m — daar komt géén kogelwapen. Alleen
+        // de RAKET is een zoeker zonder afstandsgrens: die blijft doorvliegen tot
+        // hij hem raakt. Dus van ver: raketten, en als die op zijn de ult.
+        const af=this.baas.p.distanceTo(eye);
+        if(af>LASBEREIK*0.95) wil=1;                 // te ver voor alles behalve raketten
+        else if(af>BEREIK*0.9)  wil=3;               // net buiten kogelbereik: laser
+        else if(af<70)          wil=2;               // dichtbij: shotgun
+        else                    wil=1; }             // ertussenin: raketten
+      else if(zwaar>=2&&dichtbij>=1) wil=2;        // grote sterke dichtbij: shotgun
+      else if(licht>=DEMO_GROEP)     wil=4;        // een groep lichte: electro
+      else if(zwaar>=1&&spreid>=2)   wil=1;        // verspreide zware: raketten
+      else if(zwaar>=1)              wil=3;        // een taaie: laser
+      // alleen wisselen als hij dat wapen ook heeft
+      if(wil!==5&&(W.mag[wil]||0)<=0) wil=5;
+      // rechtstreeks zetten: wissel() draait alleen door de rij heen
+      if(W.t!==wil){ W.t=wil; W.lvl=(W.lvlT&&W.lvlT[wil])||1;
+        try{ this.toonWissel(W); }catch(e){} } },
+
     demoTick:function(s){
       const hand=document.querySelector('#touchHand');
       if(!hand||!hand.object3D) return;
@@ -7506,9 +7570,43 @@
         mik.copy(best.p).addScaledVector(v,vlieg2*(1.0+this.dHou)).sub(hp).normalize();
         window.AIM=mik; }
       else { window.AIM=null; return; }
-      // Niet vuren op wat buiten bereik ligt: een kogel haalt 150 m, dus daarbuiten
-      // schiet hij alleen maar zijn magazijn leeg zonder ooit te raken.
-      if(best&&best.p.distanceTo(this.kop)>BEREIK*0.95){ window.AIM=null; return; }
+      // Niet vuren op wat buiten bereik ligt. LET OP: de laser haalt 300 m, dus
+      // met dat wapen mag hij wél op een verre baas schieten.
+      if(best){
+        const afB=best.p.distanceTo(this.kop);
+        const WB=this.wp(hB);
+        const ver=(WB&&WB.t===3)?LASBEREIK:BEREIK;
+        if(afB>ver*0.95){ window.AIM=null; return; } }
+      // Tijdens de WARNING van een baas ketst alles af: dan niet vuren, dat
+      // scheelt je magazijn en het leest ook logischer.
+      if(best&&best.intro){ window.AIM=null; return; }
+      // ---- HET JUISTE WAPEN VOOR DE SITUATIE ----
+      // De hoofdhand houdt altijd de mitrailleur; het BIJWAPEN zit in de andere
+      // hand. Sjoerd zag wapen 2 nooit omdat de demo nooit wisselde.
+      this.demoWapen(hB,best,doos);
+      // ---- TWEE HANDEN, TWEE DOELEN ----
+      // De tweede hand pakt een ANDER doel dan de eerste, als dat er is. Zo doe
+      // je met twee handen ook echt twee dingen tegelijk.
+      window.AIM2=window.AIM2||{};
+      if(hA&&hA.id) window.AIM2[hA.id]=mik.clone();
+      if(hB&&hB.id&&!doos){
+        let and=null, ad=1e9;
+        for(let i=0;i<this.enemies.length;i++){ const e2=this.enemies[i];
+          if(!e2.live||e2.dood||e2.dood2||e2===best) continue;
+          const q2=e2.p.distanceTo(this.kop);
+          if(q2>BEREIK*0.95) continue;
+          if(q2<ad){ ad=q2; and=e2; } }
+        if(and){
+          const hp2=this.DHP2||(this.DHP2=new THREE.Vector3());
+          hB.object3D.getWorldPosition(hp2);
+          const v2=this.DV2||(this.DV2=new THREE.Vector3());
+          v2.copy(and.p).sub(and.vorigP||and.p).multiplyScalar(1/Math.max(0.004,s));
+          if(!and.vorigP) and.vorigP=and.p.clone(); else and.vorigP.copy(and.p);
+          const vl2=and.p.distanceTo(hp2)/KOGELSNEL;
+          const m2=this.DA2||(this.DA2=new THREE.Vector3());
+          m2.copy(and.p).addScaledVector(v2,vl2).sub(hp2).normalize();
+          window.AIM2[hB.id]=m2.clone(); }
+        else window.AIM2[hB.id]=mik.clone(); }
       this.fire(hA);
       this.fire(hB);
       // ---- ook op de raketten schieten die op je afkomen ----
