@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.49';
+  const VERSIE='v13.51';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1454,6 +1454,7 @@
   // Hoe hard een neerstortend wrak draait, per manier van vallen.
   // Het neerstorten: versnelling omlaag, hoe hij kantelt, hoe lang, hoe diep.
   const VALVERSNEL=6.5, VALKANTEL=0.55, VALDUUR=5.0, VALDIEP=45;
+  const KLAPKANS=0.55;          // kans dat een wrak ontploft in plaats van wegzakt
   const STORTMAX=40;            // hoeveel wrakken er tegelijk mogen neerstorten
   // Hoe hard schepen vliegen in de eerste levels: level 1 op 62 procent,
   // oplopend tot vol vanaf level 4.
@@ -3867,15 +3868,29 @@
         if(e.vp) v.copy(e.p).sub(e.vp);
         if(v.length()<0.01) v.set((e.zij||1)*0.3,0,0.2);
         v.y=0; v.normalize();
-        e.valDir=v; e.valSn=Math.max(3,(TYPE[e.tp].sp||8)*0.35); e.valV=0; }
+        e.valDir=v; e.valSn=Math.max(3,(TYPE[e.tp].sp||8)*0.35); e.valV=0;
+        // PER SCHIP WILLEKEURIG: hoe ver hij valt voor het eind, en of hij dan
+        // ontploft of gewoon uit beeld zakt. Sjoerd: "per vliegtuig misschien
+        // een beetje random of hij wel of niet, of wanneer hij ontploft."
+        e.valEind=VALDIEP*(0.45+Math.random()*1.1);          // 20 tot 70 m
+        e.valKlap=(Math.random()<KLAPKANS)?1:0; }
       e.valV+=s*VALVERSNEL;
       e.p.addScaledVector(e.valDir,e.valSn*s);
       e.p.y-=e.valV*s;
       if(e.bb){ e.bb.m.rotation.z=(e.bb.m.rotation.z||0)+s*VALKANTEL*(e.valDir.x<0?-1:1);
         e.bb.m.position.copy(e.p); }
       if(e.fase>=1) this.brandTick(e,s);
-      if(e.doodT>VALDUUR||e.p.y<this.kop.y-VALDIEP){
-        this.knal(e.p,e.sc*0.9);
+      if(e.doodT>VALDUUR||e.p.y<this.kop.y-(e.valEind||VALDIEP)){
+        if(e.valKlap){
+          // een echte explosie: vuurbal, ringen, rook
+          this.vonk(e.p.x,e.p.y,e.p.z,0xffffff,8,e.sc*0.5,0.5);
+          this.vonk(e.p.x,e.p.y,e.p.z,0xffb03a,14,e.sc*0.9,0.9);
+          this.vonk(e.p.x,e.p.y,e.p.z,0xff5a2a,10,e.sc*1.3,1.1);
+          for(let q=0;q<4;q++){ const hk=q*1.57+Math.random();
+            this.rook(e.p.x+Math.cos(hk)*e.sc*0.4,e.p.y,e.p.z+Math.sin(hk)*e.sc*0.4,
+                      true,e.sc*0.5,2.2); }
+          this.knal(e.p,e.sc*1.6); this.schokRing(e.p);
+          SND.boom(e.p.x*0.02,e.bw>=13); }
         this.bbVrij(e.bb); e.bb=null; e.live=false; e.dood=0;
         if(TYPE[e.tp].prof==='baas') this.baas=null; } },
     punt:function(e){
@@ -5571,6 +5586,11 @@
       // uit, want die stukjes komen van een plaat die niet in vakken is verdeeld.
       // Hij tuimelt in plaats daarvan omlaag — zie losVal.
       if(e.los) return;
+      // Sjoerd ziet nog grote brokstukken: die komen van BAZEN. Die zijn niet
+      // 'los' en niet 'reus', maar hebben wel een plaat van één schip — dus
+      // knipte hij daar blokken van meters uit. Alle schepen zijn nu één
+      // tekening, dus niemand krijgt nog brokstukken.
+      if(TYPE[e.tp]&&TYPE[e.tp].prof==='baas') return;
       // Bij een reus zou een brokje net zo mee opschalen: blokken van meters die
       // door je beeld tuimelen. Die krijgt alleen vonken en vuur.
       if(e.gedrag==='reus') return;
