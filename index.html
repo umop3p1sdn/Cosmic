@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.09';
+  const VERSIE='v13.10';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -3153,6 +3153,13 @@
           if(q>ruim) continue;
           const punt=q/Math.max(0.01,ruim)*0.7+t2/ZAPBEREIK*0.3;   // dichtbij het kruis wint
           if(punt<bs){ bs=punt; bi=i; } }
+        // Staat er niets in zijn kegel maar mikt de demo wél ergens op, dan pakt
+        // hij dat doel alsnog — anders vuurt de tweede hand nooit.
+        if(bi<0&&window.DEMO){
+          let bd2=1e9;
+          for(let i=0;i<T.length;i++){
+            const d2=T[i].p.distanceTo(this.ori);
+            if(d2<ZAPBEREIK&&d2<bd2){ bd2=d2; bi=i; } } }
         if(bi<0) return;
         // DE ACHT TRAPPEN van de electro: eerst meer sprongen, dan vuur bij elke
         // inslag, dan een echte explosie met diameter. Zelfde opbouw als de
@@ -7534,12 +7541,22 @@
       // ---- voorhouden: raakt hij niets terwijl hij op hetzelfde doel mikt,
       //      dan mikt hij steeds verder vóór het schip uit ----
       if(best!==this.dDoel){ this.dDoel=best; this.dHou=0; this.dTijd=0;
+        this.dMis=0; this.dRicht=1;
         this.dVorig=best?best.p.clone():null; }
       else if(best){
         this.dTijd+=s;
         if(this.dTijd>0.5){ this.dTijd=0;
-          if(this.dRaak) this.dHou=Math.max(0,this.dHou-0.25);   // het lukt: minder voorhouden
-          else this.dHou=Math.min(1.2,this.dHou+0.22);           // het lukt niet: meer
+          // ZOEKEN IN TWEE RICHTINGEN. Hij hield alleen maar MEER voor als hij
+          // miste, tot 1,2 keer te ver — terwijl je net zo goed te ver vóór het
+          // schip kunt mikken. Nu draait hij van richting zodra hij twee keer op
+          // rij mist, zodat hij vanzelf de goede kant vindt.
+          if(this.dRaak){ this.dHou=Math.max(-0.5,Math.min(0.6,this.dHou*0.7));
+            this.dMis=0; }
+          else {
+            this.dMis=(this.dMis||0)+1;
+            if(this.dMis>=2){ this.dRicht=-(this.dRicht||1); this.dMis=0; }
+            this.dHou=Math.max(-0.6,Math.min(0.8,
+              this.dHou+(this.dRicht||1)*0.18)); }
           this.dRaak=0; } }
       const mik=this.DA||(this.DA=new THREE.Vector3());
       if(doos){ mik.copy(doos.p).sub(this.kop).normalize();
@@ -7569,17 +7586,19 @@
         const vlieg2=mik.distanceTo(hp)/KOGELSNEL;
         mik.copy(best.p).addScaledVector(v,vlieg2*(1.0+this.dHou)).sub(hp).normalize();
         window.AIM=mik; }
-      else { window.AIM=null; return; }
+      else { window.AIM=null; window.AIM2={}; return; }
       // Niet vuren op wat buiten bereik ligt. LET OP: de laser haalt 300 m, dus
       // met dat wapen mag hij wél op een verre baas schieten.
       if(best){
         const afB=best.p.distanceTo(this.kop);
         const WB=this.wp(hB);
         const ver=(WB&&WB.t===3)?LASBEREIK:BEREIK;
-        if(afB>ver*0.95){ window.AIM=null; return; } }
+        // Te ver voor de HOOFDhand? Dan mag de tweede hand nog wel: die heeft een
+        // ander wapen met een ander bereik.
+        if(afB>ver*0.95){ this.dNietA=1; } else this.dNietA=0; }
       // Tijdens de WARNING van een baas ketst alles af: dan niet vuren, dat
       // scheelt je magazijn en het leest ook logischer.
-      if(best&&best.intro){ window.AIM=null; return; }
+      if(best&&best.intro){ window.AIM=null; window.AIM2={}; return; }
       // ---- HET JUISTE WAPEN VOOR DE SITUATIE ----
       // De hoofdhand houdt altijd de mitrailleur; het BIJWAPEN zit in de andere
       // hand. Sjoerd zag wapen 2 nooit omdat de demo nooit wisselde.
@@ -7607,7 +7626,8 @@
           m2.copy(and.p).addScaledVector(v2,vl2).sub(hp2).normalize();
           window.AIM2[hB.id]=m2.clone(); }
         else window.AIM2[hB.id]=mik.clone(); }
-      this.fire(hA);
+      // BEIDE HANDEN TEGELIJK, elk op zijn eigen doel.
+      if(!this.dNietA) this.fire(hA);
       this.fire(hB);
       // ---- ook op de raketten schieten die op je afkomen ----
       if(!doos){
@@ -7620,8 +7640,13 @@
           if(bB){ this.dKog=0.5;
             const w=this.DK||(this.DK=new THREE.Vector3());
             w.copy(bB.o).addScaledVector(bB.dir,bB.d).sub(this.kop).normalize();
-            window.AIM=w; this.fire(hA); this.fire(hB); } } }
-      if(this.dT-(this.dW||0)>9){ this.dW=this.dT; this.wisDeb=0; this.wissel(hB); }
+            // Op een raket schiet ALLEEN de hoofdhand; de tweede hand houdt zijn
+            // eigen doel vast. Anders staken beide handen hun werk voor één raket.
+            window.AIM2=window.AIM2||{};
+            if(hA&&hA.id) window.AIM2[hA.id]=w.clone();
+            this.fire(hA); } } }
+      // Het blinde wisselen elke negen seconden is eruit: demoWapen kiest nu
+      // bewust, en dit draaide daar dwars doorheen.
       let druk=0;
       for(let i=0;i<this.enemies.length;i++)
         if(this.enemies[i].live&&!this.enemies[i].dood) druk++;
@@ -7633,7 +7658,8 @@
     demoStop:function(){
       window.DEMO=false; window.AIM=null;
       this.dT=0; this.dW=0; this.dU=0; this.dOver=0;
-      this.dDoel=null; this.dHou=0; this.dTijd=0; this.dRaak=0; this.dVorig=null; },
+      this.dDoel=null; this.dHou=0; this.dTijd=0; this.dRaak=0; this.dVorig=null;
+      this.dMis=0; this.dRicht=1; },
 
     // =====================================================
     //  PAUZE / EINDE
