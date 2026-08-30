@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.53';
+  const VERSIE='v13.56';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -664,6 +664,11 @@
               // en heeft hij de breedte die bij zijn tekening past.
               for(let q=0;q<TYPE.length;q++){
                 if(!TYPE[q]||TYPE[q].n!==N.schip) continue;
+                // DE OORSPRONKELIJKE NAAM BEWAREN. Alle kunstjes (klok, krachtveld,
+                // springer, spook, herpakker, rol) zoeken op 'CYCLONE', 'TITAN',
+                // enzovoort. Na het hernoemen heette het schip 'de klok' en vond
+                // niets elkaar meer — sinds v13.27 werkte geen enkel kunstje.
+                TYPE[q].basis=TYPE[q].basis||TYPE[q].n;
                 if(N.naam) TYPE[q].n=N.naam;
                 if(N.br) TYPE[q].br=N.br;
                 break; }
@@ -1453,7 +1458,8 @@
   const VALROOK=0.40;           // seconden tussen twee pluimen van een wrak
   // Hoe hard een neerstortend wrak draait, per manier van vallen.
   // Het neerstorten: versnelling omlaag, hoe hij kantelt, hoe lang, hoe diep.
-  const VALVERSNEL=6.5, VALKANTEL=0.55, VALDUUR=5.0, VALDIEP=45;
+  const VALVERSNEL=8.5, VALKANTEL=0.55, VALDUUR=5.0, VALDIEP=45;
+  const VALVAART=0.8;           // aandeel van zijn vliegsnelheid dat hij vasthoudt
   const KLAPKANS=0.55;          // kans dat een wrak ontploft in plaats van wegzakt
   const STORTMAX=40;            // hoeveel wrakken er tegelijk mogen neerstorten
   // Hoe hard schepen vliegen in de eerste levels: level 1 op 62 procent,
@@ -1495,8 +1501,14 @@
   // Hoe ver grote schepen extra naar achteren beginnen, en hoe ver iedereen
   // minstens opzij begint. Recht voor je neus verschijnen leest als een truc.
   const VER_GROOT=55, VER_REUS=95, ZIJ_GROOT=34, ZIJ_MIN=17;
-  const MINAF_GROOT=52, MINAF_REUS=78;   // hoe dichtbij een groot schip komt
+  // Sjoerd: "grotere vijanden even dichterbij, dan zien we hoe mooi ze zijn."
+  // Was 52 en 78. Nooit in je gezicht — een kolos van 30 m op 40 m vult al
+  // een derde van je blik.
+  const MINAF_GROOT=38, MINAF_REUS=58;
   const SPREID_GROOT=26;        // hoe ver grote schepen onderling uit elkaar staan
+  // De scheervlucht van grote schepen: hoe ver naast je hij langsscheert, hoe
+  // snel, hoe lang, en hoe vaak.
+  const SCHEER_AF=26, SCHEER_SNEL=34, SCHEER_DUUR=5.0, SCHEER_EERST=14, SCHEER_ELK=22;
   // De rolaanval van kleine jagers: hoe breed ze mogen zijn, hoe vaak, hoe lang
   // en hoe snel ze rollen.
   // WELKE SCHEPEN de rolaanval doen. Twee soorten, verder niemand: zo blijft het
@@ -1535,7 +1547,7 @@
   // naar buiten gaat voor hij bijdraait, en hoe lang hij weg is na twaalf uur.
   const KLOKKEN=['CYCLONE'];
   const KLOK_ROL=2.4, KLOK_TIK=1.0, KLOK_SNEL=30, KLOK_DRAAI=2.8;
-  const KLOK_VRIJ=0.7, KLOK_VER=110, KLOK_PAUZE=3, KLOK_AF=95;
+  const KLOK_VRIJ=0.7, KLOK_VER=110, KLOK_PAUZE=3, KLOK_AF=70;
   // HET MOEDERSCHIP: hoe lang het krachtveld staat, hoe lang het weg is, hoeveel
   // jagers eruit komen en hoe taai die zijn.
   const MOEDERS=['TITAN'];
@@ -3031,6 +3043,34 @@
         V.m.material.opacity=(f>=2)?0.82:0.62;
         V.m.material.color.setHex((f>=2)?0x0a0503:0x241208); } },
 
+    // DE SCHEERVLUCHT. Sjoerd: "grote die je vaak moet raken mogen best even
+    // dicht langs mij vliegen: versnellen, en voor mijn neus langs, op mooie
+    // afstand zodat je ze mooi kan zien." Geeft true zolang hij scheert.
+    scheerTick:function(e,s){
+      const T=TYPE[e.tp];
+      if(!T||e.bw<GROOTBR||e.gedrag==='reus'||T.prof==='baas'||e.dood||e.dood2) return false;
+      if(e.scheerCd===undefined) e.scheerCd=SCHEER_EERST+Math.random()*10;
+      else e.scheerCd-=s;
+      if(e.scheerCd<=0&&!e.scheer){
+        e.scheer=1; e.scheerT=SCHEER_DUUR; e.scheerZij=(e.p.x<this.kop.x)?1:-1;
+        e.scheerCd=SCHEER_ELK+Math.random()*12;
+        this.toonMelding('INCOMING','#ffb03a'); }
+      if(!e.scheer) return false;
+      e.scheerT-=s;
+      const dx=(this.kop.x+e.scheerZij*SCHEER_AF)-e.p.x;
+      const dy=(this.kop.y+2)-e.p.y;
+      const dz=(this.kop.z-8)-e.p.z;
+      const d=Math.max(1,Math.hypot(dx,dy,dz));
+      // een vaste snelheid: een kolos van 2,4 moet hier ook echt scheren
+      const v=SCHEER_SNEL;
+      e.p.x+=dx/d*v*s; e.p.y+=dy/d*v*s; e.p.z+=dz/d*v*s;
+      if(e.bb){ e.bb.m.position.copy(e.p); }
+      if(e.scheerT<=0||d<6){
+        // na de pas: weer wegtrekken naar zijn gewone afstand, ver vóór je
+        e.scheer=0;
+        e.p.z=Math.min(e.p.z,this.kop.z-((e.bw>=REUSBR)?MINAF_REUS:MINAF_GROOT)-10); }
+      return true; },
+
     // Schade van een LOS schip: vuur en rook, geen stukken.
     losRook:function(e,f){
       this.vonk(e.p.x,e.p.y,e.p.z,0xfff2c0,4,e.sc*0.35,0.55);
@@ -3060,7 +3100,15 @@
     vpTick:function(){
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
         if(!e.live) continue;
-        if(!e.vp) e.vp=new THREE.Vector3();
+        if(!e.vp){ e.vp=new THREE.Vector3().copy(e.p); e.vRicht=new THREE.Vector3(); continue; }
+        // DE VLIEGRICHTING, gladgestreken over de laatste seconde. Eén beurt
+        // terug is te grillig: in een bocht of bij stilhangen wijst dat nergens
+        // heen, en dan stortte een wrak de verkeerde kant op.
+        const dx=e.p.x-e.vp.x, dy=e.p.y-e.vp.y, dz=e.p.z-e.vp.z;
+        if(!e.vRicht) e.vRicht=new THREE.Vector3();
+        e.vRicht.x+=(dx*72-e.vRicht.x)*0.06;
+        e.vRicht.y+=(dy*72-e.vRicht.y)*0.06;
+        e.vRicht.z+=(dz*72-e.vRicht.z)*0.06;
         e.vp.copy(e.p); } },
 
     // De vlekken meelaten bewegen met hun schip, en opruimen als het weg is.
@@ -3744,7 +3792,11 @@
       if(window.DEMO&&e===this.dDoel) this.dRaak=1;
       if(e.dood2) return;                            // gaat al ten onder
       if(e.intro){ this.vonk(px||e.p.x,py||e.p.y,pz||e.p.z,0x9fe4f5,3,6,0.5); return; }
-      if(e.dood){ this.knalDood(e); return; }        // genadeschot op een wrak
+      // GEMETEN in echt spel: 10 van de 53 gedode schepen stortten neer, de rest
+      // verdween meteen. Dit was de oorzaak: elke kogel die een WRAK nog raakte
+      // liet hem verdwijnen — en je schiet natuurlijk door op wat je net raakte.
+      // Een wrak incasseert nu gewoon een vonkje en valt door.
+      if(e.dood){ this.vonk(px||e.p.x,py||e.p.y,pz||e.p.z,0xffb03a,2,3,0.4); return; }
       if(!e.live||e.hp<=0) return;
       // MET HET KRACHTVELD OP komt er niets doorheen: je schoten ketsen af.
       if(e.moedF===1){
@@ -3755,7 +3807,7 @@
       // Sjoerds kunstjes reageren op een TREFFER, maar hoogstens eens in de tien
       // seconden — daartussen kun je hem gewoon kapotschieten.
       if(e.hp>0&&!e.dood&&!e.dood2&&TYPE[e.tp]){
-        const nm=TYPE[e.tp].n;
+        const nm=TYPE[e.tp].basis||TYPE[e.tp].n;
         if(SPRINGERS.indexOf(nm)>=0&&!(e.springCd>0)) this.springWeg(e);
         else if(HERPAKKERS.indexOf(nm)>=0&&!(e.herpakCd>0)&&!(e.herpakT>0))
           this.herpakStart(e); }
@@ -3869,15 +3921,21 @@
     doodBaan:function(e,s){
       e.doodT+=s;
       if(!e.valDir){
+        // richting én snelheid komen uit hoe hij ECHT vloog, gladgestreken
         const v=new THREE.Vector3();
-        if(e.vp) v.copy(e.p).sub(e.vp);
-        if(v.length()<0.01) v.set((e.zij||1)*0.3,0,0.2);
+        let sn=0;
+        if(e.vRicht&&e.vRicht.length()>0.5){ v.copy(e.vRicht); sn=v.length(); }
+        else v.set((e.zij||1)*0.3,0,0.2);
         v.y=0; v.normalize();
-        e.valDir=v; e.valSn=Math.max(3,(TYPE[e.tp].sp||8)*0.35); e.valV=0;
+        // Sjoerd: "vallen mag een klein beetje sneller, met hun vliegsnelheid."
+        e.valDir=v; e.valSn=Math.max(4,sn*VALVAART); e.valV=0;
         // PER SCHIP WILLEKEURIG: hoe ver hij valt voor het eind, en of hij dan
         // ontploft of gewoon uit beeld zakt. Sjoerd: "per vliegtuig misschien
         // een beetje random of hij wel of niet, of wanneer hij ontploft."
-        e.valEind=VALDIEP*(0.45+Math.random()*1.1);          // 20 tot 70 m
+        // GEMETEN: een wrak dat 20 m trok was na 3 s weg, op 27 graden onder de
+        // horizon — net buiten je blik in een bril. Ondergrens omhoog zodat je
+        // elke val ziet: 35 tot 70 m.
+        e.valEind=VALDIEP*(0.78+Math.random()*0.77);
         e.valKlap=(Math.random()<KLAPKANS)?1:0; }
       e.valV+=s*VALVERSNEL;
       e.p.addScaledVector(e.valDir,e.valSn*s);
@@ -4049,6 +4107,8 @@
         // stil. geestT liet hem in de verkeerde fase beginnen, rol gaf een scheve
         // stand, en veld liet een krachtveld om een gewoon schip staan.
         e.springRust=0; e.geestT=0; e.rol=0; e.valDir=null; e.valV=0;
+        e.scheer=0; e.scheerCd=undefined; e.scheerT=0;
+        e.vp=null; e.vRicht=null;   // de vliegrichting opnieuw meten
         if(e.veld){ e.veld.visible=false; e.veld=null; }
         e.moedF=undefined; e.moedT=0; e.veldP=0;
         if(e.veld) e.veld.visible=false;
@@ -4172,7 +4232,7 @@
       // gewoon vuur: wespenzwerm, mokerslag of drietand.
       // DE ROLAANVAL is een eigenschap van een paar SOORTEN, niet van elk klein
       // schip. Anders gaat de hele lucht rollen en is het geen kunstje meer.
-      if(ROLLERS.indexOf(TYPE[e.tp]&&TYPE[e.tp].n)>=0&&
+      if(ROLLERS.indexOf(TYPE[e.tp]&&(TYPE[e.tp].basis||TYPE[e.tp].n))>=0&&
          !e.dood&&!e.dood2&&(e.rolT||0)<=0&&Math.random()<ROLKANS){
         e.rolT=ROLTIJD; e.rolA=0; }
       if(e.bw>=GROOTBR&&!e.dood&&!e.dood2){
@@ -4393,8 +4453,9 @@
       let doel=reus?REUSAFSTAND:(F.d+e.r*0.32);
       if(!reus&&e.bw>=GROOTBR)
         doel=Math.max(doel,(e.bw>=REUSBR)?MINAF_REUS:MINAF_GROOT);
+
       // De klok blijft ver weg: hij bestookt je van afstand, hij valt niet aan.
-      if(KLOKKEN.indexOf(TYPE[e.tp]&&TYPE[e.tp].n)>=0) doel=Math.max(doel,KLOK_AF);
+      if(KLOKKEN.indexOf(TYPE[e.tp]&&(TYPE[e.tp].basis||TYPE[e.tp].n))>=0) doel=Math.max(doel,KLOK_AF);
       // naar zijn plek toe, sneller als hij aanvalt dan als hij terugzakt
       // Vol vooruit of vol achteruit schoot telkens voorbij zijn doel; dat gaf
       // het schokken. Nu remt hij af naarmate hij dichter bij zijn plek komt,
@@ -5903,10 +5964,12 @@
           if(e.springCd>0) e.springCd-=s;
         if(e.springRust>0){ e.springRust-=s; return; }
         if(e.herpakCd>0) e.herpakCd-=s;
-        const nm2=TYPE[e.tp]&&TYPE[e.tp].n;
+        const nm2=TYPE[e.tp]&&(TYPE[e.tp].basis||TYPE[e.tp].n);
         if(GEESTEN.indexOf(nm2)>=0) this.spookTick(e,s);
         if(KLOKKEN.indexOf(nm2)>=0){ this.klokTick(e,s); e.bT=9e9; }
         if(MOEDERS.indexOf(nm2)>=0) this.moederTick(e,s);
+        // DE SCHEERVLUCHT van grote schepen: hier, waar elk schip langskomt.
+        if(this.scheerTick(e,s)) return;
         // WEGDUIKEN als je op hem mikt — alleen de schepen die dat mogen.
         if(e.wijker){ this.mikTick(e,s); if(e.wijkT>0) return; }
         // DE SPRINGER duikt ook weg voor een RAKET die bijna inslaat.
