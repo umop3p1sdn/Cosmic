@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.34';
+  const VERSIE='v13.36';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -552,7 +552,9 @@
     {nr:'9879', rol:'schip', schip:'NIGHTBLADE',naam:'VIOLET WING',  br:7},
     {nr:'9880', rol:'schip', schip:'FALCON',    naam:'IRON FALCON',  br:8},
     {nr:'9881', rol:'schip', schip:'FIGHTER',   naam:'STEEL TALON',  br:9},
-    {nr:'9888', rol:'schip', schip:'WRAITH',    naam:'BLUE SPINE',   br:11},
+    // DE SPLITSER: raak je hem kapot, dan komen er twee kleinere uit. Sjoerd gaf
+    // hem een nieuwe tekening, want dat kunstje verdient een eigen gezicht.
+    {nr:'9910', rol:'schip', schip:'WRAITH',    naam:'BLUE SPINE',   br:11},
     {nr:'9889', rol:'schip', schip:'REAPER',    naam:'GREEN DISC',   br:13},
     {nr:'9890', rol:'schip', schip:'LANCER',    naam:'CRIMSON CLAW', br:11},
     {nr:'9891', rol:'schip', schip:'SHRIKE',    naam:'FOUR FLAME',   br:13},
@@ -1437,7 +1439,7 @@
   const VLEK_N=48;              // hoeveel schroeivlekken er tegelijk kunnen zijn
   // Hoe lang een EIGEN raket leeft: normaal negen seconden jagen, hoogstens vier
   // seconden daarvan wachten zonder doel, en nooit langer dan twintig seconden.
-  const RAK_LEEF=9.0, RAK_WACHT=4.0, RAK_MAX=20;
+  const RAK_LEEF=9.0, RAK_WACHT=4.0, RAK_MAX=45;   // hoogstens 45 s in de lucht
   const RAKET_LEEF=9;           // hoe lang jouw raket hoogstens vliegt, in seconden
   const LVMAAT=0.052;           // hoogte van de niveautekst (was 0.034)
   const LOG_MAX=200;            // hoeveel regels het logboek bewaart
@@ -2732,6 +2734,8 @@
     // De schade van een los schip: bij elke stap heftiger vuur en rook, en
     // brokstukken die eraf vliegen.
     losSchade:function(e,f){
+      // geen brokstukken bij een los schip: alleen vuur, rook en schroeivlekken
+      if(e.los) return this.losRook(e,f);
       this.vonk(e.p.x,e.p.y,e.p.z,0xfff2c0,6,e.sc*0.4,0.6);
       this.vonk(e.p.x,e.p.y,e.p.z,0xff8a3d,8,e.sc*0.6,0.8);
       if(f>=2) this.vonk(e.p.x,e.p.y,e.p.z,0xff5a2a,8,e.sc*0.9,1.0);
@@ -2985,6 +2989,16 @@
         V.m.material.opacity=(f>=2)?0.82:0.62;
         V.m.material.color.setHex((f>=2)?0x0a0503:0x241208); } },
 
+    // Schade van een LOS schip: vuur en rook, geen stukken.
+    losRook:function(e,f){
+      this.vonk(e.p.x,e.p.y,e.p.z,0xfff2c0,4,e.sc*0.35,0.55);
+      this.vonk(e.p.x,e.p.y,e.p.z,0xff8a3d,6,e.sc*0.5,0.75);
+      if(f>=2) this.vonk(e.p.x,e.p.y,e.p.z,0xff5a2a,6,e.sc*0.8,0.95);
+      for(let i=0;i<(f>=2?4:2);i++){
+        const hk=Math.random()*6.283, af=e.sc*(0.2+Math.random()*0.5);
+        this.rook(e.p.x+Math.cos(hk)*af,e.p.y+Math.sin(hk)*af*0.7,
+                  e.p.z+(Math.random()-0.5)*af,f>=2,2.2+Math.random()*1.4,2.0); } },
+
     // De vlekken meelaten bewegen met hun schip, en opruimen als het weg is.
     vlekTick:function(){
       if(!this.vlek) return;
@@ -3017,6 +3031,16 @@
       if(e.valT<=0){ e.valT=0.06;
         this.vonk(e.p.x,e.p.y,e.p.z,0xff8a3d,2,e.sc*0.25,0.45);
         this.rook(e.p.x,e.p.y,e.p.z,true,1.8,1.6); } },
+
+    // ELK SCHIP ZIJN EIGEN MATERIAAL. Ze deelden er één per soort, dus zodra er
+    // eentje neerstortte en vervaagde, werden ALLE schepen van die soort
+    // doorzichtig — dat zag Sjoerd in level 1. De textuur blijft wel gedeeld,
+    // dus het kost bijna niets.
+    losMatEigen:function(tex){
+      const b=this.losMat(tex);
+      const m=b.clone();
+      m.map=b.map; m.transparent=true; m.opacity=1;
+      return m; },
 
     losMat:function(tex){
       this.losM=this.losM||{};
@@ -3395,7 +3419,7 @@
 
     raket:function(o,d,rad,swarm,ph){
       for(let i=0;i<this.rockets.length;i++){ const R=this.rockets[i]; if(R.live) continue;
-        R.o.copy(o); R.dir.copy(d); R.d=0; R.tot=0; R.live=true; R.zoek=null; R.leef=0;
+        R.o.copy(o); R.dir.copy(d); R.d=0; R.tot=0; R.live=true; R.zoek=null; R.leef=0; R.oud=0;
         R.rad=rad; R.ph=ph||0; R.swarm=swarm||0; R.ex=1; R.hagel=0;
         R.m.position.copy(o); R.m.visible=true; R.m.scale.set(1.6,1.6,1); return R; }
       return null; },
@@ -3829,7 +3853,13 @@
       // Hij spat uiteen: echte stukken van zijn eigen plaatje, met vuur en rook
       // die met de brokken mee naar buiten vliegen. Een flits alleen is te schoon
       // voor een schip dat zojuist uit elkaar is geslagen.
-      const nb=Math.min(BROKKNAL,2+Math.round(e.bw*0.35));
+      // Sjoerd: "gewoon het vliegtuig laten neerstorten en dan ontploffen." Voor
+      // een LOS schip is dat mooier: hij tuimelt weg als geheel, en pas als hij
+      // uit beeld is komt de klap. Alleen fijne splinters, geen plaatwerk.
+      // Sjoerd: "het vliegtuig zelf laten neerstorten is misschien makkelijker."
+      // Precies: een LOS schip krijgt GEEN brokstukken meer. Hij kantelt, valt,
+      // rookt en verdwijnt met een klap — als één geheel.
+      const nb=e.los?0:Math.min(BROKKNAL,2+Math.round(e.bw*0.35));
       for(let k=0;k<nb;k++) this.brok(e,e.p.x,e.p.y,e.p.z,Math.random()<0.35,1);
       for(let k=0;k<3;k++){
         const hk=Math.random()*6.283, af=e.sc*(0.3+Math.random()*0.7);
@@ -3983,7 +4013,7 @@
         // Heeft dit scheepstype een EIGEN plaatje, dan gebruikt hij dat in plaats
         // van een vak op de vlootplaat. Zo kunnen lelijk uitgeknipte schepen
         // vervangen worden zonder aan de rest te komen.
-        else if(LOS){ bb.m.material=this.losMat(LOS);
+        else if(LOS){ bb.m.material=this.losMatEigen(LOS);
           this.uvRect(bb.g,{u0:0,u1:1,v0:0,v1:1});
           e.losAr=(LOS.image&&LOS.image.width)?LOS.image.width/LOS.image.height:1;
           e.los=1; }
@@ -6476,8 +6506,19 @@
         if(R.wacht>0) R.wachtT=(R.wachtT||0)+s;
         // EEN RAKET ZONDER DOEL LEEFDE EEUWIG. Er was geen tijdslimiet, dus na
         // een paar ults zaten alle 64 plekken vol en kon je niets meer afvuren.
-        R.leef=(R.leef||0)+s;
-        if(R.leef>RAKET_LEEF){
+        // Sjoerd: "de ult mag echt doorgaan tot hij een doel vindt, keep flying."
+        // Zolang er GEEN doel is telt zijn leeftijd niet mee: hij cirkelt en
+        // wacht. Zodra er weer iets in de lucht komt, gaat hij erachteraan en
+        // begint zijn klok pas te lopen. Er blijft een harde bovengrens, anders
+        // loopt de voorraad van 64 vol.
+        // Eerst kijken of er een doel IS; pas dan telt zijn leeftijd. De vlag
+        // R.wacht werd verderop gezet, dus telde zijn klok toch door.
+        { let er=false;
+          for(let a=0;a<this.enemies.length;a++)
+            if(this.enemies[a].live&&!this.enemies[a].dood2){ er=true; break; }
+          if(er) R.leef=(R.leef||0)+s; else R.leef=Math.max(0,(R.leef||0)-s*0.5); }
+        R.oud=(R.oud||0)+s;
+        if(R.leef>RAKET_LEEF||R.oud>RAK_MAX){
           this.vonk(R.m.position.x,R.m.position.y,R.m.position.z,0xff8a3d,3,3,0.4);
           R.live=false; R.m.visible=false; continue; }
         if(!R.zoek||!R.zoek.live){ let bd=1e9, bz=null;
@@ -6516,7 +6557,10 @@
         // oplost bij een golfwissel, maar zo leeft een raket zonder doel EEUWIG
         // en loopt de voorraad van 64 vol: dan kun je niets meer afvuren.
         // Nu telt die wachttijd tot een grens mee, en is er een harde bovengrens.
-        if(bum||(R.tot-Math.min(R.wachtT||0,RAK_WACHT))>RAK_LEEF||R.tot>RAK_MAX){
+        // KEEP FLYING. Wachttijd zonder doel telt NIET mee, dus blijft hij
+        // cirkelen tot er weer iets te schieten is. Alleen de harde bovengrens
+        // van 45 seconden houdt hem tegen, zodat de voorraad niet volloopt.
+        if(bum||(R.tot-(R.wachtT||0))>RAK_LEEF||R.tot>RAK_MAX){
           const P=R.m.position;
           if(bum){ SND.boom(P.x*0.02,true);
             // Een raket slaat nu echt in: felle flits, brokstukken, en schade over
