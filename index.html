@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.33';
+  const VERSIE='v13.34';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1431,6 +1431,9 @@
   // Hoeveel pixels er van elke vakrand af gaan, zodat er geen randje van het
   // buurschip meekomt.
   const RANDJE=1.0;
+  // Vanaf welke doorzichtigheid een pixel nog wordt getekend. Te laag laat een
+  // donker randje staan om uitgeknipte plaatjes.
+  const RANDDREMPEL=0.42;
   const VLEK_N=48;              // hoeveel schroeivlekken er tegelijk kunnen zijn
   // Hoe lang een EIGEN raket leeft: normaal negen seconden jagen, hoogstens vier
   // seconden daarvan wachten zonder doel, en nooit langer dan twintig seconden.
@@ -1529,9 +1532,11 @@
   // scherpte, 16 MB.
   const HEMEL_MAX=2720;
   const PROP_MAX=1024;
-  // Een HAULER van 34 m op 60 m afstand vult ruim 570 beeldpunten; bij 640 px
-  // textuur is dat op het randje. 1024 kost 4 MB per schip en is ruim genoeg.
-  const LOS_MAX=1024;
+  // NAGEMETEN: Sjoerds 23 nieuwe platen kosten op volle grootte samen 62 MB —
+  // minder dan wanneer je ze allemaal naar 1024 zou brengen, want de meeste zijn
+  // al kleiner. Verkleinen kostte dus alleen scherpte. Alleen echt grote platen
+  // worden nog teruggebracht.
+  const LOS_MAX=1600;
   const PLANEET_MAX=190;        // breedte van een planeet in meters (was 340)
   // Grote planeten eruit: ze vullen je hele blik met een doorzichtig vlak en dat
   // kost een bril meer dan alle schepen samen. Op 1 komen ze terug.
@@ -2946,9 +2951,19 @@
       if(!e.bb||!e.bb.m) return;
       if(!this.vlek){
         this.vlek=[];
+        // EEN ZACHTE VLEK, geen vierkant. Een vlak met alleen een kleur is een
+        // zwart blok; met een ronde vervaging eromheen wordt het een schroeiplek.
+        const c=document.createElement('canvas'); c.width=64; c.height=64;
+        const g2=c.getContext('2d');
+        const gr=g2.createRadialGradient(32,32,2,32,32,31);
+        gr.addColorStop(0,'rgba(20,10,4,0.95)');
+        gr.addColorStop(0.45,'rgba(30,16,8,0.55)');
+        gr.addColorStop(1,'rgba(30,16,8,0)');
+        g2.fillStyle=gr; g2.fillRect(0,0,64,64);
+        const tx=new THREE.CanvasTexture(c); tx.needsUpdate=true;
         const g=new THREE.PlaneGeometry(1,1);
         for(let i=0;i<VLEK_N;i++){
-          const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0x120a06,
+          const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:tx,
             transparent:true,opacity:0,depthWrite:false,depthTest:false,
             side:THREE.DoubleSide}));
           m.renderOrder=6; m.visible=false; m.frustumCulled=false;
@@ -3012,8 +3027,11 @@
         // daar niets van, maar een bril moet die hele plaat per oog opnieuw
         // bemonsteren. Verkleinen en mipmaps erbij: veel lichter, even scherp.
         tex=this.losKlein(tex);
+        // ZWARTE RANDJES. Bij alphaTest 0.06 blijven halfdoorzichtige randpixels
+        // staan, en die zijn bij een uitgeknipt plaatje bijna zwart — dan krijgt
+        // elk schip een donkere omlijning. Een hogere drempel snijdt die weg.
         this.losM[k]=new THREE.MeshBasicMaterial({map:tex,transparent:true,
-          alphaTest:0.06,side:THREE.DoubleSide,depthWrite:false}); }
+          alphaTest:RANDDREMPEL,side:THREE.DoubleSide,depthWrite:false}); }
       return this.losM[k]; },
 
     // Een los schip verkleinen tot LOS_MAX, en mipmaps aanzetten. Zonder mipmaps
@@ -3055,9 +3073,13 @@
         const rn=(this.el&&this.el.sceneEl&&this.el.sceneEl.renderer)||null;
         const mx=rn&&rn.capabilities&&rn.capabilities.getMaxAnisotropy
           ? rn.capabilities.getMaxAnisotropy() : 8;
-        t.anisotropy=Math.min(8,Math.max(1,mx));
-        t.generateMipmaps=true;
-        t.minFilter=THREE.LinearMipmapLinearFilter;
+        // ZACHT BEELD. Mipmaps maken een schip op afstand vloeiend, maar ook
+        // wazig: hij pakt een kleinere versie van de plaat. Sjoerd wil ze hard en
+        // strak. De volle anisotropie houdt hem netjes onder een schuine hoek
+        // zonder dat er scherpte af gaat.
+        t.anisotropy=Math.min(16,Math.max(1,mx));
+        t.generateMipmaps=false;
+        t.minFilter=THREE.LinearFilter;
         t.magFilter=THREE.LinearFilter;
         t.needsUpdate=true;
       }catch(e){} },
@@ -6219,8 +6241,11 @@
       // vorige beurt duurde. Loopt het spel vast, dan zie je de aanloop.
       if(window.DOOS){
         const nu=performance.now();
-        const vorig=this.doosT?Math.round(nu-this.doosT):0;
-        this.doosT=nu;
+        // LET OP: doosT is de teller voor de WAPENBLOKKEN. Die naam gebruikte ik
+        // per ongeluk ook voor de zwarte doos, en dan komt hij nooit meer op nul
+        // en vallen er geen wapens meer. Nu een eigen naam.
+        const vorig=this.zdT?Math.round(nu-this.zdT):0;
+        this.zdT=nu;
         this.doosN=(this.doosN||0)+1;
         // niet elke beurt schrijven, dat is te veel: 6 per seconde is genoeg,
         // maar een TRAGE beurt altijd.
