@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.22';
+  const VERSIE='v13.26';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1391,6 +1391,10 @@
   const RAKETKLAP=7, RAKETKLAP_ZW=13, RAKETKLAP_DMG=3;
   const KET_MAX=3;              // hoe diep een kettingreactie mag doorgaan
   const KET_LUS=10;             // en hoeveel raketten één klap hoogstens opruimt
+  // Hoeveel pixels er van elke vakrand af gaan, zodat er geen randje van het
+  // buurschip meekomt.
+  const RANDJE=1.0;
+  const VLEK_N=48;              // hoeveel schroeivlekken er tegelijk kunnen zijn
   // Hoe lang een EIGEN raket leeft: normaal negen seconden jagen, hoogstens vier
   // seconden daarvan wachten zonder doel, en nooit langer dan twintig seconden.
   const RAK_LEEF=9.0, RAK_WACHT=4.0, RAK_MAX=20;
@@ -2563,7 +2567,12 @@
         const r=rij[rr]; P.rect[rr]=[];
         for(let c=0;c<4;c++){ const k=kol[c];
           const bx=(k[1]-k[0]+1), by=(r[1]-r[0]+1);
-          const R={u0:k[0]/W, u1:(k[1]+1)/W, v0:1-(r[1]+1)/H, v1:1-r[0]/H, ar:bx/by};
+          // EEN HAARTJE VAN DE RAND AF. Sjoerd ziet randjes op zijn schepen: dat
+          // is de laatste pixelrij van het buurvak die net meekomt. Een halve
+          // pixel eraf haalt die weg zonder dat je iets van het schip mist.
+          const kw=RANDJE/W, kh=RANDJE/H;
+          const R={u0:k[0]/W+kw, u1:(k[1]+1)/W-kw,
+                   v0:1-(r[1]+1)/H+kh, v1:1-r[0]/H-kh, ar:bx/by};
           if(c===3){
             // Projectielen kunnen liggend of staand getekend zijn. Ligt het plaatje,
             // dan draaien we de uv een kwartslag zodat de neus de vliegrichting op wijst.
@@ -2884,6 +2893,55 @@
           self.vonk(j.p.x,j.p.y,j.p.z,0xcfe8ff,10,4,0.5);
           self.vonk(j.p.x,j.p.y,j.p.z,0x6cf0ff,8,6,0.45); }); }
       this.toonGroot('FIGHTERS LAUNCHED','#6cf0ff'); },
+
+    // ---- SCHROEIVLEKKEN (Sjoerds truukje) ----
+    // In plaats van een tweede tekening leggen we donkere vlekken OP het schip,
+    // op plekken waar echt romp zit — nooit in een gat of naast de vleugel. Zo
+    // ziet elk schip er beschadigd uit zonder dat er een plaatje bij hoeft.
+    schroei:function(e,f){
+      if(!e.bb||!e.bb.m) return;
+      if(!this.vlek){
+        this.vlek=[];
+        const g=new THREE.PlaneGeometry(1,1);
+        for(let i=0;i<VLEK_N;i++){
+          const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0x120a06,
+            transparent:true,opacity:0,depthWrite:false,depthTest:false,
+            side:THREE.DoubleSide}));
+          m.renderOrder=6; m.visible=false; m.frustumCulled=false;
+          this.par.add(m); this.vlek.push({m:m,live:false,e:null}); } }
+      // waar zit romp? die plekken zijn al gemeten voor het vuur
+      const P=e.plaat, plek=(P&&P.vuur&&P.vuur[e.rij])?P.vuur[e.rij]:null;
+      const n=(f>=2)?3:1;
+      for(let k=0;k<n;k++){
+        const V=this.vlek.find(function(q){ return !q.live; });
+        if(!V) return;
+        // een plek op de romp, of anders het midden met wat spreiding
+        let ox,oy;
+        if(plek&&plek.length){ const p=plek[(k+e.cel)%plek.length];
+          ox=p.x*0.9; oy=p.y*0.9; }
+        else { ox=(Math.random()-0.5)*0.34; oy=(Math.random()-0.5)*0.30; }
+        V.live=true; V.e=e; V.ox=ox; V.oy=oy;
+        V.gr=e.sc*(0.16+Math.random()*0.14)*(f>=2?1.5:1);
+        V.m.visible=true;
+        V.m.material.opacity=(f>=2)?0.82:0.62;
+        V.m.material.color.setHex((f>=2)?0x0a0503:0x241208); } },
+
+    // De vlekken meelaten bewegen met hun schip, en opruimen als het weg is.
+    vlekTick:function(){
+      if(!this.vlek) return;
+      const eye=this.kop;
+      for(let i=0;i<this.vlek.length;i++){ const V=this.vlek[i];
+        if(!V.live) continue;
+        const e=V.e;
+        if(!e||!e.live||e.dood2||!e.bb||!e.bb.m.visible){
+          V.live=false; V.m.visible=false; V.e=null; continue; }
+        // op het schip plakken: zijn breedte en hoogte in, dan meedraaien
+        V.m.position.set(e.p.x+V.ox*e.bw, e.p.y+V.oy*e.bh, e.p.z);
+        V.m.lookAt(eye);
+        V.m.rotation.z=(e.bb.m.rotation.z||0);
+        V.m.scale.setScalar(V.gr);
+        if(e.bb.m.material&&e.bb.m.material.opacity<0.95)
+          V.m.material.opacity=Math.min(V.m.material.opacity,e.bb.m.material.opacity); } },
 
     // Een los schip stort TUIMELEND neer: hij kantelt om zijn as en valt omlaag,
     // met vuur en rook achter zich aan. Mooier dan uit elkaar spatten in stukjes
@@ -3582,9 +3640,12 @@
           else if(e.onzicht){ /* spook: geen plaatje, alleen vuur en rook */ }
           // Een LOS schip heeft geen beschadigde versie van zichzelf. Hij toont
           // zijn schade met vuur en rook, en met brokstukken die eraf vliegen.
-          else if(e.los){ this.losSchade(e,f); }
-          else if(e.bb){ if(e.plaat) this.uvRect(e.bb.g,e.plaat.rect[e.rij][f]);
-                    else if(f>=1&&!e.gedrag) this.bbCel(e.bb,Math.min(7,e.cel)+8); }
+          else if(e.los){ this.losSchade(e,f); this.schroei(e,f); }
+          // KOLOM 2 EN 3 ERUIT. Sjoerd gaat nieuwe schepen maken met één mooi
+          // plaatje per stuk; de beschadigde versies waren toch het lelijkst.
+          // Iedereen toont zijn schade nu zoals de losse schepen dat al deden:
+          // met vuur, rook en brokstukken die eraf vliegen.
+          else if(e.bb){ this.losSchade(e,f); this.schroei(e,f); }
           this.vonk(e.p.x,e.p.y,e.p.z,0xffb03a,10,9,0.9); }
         this.vonk(px||e.p.x,py||e.p.y,pz||e.p.z,0xffd9a0,3,7,0.45);
         return; }
@@ -3619,7 +3680,8 @@
       e.fase=1;                                        // meteen naar het beschadigde plaatje
       // Een baas heeft geen vakken op zijn plaat: die houdt zijn eigen plaatje.
       // Deed hij dat niet, dan veranderde hij bij het neerstorten in een blokje.
-      if(e.plaat) this.uvRect(e.bb.g,e.plaat.rect[e.rij][1]);
+      // ook bij het neerstorten het GAVE plaatje: vuur en rook doen de rest
+      if(e.plaat) this.uvRect(e.bb.g,e.plaat.rect[e.rij][0]);
       else if(!e.gedrag) this.bbCel(e.bb,Math.min(7,e.cel)+8);
       const zij=(Math.random()<0.5)?-1:1;
       e.dwijs=Math.floor(Math.random()*3);                   // 0 wegdraaien, 1 duikelen, 2 tollen
@@ -3642,7 +3704,7 @@
         if(e.doodT<1.6){ e.p.addScaledVector(e.dv,e.dsp*1.25*s); e.dv.y-=s*0.5; e.dv.normalize();
           rook(this,0); }
         else { if(e.fase!==2){ e.fase=2;
-            if(e.plaat) this.uvRect(e.bb.g,e.plaat.rect[e.rij][2]);
+            if(e.plaat) this.uvRect(e.bb.g,e.plaat.rect[e.rij][0]);
             const zij=(Math.random()<0.5)?-1:1;
             e.dv.set(zij*(0.8+Math.random()*0.5),0.35,-0.2).normalize();  // trekt weg
             this.vonk(e.p.x,e.p.y,e.p.z,0xffb03a,9,8,1.0); }
@@ -3656,7 +3718,7 @@
         e.dv.set(Math.cos(e.ex.dh)*0.8,-0.25-e.doodT*0.12,Math.sin(e.ex.dh)*0.5).normalize();
         e.p.addScaledVector(e.dv,e.dsp*0.7*s);
         if(e.doodT>=2.0&&e.fase!==2){ e.fase=2;
-          if(e.plaat) this.uvRect(e.bb.g,e.plaat.rect[e.rij][2]);
+          if(e.plaat) this.uvRect(e.bb.g,e.plaat.rect[e.rij][0]);
           this.vonk(e.p.x,e.p.y,e.p.z,0xffb03a,7,7,0.9); }
         rook(this,e.doodT>=2.0); }
 
@@ -3666,7 +3728,7 @@
         rook(this,0); }
       else {
         if(e.fase!==2){ e.fase=2;                      // stort neer: laatste plaatje
-          if(e.plaat) this.uvRect(e.bb.g,e.plaat.rect[e.rij][2]);
+          if(e.plaat) this.uvRect(e.bb.g,e.plaat.rect[e.rij][0]);
           e.dv.x+=(Math.random()-0.5)*1.4;             // en een willekeurige zwenk
           e.dv.z+=(Math.random()-0.5)*0.8;
           e.dv.normalize();
@@ -3815,6 +3877,12 @@
         // krijgen voorrang — een kolos die wegduikt leest raar.
         e.wijker=(Math.random()<this.duikKans()*((T.br<=9)?1.4:((T.br<13)?0.7:0.15)))?1:0;
         e.klokR=0; e.klokU=0; e.klokT=0; e.klokWeg=0;
+        // DEZE VIER WERDEN NIET GEWIST. springRust is de gevaarlijkste: zolang
+        // die loopt slaat de baanfunctie over, dus een hergebruikt schip stond
+        // stil. geestT liet hem in de verkeerde fase beginnen, rol gaf een scheve
+        // stand, en veld liet een krachtveld om een gewoon schip staan.
+        e.springRust=0; e.geestT=0; e.rol=0;
+        if(e.veld){ e.veld.visible=false; e.veld=null; }
         e.moedF=undefined; e.moedT=0; e.veldP=0;
         if(e.veld) e.veld.visible=false;
         e.rolT=0; e.rolA=0; e.valR=0; e.valV=0;
@@ -5289,7 +5357,7 @@
         mt.opacity=1;
         // Een baas vult zijn hele plaat; een gewoon schip staat in een vakje.
         // Het brokje moet dus uit het juiste stukje van de plaat komen.
-        const R=(e.plaat&&e.plaat.rect[e.rij])?e.plaat.rect[e.rij][Math.min(1,e.fase||0)]:null;
+        const R=(e.plaat&&e.plaat.rect[e.rij])?e.plaat.rect[e.rij][0]:null;
         let w=0.10+Math.random()*0.10, hh=w, u0, v0;
         if(R){ const bw=(R.u1-R.u0), bh=(R.v1-R.v0);
           w=bw*(0.16+Math.random()*0.16); hh=bh*(0.16+Math.random()*0.16);
@@ -6175,8 +6243,11 @@
           L.t+=dt; L.k++;
           H.object3D.getWorldPosition(this.ori); H.object3D.getWorldQuaternion(this.q);
           this.dir.set(0,-0.7071,-0.7071).applyQuaternion(this.q).normalize();
-          { const mk=(h&&h.id&&window.AIM2&&window.AIM2[h.id])||window.AIM;
-        if(mk) this.dir.copy(mk).normalize(); }
+          // HIER LIEP HET SPEL VAST. In deze lus heet de hand H, niet h — mijn
+          // twee-handen-code kwam er blind in terecht en zocht naar een naam die
+          // hier niet bestaat. Eén laserflits en het hele spel stond stil.
+          { const mk=(H&&H.id&&window.AIM2&&window.AIM2[H.id])||window.AIM;
+            if(mk) this.dir.copy(mk).normalize(); }
           for(let b=0;b<L.tel;b++){
             const dd=this.dir.clone();
             // de stralen waaieren netjes uit om de middenlijn
@@ -6601,7 +6672,7 @@
 
       this.ringTick(s); this.sigRijTick(s); this.wijzerTickD(s);
       this.camoTick(s);
-      this.straalTick(s); this.bomTick(s); this.balTick(s);
+      this.straalTick(s); this.bomTick(s); this.balTick(s); this.vlekTick();
       // ---- rook: drijft op, dijt uit en vervaagt ----
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(!R.live) continue;
         R.life-=s/Math.max(0.3,R.leven);
@@ -8162,6 +8233,10 @@
     AC(); SND.initSFX(); SND.muziek(); SND.wake();
     const m=document.querySelector('#menu'); if(m) m.setAttribute('visible',false);
     const p=document.querySelector('#paneel'); if(p) p.setAttribute('visible',false);
+    // Ook de losse panelen dicht: die zitten BINNEN het menu, maar staan op hun
+    // eigen zichtbaarheid — dus bleven ze aan zodra het menu weer opkwam.
+    ['#tech','#hulp','#naam'].forEach(function(id){
+      const e=document.querySelector(id); if(e) e.setAttribute('visible',false); });
     laserAan(false);
     const r=document.querySelector('#richt'); if(r) r.setAttribute('visible',true);
     const rig=document.querySelector('#rig'), C=rig&&rig.components&&rig.components.cosmic;
@@ -8206,6 +8281,14 @@
     const r=document.querySelector('#richt'); if(r) r.setAttribute('visible',true);
     ['#hudL','#hudR','#hudC','#hudW'].forEach(function(id){
       const e=document.querySelector(id); if(e) e.setAttribute('value',''); });
+    // ALLE PANELEN DICHT bij terugkeer naar het menu. Het testpaneel, het
+    // hulpscherm en het naamscherm bleven anders openstaan — en dan kijk je door
+    // twee schermen tegelijk of zit je vast in een scherm zonder uitweg.
+    ['#tech','#hulp','#naam'].forEach(function(id){
+      const e=document.querySelector(id); if(e) e.setAttribute('visible',false); });
+    { const d=document.querySelector('#laad');
+      if(d&&d.__log){ d.style.display='none'; d.innerHTML=''; d.__log=0; } }
+    try{ menuDeelToon(true); }catch(e){}
     laserAan(true); toonScores(); toonVoortgang();
     try{ toetsenAan(); }catch(e){} }
 
@@ -8312,7 +8395,7 @@
       else {
         // lukt een tabblad niet, dan alsnog op het laadscherm
         const d=document.querySelector('#laad');
-        if(d){ d.style.display='flex'; d.style.opacity='1';
+        if(d){ d.style.display='flex'; d.style.opacity='1'; d.__log=1;
           d.innerHTML='<div style="width:94vw;color:#8fd8ec;font:400 12px monospace;'+
             'white-space:pre-wrap;overflow:auto;max-height:88vh;text-align:left">'+
             veilig+'</div>'; } }
