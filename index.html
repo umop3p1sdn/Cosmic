@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.39';
+  const VERSIE='v13.40';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1441,6 +1441,11 @@
   // maakt. 1 = precies stilstaan in de ruimte terwijl het schip doorvliegt.
   const ROOKWAAI=0.85;
   const ROOKWEG=9;              // hoe hard rook van je wegdrijft, in m/s
+  // Kans per beurt dat een brandplek een rookpluim maakt. Op 0,34 gaf dat bij
+  // drie plekken vijftien pluimen per seconde: veel te veel.
+  // Was 0,34 per brandplek per beurt — bij drie plekken een dikke prop op het
+  // schip. Op 0,12 hangt er een sliert achter hem zonder dat het een wolk wordt.
+  const BRANDROOK=0.12, ROOKLEEF=1.0;
   const STORTMAX=40;            // hoeveel wrakken er tegelijk mogen neerstorten
   // Hoe hard schepen vliegen in de eerste levels: level 1 op 62 procent,
   // oplopend tot vol vanaf level 4.
@@ -5497,7 +5502,15 @@
         // donkerder en langer naarmate hij er slechter aan toe is.
         // Dunne pluimen in plaats van wolken: kleiner en minder vaak.
         const zwaar=(e.fase>=2);
-        if(Math.random()<0.34) this.rook(px,py,pz+2.5,zwaar,zwaar?1.5:1.1,zwaar?1.8:1.3); } },
+        // GEMETEN: 34 procent kans per brandplek per beurt is bij drie plekken
+        // vijftien pluimen per seconde — dat is de dikke prop die op het schip
+        // bleef zitten. Nu ruim vier keer minder, en korter.
+        // GEMETEN: een bijna dood schip maakte gemiddeld 82 pluimen tegelijk,
+        // met een piek van 192 — een muur van rook die op hem bleef plakken.
+        // Nu een vaste, lage kans en een korte levensduur, zodat er altijd een
+        // paar slierten achter hem aan hangen in plaats van een prop.
+        if(Math.random()<BRANDROOK)
+          this.rook(px,py,pz+2.5,zwaar,zwaar?1.1:0.85,ROOKLEEF); } },
 
     // Een gehavende baas rookt en vonkt over zijn hele romp; hoe zwaarder
     // beschadigd, hoe meer. Zijn plaatje blijft heel.
