@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.19';
+  const VERSIE='v13.22';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1487,7 +1487,9 @@
   // scherpte, 16 MB.
   const HEMEL_MAX=2720;
   const PROP_MAX=1024;
-  const LOS_MAX=640;            // maat van een los scheepsplaatje
+  // Een HAULER van 34 m op 60 m afstand vult ruim 570 beeldpunten; bij 640 px
+  // textuur is dat op het randje. 1024 kost 4 MB per schip en is ruim genoeg.
+  const LOS_MAX=1024;
   const PLANEET_MAX=190;        // breedte van een planeet in meters (was 340)
   // Grote planeten eruit: ze vullen je hele blik met een doorzichtig vlak en dat
   // kost een bril meer dan alle schepen samen. Op 1 komen ze terug.
@@ -2546,9 +2548,10 @@
       let schoon=tex;
       if(pix&&kol&&rij&&hoe.indexOf('gemeten')===0){
         try{ schoon=this.plaatSchoon(img,W,H,kol,rij,pix,tex.__naam)||tex; }catch(e){ schoon=tex; } }
-      // Zonder mipmaps zoekt de bril bij ELK beeldpunt door de volle plaat, en
-      // dat is permanente belasting — precies wat Sjoerd voelt.
-      this.losScherp(schoon);
+      // GEEN MIPMAPS OP EEN VLOOTPLAAT. Die bevat losse vakjes naast elkaar; de
+      // kleinere versies die mipmaps maken mengen de buurvakken door elkaar heen,
+      // en dan zie je randjes van het schip ernaast. Alleen de filtering aan.
+      this.plaatScherp(schoon);
       const mat=new THREE.MeshBasicMaterial({map:schoon,transparent:true,alphaTest:0.06,
         side:THREE.DoubleSide,depthWrite:false});
       const P={tex:tex,mat:mat,rect:{},hoe:hoe,kol:kol,rij:rij,rijen:rij.length,data:pix,vuur:{}};
@@ -2931,6 +2934,19 @@
         this.losScherp(nt);
         tex.__klein2=nt; return nt;
       }catch(e){ this.losScherp(tex); return tex; } },
+
+    // Voor platen met VAKKEN: wel scherpe filtering, geen mipmaps.
+    plaatScherp:function(t){
+      try{
+        const rn=(this.el&&this.el.sceneEl&&this.el.sceneEl.renderer)||null;
+        const mx=rn&&rn.capabilities&&rn.capabilities.getMaxAnisotropy
+          ? rn.capabilities.getMaxAnisotropy() : 8;
+        t.anisotropy=Math.min(8,Math.max(1,mx));
+        t.generateMipmaps=false;
+        t.minFilter=THREE.LinearFilter;
+        t.magFilter=THREE.LinearFilter;
+        t.needsUpdate=true;
+      }catch(e){} },
 
     losScherp:function(t){
       try{
@@ -7112,7 +7128,7 @@
           this.uvRect(k.geometry,R,1);
           // alleen vertalen als de kaart of de instelling ECHT wisselt
           if(k.material.map!==window.ART.koppen||!k.__klaar){
-            this.losScherp(window.ART.koppen);
+            this.plaatScherp(window.ART.koppen);
             k.material.map=window.ART.koppen;
             k.material.transparent=true; k.material.alphaTest=0.25;
             k.material.needsUpdate=true; k.__klaar=1; }
@@ -8255,22 +8271,51 @@
     // HET LOGBOEK KOPIËREN. Loopt het spel vast, dan ga je naar het menu, drukt
     // hier, en plakt het in een bericht. Lukt kopiëren niet (dat mag niet altijd
     // in een bril), dan komt het op het scherm te staan.
+    // HET LOG IN EEN EIGEN TABBLAD. Sjoerd: "hij moet hem openen in een nieuw
+    // tabblad met soort website-tekst, die blijft staan." Een echte pagina dus,
+    // die niet wegklapt en waar je rustig kunt selecteren — en met een knop die
+    // het naar het klembord zet.
     kl('#btnLog',function(){
       const t=logTekst();
-      let gelukt=false;
-      try{ if(navigator.clipboard&&navigator.clipboard.writeText){
-        navigator.clipboard.writeText(t); gelukt=true; } }catch(e){}
-      const d=document.querySelector('#laad');
-      if(d){ d.style.display='flex'; d.style.opacity='1';
-        d.innerHTML='<div style="text-align:left;color:#8fd8ec;padding:4vh 6vw;'+
-          'font:400 13px monospace;line-height:1.45;white-space:pre-wrap;'+
-          'overflow:auto;max-height:92vh">'+
-          '<b style="color:#ffb03a;font-size:17px">LOG '+VERSIE+'</b>  '+
-          (gelukt?'<span style="color:#8fd84a">(gekopieerd)</span>':
-                  '<span style="color:#ff8aa6">(selecteer en kopieer)</span>')+
-          '<br><br>'+t.replace(/&/g,'&amp;').replace(/</g,'&lt;')+
-          '<br><br><span style="color:#4d6675">tik hier om te sluiten</span></div>';
-        d.onclick=function(){ d.style.display='none'; d.innerHTML=''; d.onclick=null; }; }
+      const veilig=t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const pag=
+        '<!doctype html><meta charset="utf-8">'+
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'+
+        '<title>COSMIC LOG '+VERSIE+'</title>'+
+        '<style>body{background:#04101c;color:#cfe8ff;margin:0;'+
+        'font:400 13px/1.5 monospace;padding:16px}'+
+        'h1{color:#ffb03a;font:600 20px Trebuchet MS,sans-serif;margin:0 0 6px}'+
+        'button{background:#1d3a24;color:#bdf0a8;border:0;border-radius:6px;'+
+        'padding:12px 22px;font:600 15px Trebuchet MS,sans-serif;margin:0 8px 12px 0}'+
+        'pre{white-space:pre-wrap;word-break:break-word;background:#020a12;'+
+        'border:1px solid #2a9fc4;border-radius:6px;padding:12px;'+
+        '-webkit-user-select:text;user-select:text}'+
+        '#m{color:#6f8fa2;font-size:12px}</style>'+
+        '<h1>COSMIC LOG '+VERSIE+'</h1>'+
+        '<button onclick="k()">COPY ALL</button>'+
+        '<button onclick="s()">SELECT ALL</button>'+
+        '<span id="m">de tekst hieronder blijft staan</span>'+
+        '<pre id="t">'+veilig+'</pre>'+
+        '<script>'+
+        'function s(){var r=document.createRange();r.selectNode(document.getElementById("t"));'+
+        'var g=getSelection();g.removeAllRanges();g.addRange(r);'+
+        'document.getElementById("m").textContent="alles geselecteerd";}'+
+        'function k(){s();var g=false;try{g=document.execCommand("copy");}catch(e){}'+
+        'if(!g&&navigator.clipboard){try{navigator.clipboard.writeText('+
+        'document.getElementById("t").textContent);g=true;}catch(e){}}'+
+        'document.getElementById("m").textContent=g?"gekopieerd":'+
+        '"kopieren mag niet hier - gebruik SELECT ALL";}'+
+        '<\/script>';
+      let w=null;
+      try{ w=window.open('','_blank'); }catch(e){}
+      if(w&&w.document){ w.document.write(pag); w.document.close(); }
+      else {
+        // lukt een tabblad niet, dan alsnog op het laadscherm
+        const d=document.querySelector('#laad');
+        if(d){ d.style.display='flex'; d.style.opacity='1';
+          d.innerHTML='<div style="width:94vw;color:#8fd8ec;font:400 12px monospace;'+
+            'white-space:pre-wrap;overflow:auto;max-height:88vh;text-align:left">'+
+            veilig+'</div>'; } }
       SND.boom(0); });
 
     kl('#btnStop',function(){
