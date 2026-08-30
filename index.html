@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.42';
+  const VERSIE='v13.48';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1446,7 +1446,11 @@
   // Was 0,34 per brandplek per beurt — bij drie plekken een dikke prop op het
   // schip. Op 0,12 hangt er een sliert achter hem zonder dat het een wolk wordt.
   const BRANDROOK=0.12, ROOKLEEF=1.0, PLUIMMAAT=0.30;
+  const LOSBRAND_ELK=0.12;      // seconden tussen twee vlammetjes van een los schip
   const VALROOK=0.40;           // seconden tussen twee pluimen van een wrak
+  // Hoe hard een neerstortend wrak draait, per manier van vallen.
+  // Het neerstorten: versnelling omlaag, hoe hij kantelt, hoe lang, hoe diep.
+  const VALVERSNEL=6.5, VALKANTEL=0.55, VALDUUR=5.0, VALDIEP=45;
   const STORTMAX=40;            // hoeveel wrakken er tegelijk mogen neerstorten
   // Hoe hard schepen vliegen in de eerste levels: level 1 op 62 procent,
   // oplopend tot vol vanaf level 4.
@@ -1459,7 +1463,16 @@
   const SNELSTART=0.50, SNELVOL=8, SNELTOP=0.82;
   const SNELDREMPEL=11;         // hieronder wordt niemand afgeremd
   const AANVLIEG=2.0;           // hoeveel sneller een schip van ver aan komt vliegen
-  const HALTEVLIEG=2.2;         // was 3,4: hoe hard hij van ver komt aanvliegen
+  const AANVLIEG_VANAF=4;       // pas vanaf dit level versneld aanvliegen
+  const ROUTEVAART=1.8;         // was 2,3: hoe hard een schip zijn vaste baan vliegt
+  const OVERVAART=1.9;          // was 2,4: hoe hard hij zijwaarts oversteekt
+  // De bocht van een oversteker: bij welke hoek hij omkeert, en hoe hij
+  // intussen van dichtbij naar ver golft.
+  const BOCHT_GRENS=1.05, BOCHT_DIEP=0.7;
+  const STRAFE_DIEP=14;         // hoe ver een strafer naar voren en terug lust
+  // GEMETEN in level 1: VIPER en NEEDLE piekten op 47 m/s bij het binnenvliegen,
+  // de rest op 26-33. Iets lager, zodat de snelste rond de 35 uitkomen.
+  const HALTEVLIEG=1.7;
   // Hoe lang een EIGEN raket leeft: normaal negen seconden jagen, hoogstens vier
   // seconden daarvan wachten zonder doel, en nooit langer dan twintig seconden.
   const RAK_LEEF=9.0, RAK_WACHT=4.0, RAK_MAX=45;   // hoogstens 45 s in de lucht
@@ -3783,12 +3796,15 @@
           else if(e.onzicht){ /* spook: geen plaatje, alleen vuur en rook */ }
           // Een LOS schip heeft geen beschadigde versie van zichzelf. Hij toont
           // zijn schade met vuur en rook, en met brokstukken die eraf vliegen.
-          else if(e.los){ this.losSchade(e,f); this.schroei(e,f); }
+          else if(e.los){ this.losSchade(e,f); }
           // KOLOM 2 EN 3 ERUIT. Sjoerd gaat nieuwe schepen maken met één mooi
           // plaatje per stuk; de beschadigde versies waren toch het lelijkst.
           // Iedereen toont zijn schade nu zoals de losse schepen dat al deden:
           // met vuur, rook en brokstukken die eraf vliegen.
-          else if(e.bb){ this.losSchade(e,f); this.schroei(e,f); }
+          // GEMETEN: de 'schroeivlek' (v13.26) zette drie bijna zwarte vlekken van
+          // twee meter op een schip van vijf, dekking 82%, die meevlogen. DAT was
+          // de dikke zwarte pluim die Sjoerd zag. Eruit.
+          else if(e.bb){ this.losSchade(e,f); }
           this.vonk(e.p.x,e.p.y,e.p.z,0xffb03a,10,9,0.9); }
         this.vonk(px||e.p.x,py||e.p.y,pz||e.p.z,0xffd9a0,3,7,0.45);
         return; }
@@ -3843,54 +3859,22 @@
     // ---- de vier seconden zelf ----
     doodBaan:function(e,s){
       e.doodT+=s;
-      const rook=function(zelf,dicht){ if(Math.random()<s*(dicht?16:7))
-        zelf.vonk(e.p.x,e.p.y,e.p.z,dicht?0xff7a30:0x8a7a6a,1,dicht?3:2.4,dicht?0.8:0.7,true); };
-
-      if(e.dwijs===1){
-        // DUIKELEN: eerst hard naar beneden, dan optrekken en wegdraaien, dan pas de knal
-        if(e.doodT<1.6){ e.p.addScaledVector(e.dv,e.dsp*1.25*s); e.dv.y-=s*0.5; e.dv.normalize();
-          rook(this,0); }
-        else { if(e.fase!==2){ e.fase=2;
-            if(e.plaat) this.uvRect(e.bb.g,e.plaat.rect[e.rij][0]);
-            const zij=(Math.random()<0.5)?-1:1;
-            e.dv.set(zij*(0.8+Math.random()*0.5),0.35,-0.2).normalize();  // trekt weg
-            this.vonk(e.p.x,e.p.y,e.p.z,0xffb03a,9,8,1.0); }
-          e.p.addScaledVector(e.dv,e.dsp*0.9*s);
-          e.dv.y-=s*0.25; e.dv.normalize();
-          rook(this,1); } }
-
-      else if(e.dwijs===2){
-        // TOLLEN: raakt zijn koers kwijt, draait rond en zakt langzaam weg
-        e.ex.dh=(e.ex.dh||Math.random()*6.28)+s*(1.8+e.doodT*0.9);
-        e.dv.set(Math.cos(e.ex.dh)*0.8,-0.25-e.doodT*0.12,Math.sin(e.ex.dh)*0.5).normalize();
-        e.p.addScaledVector(e.dv,e.dsp*0.7*s);
-        if(e.doodT>=2.0&&e.fase!==2){ e.fase=2;
-          if(e.plaat) this.uvRect(e.bb.g,e.plaat.rect[e.rij][0]);
-          this.vonk(e.p.x,e.p.y,e.p.z,0xffb03a,7,7,0.9); }
-        rook(this,e.doodT>=2.0); }
-
-      else if(e.doodT<2.0){                            // WEGDRAAIEN: draait af, rookt
-        e.p.addScaledVector(e.dv,e.dsp*s);
-        e.dv.y-=s*0.10;
-        rook(this,0); }
-      else {
-        if(e.fase!==2){ e.fase=2;                      // stort neer: laatste plaatje
-          if(e.plaat) this.uvRect(e.bb.g,e.plaat.rect[e.rij][0]);
-          e.dv.x+=(Math.random()-0.5)*1.4;             // en een willekeurige zwenk
-          e.dv.z+=(Math.random()-0.5)*0.8;
-          e.dv.normalize();
-          this.vonk(e.p.x,e.p.y,e.p.z,0xffb03a,7,7,0.9); }
-        e.p.addScaledVector(e.dv,e.dsp*0.8*s);
-        e.dv.y-=s*0.75;                                // duikt steeds steiler
-        e.dv.normalize();
-        rook(this,1); }
-      const b=e.bb;
-      if(b){ b.m.position.copy(e.p); b.m.lookAt(this.kop);
-        b.m.rotateZ(e.drol*e.doodT*(e.dwijs===2?2.2:1)); // tolt om zijn as
-        b.m.scale.set(e.bw||e.sc,e.bh||e.sc,1); }
-      if(e.romp) e.romp.position.copy(e.p);
-      if(e.doodT>=4.0||e.p.z>22) this.knalDood(e); },
-
+      if(!e.valDir){
+        const v=new THREE.Vector3();
+        if(e.vp) v.copy(e.p).sub(e.vp);
+        if(v.length()<0.01) v.set((e.zij||1)*0.3,0,0.2);
+        v.y=0; v.normalize();
+        e.valDir=v; e.valSn=Math.max(3,(TYPE[e.tp].sp||8)*0.35); e.valV=0; }
+      e.valV+=s*VALVERSNEL;
+      e.p.addScaledVector(e.valDir,e.valSn*s);
+      e.p.y-=e.valV*s;
+      if(e.bb){ e.bb.m.rotation.z=(e.bb.m.rotation.z||0)+s*VALKANTEL*(e.valDir.x<0?-1:1);
+        e.bb.m.position.copy(e.p); }
+      if(e.fase>=1) this.brandTick(e,s);
+      if(e.doodT>VALDUUR||e.p.y<this.kop.y-VALDIEP){
+        this.knal(e.p,e.sc*0.9);
+        this.bbVrij(e.bb); e.bb=null; e.live=false; e.dood=0;
+        if(TYPE[e.tp].prof==='baas') this.baas=null; } },
     punt:function(e){
       const T=TYPE[e.tp];
       this.gedood++; this.combo++; this.laatst=this.T;
@@ -4041,7 +4025,7 @@
         // die loopt slaat de baanfunctie over, dus een hergebruikt schip stond
         // stil. geestT liet hem in de verkeerde fase beginnen, rol gaf een scheve
         // stand, en veld liet een krachtveld om een gewoon schip staan.
-        e.springRust=0; e.geestT=0; e.rol=0;
+        e.springRust=0; e.geestT=0; e.rol=0; e.valDir=null; e.valV=0;
         if(e.veld){ e.veld.visible=false; e.veld=null; }
         e.moedF=undefined; e.moedT=0; e.veldP=0;
         if(e.veld) e.veld.visible=false;
@@ -4321,7 +4305,7 @@
         // van 3,4 staat helemaal los van de snelheidsrem, dus bleef het
         // aanvliegen even hard hoe laag ik die rem ook zette. Nu loopt hij mee
         // met dezelfde rem als de rest.
-        const vlieg=(afst>75)?(1+(HALTEVLIEG-1)*this.snelRem(T)):1;
+        const vlieg=(afst>75&&this.level>=AANVLIEG_VANAF)?(1+(HALTEVLIEG-1)*this.snelRem(T)):1;
         if(afst>doel+1.2) e.p.addScaledVector(naar,sp*vlieg*s);
         else { e.mode='wacht'; e.wacht=5.0; } }              // eerst 5 seconden stilhangen
       else if(e.mode==='wacht'){
@@ -4406,7 +4390,10 @@
       // NEEDLE haalde daar 86 m/s. Mijn rem raakte alleen het laatste stukje,
       // dus bleef het binnenvliegen even hard. Die aanvliegfactor loopt nu mee
       // met dezelfde rem als de rest.
-      const inv=(afst>110)?(1+(AANVLIEG-1)*rem):1;
+      // GEMETEN: WASP piekte op 70 m/s in de eerste halve seconde, boven 110 m.
+      // Deze factor en HALTEVLIEG stapelen. In de eerste levels geen versneld
+      // aanvliegen: dan komt hij op zijn gewone snelheid binnen.
+      const inv=(afst>110&&this.level>=AANVLIEG_VANAF)?(1+(AANVLIEG-1)*rem):1;
       const wil=Math.max(-1,Math.min(1,dv/26))*T.sp*inv*F.v*
         (e.snelX||1)*rem;
       e.vv=(e.vv||0)+(wil-(e.vv||0))*Math.min(1,s*1.8);
@@ -4445,7 +4432,7 @@
       // zijn rechterkant omhoog. Hoe sneller opzij, hoe schuiner.
       if(e.baanY) e.p.y+=(e.baanY-(e.baanY0||0)); e.baanY0=e.baanY||0;
       const zijV=(e.p.x-xv)/Math.max(0.004,s);
-      e.rol=(e.rol||0)+((Math.max(-1,Math.min(1,zijV/13))*0.50)-(e.rol||0))*Math.min(1,s*2.4);
+      e.rol=(e.rol||0)+((Math.max(-1,Math.min(1,zijV/13))*0.50+(e.rolBocht||0))-(e.rol||0))*Math.min(1,s*2.4);
       // DE ROLAANVAL: kleine jagers draaien een volle rol terwijl ze op je af
       // duiken. Puur vertoon, maar het maakt een aanval veel levendiger.
       // DE ROL VOLGT ZIJN SNELHEID. Een schip dat hard van links naar rechts
@@ -4454,7 +4441,10 @@
         const vaart=Math.min(2.4,0.7+Math.abs(zijV)/12);
         e.rolA=(e.rolA||0)+s*ROLSNEL*vaart;
         if(e.bb) e.bb.m.rotation.z=e.rol+e.rolA; }
-      else if(e.bb) e.bb.m.rotation.z=e.rol;
+      // Een WRAK draait zichzelf (tollen, duikelen). Deze regel zette hem elke
+      // beurt terug op zijn vliegstand, dus bleef hij rechtop hangen terwijl hij
+      // viel. Nu alleen voor schepen die nog leven.
+      else if(e.bb&&!e.dood&&!e.dood2) e.bb.m.rotation.z=e.rol;
       e.p.y=reus
         ? (this.kop.y-e.bh*0.34+Math.sin(e.t*0.13)*e.hb)   // hoofd blijft op ooghoogte
         : (this.kop.y+hoogte+Math.sin(e.t*0.33)*e.hb);
@@ -5498,8 +5488,27 @@
     // Een beschadigd schip brandt op de plekken die op zijn plaatje branden. De
     // vlam wakkert grillig aan en uit, laat een vuurstreep achter waar hij net
     // was, en daarachter een rookspoor dat langzaam uitdijt.
+    // Brand van een los schip: twee plekken op de romp, vuur en een dun
+    // rookspoor, heftiger bij fase 3.
+    losBrand:function(e,s){
+      // niet elke beurt, anders 350 vonken per seconde
+      e.brT=(e.brT||0)-s; if(e.brT>0) return; e.brT=LOSBRAND_ELK;
+      const zw=(e.fase>=2);
+      for(let i=0;i<(zw?2:1);i++){
+        const px=e.p.x+(i?0.22:-0.28)*e.bw, py=e.p.y+(i?-0.08:0.12)*e.bh, pz=e.p.z+0.8;
+        const fel=0.55+Math.random()*0.9;
+        this.vonk(px,py,pz,0xfff2c0,1,1.4*fel,0.18);
+        this.vonk(px,py,pz,0xffb03a,1,2.0*fel,0.32);
+        if(zw&&Math.random()<0.5) this.vonk(px,py,pz,0xff6a2a,1,2.6,0.45);
+        if(Math.random()<0.35)
+          this.rook(px,py,pz+2,zw,zw?PLUIMMAAT*1.3:PLUIMMAAT,ROOKLEEF); } },
+
     brandTick:function(e,s){
-      if(!e.plaat||!e.plaat.vuur||e.fase<1||!e.bb) return;
+      if(e.fase<1||!e.bb) return;
+      // Een LOS schip heeft geen vlootplaat en dus geen gemeten brandplekken.
+      // Daardoor brandde hij nooit — niet levend, niet vallend. Hij krijgt nu
+      // twee vaste plekken op zijn romp.
+      if(!e.plaat||!e.plaat.vuur){ this.losBrand(e,s); return; }
       let pl=e.plaat.vuur[e.rij];
       if(!pl||!pl.length) return;
       // Op een schip van 24 meter valt één pluimpje niet op. Grote schepen
@@ -5652,16 +5661,33 @@
       const T=TYPE[e.tp];
       const band=OVER[Math.min(2,e.stap)];
       // eerst de goede afstand pakken
-      if(Math.abs(afst-band)>3) e.p.addScaledVector(naar,(afst>band?1:-1)*sp*(afst>95?3.4:1.1)*s);
-      // dan zijwaarts langs je heen, loodrecht op de kijklijn
+      // Ook hier stapelt een aanvliegfactor (3,4) op de zijwaartse vaart. Beide
+      // lopen nu mee met de snelheidsrem van de eerste levels.
+      const rm=this.snelRem(TYPE[e.tp]);
+      const vr=(afst>95&&this.level>=AANVLIEG_VANAF)?3.4:1.1;
+      if(Math.abs(afst-band)>3) e.p.addScaledVector(naar,(afst>band?1:-1)*sp*vr*rm*s);
+      // EEN BOCHT in plaats van een rechte streep. Sjoerd: "geen stuiterballen
+      // uit de flipperkast, het zijn vliegtuigen." Hij vloog loodrecht opzij en
+      // klapte om bij de grens. Nu beschrijft hij een boog: de zijwaartse vaart
+      // neemt af naarmate hij verder opzij komt, en hij zwenkt tegelijk naar
+      // voren en terug — dus ook van dichtbij naar ver.
       const t=this.OT||(this.OT=new THREE.Vector3());
       t.set(-naar.z,0,naar.x).normalize();
-      e.p.addScaledVector(t,e.zij*sp*2.4*s);
+      const hoekNu=Math.atan2(e.p.x,Math.max(1,-e.p.z));
+      // hoe dichter bij de rand, hoe minder zijwaarts: dat maakt de bocht
+      const rand=Math.min(1,Math.abs(hoekNu)/BOCHT_GRENS);
+      const zijV=e.zij*sp*OVERVAART*rm*(1-rand*rand*0.85);
+      e.p.addScaledVector(t,zijV*s);
+      // en in de bocht komt hij naar voren of gaat hij terug: dieptevariatie
+      const diep=Math.sin(e.t*BOCHT_DIEP+e.i0)*sp*0.55*rm;
+      e.p.addScaledVector(naar,diep*s);
       e.p.y+=Math.sin(e.t*0.8+e.i0)*4*s;
+      // het schip helt mee in de bocht
+      e.rolBocht=-zijV*0.018;
       // hoever is hij opzij gekomen? voorbij de grens keert hij om en komt dichterbij
       // hoek blijft binnen +/-90 graden, anders klapt de meting om en flipt hij elk frame
-      const hoek=Math.atan2(e.p.x,Math.max(1,-e.p.z));
-      const grens=1.12;                              // ~64 graden: keren vóór hij naast je hangt
+      const hoek=hoekNu;
+      const grens=BOCHT_GRENS;
       e.flipT=(e.flipT||0)-s;
       if(e.flipT<=0&&Math.abs(hoek)>grens){          // te ver opzij: keren, en dichterbij terug
         e.zij*=-1; e.flipT=2.5;
@@ -5695,7 +5721,11 @@
       // vloeiend bijsturen in plaats van hoekig omklappen
       if(!e.rv) e.rv=naarPunt.clone();
       e.rv.lerp(naarPunt,Math.min(1,s*1.8)).normalize();
-      e.p.addScaledVector(e.rv,sp*2.3*s);
+      // GEMETEN: het eerste schip van level 1 vliegt met stijl 'route', en die
+      // ging 2,3 keer zijn basissnelheid — WASP stuiterde daardoor met 34 tot 47
+      // m/s van links naar rechts langs je heen. Nu loopt de route mee met de
+      // snelheidsrem van de eerste levels, en is de factor zelf iets lager.
+      e.p.addScaledVector(e.rv,sp*ROUTEVAART*this.snelRem(TYPE[e.tp])*s);
       e.bT=(e.bT||0)-s;
       if(e.bT<=0){ e.bT=((TYPE[e.tp].cd||3.4)*0.8+Math.random()*1.4)*VUURTEMPO;
         this.spuw(e,TYPE[e.tp].sal||1,0.06); } },
@@ -5725,8 +5755,13 @@
           e.mode=L.mode; e.stap=L.stap; }
         else { e.form=null; e.p.x+=Math.cos(e.t*0.9)*7*s*zij; } }
 
+      // STRAFER: hij ging alleen heen en weer op één afstand. Nu vliegt hij een
+      // liggende lus — opzij, dan naar voren, terug, en weer opzij — zodat het
+      // een echte bocht wordt in plaats van een streep.
       else if(P==='strafer'){ e.p.x+=Math.cos(e.t*0.55+e.i0)*26*s*zij;
-                              e.p.y+=Math.sin(e.t*0.7)*5*s*zij; }
+                              e.p.y+=Math.sin(e.t*0.7)*5*s*zij;
+                              e.p.z+=Math.sin(e.t*1.1+e.i0)*STRAFE_DIEP*s;
+                              e.rolBocht=-Math.sin(e.t*0.55+e.i0)*zij*0.35; }
 
       else if(P==='cirkel'){ e.ex.a=(e.ex.a||e.i0)+s*0.85;
                              e.p.x+=Math.cos(e.ex.a)*22*s*zij;
@@ -5840,7 +5875,10 @@
         if(SPRINGERS.indexOf(nm2)>=0&&!(e.springCd>0)) this.raketWijk(e);
         if(e.herpakT>0){ this.herpakTick(e,s); return; } }
       // Een LOS schip tuimelt neer in plaats van uit elkaar te spatten.
-      if(e.dood&&e.los){ this.losVal(e,s); this.doodBaan(e,s); return; }
+      // HET NEERSTORTEN WERKTE AL: doodBaan laat een schip wegdraaien, duikelen
+      // of tollen — drie manieren, willekeurig gekozen. In v13.01 zette ik daar
+      // losVal bovenop voor losse schepen, en die overschreef de rotatie en de
+      // val. Nu doet doodBaan het weer voor iedereen, zoals altijd.
       if(e.dood){ this.doodBaan(e,s); return; }
       // De spiraalwerper stuurt zichzelf: hij staat stil terwijl hij vuurt en
       // sprint daarna weg. Zijn gewone vlieggedrag zou dat overschrijven.
