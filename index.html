@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.38';
+  const VERSIE='v13.39';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1440,6 +1440,7 @@
   // Hoe hard rook naar achteren wegwaait ten opzichte van het schip dat hem
   // maakt. 1 = precies stilstaan in de ruimte terwijl het schip doorvliegt.
   const ROOKWAAI=0.85;
+  const ROOKWEG=9;              // hoe hard rook van je wegdrijft, in m/s
   const STORTMAX=40;            // hoeveel wrakken er tegelijk mogen neerstorten
   // Hoe hard schepen vliegen in de eerste levels: level 1 op 62 procent,
   // oplopend tot vol vanaf level 4.
@@ -3010,7 +3011,27 @@
         const hk=Math.random()*6.283, af=e.sc*(0.14+Math.random()*0.3);
         this.rook(e.p.x+Math.cos(hk)*af,e.p.y+Math.sin(hk)*af*0.7,
                   e.p.z+(Math.random()-0.5)*af,f>=2,
-                  2.2+Math.random()*1.4,2.0,0,e.v); } },
+                  2.2+Math.random()*1.4,2.0,0,this.scheepsV(e)); } },
+
+    // DE ECHTE SNELHEID van een schip. e.v blijft altijd nul — de beweging zit
+    // in e.vv (voor/achteruit) en zijn zwaai. Zonder dit kreeg de rook geen
+    // snelheid mee en bleef hij op het schip plakken.
+    scheepsV:function(e){
+      // De snelheid wordt NIET ergens bewaard: een schip verzet gewoon zijn
+      // positie. Dus meten we hoeveel hij sinds de vorige beurt is opgeschoven.
+      // Dat is de enige echte snelheid die er is.
+      const v=this.SV||(this.SV=new THREE.Vector3());
+      if(!e.vp){ e.vp=new THREE.Vector3().copy(e.p); v.set(0,0,0); return v; }
+      v.copy(e.p).sub(e.vp).multiplyScalar(72);
+      return v; },
+
+    // Elke beurt onthouden waar elk schip stond, zodat scheepsV zijn snelheid
+    // kan meten.
+    vpTick:function(){
+      for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
+        if(!e.live) continue;
+        if(!e.vp) e.vp=new THREE.Vector3();
+        e.vp.copy(e.p); } },
 
     // De vlekken meelaten bewegen met hun schip, en opruimen als het weg is.
     vlekTick:function(){
@@ -3950,8 +3971,11 @@
         // WEGWAAIEN. De rook kreeg bijna geen eigen snelheid, dus bleef hij als
         // een dikke pluim op het schip plakken terwijl die doorvloog. Nu waait
         // hij naar ACHTEREN weg, met de snelheid van het schip dat hem maakte.
-        R.vx=(Math.random()-0.5)*1.6; R.vy=0.5+Math.random()*1.2;
-        R.vz=(Math.random()-0.5)*1.6;
+        // WEGWAAIEN. Een schip vliegt naar je toe, dus rook hoort van je WEG te
+        // drijven — dat leest als achterblijven, ook zonder de exacte snelheid
+        // van het schip te kennen. Plus een zijwaartse spreiding die uitwaaiert.
+        R.vx=(Math.random()-0.5)*3.2; R.vy=0.4+Math.random()*1.0;
+        R.vz=(Math.random()-0.5)*2.0-ROOKWEG;
         if(wv){ R.vx-=wv.x*ROOKWAAI; R.vy-=wv.y*ROOKWAAI; R.vz-=wv.z*ROOKWAAI; }
         R.m.scale.setScalar(R.sz);
         return; } },
@@ -6485,6 +6509,7 @@
           if(e.romp){ e.romp.visible=false; e.romp=null; } }               // ontsnapt
         if(window.PAUSED) return; }
 
+      this.vpTick();   // aan het EIND: waar stond iedereen deze beurt?
       this.stap='brand';
       // ---- schepen die in BRAND staan door de laser ----
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
