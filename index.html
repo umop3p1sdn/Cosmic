@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.51';
+  const VERSIE='v13.53';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -3847,8 +3847,13 @@
       e.fase=1;                                        // meteen naar het beschadigde plaatje
       // Een baas heeft geen vakken op zijn plaat: die houdt zijn eigen plaatje.
       // Deed hij dat niet, dan veranderde hij bij het neerstorten in een blokje.
-      // ook bij het neerstorten het GAVE plaatje: vuur en rook doen de rest
-      if(e.plaat) this.uvRect(e.bb.g,e.plaat.rect[e.rij][0]);
+      // GEMETEN: bij de dood sprong de uv van een LOS schip van 0-1 naar
+      // 0,75-1 — een kwart van zijn eigen plaat, uitgerekt over het hele vlak.
+      // Dat was de 'grote plaat met zijn eigen textuur' die Sjoerd zag. Een los
+      // schip heeft geen vlootplaat, dus viel hij door naar bbCel, en die kiest
+      // een vakje uit de OUDE atlas. Een los schip houdt gewoon zijn hele plaat.
+      if(e.los){ /* zijn eigen tekening, hele plaat, niets veranderen */ }
+      else if(e.plaat) this.uvRect(e.bb.g,e.plaat.rect[e.rij][0]);
       else if(!e.gedrag) this.bbCel(e.bb,Math.min(7,e.cel)+8);
       const zij=(Math.random()<0.5)?-1:1;
       e.dwijs=Math.floor(Math.random()*3);                   // 0 wegdraaien, 1 duikelen, 2 tollen
@@ -4114,7 +4119,11 @@
         e.t=0; e.cd=0.8+Math.random()*1.6; e.ex={}; e.i0=Math.random()*6.28;
         const zij=(Math.random()<0.5)?-1:1;
         e.romp=this.romp[i];
-        e.romp.visible=!(this.ATLAS&&this.ATLAS.image&&this.ATLAS.image.width);   // terugval zonder plaat
+        // DE RECHTHOEK die Sjoerd zag. De romp is een kaal gekleurd vlak, bedoeld
+        // als terugval als er geen plaat is. Maar hij keek alleen naar de ATLAS —
+        // en losse schepen gebruiken die niet. Dus bleef de kale romp áchter elk
+        // schip zichtbaar. Nu: heeft het schip een eigen tekening, dan geen romp.
+        e.romp.visible=!(this.ATLAS&&this.ATLAS.image&&this.ATLAS.image.width)&&!LOS;
         e.romp.material.color.setHex(ROMPKL[tp]);
         e.p.set((opt&&opt.x!==undefined)?opt.x:(zij*(10+Math.random()*30)),
                 (opt&&opt.y!==undefined)?opt.y:(1.6+(Math.random()*16-6)),
