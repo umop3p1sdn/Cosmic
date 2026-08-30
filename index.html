@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.37';
+  const VERSIE='v13.38';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1441,6 +1441,13 @@
   // maakt. 1 = precies stilstaan in de ruimte terwijl het schip doorvliegt.
   const ROOKWAAI=0.85;
   const STORTMAX=40;            // hoeveel wrakken er tegelijk mogen neerstorten
+  // Hoe hard schepen vliegen in de eerste levels: level 1 op 62 procent,
+  // oplopend tot vol vanaf level 4.
+  // Sjoerd: "houd hem maar wat trager, er komen gewoon zwaardere en sterkere."
+  // De uitdaging komt van de vijanden zelf, niet van hun tempo. Rustiger begin
+  // en een langere aanloop: pas op level 8 vliegt iedereen vol.
+  const SNELSTART=0.55, SNELVOL=8, SNELTOP=0.82;
+  const SNELDREMPEL=11;         // hieronder wordt niemand afgeremd
   // Hoe lang een EIGEN raket leeft: normaal negen seconden jagen, hoogstens vier
   // seconden daarvan wachten zonder doel, en nooit langer dan twintig seconden.
   const RAK_LEEF=9.0, RAK_WACHT=4.0, RAK_MAX=45;   // hoogstens 45 s in de lucht
@@ -4331,7 +4338,19 @@
       const dv=(afst-doel);
       // e.snelX is de eigen versneller van dit schip: de herpakker zet hem na
       // zijn duik omhoog, zodat hij daarna echt harder gaat.
-      const wil=Math.max(-1,Math.min(1,dv/26))*T.sp*(afst>110?3.0:1)*F.v*(e.snelX||1);
+      // ALLEEN DE SNELLE AFREMMEN. Sjoerd: "alleen de snelle iets langzamer, met
+      // de rest niets doen." Een kolos van 2,4 moet zijn tempo houden; het zijn
+      // de rappe jagers die in de eerste levels te hard gingen. De rem werkt
+      // daarom pas boven SNELDREMPEL, en drukt harder naarmate een schip sneller
+      // is.
+      let rem=1;
+      if(T.sp>SNELDREMPEL){
+        const L0=Math.max(1,this.level||1);
+        const lv=(L0>=SNELVOL)?1:(SNELSTART+(1-SNELSTART)*(L0-1)/(SNELVOL-1));
+        const mate=Math.min(1,(T.sp-SNELDREMPEL)/12);
+        rem=(1-(1-lv)*mate)*(1-(1-SNELTOP)*mate); }
+      const wil=Math.max(-1,Math.min(1,dv/26))*T.sp*(afst>110?3.0:1)*F.v*
+        (e.snelX||1)*rem;
       e.vv=(e.vv||0)+(wil-(e.vv||0))*Math.min(1,s*1.8);
       e.p.addScaledVector(naar,e.vv*s);
       const xv=e.p.x;
