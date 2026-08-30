@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.12';
+  const VERSIE='v13.19';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -962,6 +962,8 @@
   '      <a-plane id="btnScores" class="menu-btn" position="-0.29 0.470 -2.58" width="0.50" height="0.20" material="color:#0a1420;shader:flat;opacity:0.82;transparent:true"></a-plane>'+
   '      <a-plane id="btnHelp" class="menu-btn" position="0.29 0.470 -2.58" width="0.50" height="0.20" material="color:#0a1420;shader:flat;opacity:0.82;transparent:true"></a-plane>'+
   '      <a-plane id="btnTech" class="menu-btn" position="0.86 0.470 -2.58" width="0.50" height="0.20" material="color:#0a1420;shader:flat;opacity:0.82;transparent:true"></a-plane>'+
+  '      <a-plane id="btnLog" class="menu-btn" position="-0.29 0.185 -2.58" width="0.50" height="0.20" material="color:#0a1420;shader:flat;opacity:0.82;transparent:true"></a-plane>'+
+  '      <a-entity id="mLog" position="-0.29 0.185 -2.57"></a-entity>'+
   '      <a-plane id="btnStop" class="menu-btn" position="0.29 0.185 -2.58" width="0.50" height="0.20" material="color:#0a1420;shader:flat;opacity:0.82;transparent:true"></a-plane>'+
   '      <a-entity id="mStop" position="0.29 0.185 -2.57"></a-entity>'+
   '      <a-plane id="btnShare" class="menu-btn" position="0.86 0.185 -2.58" width="0.50" height="0.20" material="color:#0a1420;shader:flat;opacity:0.82;transparent:true"></a-plane>'+
@@ -1389,7 +1391,12 @@
   const RAKETKLAP=7, RAKETKLAP_ZW=13, RAKETKLAP_DMG=3;
   const KET_MAX=3;              // hoe diep een kettingreactie mag doorgaan
   const KET_LUS=10;             // en hoeveel raketten één klap hoogstens opruimt
+  // Hoe lang een EIGEN raket leeft: normaal negen seconden jagen, hoogstens vier
+  // seconden daarvan wachten zonder doel, en nooit langer dan twintig seconden.
+  const RAK_LEEF=9.0, RAK_WACHT=4.0, RAK_MAX=20;
+  const RAKET_LEEF=9;           // hoe lang jouw raket hoogstens vliegt, in seconden
   const LVMAAT=0.052;           // hoogte van de niveautekst (was 0.034)
+  const LOG_MAX=120;            // hoeveel regels het logboek bewaart
   const BAL_N=6, BAL_TIJD=0.55;  // vuurballen bij een raketinslag
   const KOGELSNEL=185;          // meter per seconde — moet kloppen met bolt()
   // Het nabranden van de laser: hoeveel schade per tik, hoe vaak, en hoeveel
@@ -1407,23 +1414,41 @@
   // en hoe snel ze rollen.
   // WELKE SCHEPEN de rolaanval doen. Twee soorten, verder niemand: zo blijft het
   // een kunstje van die twee in plaats van een tic van de hele lucht.
+  // WEGDUIKEN ALS JE MIKT. Vanaf level 3 doet er eentje mee, daarna steeds meer.
+  // DUIK_HOEK: hoe strak je vizier moet staan (1 = precies op hem).
+  // Snelle schepen merken het eerder, kolossen later.
+  // Sjoerd: op level 12 dook bijna elke lichte jager weg, en dat is geen spel
+  // meer maar een straf. Het moet een KRUIDING zijn: eentje in het begin, en op
+  // het eind hoogstens een derde. Dan verrast het nog steeds.
+  // Sjoerd: hoogstens acht procent op level 12. Dan is het een verrassing die
+  // je bijhoudt, geen straf die elk schot verpest.
+  const DUIK_VANAF=3, DUIK_STAP=0.011, DUIK_MAX=0.08;
+  const DUIK_HOEK=0.9965, DUIK_VER=130;
+  const WIJK_TIJD=0.55, WIJK_KRACHT=16, WIJK_RUST=2.6;
   const ROLLERS=['RAZOR','FALCON'];
   const ROLKANS=0.45, ROLTIJD=0.9, ROLSNEL=7.0;
   // DE SPRINGER: hoe ver hij verspringt en hoe lang hij daarna moet wachten.
-  const SPRING_VER=25, SPRING_CD=10, SPRING_RUST=0.45;
+  // Sjoerd: de sprong en de duik waren te klein om te zien. Allebei verdubbeld.
+  const SPRING_VER=50, SPRING_CD=10, SPRING_RUST=0.55;
+  // Op hoeveel meter een naderende raket hem laat verspringen. Iets ruimer dan
+  // de kleinste klapstraal (12 m), zodat hij er net buiten landt.
+  const SPRING_ALARM=16;
   // HET SPOOKSCHIP: vanaf welke afstand hij vervaagt, waar hij weer verschijnt,
   // en hoe doorzichtig hij op zijn onzichtbaarst is.
-  const GEEST_VER=150, GEEST_DICHT=55, GEEST_MIN=0.05;
+  // Het spookschip werkt op TIJD: zichtbaar, glans, weg, en weer terug.
+  // Van dichtbij (onder GEEST_DICHT) zie je hem altijd.
+  const GEEST_ZICHT=2.4, GEEST_GLANS=0.8, GEEST_WEG=2.6, GEEST_TERUG=1.2;
+  const GEEST_DICHT=45, GEEST_MIN=0.06;
   // DE HERPAKKER: hoe lang hij tuimelt, hoeveel sneller hij daarna gaat, en de
   // wachttijd tot hij het opnieuw kan.
-  const HERPAK_TIJD=0.8, HERPAK_SNEL=1.5, HERPAK_CD=10, HERPAK_MAX=2.6;
+  const HERPAK_TIJD=1.1, HERPAK_SNEL=1.5, HERPAK_CD=10, HERPAK_MAX=2.6;
   // Welke soorten deze drie kunstjes hebben.
   const SPRINGERS=['WRAITH'], GEESTEN=['NIGHTBLADE'], HERPAKKERS=['VIPER'];
   // DE KLOK: hoe snel hij rolt, hoe vaak hij vuurt, hoe lang zijn raket recht
   // naar buiten gaat voor hij bijdraait, en hoe lang hij weg is na twaalf uur.
   const KLOKKEN=['CYCLONE'];
   const KLOK_ROL=2.4, KLOK_TIK=1.0, KLOK_SNEL=30, KLOK_DRAAI=2.8;
-  const KLOK_VRIJ=0.7, KLOK_VER=60, KLOK_PAUZE=3, KLOK_AF=95;
+  const KLOK_VRIJ=0.7, KLOK_VER=110, KLOK_PAUZE=3, KLOK_AF=95;
   // HET MOEDERSCHIP: hoe lang het krachtveld staat, hoe lang het weg is, hoeveel
   // jagers eruit komen en hoe taai die zijn.
   const MOEDERS=['TITAN'];
@@ -1956,19 +1981,22 @@
   // WEAVER 12, BROOD 13, BULWARK 15, WATCHER 16, HAULER 17, HEAVY 5 — komen nu
   // veel eerder, want die zien er het best uit. De schepen die alleen als vak op
   // een vlootplaat bestaan schuiven naar achteren of vallen weg.
+  // De lichte jagers (WASP 1, SCOUT 0, NEEDLE 22, RAZOR 6) horen bij het BEGIN.
+  // Ze verdwijnen geleidelijk uit de lijst, zodat de late levels om zware schepen
+  // draaien in plaats van om dezelfde jagers met meer gezelschap.
   const NIVEAU=[
     [ 1, 0, 7,22, 6, 8],                        // 1  zes lichtste
     [ 1, 0, 7,22, 6, 8, 9,19],                  // 2  + NIGHTBLADE, FALCON
-    [ 0, 7,22, 6, 8, 9,19, 2,18],               // 3  + FIGHTER, WRAITH
-    [ 7,22, 6, 8, 9,19, 2,18,11,12],            // 4  + LANCER, WEAVER (eigen plaat)
-    [22, 6, 8, 9,19, 2,18,11,12,10, 5],         // 5  + REAPER, HEAVY (eigen plaat)
-    [ 6, 8, 9,19, 2,18,11,12,10, 5,13,25],      // 6  + BROOD (eigen plaat), SHRIKE
-    [ 8, 9,19, 2,18,11,12,10, 5,13,25,16],      // 7  + WATCHER (eigen plaat)
-    [ 9,19, 2,18,11,12,10, 5,13,16,26,15],      // 8  + VENOM, BULWARK (eigen plaat)
-    [19, 2,18,11,12,10, 5,13,16,15,24,21],      // 9  + CYCLONE, HALO
-    [ 2,18,11,12,10, 5,13,16,15,21,17,20],      // 10 + HAULER (eigen plaat), INFERNO
-    [18,11,12,10, 5,13,16,15,17,20,23,27],      // 11 + BASILISK, ORACLE
-    [12,10, 5,13,16,15,17,20,23,27,28,29]       // 12 + TITAN, NOVA — het zwaarste
+    [ 0, 7,22, 6, 8, 9,19, 2,18],               // 3  WASP weg, + FIGHTER, WRAITH
+    [ 7,22, 6, 8, 9,19, 2,18,11,12],            // 4  SCOUT weg, + LANCER, WEAVER
+    [22, 6, 8, 9,19, 2,18,11,12,10,24],         // 5  VIPER weg, + REAPER, DE KLOK
+    [ 6, 8, 9,19, 2,18,11,12,10,24, 5,25],      // 6  NEEDLE weg, + HEAVY, SHRIKE
+    [ 8, 9,19, 2,18,11,12,10,24, 5,13,16],      // 7  RAZOR weg, + BROOD, WATCHER
+    [ 9,19,18,11,12,10,24, 5,13,16,28,26],      // 8  SPINNER en FIGHTER weg, + DE HANGAR, VENOM
+    [19,18,11,12,10,24, 5,13,16,28,15,21],      // 9  NIGHTBLADE weg, + BULWARK, HALO
+    [18,11,12,10,24, 5,13,16,28,15,17,27],      // 10 FALCON weg, + HAULER, ORACLE
+    [11,12,10,24, 5,13,16,28,15,17,20,23],      // 11 WRAITH weg, + INFERNO, BASILISK
+    [12,10,24, 5,13,16,28,15,17,20,23,29]       // 12 LANCER weg, + NOVA — het zwaarste
   ];
   const LEVELS=NIVEAU.length;
   //          -  raket shotgun laser electro mitrailleur
@@ -2184,7 +2212,9 @@
           m.material.needsUpdate=true; } }); },1200);
       this.reset();
       prog(88,'SYSTEMS');
-    }catch(e){ this.dead=true; fout('INIT: '+e.message); } },
+    }catch(e){ this.dead=true;
+      if(window.LOG) window.LOG('!! INIT MISLUKT: '+(e&&e.message));
+      fout('INIT: '+e.message); } },
 
     mkPool:function(arr,n,mk,velden){
       for(let i=0;i<n;i++){ const o={m:mk(),live:false};
@@ -2254,7 +2284,13 @@
     // ---- sprite-plek pakken en het juiste atlasvak instellen ----
     bbPak:function(cel){
       for(let i=0;i<this.bb.length;i++){ const b=this.bb[i]; if(!b.vrij) continue;
-        b.vrij=false; this.bbCel(b,cel); b.m.visible=true; return b; }
+        b.vrij=false; this.bbCel(b,cel); b.m.visible=true;
+        // DE DOORZICHTIGHEID TERUGZETTEN. Sprites komen uit een gedeelde
+        // voorraad; had het vorige schip een spookje of een tuimelend wrak, dan
+        // erfde het volgende die dekking en werd ineens iedereen doorzichtig.
+        if(b.m.material){ b.m.material.opacity=1; b.m.material.transparent=false; }
+        b.m.rotation.z=0;
+        return b; }
       return null; },
     bbCel:function(b,cel){
       const u=(cel%4)/4, v=1-(Math.floor(cel/4)+1)/4, M=0.0015;
@@ -2651,7 +2687,11 @@
     // binnen 25 m en vuurt meteen. Hoogstens eens in de tien seconden, dus
     // tussendoor kun je hem gewoon raken.
     springWeg:function(e){
-      const hk=Math.random()*6.283, af=8+Math.random()*(SPRING_VER-8);
+      // De hoek mag niet recht omhoog wijzen: dan gaat bijna alles in de hoogte,
+      // die wordt begrensd, en blijft er een sprongetje van zes meter over.
+      // Nu een hoek die altijd flink zijwaarts is.
+      const hk=(Math.random()<0.5?0:Math.PI)+(Math.random()-0.5)*1.4;
+      const af=20+Math.random()*(SPRING_VER-20);
       const oud={x:e.p.x,y:e.p.y,z:e.p.z};
       // hij verdwijnt met een flits
       this.vonk(oud.x,oud.y,oud.z,0xc07dff,12,e.sc*0.5,0.5);
@@ -2676,20 +2716,30 @@
     // HET SPOOKSCHIP: je ziet hem aankomen, dan trekt er een glans over hem heen
     // en is hij weg. Hoe dichterbij hij komt, hoe beter je hem weer ziet.
     spookTick:function(e,s){
-      const af=e.p.distanceTo(this.kop);
-      let dek=1;
-      if(af>GEEST_VER) dek=1;                            // ver weg: gewoon zichtbaar
-      else if(af>GEEST_DICHT){
-        // de glans, en dan verdwijnt hij
-        const k=(af-GEEST_DICHT)/(GEEST_VER-GEEST_DICHT);
-        dek=Math.max(GEEST_MIN,k*k);
-        if(!e.glansOp&&k<0.92){ e.glansOp=1;
+      // OP TIJD, NIET OP AFSTAND. Sjoerd: "soms blijft de afstand hetzelfde en
+      // zijn ze de hele tijd half transparant — beetje net niet." Klopt: hij
+      // hangt vaak stil op één afstand, en dan bevroor zijn dekking daar.
+      // Nu is het een CYCLUS: zichtbaar, glans, weg, en weer terug.
+      e.geestT=(e.geestT||0)+s;
+      const p=GEEST_ZICHT+GEEST_GLANS+GEEST_WEG+GEEST_TERUG;
+      const t2=e.geestT%p;
+      let dek;
+      if(t2<GEEST_ZICHT) dek=1;                                    // gewoon te zien
+      else if(t2<GEEST_ZICHT+GEEST_GLANS){                          // de glans
+        const k=(t2-GEEST_ZICHT)/GEEST_GLANS;
+        dek=1-k*(1-GEEST_MIN);
+        if(!e.glansOp){ e.glansOp=1;
           this.vonk(e.p.x,e.p.y,e.p.z,0xffffff,16,e.sc*0.7,0.7);
           this.vonk(e.p.x,e.p.y,e.p.z,0x9fe4f5,12,e.sc*0.5,0.6);
           this.toonMelding('CLOAKING','#9fe4f5'); } }
-      else {
-        // dichtbij wordt hij weer zichtbaar
-        dek=Math.max(GEEST_MIN,1-(af-8)/(GEEST_DICHT-8)); }
+      else if(t2<GEEST_ZICHT+GEEST_GLANS+GEEST_WEG) dek=GEEST_MIN;  // weg
+      else {                                                        // en terug
+        const k=(t2-GEEST_ZICHT-GEEST_GLANS-GEEST_WEG)/GEEST_TERUG;
+        dek=GEEST_MIN+k*(1-GEEST_MIN);
+        e.glansOp=0; }
+      // van dichtbij zie je hem altijd: anders kun je hem niet ontwijken
+      const af=e.p.distanceTo(this.kop);
+      if(af<GEEST_DICHT) dek=Math.max(dek,1-(af-8)/(GEEST_DICHT-8));
       if(e.bb&&e.bb.m&&e.bb.m.material){
         e.bb.m.material.transparent=true;
         e.bb.m.material.opacity=Math.max(0.04,Math.min(1,dek)); } },
@@ -2705,7 +2755,7 @@
       e.herpakT-=s;
       e.herpakR=(e.herpakR||0)+s*9;
       if(e.bb) e.bb.m.rotation.z=e.herpakR;
-      e.p.y-=s*11;                                       // hij zakt weg
+      e.p.y-=s*22;                                       // hij zakt hard weg
       if(e.herpakT<=0){
         // en herstelt zich: sneller, en meteen vuren. Eén keer versnellen per
         // duik — anders stapelt hij bij elke beurt op tot honderden malen.
@@ -3041,6 +3091,7 @@
       if(window.PHASE!=='game'||window.PAUSED) return;
       const nu=Date.now(); if(nu-(this.wisDeb||0)<300) return; this.wisDeb=nu;
       if(this.isPrim(h)) return;                                  // hoofdhand houdt de mitrailleur
+      if(window.LOG) window.LOG('wapenwissel');
       const W=this.wp(h), volg=[1,2,3,4,5];
       let i=volg.indexOf(W.t); if(i<0) i=volg.length-1;
       for(let k=1;k<=volg.length;k++){ const t=volg[(i+k)%volg.length];
@@ -3204,7 +3255,7 @@
 
     raket:function(o,d,rad,swarm,ph){
       for(let i=0;i<this.rockets.length;i++){ const R=this.rockets[i]; if(R.live) continue;
-        R.o.copy(o); R.dir.copy(d); R.d=0; R.tot=0; R.live=true; R.zoek=null;
+        R.o.copy(o); R.dir.copy(d); R.d=0; R.tot=0; R.live=true; R.zoek=null; R.leef=0;
         R.rad=rad; R.ph=ph||0; R.swarm=swarm||0; R.ex=1; R.hagel=0;
         R.m.position.copy(o); R.m.visible=true; R.m.scale.set(1.6,1.6,1); return R; }
       return null; },
@@ -3245,6 +3296,9 @@
       { const mk=(h&&h.id&&window.AIM2&&window.AIM2[h.id])||window.AIM;
         if(mk) this.dir.copy(mk).normalize(); }
       if(this.isPrim(h)){                                     // salvo van 50 raketten
+        if(window.LOG) window.LOG('ULT salvo  raketten '+
+          this.rockets.filter(function(q){return q.live;}).length+
+          '  vuur '+this.vij.filter(function(q){return q.live;}).length);
         this.ults--; SND.boom(0); SND.zeg('Salvo');
         const T=this.doelen();
         for(let k=0;k<50;k++){
@@ -3261,6 +3315,8 @@
         // beeld krijgt dezelfde klap — schepen én al het vijandelijke vuur.
         // Tegen een baas is het één zware treffer; tegen een volle lucht ruimt
         // het alles in één keer op.
+        if(window.LOG) window.LOG('ULT nuke  schepen '+
+          this.enemies.filter(function(q){return q.live;}).length);
         this.ults--; SND.boom(0,true); SND.zeg('Nuke');
         // Hij vertrok vanaf je HAND en langs je handrichting — die wijst omlaag,
         // dus de bal ontplofte onder in beeld. Nu vertrekt hij op ooghoogte en
@@ -3738,6 +3794,10 @@
         e.spiraal=0; e.onzicht=0; e.spookFase=0; e.spookOp=0; e.spookLeeft=0;
         e.los=0; e.losAr=0;   // ook de losse-schepenvlag wissen bij hergebruik
         e.springCd=0; e.herpakCd=0; e.herpakT=0; e.herpakR=0; e.glansOp=0; e.snelX=1;
+        e.wijkT=0; e.wijkCd=0; e.wijkX=0; e.wijkY=0;
+        // Wie mag er wegduiken? Het aandeel groeit per level, en snelle schepen
+        // krijgen voorrang — een kolos die wegduikt leest raar.
+        e.wijker=(Math.random()<this.duikKans()*((T.br<=9)?1.4:((T.br<13)?0.7:0.15)))?1:0;
         e.klokR=0; e.klokU=0; e.klokT=0; e.klokWeg=0;
         e.moedF=undefined; e.moedT=0; e.veldP=0;
         if(e.veld) e.veld.visible=false;
@@ -4105,7 +4165,11 @@
       e.rol=(e.rol||0)+((Math.max(-1,Math.min(1,zijV/13))*0.50)-(e.rol||0))*Math.min(1,s*2.4);
       // DE ROLAANVAL: kleine jagers draaien een volle rol terwijl ze op je af
       // duiken. Puur vertoon, maar het maakt een aanval veel levendiger.
-      if(e.rolT>0){ e.rolT-=s; e.rolA=(e.rolA||0)+s*ROLSNEL;
+      // DE ROL VOLGT ZIJN SNELHEID. Een schip dat hard van links naar rechts
+      // schiet hoort ook hard te rollen; eerst draaide iedereen even snel.
+      if(e.rolT>0){ e.rolT-=s;
+        const vaart=Math.min(2.4,0.7+Math.abs(zijV)/12);
+        e.rolA=(e.rolA||0)+s*ROLSNEL*vaart;
         if(e.bb) e.bb.m.rotation.z=e.rol+e.rolA; }
       else if(e.bb) e.bb.m.rotation.z=e.rol;
       e.p.y=reus
@@ -4450,6 +4514,57 @@
           if(af2>st+e2.r) continue;
           this.raak(e2,ET.dmg*0.8,p.x,p.y,p.z); }
         for(let a=0;a<KET_LUS;a++) if(!this.vijTreffer(p,9,st*0.7)) break; } },
+
+    // ---- WEGDUIKEN ALS JE MIKT (Sjoerds ontwerp) ----
+    // Een schip merkt dat je vizier op hem staat en wijkt uit: omhoog of omlaag,
+    // en meteen een andere kant op. Hoe sneller het schip, hoe eerder hij het
+    // doorheeft. Vanaf level 3 doet er eentje mee; daarna steeds meer.
+    duikKans:function(){
+      const L=Math.max(1,this.level||1);
+      if(L<DUIK_VANAF) return 0;
+      return Math.min(DUIK_MAX,(L-DUIK_VANAF+1)*DUIK_STAP); },
+
+    mikTick:function(e,s){
+      if(e.wijkT>0){
+        // ---- hij is aan het uitwijken ----
+        e.wijkT-=s;
+        e.p.x+=e.wijkX*s;
+        e.p.y+=e.wijkY*s;
+        if(e.bb) e.bb.m.rotation.z=(e.rol||0)+e.wijkY*0.05;
+        return; }
+      if(e.wijkCd>0){ e.wijkCd-=s; return; }
+      if(!window.AIM) return;
+      // staat je vizier op hem?
+      const naar=this.MK1||(this.MK1=new THREE.Vector3());
+      naar.subVectors(e.p,this.kop);
+      const af=naar.length();
+      if(af<10||af>DUIK_VER) return;
+      naar.multiplyScalar(1/af);
+      // hoe dichter bij het kruis, hoe eerder hij reageert. Een snel schip merkt
+      // het eerder dan een logge kolos.
+      const dot=naar.dot(window.AIM);
+      const T=TYPE[e.tp]||{};
+      const scherp=DUIK_HOEK-(T.sp||8)*0.0012-(e.bw>=GROOTBR?0.004:0);
+      if(dot<scherp) return;
+      // uitwijken: omhoog of omlaag, en meteen een andere kant op
+      const op=(Math.random()<0.5)?1:-1;
+      const zij=(e.p.x<this.kop.x)?-1:1;
+      e.wijkT=WIJK_TIJD;
+      e.wijkY=op*WIJK_KRACHT*(0.7+Math.random()*0.6);
+      e.wijkX=zij*WIJK_KRACHT*(0.5+Math.random()*0.7);
+      e.wijkCd=WIJK_RUST*(0.7+Math.random()*0.8);
+      this.vonk(e.p.x,e.p.y,e.p.z,0x9fe4f5,3,e.sc*0.3,0.30); },
+
+    // Sjoerds idee: de springer verdwijnt ook als er een RAKET binnen zijn
+    // ontploffingsstraal komt. Je moet hem dus met kogels pakken, of met een
+    // raket die hij niet ziet aankomen.
+    raketWijk:function(e){
+      for(let i=0;i<this.rockets.length;i++){ const R=this.rockets[i];
+        if(!R.live) continue;
+        if(R.m.position.distanceTo(e.p)>SPRING_ALARM) continue;
+        this.springWeg(e);
+        this.toonMelding('BLINK','#c07dff');
+        return; } },
 
     // Een ontwijkmanoeuvre: hij zwenkt hard opzij, rolt om zijn as en pakt
     // daarna zijn koers weer op. Zo werkt een vliegtuig dat een raket ontwijkt —
@@ -5420,6 +5535,10 @@
         if(GEESTEN.indexOf(nm2)>=0) this.spookTick(e,s);
         if(KLOKKEN.indexOf(nm2)>=0){ this.klokTick(e,s); e.bT=9e9; }
         if(MOEDERS.indexOf(nm2)>=0) this.moederTick(e,s);
+        // WEGDUIKEN als je op hem mikt — alleen de schepen die dat mogen.
+        if(e.wijker){ this.mikTick(e,s); if(e.wijkT>0) return; }
+        // DE SPRINGER duikt ook weg voor een RAKET die bijna inslaat.
+        if(SPRINGERS.indexOf(nm2)>=0&&!(e.springCd>0)) this.raketWijk(e);
         if(e.herpakT>0){ this.herpakTick(e,s); return; } }
       // Een LOS schip tuimelt neer in plaats van uit elkaar te spatten.
       if(e.dood&&e.los){ this.losVal(e,s); this.doodBaan(e,s); return; }
@@ -5640,6 +5759,9 @@
     nieuweGolf:function(){
       this.wave++;
       if(this.wave>GOLVEN){ this.baasKomt(); return; }
+      if(window.LOG) window.LOG('golf '+this.wave+' level '+this.level+
+        '  schepen '+this.enemies.filter(function(q){return q.live;}).length+
+        '  vuur '+this.vij.filter(function(q){return q.live;}).length);
       this.plan=this.golfPlan(this.wave);
       this.planT=0; this.rij=[]; this.veldMax=0; this.gi=0; this.groepT=0;
       for(let i=0;i<this.plan.length;i++) this.plan[i].uit=0;
@@ -5856,6 +5978,7 @@
       // De baasgolf is geen gewone golf. Speelde je van level 1 door naar 4, dan
       // bleef er een aftelling uit een eerdere golf staan en kwam het spook
       // alsnog opdagen tijdens het baasgevecht.
+      if(window.LOG) window.LOG('BAAS komt, level '+this.level);
       this.state='baaswacht'; this.golfT=3.4; this.baasWeg=false;
       SND.alarm(); SND.zeg('Warning');
       this.toonGroot('!!  WARNING  !!','#ff3d55'); },
@@ -6150,6 +6273,12 @@
       for(let i=0;i<this.rockets.length;i++){ const R=this.rockets[i]; if(!R.live) continue;
         R.tot+=s;
         if(R.wacht>0) R.wachtT=(R.wachtT||0)+s;
+        // EEN RAKET ZONDER DOEL LEEFDE EEUWIG. Er was geen tijdslimiet, dus na
+        // een paar ults zaten alle 64 plekken vol en kon je niets meer afvuren.
+        R.leef=(R.leef||0)+s;
+        if(R.leef>RAKET_LEEF){
+          this.vonk(R.m.position.x,R.m.position.y,R.m.position.z,0xff8a3d,3,3,0.4);
+          R.live=false; R.m.visible=false; continue; }
         if(!R.zoek||!R.zoek.live){ let bd=1e9, bz=null;
           for(let a=0;a<this.enemies.length;a++){ const e=this.enemies[a]; if(!e.live) continue;
             const d=e.p.distanceTo(R.m.position); if(d<bd){ bd=d; bz=e; } }
@@ -6181,10 +6310,12 @@
         let bum=false;
         for(let a=0;a<this.enemies.length;a++){ const e=this.enemies[a]; if(!e.live) continue;
           if(e.p.distanceTo(R.m.position)<e.r+1.6){ bum=true; break; } }
-        // Hij verdwijnt alleen na een treffer, of als hij het na lang jagen echt
-        // niet redt. Wachttijd zonder doel telt niet mee: zonde als een salvo
-        // oplost omdat er net een golf werd gewisseld.
-        if(bum||(R.tot-(R.wachtT||0))>9.0){
+        // Hij verdwijnt na een treffer, of als hij het na lang jagen niet redt.
+        // Wachttijd zonder doel telde NIET mee — bedoeld zodat een salvo niet
+        // oplost bij een golfwissel, maar zo leeft een raket zonder doel EEUWIG
+        // en loopt de voorraad van 64 vol: dan kun je niets meer afvuren.
+        // Nu telt die wachttijd tot een grens mee, en is er een harde bovengrens.
+        if(bum||(R.tot-Math.min(R.wachtT||0,RAK_WACHT))>RAK_LEEF||R.tot>RAK_MAX){
           const P=R.m.position;
           if(bum){ SND.boom(P.x*0.02,true);
             // Een raket slaat nu echt in: felle flits, brokstukken, en schade over
@@ -6553,7 +6684,54 @@
         if(klaar){ this.state='wacht'; this.golfT=1.8; } }
 
       this.hud();
-    }catch(e){ this.dead=true; fout('TICK: '+e.message); } },
+    }catch(e){
+      // HIER LOOPT HET SPEL VAST. Eén fout in de hoofdlus zet dead=true en dan
+      // beweegt er niets meer — precies wat Sjoerd zag. Nu belandt hij in het
+      // logboek zodat we weten wat er misging, mét de plek in de code.
+      this.dead=true;
+      // ALLES vastleggen wat er op dat moment aan de hand was. Bij een vastloper
+      // heb je één kans om te zien wat er misging, dus liever te veel dan te
+      // weinig: de fout, waar in de code, en de hele toestand van het spel.
+      try{
+        const L=window.LOG; if(!L) throw 0;
+        L('=================== VASTGELOPEN ===================');
+        L('fout   : '+(e&&e.message));
+        const st=String((e&&e.stack)||'').split('\n').slice(1,6);
+        st.forEach(function(r,i){ L('  bij '+(i+1)+': '+r.trim().slice(0,110)); });
+        L('spel   : level '+this.level+'  golf '+this.wave+'  state '+this.state+
+          '  punten '+this.punten+'  kracht '+Math.round(this.power)+
+          '  ults '+this.ults+'  continues '+this.contN);
+        const lev=this.enemies.filter(function(q){ return q.live; });
+        L('schepen: '+lev.length+' levend, waarvan '+
+          lev.filter(function(q){ return q.dood||q.dood2; }).length+' neergaand');
+        const soort={};
+        lev.forEach(function(q){ const n=(TYPE[q.tp]&&TYPE[q.tp].n)||('tp'+q.tp);
+          soort[n]=(soort[n]||0)+1; });
+        L('         '+Object.keys(soort).map(function(k){ return k+' x'+soort[k]; }).join(', '));
+        L('baas   : '+(this.baas&&this.baas.live?
+          (this.baas.baasNaam+'  kracht '+Math.round(this.baas.hp)+'/'+
+           Math.round(this.baas.hpM)+'  intro '+(this.baas.intro?'ja':'nee')+
+           '  trip '+this.baas.trip):'geen'));
+        L('voorraden: vijandvuur '+this.vij.filter(function(q){return q.live;}).length+
+          '/'+this.vij.length+
+          '   eigen kogels '+this.bolts.filter(function(q){return q.live;}).length+
+          '/'+this.bolts.length+
+          '   raketten '+this.rockets.filter(function(q){return q.live;}).length+
+          '/'+this.rockets.length);
+        L('           vonken '+this.vonken.filter(function(q){return q.live;}).length+
+          '/'+this.vonken.length+
+          '   rook '+this.rookP.filter(function(q){return q.live;}).length+
+          '/'+this.rookP.length+
+          '   sprites vrij '+this.bb.filter(function(q){return q.vrij;}).length+
+          '/'+this.bb.length);
+        for(const hid in this.wep){ const W=this.wep[hid];
+          L('wapen  : '+hid+'  soort '+W.t+'  niveau '+((W.lvlT&&W.lvlT[W.t])||1)+
+            '  magazijn '+JSON.stringify(W.mag)); }
+        L('demo   : '+(window.DEMO?'aan':'uit')+
+          '   wachtrij baasaanvallen '+((this.sigRij&&this.sigRij.length)||0));
+        L('====================================================');
+      }catch(e2){}
+      fout('TICK: '+e.message); } },
 
     // ---- vijandelijk vuur kapotschieten ----
     vijTreffer:function(p,dmg,straal){
@@ -7215,7 +7393,8 @@
           // Groter en helderder: op 2,6 m waren deze opschriften nauwelijks te
           // lezen, zeker met sterren erdoorheen. Ze staan nu ook op een donker
           // vlak, zodat er rust achter de letters zit.
-          [['#mStop','QUIT','#ffc6d2',0.150],
+          [['#mLog','LOG','#eafcff',0.150],
+           ['#mStop','QUIT','#ffc6d2',0.150],
            ['#mDemo','DEMO','#eafcff',0.150],
            ['#mScores','SCORES','#eafcff',0.135],
            ['#mHelp','CONTROLS','#eafcff',0.120],
@@ -7842,6 +8021,28 @@
   // =========================================================
   function leesScores(){ try{ const r=localStorage.getItem('cosmic_top20');
     return r?JSON.parse(r):[]; }catch(e){ return []; } }
+  // ---- HET LOGBOEK ----
+  // Sjoerd: "kun je logfiles maken die ik kan kopiëren, ergens in het menu."
+  // Het spel schrijft hier zijn laatste gebeurtenissen in weg, met de tijd erbij.
+  // Loopt het spel vast, dan zie je in het menu wat er vlak daarvoor gebeurde.
+  const LOG=[];
+  function log(m){
+    try{
+      const t=(performance.now()/1000).toFixed(1);
+      LOG.push(t+'  '+m);
+      if(LOG.length>LOG_MAX) LOG.shift();
+      localStorage.setItem('cosmic_log',LOG.join('\n'));
+    }catch(e){}
+  }
+  window.LOG=log;
+  function logTekst(){
+    let t='COSMIC '+VERSIE+'\n';
+    try{ t+=navigator.userAgent.slice(0,90)+'\n'; }catch(e){}
+    t+='\n';
+    let oud=''; try{ oud=localStorage.getItem('cosmic_log')||''; }catch(e){}
+    return t+(LOG.length?LOG.join('\n'):oud||'(nog niets)');
+  }
+
   function bewaarScore(s,c,nm){ try{
     const L=leesScores();
     L.push({s:s,c:c||0,n:nm||'',d:new Date().toISOString().slice(0,10)});
@@ -8051,6 +8252,27 @@
     // de pagina zelf is geopend met een script. We doen daarom eerst alles wat
     // wél kan: VR verlaten, muziek en geluid stoppen, het spel opruimen. Daarna
     // proberen we de vensterpoging; lukt die niet, dan zie je een afscheidsscherm.
+    // HET LOGBOEK KOPIËREN. Loopt het spel vast, dan ga je naar het menu, drukt
+    // hier, en plakt het in een bericht. Lukt kopiëren niet (dat mag niet altijd
+    // in een bril), dan komt het op het scherm te staan.
+    kl('#btnLog',function(){
+      const t=logTekst();
+      let gelukt=false;
+      try{ if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(t); gelukt=true; } }catch(e){}
+      const d=document.querySelector('#laad');
+      if(d){ d.style.display='flex'; d.style.opacity='1';
+        d.innerHTML='<div style="text-align:left;color:#8fd8ec;padding:4vh 6vw;'+
+          'font:400 13px monospace;line-height:1.45;white-space:pre-wrap;'+
+          'overflow:auto;max-height:92vh">'+
+          '<b style="color:#ffb03a;font-size:17px">LOG '+VERSIE+'</b>  '+
+          (gelukt?'<span style="color:#8fd84a">(gekopieerd)</span>':
+                  '<span style="color:#ff8aa6">(selecteer en kopieer)</span>')+
+          '<br><br>'+t.replace(/&/g,'&amp;').replace(/</g,'&lt;')+
+          '<br><br><span style="color:#4d6675">tik hier om te sluiten</span></div>';
+        d.onclick=function(){ d.style.display='none'; d.innerHTML=''; d.onclick=null; }; }
+      SND.boom(0); });
+
     kl('#btnStop',function(){
       try{ SND.stop&&SND.stop(); }catch(e){}
       try{ const s=document.querySelector('a-scene');
