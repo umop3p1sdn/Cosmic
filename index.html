@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.31';
+  const VERSIE='v13.33';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1437,7 +1437,8 @@
   const RAK_LEEF=9.0, RAK_WACHT=4.0, RAK_MAX=20;
   const RAKET_LEEF=9;           // hoe lang jouw raket hoogstens vliegt, in seconden
   const LVMAAT=0.052;           // hoogte van de niveautekst (was 0.034)
-  const LOG_MAX=120;            // hoeveel regels het logboek bewaart
+  const LOG_MAX=200;            // hoeveel regels het logboek bewaart
+  const DOOS_MAX=260;           // hoeveel beurten de zwarte doos onthoudt
   const BAL_N=6, BAL_TIJD=0.55;  // vuurballen bij een raketinslag
   const KOGELSNEL=185;          // meter per seconde — moet kloppen met bolt()
   // Het nabranden van de laser: hoeveel schade per tik, hoe vaak, en hoeveel
@@ -6213,6 +6214,34 @@
     // =====================================================
     tick:function(t,dt){ if(this.dead) return; try{
       const s=Math.min(0.08,(dt||16)/1000);
+      // ---- DE ZWARTE DOOS ----
+      // Elke beurt een regel: waar we zijn, hoe druk het is, en HOE LANG de
+      // vorige beurt duurde. Loopt het spel vast, dan zie je de aanloop.
+      if(window.DOOS){
+        const nu=performance.now();
+        const vorig=this.doosT?Math.round(nu-this.doosT):0;
+        this.doosT=nu;
+        this.doosN=(this.doosN||0)+1;
+        // niet elke beurt schrijven, dat is te veel: 6 per seconde is genoeg,
+        // maar een TRAGE beurt altijd.
+        if(this.doosN%12===0||vorig>40){
+          let W1='-',W2='-';
+          try{ for(const k in this.wep){ const q=this.wep[k];
+            if(W1==='-') W1=q.t+'/'+((q.lvlT&&q.lvlT[q.t])||1);
+            else W2=q.t+'/'+((q.lvlT&&q.lvlT[q.t])||1); } }catch(e){}
+          window.DOOS(
+            (nu/1000).toFixed(1)+'s '+String(vorig).padStart(3)+'ms'+
+            ' L'+this.level+'w'+this.wave+' '+String(this.state||'?').slice(0,7)+
+            ' sch'+this.enemies.filter(function(q){return q.live;}).length+
+            ' vu'+this.vij.filter(function(q){return q.live;}).length+
+            ' rk'+this.rockets.filter(function(q){return q.live;}).length+
+            ' vk'+this.vonken.filter(function(q){return q.live;}).length+
+            ' wp'+W1+','+W2+
+            (this.baas&&this.baas.live?(' BAAS'+Math.round(this.baas.hp)+
+              (this.baas.intro?'i':'')):'')+
+            ' u'+this.ults+' p'+Math.round(this.power)); }
+        // waar in de beurt zijn we? dit verschuift terwijl de beurt loopt
+        this.stap='start'; }
       if(window.PHASE==='menu'){ this.menuTick(s); return; }
       // de demo moet zichzelf kunnen oplappen; die staat dus VOOR de pauzegrens
       if(window.DEMO&&this.over){ this.dOver=(this.dOver||0)+s;
@@ -6365,6 +6394,7 @@
           if(e.romp){ e.romp.visible=false; e.romp=null; } }               // ontsnapt
         if(window.PAUSED) return; }
 
+      this.stap='brand';
       // ---- schepen die in BRAND staan door de laser ----
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
         if(!e.live||!e.vlam||e.dood||e.dood2) continue;
@@ -6378,6 +6408,7 @@
           this.vonk(e.p.x,e.p.y,e.p.z,0xcfe8ff,2,e.sc*0.4,0.30);
           if(Math.random()<0.5) this.rook(e.p.x,e.p.y,e.p.z,false,1.2,1.1); } }
 
+      this.stap='kogels';
       // ---- eigen kogels ----
       for(let i=0;i<this.bolts.length;i++){ const B=this.bolts[i]; if(!B.live) continue;
         B.pd=B.d; B.d+=(B.sp||185)*s;
@@ -6413,6 +6444,7 @@
           B.live=false; B.m.visible=false; continue; }
         if(B.d>=B.md){ B.live=false; B.m.visible=false; } }
 
+      this.stap='raketten';
       // ---- raketten ----
       for(let i=0;i<this.rockets.length;i++){ const R=this.rockets[i]; if(!R.live) continue;
         R.tot+=s;
@@ -6729,7 +6761,7 @@
 
       this.ringTick(s); this.sigRijTick(s); this.wijzerTickD(s);
       this.camoTick(s);
-      this.straalTick(s); this.bomTick(s); this.balTick(s); this.vlekTick();
+      this.stap='effecten'; this.straalTick(s); this.bomTick(s); this.balTick(s); this.vlekTick();
       // ---- rook: drijft op, dijt uit en vervaagt ----
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(!R.live) continue;
         R.life-=s/Math.max(0.3,R.leven);
@@ -6840,8 +6872,75 @@
         const L=window.LOG; if(!L) throw 0;
         L('=================== VASTGELOPEN ===================');
         L('fout   : '+(e&&e.message));
+        L('stap   : hij stond bij "'+(this.stap||'?')+'" toen het misging');
         const st=String((e&&e.stack)||'').split('\n').slice(1,6);
         st.forEach(function(r,i){ L('  bij '+(i+1)+': '+r.trim().slice(0,110)); });
+        // ---- ALLE SCHEPEN, stuk voor stuk ----
+        L('');
+        L('--- elk schip apart, met wat hij aan het doen was ---');
+        try{
+          const lev2=this.enemies.filter(function(q){ return q.live; });
+          if(!lev2.length) L('   (geen schepen in beeld)');
+          lev2.slice(0,24).forEach(function(q,i2){
+            const nm=(TYPE[q.tp]&&TYPE[q.tp].n)||('tp'+q.tp);
+            const af=q.p.distanceTo(this.kop);
+            let wat=[];
+            if(q.dood) wat.push('neergaand');
+            if(q.dood2) wat.push('baas-einde');
+            if(q.intro) wat.push('INTRO');
+            if(q.wijkT>0) wat.push('wijkt uit');
+            if(q.herpakT>0) wat.push('tuimelt');
+            if(q.springRust>0) wat.push('net gesprongen');
+            if(q.klokWeg>0) wat.push('klok weg');
+            if(q.moedF===1) wat.push('KRACHTVELD');
+            if(q.moedF===0) wat.push('veld weg');
+            if(q.rolT>0) wat.push('rolt');
+            if(q.vlam>0) wat.push('brandt('+Math.round(q.vlam)+')');
+            if(q.los) wat.push('eigen plaat');
+            if(q.wijker) wat.push('wijker');
+            L('   '+String(i2+1).padStart(2)+'. '+nm.padEnd(13)+
+              'kracht '+Math.round(q.hp)+'/'+Math.round(q.hpM)+
+              '  op '+af.toFixed(0)+'m'+
+              '  xyz '+q.p.x.toFixed(0)+','+q.p.y.toFixed(0)+','+q.p.z.toFixed(0)+
+              '  fase '+(q.fase||0)+' trip'+(q.trip||0)+
+              (wat.length?('  ['+wat.join(', ')+']'):''));
+          },this);
+          if(lev2.length>24) L('   ... en nog '+(lev2.length-24));
+        }catch(e4){ L('   (schepenlijst mislukt: '+e4.message+')'); }
+        // ---- WAT ER IN DE LUCHT HANGT ----
+        L('');
+        L('--- vijandelijk vuur ---');
+        try{
+          const vv=this.vij.filter(function(q){ return q.live; });
+          if(!vv.length) L('   (geen)');
+          const soort2={};
+          vv.forEach(function(B){
+            const k=(B.zwaar?'zwaar':'gewoon')+(B.zoek?'+zoekt':'')+
+              (B.onzicht?'+spook':'');
+            soort2[k]=(soort2[k]||0)+1; });
+          Object.keys(soort2).forEach(function(k){
+            L('   '+k.padEnd(18)+soort2[k]+' stuks'); });
+          const dicht=vv.filter(function(B){
+            return B.o.distanceTo(this.kop)-B.d<25; },this).length;
+          L('   binnen 25 m van je: '+dicht);
+        }catch(e5){}
+        // ---- JIJ ZELF ----
+        L('');
+        L('--- jij ---');
+        try{
+          L('   kracht '+Math.round(this.power)+'/'+Math.round(this.powerM||100)+
+            '   ults '+this.ults+'   punten '+this.punten+
+            '   reeks '+(this.reeks||0)+'   beste '+(this.beste||0));
+          L('   kop op '+this.kop.x.toFixed(1)+','+this.kop.y.toFixed(1)+','+
+            this.kop.z.toFixed(1)+
+            '   schoten '+(this.schoten||0)+'   gedood '+(this.gedood||0));
+          for(const hid in this.wep){ const W=this.wep[hid];
+            const wn=['','raket','shotgun','laser','electro','mitrailleur'];
+            L('   '+hid.padEnd(10)+wn[W.t]+' trap '+((W.lvlT&&W.lvlT[W.t])||1)+
+              '   magazijn '+JSON.stringify(W.mag)+
+              (W.laz?('   laser bezig: '+W.laz.k+'/'+W.laz.n):'')); }
+        }catch(e6){}
+        L('');
         L('spel   : level '+this.level+'  golf '+this.wave+'  state '+this.state+
           '  punten '+this.punten+'  kracht '+Math.round(this.power)+
           '  ults '+this.ults+'  continues '+this.contN);
@@ -6873,6 +6972,12 @@
             '  magazijn '+JSON.stringify(W.mag)); }
         L('demo   : '+(window.DEMO?'aan':'uit')+
           '   wachtrij baasaanvallen '+((this.sigRij&&this.sigRij.length)||0));
+        // ---- DE AANLOOP: wat gebeurde er in de seconden ervoor? ----
+        L('');
+        L('--- de laatste beurten voor de fout ---');
+        L('   tijd  duur  level/golf  toestand  schepen vuur raketten vonken  wapens');
+        try{ const D=doosLees();
+          D.slice(-45).forEach(function(r){ L('   '+r); }); }catch(e3){}
         L('====================================================');
       }catch(e2){}
       fout('TICK: '+e.message); } },
@@ -8177,6 +8282,20 @@
       if(LOG.length>LOG_MAX) LOG.shift();
       localStorage.setItem('cosmic_log',LOG.join('\n'));
     }catch(e){}
+  }
+  // ---- DE ZWARTE DOOS ----
+  // Een momentopname bij de fout is te weinig: je wilt weten wat er in de
+  // seconden ERVOOR gebeurde. Deze ring onthoudt de laatste beurten met wat er
+  // toen aan de hand was, en wordt pas bij een vastloper uitgeschreven.
+  const DOOS=[]; let DOOSI=0;
+  function doos(m){
+    DOOS[DOOSI]=m; DOOSI=(DOOSI+1)%DOOS_MAX;
+  }
+  window.DOOS=doos;
+  function doosLees(){
+    const uit=[];
+    for(let i=0;i<DOOS_MAX;i++){ const q=DOOS[(DOOSI+i)%DOOS_MAX]; if(q) uit.push(q); }
+    return uit;
   }
   window.LOG=log;
   function logTekst(){
