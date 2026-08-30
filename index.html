@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.36';
+  const VERSIE='v13.37';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1437,6 +1437,10 @@
   // donker randje staan om uitgeknipte plaatjes.
   const RANDDREMPEL=0.42;
   const VLEK_N=48;              // hoeveel schroeivlekken er tegelijk kunnen zijn
+  // Hoe hard rook naar achteren wegwaait ten opzichte van het schip dat hem
+  // maakt. 1 = precies stilstaan in de ruimte terwijl het schip doorvliegt.
+  const ROOKWAAI=0.85;
+  const STORTMAX=40;            // hoeveel wrakken er tegelijk mogen neerstorten
   // Hoe lang een EIGEN raket leeft: normaal negen seconden jagen, hoogstens vier
   // seconden daarvan wachten zonder doel, en nooit langer dan twintig seconden.
   const RAK_LEEF=9.0, RAK_WACHT=4.0, RAK_MAX=45;   // hoogstens 45 s in de lucht
@@ -2994,10 +2998,12 @@
       this.vonk(e.p.x,e.p.y,e.p.z,0xfff2c0,4,e.sc*0.35,0.55);
       this.vonk(e.p.x,e.p.y,e.p.z,0xff8a3d,6,e.sc*0.5,0.75);
       if(f>=2) this.vonk(e.p.x,e.p.y,e.p.z,0xff5a2a,6,e.sc*0.8,0.95);
+      // de rook krijgt zijn snelheid mee, zodat hij ACHTER hem blijft hangen
       for(let i=0;i<(f>=2?4:2);i++){
-        const hk=Math.random()*6.283, af=e.sc*(0.2+Math.random()*0.5);
+        const hk=Math.random()*6.283, af=e.sc*(0.14+Math.random()*0.3);
         this.rook(e.p.x+Math.cos(hk)*af,e.p.y+Math.sin(hk)*af*0.7,
-                  e.p.z+(Math.random()-0.5)*af,f>=2,2.2+Math.random()*1.4,2.0); } },
+                  e.p.z+(Math.random()-0.5)*af,f>=2,
+                  2.2+Math.random()*1.4,2.0,0,e.v); } },
 
     // De vlekken meelaten bewegen met hun schip, en opruimen als het weg is.
     vlekTick:function(){
@@ -3030,7 +3036,10 @@
       e.valT=(e.valT||0)-s;
       if(e.valT<=0){ e.valT=0.06;
         this.vonk(e.p.x,e.p.y,e.p.z,0xff8a3d,2,e.sc*0.25,0.45);
-        this.rook(e.p.x,e.p.y,e.p.z,true,1.8,1.6); } },
+        // de sliert blijft achter terwijl het wrak doorvalt
+        const wv=this.RWV||(this.RWV=new THREE.Vector3());
+        wv.set(0,-(e.valV||0),6);
+        this.rook(e.p.x,e.p.y,e.p.z,true,1.6,1.9,0,wv); } },
 
     // ELK SCHIP ZIJN EIGEN MATERIAAL. Ze deelden er één per soort, dus zodra er
     // eentje neerstortte en vervaagde, werden ALLE schepen van die soort
@@ -3763,9 +3772,13 @@
           this.vonk(e.p.x,e.p.y,e.p.z,0xa06cff,8,9,0.9); } }
       if(T.prof==='baas'){ e.dood2=1; e.dt=0; e.hp=0;   // eigen ondergang van 5 seconden
         SND.zeg('Target destroyed'); return; }
+      // HIER VERDWENEN ZE. Bij meer dan veertien neerstortende schepen sloeg hij
+      // het neerstorten over — maar een electro doodt er tien tegelijk, dus zag
+      // Sjoerd alleen rookpluimen vallen zonder vliegtuig. De grens ligt nu veel
+      // hoger; er zijn genoeg sprites (90) om ze allemaal te laten vallen.
       let bezig=0;
       for(let i=0;i<this.enemies.length;i++) if(this.enemies[i].live&&this.enemies[i].dood) bezig++;
-      if(bezig>=14||!e.bb){ this.knalDood(e); return; }
+      if(bezig>=STORTMAX||!e.bb){ this.knalDood(e); return; }
       e.dood=1; e.doodT=0;
       e.fase=1;                                        // meteen naar het beschadigde plaatje
       // Een baas heeft geen vakken op zijn plaat: die houdt zijn eigen plaatje.
@@ -3919,7 +3932,7 @@
     // niets toe — je zag dus nooit donkere rook, hoe donker ik hem ook maakte.
     // Rook krijgt daarom zijn eigen deeltjes die het beeld juist verdonkeren.
     // spoor=1 → raketrook: lichtgrijs, anders dan de zwarte rook van een schip
-    rook:function(x,y,z,zwart,sz,leven,spoor){
+    rook:function(x,y,z,zwart,sz,leven,spoor,wv){
       if(!this.rookP) return;
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(R.live) continue;
         R.live=true; R.life=1; R.leven=leven||1;
@@ -3927,8 +3940,12 @@
         R.m.material.color.setHex(spoor?0xa8adb4:(zwart?0x141414:0x585858));
         R.m.material.opacity=spoor?0.42:(zwart?0.85:0.55);
         R.m.position.set(x,y,z); R.m.visible=true;
+        // WEGWAAIEN. De rook kreeg bijna geen eigen snelheid, dus bleef hij als
+        // een dikke pluim op het schip plakken terwijl die doorvloog. Nu waait
+        // hij naar ACHTEREN weg, met de snelheid van het schip dat hem maakte.
         R.vx=(Math.random()-0.5)*1.6; R.vy=0.5+Math.random()*1.2;
         R.vz=(Math.random()-0.5)*1.6;
+        if(wv){ R.vx-=wv.x*ROOKWAAI; R.vy-=wv.y*ROOKWAAI; R.vz-=wv.z*ROOKWAAI; }
         R.m.scale.setScalar(R.sz);
         return; } },
 
@@ -6835,8 +6852,15 @@
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(!R.live) continue;
         R.life-=s/Math.max(0.3,R.leven);
         R.m.position.x+=R.vx*s; R.m.position.y+=R.vy*s; R.m.position.z+=R.vz*s;
-        R.m.scale.setScalar(R.sz*(1+(1-R.life)*1.8));
-        R.m.material.opacity=Math.max(0,R.life*0.75);
+        // BIJ DE BRON KLEIN, verderop breed. Hij begon meteen op volle maat en
+        // bleef dan als een dikke pluim hangen; nu groeit hij uit terwijl hij
+        // achterblijft, zoals een echte rooksliert.
+        const gr=1-R.life;
+        R.m.scale.setScalar(R.sz*(0.28+gr*gr*2.6));
+        // en hij waaiert langzaam verder uit
+        R.vx*=1+s*0.6; R.vz*=1+s*0.6;
+        // dun bij de bron, even dicht in het midden, dan oplossen
+        R.m.material.opacity=Math.max(0,R.life*0.75*Math.min(1,gr*5));
         R.m.lookAt(eye);
         if(R.life<=0){ R.live=false; R.m.visible=false; } }
 
