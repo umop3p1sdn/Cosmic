@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.03';
+  const VERSIE='v13.05';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -538,6 +538,8 @@
     {nr:'9840', rol:'schip', schip:'WATCHER', naam:'zwaar transport'},
     {nr:'9841', rol:'schip', schip:'HAULER',  naam:'vrachtkruiser'},
     {nr:'9843', rol:'schip', schip:'HEAVY',   naam:'sikkelvleugel'},
+    {nr:'9858', rol:'schip', schip:'CYCLONE', naam:'de klok'},
+    {nr:'9860', rol:'schip', schip:'TITAN',   naam:'het moederschip'},
     {nr:'9544', rol:'baas', beurt:1,  naam:'DREADNOUGHT', gedrag:'schip', vuur:'zwerm'},
     {nr:'9550', rol:'baas', beurt:2,  naam:'WARDEN',      gedrag:'schip', vuur:'duo'},
     {nr:'9551', rol:'baas', beurt:3,  naam:'LANCE',       gedrag:'schip', vuur:'straal'},
@@ -1414,6 +1416,16 @@
   const HERPAK_TIJD=0.8, HERPAK_SNEL=1.5, HERPAK_CD=10, HERPAK_MAX=2.6;
   // Welke soorten deze drie kunstjes hebben.
   const SPRINGERS=['WRAITH'], GEESTEN=['NIGHTBLADE'], HERPAKKERS=['VIPER'];
+  // DE KLOK: hoe snel hij rolt, hoe vaak hij vuurt, hoe lang zijn raket recht
+  // naar buiten gaat voor hij bijdraait, en hoe lang hij weg is na twaalf uur.
+  const KLOKKEN=['CYCLONE'];
+  const KLOK_ROL=2.4, KLOK_TIK=1.0, KLOK_SNEL=30, KLOK_DRAAI=2.8;
+  const KLOK_VRIJ=0.7, KLOK_VER=60, KLOK_PAUZE=3, KLOK_AF=95;
+  // HET MOEDERSCHIP: hoe lang het krachtveld staat, hoe lang het weg is, hoeveel
+  // jagers eruit komen en hoe taai die zijn.
+  const MOEDERS=['TITAN'];
+  const MOEDER_AAN=4, MOEDER_UIT=4, MOEDER_N=4, MOEDER_WEG=15;
+  const MOEDER_HP=200, MOEDER_SNEL=1.6, VELD_MAAT=0.62;
   const GROOTRAKHP=10, REUSRAKHP=26;
   const GROOT_ELK=3, GROOT_WESP=6, WESP_HP=10;
   // Voorbij deze hoek (in radialen, ~66 graden) zit een vijand buiten je blikveld
@@ -2693,6 +2705,123 @@
         this.vonk(e.p.x,e.p.y,e.p.z,0x6cf0ff,14,e.sc*0.6,0.7);
         this.toonMelding('RECOVERED','#6cf0ff'); } },
 
+    // DE KLOK (Sjoerds ontwerp). Hij rolt onophoudelijk om zijn as en vuurt
+    // elke seconde één zoeker af, op het volgende uur van de wijzerplaat: eerst
+    // twintig meter naar buiten, dan draait hij bij en komt hij snel op je af.
+    // Na twaalf schoten flitst hij weg en verschijnt zestig meter verderop.
+    klokTick:function(e,s){
+      // hij rolt altijd
+      e.klokR=(e.klokR||0)+s*KLOK_ROL;
+      if(e.bb) e.bb.m.rotation.z=e.klokR;
+      // weg? dan wachten tot hij terugkomt
+      if(e.klokWeg>0){
+        e.klokWeg-=s;
+        if(e.bb&&e.bb.m&&e.bb.m.material) e.bb.m.material.opacity=0;
+        if(e.klokWeg<=0){
+          // zestig meter verderop weer tevoorschijn
+          const hk=Math.random()*6.283;
+          e.p.x+=Math.cos(hk)*KLOK_VER;
+          e.p.y=Math.max(this.kop.y-12,Math.min(this.kop.y+14,e.p.y+Math.sin(hk)*22));
+          e.p.z+=(Math.random()-0.5)*KLOK_VER*0.5;
+          e.klokU=0; e.klokT=0;
+          if(e.bb&&e.bb.m&&e.bb.m.material) e.bb.m.material.opacity=1;
+          this.vonk(e.p.x,e.p.y,e.p.z,0xcfe8ff,18,e.sc*0.8,0.8);
+          this.vonk(e.p.x,e.p.y,e.p.z,0xffffff,12,e.sc*0.4,0.5);
+          this.schokRing(e.p);
+          SND.zwiep&&SND.zwiep(e.p.x*0.02); }
+        return true; }
+      // elke seconde één raket, op het volgende uur van de wijzerplaat
+      e.klokT=(e.klokT||0)-s;
+      if(e.klokT<=0){
+        e.klokT=KLOK_TIK;
+        const u=(e.klokU||0);
+        const hk=(u/12)*6.283-1.5708;              // uur 0 staat bovenaan
+        const zij=this.KZ||(this.KZ=new THREE.Vector3());
+        zij.set(Math.cos(hk),Math.sin(hk),0);
+        const B=this.sigSchot(e,zij,
+          {sp:KLOK_SNEL,hp:6,dmg:9,groot:1.2,neus:1,kleur:0xcfe8ff,
+           laatZoek:KLOK_VRIJ,kop:(e.tp||0)%25});
+        if(B){ B.draai=KLOK_DRAAI; }
+        this.vonk(e.p.x+Math.cos(hk)*e.sc*0.5,e.p.y+Math.sin(hk)*e.sc*0.5,e.p.z,
+                  0xcfe8ff,3,2.0,0.30);
+        e.klokU=u+1;
+        if(e.klokU>=12){
+          // twaalf uur om: hij flitst weg
+          this.vonk(e.p.x,e.p.y,e.p.z,0xffffff,20,e.sc*0.9,0.9);
+          this.vonk(e.p.x,e.p.y,e.p.z,0xcfe8ff,14,e.sc*0.5,0.6);
+          this.schokRing(e.p); this.schokRing(e.p);
+          e.klokWeg=KLOK_PAUZE; } }
+      return true; },
+
+    // HET MOEDERSCHIP (Sjoerds ontwerp). Er zit een krachtveld omheen waar je
+    // niet doorheen komt. Na vier seconden valt het weg, schieten er vier jagers
+    // uit, en vier seconden later staat het veld er weer.
+    moederTick:function(e,s){
+      if(e.moedF===undefined){ e.moedF=1; e.moedT=MOEDER_AAN; }
+      e.moedT-=s;
+      if(e.moedF===1){
+        // ---- veld staat AAN: hij is onraakbaar ----
+        this.veldToon(e,s,true);
+        if(e.moedT<=0){
+          // het veld valt weg en de jagers schieten eruit
+          e.moedF=0; e.moedT=MOEDER_UIT;
+          this.vonk(e.p.x,e.p.y,e.p.z,0x6cf0ff,20,e.sc*1.1,0.9);
+          this.schokRing(e.p); this.schokRing(e.p);
+          this.toonMelding('SHIELD DOWN','#6cf0ff');
+          SND.zwiep&&SND.zwiep(e.p.x*0.02);
+          this.jagersUit(e); } }
+      else {
+        // ---- veld is WEG: nu kun je hem raken ----
+        this.veldToon(e,s,false);
+        if(e.moedT<=0){
+          e.moedF=1; e.moedT=MOEDER_AAN;
+          this.vonk(e.p.x,e.p.y,e.p.z,0x6cf0ff,16,e.sc*0.9,0.8);
+          this.schokRing(e.p);
+          this.toonMelding('SHIELD UP','#6cf0ff'); } } },
+
+    // De bol om het moederschip heen: een gloeiend vlak dat pulseert.
+    veldToon:function(e,s,aan){
+      if(!e.veld){
+        const g=new THREE.SphereGeometry(1,20,14);
+        const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0x6cf0ff,
+          transparent:true,opacity:0,depthWrite:false,
+          blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+        m.renderOrder=9; m.frustumCulled=false;
+        this.par.add(m); e.veld=m; }
+      e.veld.visible=aan;
+      if(!aan) return;
+      e.veldP=(e.veldP||0)+s*3.2;
+      e.veld.position.copy(e.p);
+      e.veld.scale.setScalar(e.sc*VELD_MAAT*(1+Math.sin(e.veldP)*0.03));
+      e.veld.material.opacity=0.22+Math.sin(e.veldP*1.7)*0.08; },
+
+    // Welk scheepstype de jagers zijn: RAZOR, want die rolt al en is snel.
+    moedTp:function(){
+      if(this.moedTpN===undefined){
+        this.moedTpN=0;
+        for(let t=0;t<TYPE.length;t++)
+          if(TYPE[t]&&TYPE[t].n==='RAZOR'){ this.moedTpN=t; break; } }
+      return this.moedTpN; },
+
+    // Vier jagers schieten in een flits vijftien meter van hun moederschip weg.
+    jagersUit:function(e){
+      const self=this;
+      for(let k=0;k<MOEDER_N;k++){
+        const hk=(k/MOEDER_N)*6.283+Math.random()*0.4;
+        this.sigNa(k*0.09,function(){
+          if(!e.live) return;
+          const j=self.spawn(self.moedTp(),{
+            x:e.p.x+Math.cos(hk)*MOEDER_WEG,
+            y:e.p.y+Math.sin(hk)*MOEDER_WEG*0.55,
+            z:e.p.z+8});
+          if(!j) return;
+          j.hp=j.hpM=MOEDER_HP;
+          j.snelX=MOEDER_SNEL;                    // ze vliegen snel en tactisch
+          j.rolT=ROLTIJD; j.rolA=0;               // en komen rollend naar buiten
+          self.vonk(j.p.x,j.p.y,j.p.z,0xcfe8ff,10,4,0.5);
+          self.vonk(j.p.x,j.p.y,j.p.z,0x6cf0ff,8,6,0.45); }); }
+      this.toonGroot('FIGHTERS LAUNCHED','#6cf0ff'); },
+
     // Een los schip stort TUIMELEND neer: hij kantelt om zijn as en valt omlaag,
     // met vuur en rook achter zich aan. Mooier dan uit elkaar spatten in stukjes
     // die van een andere tekening lijken te komen.
@@ -3306,6 +3435,11 @@
       if(e.intro){ this.vonk(px||e.p.x,py||e.p.y,pz||e.p.z,0x9fe4f5,3,6,0.5); return; }
       if(e.dood){ this.knalDood(e); return; }        // genadeschot op een wrak
       if(!e.live||e.hp<=0) return;
+      // MET HET KRACHTVELD OP komt er niets doorheen: je schoten ketsen af.
+      if(e.moedF===1){
+        this.vonk(px||e.p.x,py||e.p.y,pz||e.p.z,0x6cf0ff,4,3.0,0.35);
+        if(e.veld) e.veld.material.opacity=0.55;
+        return; }
       e.hp-=dmg; e.flash=0.12;
       // Sjoerds kunstjes reageren op een TREFFER, maar hoogstens eens in de tien
       // seconden — daartussen kun je hem gewoon kapotschieten.
@@ -3370,6 +3504,7 @@
       // Een spook gaat niet stilletjes: witte vuurbal, schokringen en een dikke
       // zwarte rooksliert terwijl zijn wrak neerstort.
       if(e.onzicht&&!e.spookOp){ e.spookOp=1; this.spookEinde(e); }
+      if(e.veld){ e.veld.visible=false; }
       const T=TYPE[e.tp];
       this.punt(e);
       // Een splitser valt bij zijn dood uiteen in twee kleinere, die zelf niet
@@ -3582,6 +3717,9 @@
         e.spiraal=0; e.onzicht=0; e.spookFase=0; e.spookOp=0; e.spookLeeft=0;
         e.los=0; e.losAr=0;   // ook de losse-schepenvlag wissen bij hergebruik
         e.springCd=0; e.herpakCd=0; e.herpakT=0; e.herpakR=0; e.glansOp=0; e.snelX=1;
+        e.klokR=0; e.klokU=0; e.klokT=0; e.klokWeg=0;
+        e.moedF=undefined; e.moedT=0; e.veldP=0;
+        if(e.veld) e.veld.visible=false;
         e.rolT=0; e.rolA=0; e.valR=0; e.valV=0;
         e.vlam=0; e.vlamT=0;  // en de brand van de laser
         e.spF=null; e.spT=0; e.spDoel=null; e.zichtT=0; e.valT=0; e.brT3=0;
@@ -3687,12 +3825,6 @@
     spuw:function(e,n,spr){
       // Een groot schip doet om de paar schoten zijn EIGEN zet in plaats van
       // gewoon vuur: wespenzwerm, mokerslag of drietand.
-      // de wachttijden van de drie kunstjes aftellen
-      if(e.springCd>0) e.springCd-=s;
-      if(e.herpakCd>0) e.herpakCd-=s;
-      { const nm2=TYPE[e.tp]&&TYPE[e.tp].n;
-        if(GEESTEN.indexOf(nm2)>=0) this.spookTick(e,s);
-        if(e.herpakT>0){ this.herpakTick(e,s); return; } }
       // DE ROLAANVAL is een eigenschap van een paar SOORTEN, niet van elk klein
       // schip. Anders gaat de hele lucht rollen en is het geen kunstje meer.
       if(ROLLERS.indexOf(TYPE[e.tp]&&TYPE[e.tp].n)>=0&&
@@ -3903,6 +4035,8 @@
       let doel=reus?REUSAFSTAND:(F.d+e.r*0.32);
       if(!reus&&e.bw>=GROOTBR)
         doel=Math.max(doel,(e.bw>=REUSBR)?MINAF_REUS:MINAF_GROOT);
+      // De klok blijft ver weg: hij bestookt je van afstand, hij valt niet aan.
+      if(KLOKKEN.indexOf(TYPE[e.tp]&&TYPE[e.tp].n)>=0) doel=Math.max(doel,KLOK_AF);
       // naar zijn plek toe, sneller als hij aanvalt dan als hij terugzakt
       // Vol vooruit of vol achteruit schoot telkens voorbij zijn doel; dat gaf
       // het schokken. Nu remt hij af naarmate hij dichter bij zijn plek komt,
@@ -5256,6 +5390,15 @@
       e.rol=0; },
 
     baan:function(e,s){
+      // ELKE BEURT: de kunstjes van de bijzondere schepen.
+      if(!e.dood&&!e.dood2){
+        if(e.springCd>0) e.springCd-=s;
+        if(e.herpakCd>0) e.herpakCd-=s;
+        const nm2=TYPE[e.tp]&&TYPE[e.tp].n;
+        if(GEESTEN.indexOf(nm2)>=0) this.spookTick(e,s);
+        if(KLOKKEN.indexOf(nm2)>=0){ this.klokTick(e,s); e.bT=9e9; }
+        if(MOEDERS.indexOf(nm2)>=0) this.moederTick(e,s);
+        if(e.herpakT>0){ this.herpakTick(e,s); return; } }
       // Een LOS schip tuimelt neer in plaats van uit elkaar te spatten.
       if(e.dood&&e.los){ this.losVal(e,s); this.doodBaan(e,s); return; }
       if(e.dood){ this.doodBaan(e,s); return; }
