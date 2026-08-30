@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.56';
+  const VERSIE='v13.57';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -532,12 +532,12 @@
     // LOSSE SCHEPEN: elk een eigen plaatje in plaats van een vak op een
     // vlootplaat. 'schip' noemt welk scheepstype hij vervangt — dat schip houdt
     // zijn eigen gedrag en raket, maar krijgt deze tekening.
-    {nr:'9831', rol:'schip', schip:'BROOD',   naam:'zwarte glijder'},
+    {nr:'9922', rol:'schip', schip:'BROOD',   naam:'GREY HAWK',     br:18},   // was 9831 (zijkant)
     {nr:'9833', rol:'schip', schip:'WEAVER',  naam:'ringschip'},
     {nr:'9835', rol:'schip', schip:'BULWARK', naam:'sterfort'},
-    {nr:'9840', rol:'schip', schip:'WATCHER', naam:'zwaar transport'},
+    {nr:'9840', rol:'schip', schip:'WATCHER', naam:'IRON CROSS',    br:26},
     {nr:'9841', rol:'schip', schip:'HAULER',  naam:'vrachtkruiser'},
-    {nr:'9843', rol:'schip', schip:'HEAVY',   naam:'sikkelvleugel'},
+    {nr:'9913', rol:'schip', schip:'HEAVY',   naam:'DARK LANCE',    br:20},   // was 9843
     {nr:'9858', rol:'schip', schip:'CYCLONE', naam:'de klok'},
     {nr:'9860', rol:'schip', schip:'TITAN',   naam:'het moederschip'},
     // ---- SJOERDS NEGENTIEN JAGERS (elk één plaatje, schade via vuur en rook) ----
@@ -548,7 +548,7 @@
     {nr:'9873', rol:'schip', schip:'NEEDLE',    naam:'RED LANCE',    br:7},
     {nr:'9874', rol:'schip', schip:'RAZOR',     naam:'PALE EDGE',    br:7},
     {nr:'9875', rol:'schip', schip:'VIPER',     naam:'BRONZE FANG',  br:6},
-    {nr:'9876', rol:'schip', schip:'SPINNER',   naam:'SILVER GULL',  br:8},
+    {nr:'9918', rol:'schip', schip:'SPINNER',   naam:'BLACK RAVEN',  br:13},   // level 1: mooi en pittig
     {nr:'9879', rol:'schip', schip:'NIGHTBLADE',naam:'VIOLET WING',  br:7},
     {nr:'9880', rol:'schip', schip:'FALCON',    naam:'IRON FALCON',  br:8},
     {nr:'9881', rol:'schip', schip:'FIGHTER',   naam:'STEEL TALON',  br:9},
@@ -556,7 +556,7 @@
     // hem een nieuwe tekening, want dat kunstje verdient een eigen gezicht.
     {nr:'9910', rol:'schip', schip:'WRAITH',    naam:'BLUE SPINE',   br:11},
     {nr:'9889', rol:'schip', schip:'REAPER',    naam:'GREEN DISC',   br:13},
-    {nr:'9890', rol:'schip', schip:'LANCER',    naam:'CRIMSON CLAW', br:11},
+    {nr:'9916', rol:'schip', schip:'LANCER',    naam:'CRIMSON CLAW', br:11},   // was 9890 (zijkant)
     {nr:'9891', rol:'schip', schip:'SHRIKE',    naam:'FOUR FLAME',   br:13},
     {nr:'9892', rol:'schip', schip:'VENOM',     naam:'DARK SAUCER',  br:12},
     {nr:'9893', rol:'schip', schip:'HALO',      naam:'BLACK MANTA',  br:15},
@@ -571,7 +571,9 @@
     {nr:'9550', rol:'baas', beurt:2,  naam:'WARDEN',      gedrag:'schip', vuur:'duo'},
     {nr:'9551', rol:'baas', beurt:3,  naam:'LANCE',       gedrag:'schip', vuur:'straal'},
     {nr:'9559', rol:'baas', beurt:4,  naam:'THE WHEEL',   gedrag:'schijf', vuur:'zwerm'},
-    {nr:'9578', rol:'baas', beurt:5,  naam:'RAVEN',       gedrag:'schip', vuur:'duo'},
+    // RAVEN was de tweekoppige robotvogel (9578). Sjoerd vond hem niet mooi;
+    // hij is nu de grote grijze kruiser met de mast (9923).
+    {nr:'9923', rol:'baas', beurt:5,  naam:'RAVEN',       gedrag:'schip', vuur:'duo'},
     {nr:'9569', rol:'baas', beurt:6,  naam:'IRONCLAD',    gedrag:'mech', vuur:'zwaar'},
     {nr:'9563', rol:'baas', beurt:7,  naam:'THE EYES',    gedrag:'drieluik', vuur:'straal'},
     {nr:'9564', rol:'baas', beurt:7,  naam:'THE EYES',    gedrag:'drieluik', vuur:'straal'},
@@ -2050,7 +2052,9 @@
     {n:'HEAVY',     pl:6, rij:3, br:20, hp:250, pt:420, sp:3.2,  sal:2, cd:3.0, prof:'drijver', f1:0.78, f2:0.40},
     {n:'RAZOR',     pl:12,rij:0, br:7,  hp:20,  pt:80,  sp:15.9, sal:1, cd:2.6, prof:'formatie', f1:0.75, f2:0.40},
     {n:'VIPER',     pl:12,rij:6, br:6,  hp:18,  pt:75,  sp:21.8, sal:1, cd:2.4, prof:'duiker', f1:0.85, f2:0.50},
-    {n:'SPINNER',   pl:12,rij:1, br:8,  hp:45,  pt:120, sp:10.2,  sal:2, cd:3.0, prof:'cirkel', f1:0.60, f2:0.25},
+    // SPINNER is nu BLACK RAVEN: Sjoerds mooie zwarte breedvleugel in level 1.
+    // Meer kracht, en breed genoeg (13) voor de scheervlucht.
+    {n:'SPINNER',   pl:12,rij:1, br:13, hp:110, pt:220, sp:10.2,  sal:2, cd:3.0, prof:'cirkel', f1:0.60, f2:0.25},
     {n:'NIGHTBLADE',pl:12,rij:2, br:7,  hp:30,  pt:110, sp:18.8, sal:1, cd:3.0, prof:'sluiper', f1:0.68, f2:0.34},
     {n:'REAPER',    pl:12,rij:7, br:11, hp:90, pt:210, sp:10.3,  sal:1, cd:2.0, prof:'strafer', snel:26, f1:0.50, f2:0.20},
     {n:'LANCER',    pl:12,rij:9, br:9,  hp:75, pt:190, sp:11.5, sal:1, cd:3.0, prof:'duiker', f1:0.62, f2:0.38},
