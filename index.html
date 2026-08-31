@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.62';
+  const VERSIE='v13.64';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -592,7 +592,8 @@
     // 9823 heeft al ringplaneten en manen in de plaat zelf, dus die staat vast op
     // level 13. 9822 heeft veel lege ruimte en draait mee in de rotatie, zodat de
     // zwevende planeten daar goed tot hun recht komen.
-    {nr:'9823', rol:'hemel', grond:0, level:11, naam:'planetenstelsel met ringen'},
+    // Sjoerd: "hemel 9 wordt de achtergrond van het oude level 12."
+    {nr:'9823', rol:'hemel', grond:0, level:9,  naam:'planetenstelsel met ringen'},
     {nr:'9822', rol:'hemel', grond:0, level:6,  naam:'zwart gat met komeet'},
     {nr:'9523', rol:'hemel', grond:1, naam:'landschap met paddenstoelbomen'},
     {nr:'9510', rol:'hemel', grond:1, naam:'wolken boven water'},
@@ -1460,12 +1461,15 @@
   // vijf meter hoort. Een kolos van 24 brandt dan bijna vijf keer zo groot.
   // Sjoerd: "rook mag een klein stapje groter en meer aanwezig, niet overkill."
   // Schaal 0,20 → 0,26, ondergrens 1,35 → 1,7.
-  const BRANDSCHAAL=0.26, BRANDMIN=1.7;
+  const BRANDSCHAAL=0.30, BRANDMIN=1.9;   // Sjoerd: nog een klein stapje (was 0,26 / 1,7)
   const VALROOK=0.40;           // seconden tussen twee pluimen van een wrak
   // Hoe hard een neerstortend wrak draait, per manier van vallen.
   // Het neerstorten: versnelling omlaag, hoe hij kantelt, hoe lang, hoe diep.
   const VALVERSNEL=8.5, VALKANTEL=0.55, VALDUUR=5.0, VALDIEP=45;
   const VALVAART=0.8;           // aandeel van zijn vliegsnelheid dat hij vasthoudt
+  // Hoe ver een wrak van je wegdraait tijdens de val (radialen; 0,785 = 45
+  // graden) en in hoeveel seconden hij daar komt.
+  const VALDRAAI_MAX=0.785, VALDRAAI_T=2.0;
   const KLAPKANS=0.55;          // kans dat een wrak ontploft in plaats van wegzakt
   const STORTMAX=40;            // hoeveel wrakken er tegelijk mogen neerstorten
   // Hoe hard schepen vliegen in de eerste levels: level 1 op 62 procent,
@@ -2054,7 +2058,7 @@
   const TYPE=[
     {n:'SCOUT',     pl:6, rij:0, br:6,  hp:14,  pt:60,  sp:13.0,  sal:1, cd:3.0, prof:'strafer', f1:0.70, f2:0.35},
     {n:'WASP',      pl:6, rij:5, br:5,  hp:10,  pt:55,  sp:20.3, sal:1, cd:3.2, prof:'sluiper', f1:0.80, f2:0.45},
-    {n:'FIGHTER',   pl:6, rij:1, br:9,  hp:55,  pt:150, sp:9.2,  sal:2, cd:2.6, prof:'formatie', f1:0.65, f2:0.30},
+    {n:'FIGHTER',   pl:6, rij:1, br:9,  hp:55,  pt:150, sp:10.3,  sal:2, cd:2.6, prof:'formatie', f1:0.65, f2:0.30},
     {n:'SAUCER',    pl:6, rij:4, br:13, hp:110, pt:230, sp:5.5,  sal:1, cd:3.4, prof:'cirkel', f1:0.55, f2:0.22},
     {n:'BOMBER',    pl:6, rij:2, br:16, hp:160, pt:300, sp:4.6,  sal:3, cd:4.0, prof:'kruiper', f1:0.72, f2:0.28},
     {n:'HEAVY',     pl:6, rij:3, br:20, hp:250, pt:420, sp:3.2,  sal:2, cd:3.0, prof:'drijver', f1:0.78, f2:0.40},
@@ -2064,26 +2068,26 @@
     // Meer kracht, en breed genoeg (13) voor de scheervlucht.
     {n:'SPINNER',   pl:12,rij:1, br:13, hp:110, pt:220, sp:10.2,  sal:2, cd:3.0, prof:'cirkel', f1:0.60, f2:0.25},
     {n:'NIGHTBLADE',pl:12,rij:2, br:7,  hp:30,  pt:110, sp:18.8, sal:1, cd:3.0, prof:'sluiper', f1:0.68, f2:0.34},
-    {n:'REAPER',    pl:12,rij:7, br:11, hp:90, pt:210, sp:10.3,  sal:1, cd:2.0, prof:'strafer', snel:26, f1:0.50, f2:0.20},
-    {n:'LANCER',    pl:12,rij:9, br:9,  hp:75, pt:190, sp:11.5, sal:1, cd:3.0, prof:'duiker', f1:0.62, f2:0.38},
+    {n:'REAPER',    pl:12,rij:7, br:11, hp:90, pt:210, sp:11.5,  sal:1, cd:2.0, prof:'strafer', snel:26, f1:0.50, f2:0.20},
+    {n:'LANCER',    pl:12,rij:9, br:9,  hp:75, pt:190, sp:12.9, sal:1, cd:3.0, prof:'duiker', f1:0.62, f2:0.38},
     {n:'WEAVER',    pl:12,rij:10,br:15, hp:150, pt:290, sp:6.4,  sal:2, cd:3.2, prof:'sluiper', f1:0.66, f2:0.20},
     {n:'BROOD',     pl:12,rij:4, br:18, hp:180, pt:340, sp:3.7,  sal:3, cd:5.0, prof:'moeder', broed:40, f1:0.82, f2:0.45},
-    {n:'SENTINEL',  pl:12,rij:5, br:12, hp:200, pt:330, sp:4.6,  sal:1, cd:6.0, prof:'kruiper', zwaar:1, f1:0.45, f2:0.18},
+    {n:'SENTINEL',  pl:12,rij:5, br:12, hp:200, pt:330, sp:5.2,  sal:1, cd:6.0, prof:'kruiper', zwaar:1, f1:0.45, f2:0.18},
     {n:'BULWARK',   pl:12,rij:8, br:22, hp:290, pt:450, sp:3.2,  sal:3, cd:3.5, prof:'kruiper', f1:0.85, f2:0.30},
     {n:'WATCHER',   pl:12,rij:11,br:26, hp:360, pt:560, sp:2.4,  sal:3, cd:4.2, prof:'drijver', zwaar:1, f1:0.58, f2:0.26},
     {n:'HAULER',    pl:12,rij:3, br:34, hp:100, pt:700, sp:2.4,  sal:4, cd:4.6, prof:'drijver', draagt:1, zwaar:1, f1:0.75, f2:0.35},
     // ---- de tweede twaalfrijige plaat: nog eens twaalf soorten ----
     // Hun gedrag komt uit echte luchtgevechtmanoeuvres: immelmann, split-s,
     // scissors, yo-yo en de barrel roll.
-    {n:'WRAITH',    pl:13,rij:0, br:9,  hp:60,  pt:130, sp:13.8, sal:1, cd:2.6, prof:'splitser',  f1:0.70, f2:0.30},
+    {n:'WRAITH',    pl:13,rij:0, br:9,  hp:60,  pt:130, sp:15.5, sal:1, cd:2.6, prof:'splitser',  f1:0.70, f2:0.30},
     {n:'FALCON',    pl:13,rij:1, br:8,  hp:50,  pt:120, sp:21.8, sal:1, cd:2.2, prof:'immel',   f1:0.78, f2:0.42},
     {n:'INFERNO',   pl:13,rij:2, br:17, hp:210, pt:330, sp:4.6,  sal:3, cd:3.6, prof:'kruiper', f1:0.66, f2:0.26},
     {n:'HALO',      pl:13,rij:3, br:14, hp:170, pt:280, sp:6.4,  sal:2, cd:3.4, prof:'cirkel',  zwaar:1, f1:0.52, f2:0.24},
     {n:'NEEDLE',    pl:13,rij:4, br:7,  hp:35,  pt:95,  sp:24.6, sal:1, cd:2.4, prof:'scissors',f1:0.84, f2:0.48},
     {n:'BASILISK',  pl:13,rij:5, br:19, hp:260, pt:380, sp:4.0,  sal:3, cd:3.2, prof:'drijver', f1:0.80, f2:0.34},
     {n:'CYCLONE',   pl:13,rij:6, br:13, hp:150, pt:250, sp:8.3,  sal:2, cd:3.0, prof:'barrel',  f1:0.60, f2:0.28},
-    {n:'SHRIKE',    pl:13,rij:7, br:10, hp:95,  pt:180, sp:14.9, sal:1, cd:2.0, prof:'yoyo',    snel:24, f1:0.55, f2:0.22},
-    {n:'VENOM',     pl:13,rij:8, br:11, hp:120, pt:210, sp:12.6, sal:2, cd:2.8, prof:'scissors',f1:0.72, f2:0.38},
+    {n:'SHRIKE',    pl:13,rij:7, br:10, hp:95,  pt:180, sp:16, sal:1, cd:2.0, prof:'yoyo',    snel:24, f1:0.55, f2:0.22},
+    {n:'VENOM',     pl:13,rij:8, br:11, hp:120, pt:210, sp:14.1, sal:2, cd:2.8, prof:'scissors',f1:0.72, f2:0.38},
     {n:'ORACLE',    pl:13,rij:9, br:16, hp:200, pt:320, sp:5.5,  sal:3, cd:3.8, prof:'kruiper', zwaar:1, f1:0.48, f2:0.20},
     {n:'TITAN',     pl:13,rij:10,br:24, hp:330, pt:460, sp:3.2,  sal:2, cd:3.4, prof:'drijver', f1:0.86, f2:0.32},
     {n:'NOVA',      pl:13,rij:11,br:29, hp:400, pt:600, sp:3.2,  sal:3, cd:4.0, prof:'immel',   zwaar:1, f1:0.62, f2:0.25},
@@ -3985,8 +3989,15 @@
         // naar een punt op eigen hoogte kijken, en komt zijn eigen rol erop.
         e.valRolA=(e.valRolA||0)+s*(e.valRot||VALKANTEL)*(1+e.doodT*(e.valRotV||0));
         e.bb.m.position.copy(e.p);
+        // Sjoerd: "ze mogen afdraaien tot 45 graden, dat geeft een mooi 3D-effect.
+        // Op 0 blijven ze in focus op mij." Dus: naar je kijken, en daar
+        // bovenop een wegdraai die oploopt tot hoogstens VALDRAAI_MAX — elke
+        // kant, per wrak anders, maar nooit zo ver dat je zijn platte kant ziet.
         const lk=this.LK2||(this.LK2=new THREE.Vector3());
         lk.set(this.kop.x,e.p.y,this.kop.z); e.bb.m.lookAt(lk);
+        if(e.valDraai===undefined) e.valDraai=(Math.random()<0.5?-1:1)*(0.4+Math.random()*0.6);
+        const weg=Math.min(1,e.doodT/VALDRAAI_T)*e.valDraai*VALDRAAI_MAX;
+        e.bb.m.rotateY(weg);
         e.bb.m.rotation.z=e.valRolA; }
       if(e.fase>=1) this.brandTick(e,s);
       if(e.valNu||e.doodT>(e.valTijd||VALDUUR)||e.p.y<this.kop.y-(e.valEind||VALDIEP)){
@@ -4153,7 +4164,7 @@
         // stil. geestT liet hem in de verkeerde fase beginnen, rol gaf een scheve
         // stand, en veld liet een krachtveld om een gewoon schip staan.
         e.springRust=0; e.geestT=0; e.rol=0; e.valDir=null; e.valV=0; e.valRot=0; e.valTijd=0; e.valRolA=0; e.valNu=0;
-        e.broedCd=0; e.broedUit=0; e.broedDir=null; e.broed=0;
+        e.broedCd=0; e.broedUit=0; e.broedDir=null; e.broed=0; e.valDraai=undefined;
         e.scheer=0; e.scheerCd=undefined; e.scheerT=0;
         e.vp=null; e.vRicht=null;   // de vliegrichting opnieuw meten
         if(e.veld){ e.veld.visible=false; e.veld=null; }
