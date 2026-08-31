@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.77';
+  const VERSIE='v13.78';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -6675,7 +6675,9 @@
       // hoeveel er hoogstens tegelijk van één soort mogen: hoe groter, hoe minder
       const cap=function(tp,n){ const b=TYPE[tp].br;
         let mx=(b<=7)?22:((b<=12)?9:((b<=17)?4:2));
-        if(TYPE[a.tp]&&(TYPE[a.tp].basis||TYPE[a.tp].n)==='WRAITH') mx=Math.min(mx,4);
+        // HIER LIEP HET SPEL VAST: in deze functie heet het scheepstype 'tp',
+        // niet 'a.tp'. Precies dezelfde fout als 'h' vs 'H' in de laserlus.
+        if(TYPE[tp]&&(TYPE[tp].basis||TYPE[tp].n)==='WRAITH') mx=Math.min(mx,4);
         return Math.max(1,Math.min(mx,Math.round(n))); };
       const self=this, L=this.level;
       if(!this.lvlGehad||this.lvlGehadL!==L){ this.lvlGehad={}; this.lvlGehadL=L; }
