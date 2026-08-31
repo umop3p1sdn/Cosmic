@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.73';
+  const VERSIE='v13.74';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1534,6 +1534,10 @@
   // LANCE's escorte: hoeveel wachters, hun kracht, waar ze hangen, en hoe snel
   // een nieuwe rij komt.
   const ESC_N=6, ESC_HP=150, ESC_VOOR=14, ESC_MAAT=1.6, ESC_TERUG=10, ESC_VUUR=3.2;
+  // DE NINJA: hoe ver hij verspringt, hoe ver de vier uit elkaar staan, hoe
+  // lang een schaduw leeft, hoe hard ze wegvliegen, en zijn wachttijd.
+  const NINJA_VER=60, NINJA_TUS=16, NINJA_LEEF=2.0, NINJA_WEG=1.6, NINJA_SNEL=30;
+  const NINJA_CD=5, NINJA_RAKHP=50;
   // THE WHEEL's velg: kracht, straal (aandeel van zijn breedte), hoe groot de
   // naaf is (aandeel van de velgstraal), draaisnelheid, en wanneer hij terugkomt.
   const VELG_HP=900, VELG_R=0.55, VELG_NAAF=0.35, VELG_ROL=1.4, VELG_TERUG=12;
@@ -3334,6 +3338,71 @@
 
     velgWeg:function(e){ if(e.velgM3) e.velgM3.visible=false; e.velg=0; },
 
+    // ---- LANCE, DE NINJA (Sjoerds ontwerp) ----
+    // Raak je hem, dan flitst hij zestig meter weg — en er verschijnen VIER
+    // schepen op een rij. Eén is de echte, drie zijn schaduwen die na twee
+    // seconden uit elkaar spatten. Allemaal vliegen ze een andere kant op. Hij
+    // kan dit onbeperkt, met vijf seconden wachttijd. Zijn eigen wapen is een
+    // raket met vijftig kracht die je uit de lucht moet schieten.
+    ninjaHit:function(e){
+      if(e.ninjaCd>0) return false;
+      e.ninjaCd=NINJA_CD;
+      // waar komt de rij? links of rechts van zijn huidige plek, op één lijn
+      // de rij staat ZESTIG METER verderop, niet half over zijn eigen plek heen
+      const hk=(Math.random()<0.5?-1:1);
+      const basisX=e.p.x+hk*NINJA_VER;
+      const echt=Math.floor(Math.random()*4);         // welke van de vier is hij
+      this.vonk(e.p.x,e.p.y,e.p.z,0xffffff,16,e.bw*0.5,0.6);
+      this.vonk(e.p.x,e.p.y,e.p.z,0xcfe8ff,20,e.bw*0.8,0.9);
+      this.schokRing(e.p);
+      const self=this, y0=e.p.y, z0=e.p.z;
+      for(let i=0;i<4;i++){
+        const x=basisX+(i-1.5)*NINJA_TUS;
+        const wegX=((i<2)?-1:1)*(0.7+Math.random()*0.6);
+        const wegY=(Math.random()-0.5)*0.8;
+        if(i===echt){
+          // hijzelf: hij verspringt naar die plek en vliegt weg
+          e.p.set(x,y0,z0);
+          e.ninjaWeg=NINJA_WEG; e.ninjaX=wegX*NINJA_SNEL; e.ninjaY=wegY*NINJA_SNEL;
+          if(e.bb) e.bb.m.position.copy(e.p);
+          this.vonk(x,y0,z0,0xcfe8ff,10,e.bw*0.5,0.5); }
+        else {
+          // een schaduw: zelfde plaatje, vliegt weg, spat na twee seconden uiteen
+          const d=this.spawn(e.tp,{x:x,y:y0,z:z0});
+          if(!d) continue;
+          d.hp=d.hpM=1; d.schaduw=NINJA_LEEF;
+          d.ninjaWeg=NINJA_WEG; d.ninjaX=wegX*NINJA_SNEL; d.ninjaY=wegY*NINJA_SNEL;
+          d.baasNaam=e.baasNaam; d.gedrag=e.gedrag; d.cd=999;   // schaduwen vuren niet
+          if(d.bb&&e.bb) d.bb.m.material=e.bb.m.material;
+          d.bw=e.bw; d.bh=e.bh; d.sc=e.sc;
+          if(d.bb) d.bb.m.scale.set(d.bw,d.bh,1);
+          this.vonk(x,y0,z0,0x9fe4f5,8,e.bw*0.4,0.4); } }
+      return true; },
+
+    ninjaTick:function(e,s){
+      if(e.ninjaCd>0) e.ninjaCd-=s;
+      // wegvliegen na een sprong
+      if(e.ninjaWeg>0){ e.ninjaWeg-=s;
+        e.p.x+=e.ninjaX*s; e.p.y+=e.ninjaY*s;
+        if(e.bb) e.bb.m.position.copy(e.p); }
+      // een schaduw spat na zijn tijd uiteen
+      if(e.schaduw>0){ e.schaduw-=s;
+        if(Math.random()<s*8) this.vonk(e.p.x,e.p.y,e.p.z,0x9fe4f5,1,2,0.3);
+        if(e.schaduw<=0){
+          this.vonk(e.p.x,e.p.y,e.p.z,0xffffff,12,e.bw*0.5,0.5);
+          this.vonk(e.p.x,e.p.y,e.p.z,0x9fe4f5,16,e.bw*0.7,0.7);
+          this.knal(e.p,e.sc*0.6);
+          this.bbVrij(e.bb); e.bb=null; e.live=false; e.schaduw=0; }
+        return true; }
+      return false; },
+
+    // Zijn wapen: één zware raket die je uit de lucht moet schieten.
+    ninjaVuur:function(e){
+      const d=this.NV||(this.NV=new THREE.Vector3());
+      d.subVectors(this.kop,e.p).normalize();
+      this.sigSchot(e,d,{soort:4,sp:17,hp:NINJA_RAKHP,dmg:18,zwaar:1,groot:1.7,
+        zoek:1,draai:1.2,neus:1,kleur:0xcfe8ff}); },
+
     // ---- LANCE: HET ESCORTE ----
     // Een rij van zes zoekers hangt stil vóór hem als een muur van wachters.
     // Ze vangen je schoten op; pas als de rij is opgeruimd kun je hém raken.
@@ -4179,6 +4248,8 @@
       // hij meteen — met de volle explosie.
       if(e.dood){ e.valKlap=1; e.valNu=1; return; }
       if(!e.live||e.hp<=0) return;
+      // DE NINJA: bij een treffer verspringt hij en laat vier beelden achter.
+      if(e.ninja&&e.hp>0&&!e.dood&&!e.dood2) this.ninjaHit(e);
       // THE WHEEL: treffer op de velg? dan niet op hem.
       if(e.velgM3&&this.velgTreffer(e,px,py,pz,dmg)) return;
       // SERAPH / THE CORE: buiten de opening? dan ketst hij af.
@@ -4538,7 +4609,7 @@
         // stand, en veld liet een krachtveld om een gewoon schip staan.
         e.springRust=0; e.geestT=0; e.rol=0; e.valDir=null; e.valV=0; e.valRot=0; e.valTijd=0; e.valRolA=0; e.valNu=0;
         e.broedCd=0; e.broedUit=0; e.broedDir=null; e.broed=0; e.valDraai=undefined;
-        e.rakOp=0; e.rakWijkT=0;
+        e.rakOp=0; e.rakWijkT=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
         e.scheer=0; e.scheerCd=undefined; e.scheerT=0;
         e.vp=null; e.vRicht=null;   // de vliegrichting opnieuw meten
         if(e.veld){ e.veld.visible=false; e.veld=null; }
@@ -4568,8 +4639,9 @@
           const bt=B.tex;
           e.baasNaam=B.naam; e.gedrag=B.gedrag||'schip'; e.vuur=B.vuur||'duo';
           if(B.naam==='WARDEN') this.genStart(e);
-          if(B.naam==='LANCE') this.escStart(e);
+          if(B.naam==='LANCE'){ e.ninja=1; e.ninjaCd=0; }
           if(B.naam==='THE WHEEL') this.velgStart(e);
+          if(B.naam==='LANCE') e.eigenVuur='ninja';
           // RAVEN: de hangar — krachtveld 4 s aan / uit, vier jagers eruit
           if(B.naam==='RAVEN'){ e.hangar=1; e.moedF=1; e.moedT=MOEDER_AAN; }
           // IRONCLAD: een ring van acht mijnen om hem heen (escorte in een kring)
@@ -5518,6 +5590,9 @@
 
     // ---- 3. LANCE: rechte strepen; fase 2 spreidt van buiten naar binnen ----
     sigStreep:function(e,twee){
+      // LANCE is de NINJA geworden: zijn wapen is één zware raket die je uit de
+      // lucht moet schieten, in plaats van een reeks strepen.
+      if(e.eigenVuur==='ninja'){ this.ninjaVuur(e); if(twee) this.ninjaVuur(e); return; }
       const n=twee?5:3;
       const self=this;
       for(let i=0;i<n;i++){
@@ -6434,6 +6509,7 @@
         if(WERPERS.indexOf(nm2)>=0) this.werperTick(e,s);
         if(e.gen) this.genTick(e,s);
         if(e.esc) this.escTick(e,s);
+        if(e.ninja||e.schaduw>0){ if(this.ninjaTick(e,s)) return; }
         if(e.velgM3) this.velgTick(e,s);
         if(e.hangar) this.moederTick(e,s);
         if(e.opening) this.openTick(e,s);
@@ -6587,7 +6663,8 @@
       const plan=[];
       // hoeveel er hoogstens tegelijk van één soort mogen: hoe groter, hoe minder
       const cap=function(tp,n){ const b=TYPE[tp].br;
-        const mx=(b<=7)?22:((b<=12)?9:((b<=17)?4:2));
+        let mx=(b<=7)?22:((b<=12)?9:((b<=17)?4:2));
+        if(TYPE[a.tp]&&(TYPE[a.tp].basis||TYPE[a.tp].n)==='WRAITH') mx=Math.min(mx,4);
         return Math.max(1,Math.min(mx,Math.round(n))); };
       const self=this, L=this.level;
       if(!this.lvlGehad||this.lvlGehadL!==L){ this.lvlGehad={}; this.lvlGehadL=L; }
@@ -6785,7 +6862,10 @@
       const n=Math.max(1,a.n|0);
       if(a.form&&a.form!=='links'&&a.form!=='rechts'){ this.formatie(a.tp,n); this.veldMax+=Math.min(n,6); return; }
       const b=TYPE[a.tp].br;
-      const gelijk=Math.min(n,(b<=7)?9:((b<=12)?5:((b<=17)?3:1)));
+      // Sjoerd: de springer/splitser komt soms in te grote groepen — hij
+      // verdubbelt zichzelf immers. Van hem hoogstens drie tegelijk.
+      let gelijk=Math.min(n,(b<=7)?9:((b<=12)?5:((b<=17)?3:1)));
+      if(TYPE[a.tp]&&(TYPE[a.tp].basis||TYPE[a.tp].n)==='WRAITH') gelijk=Math.min(gelijk,3);
       this.veldMax+=gelijk;
       this.vorm=a.vorm||'rij'; this.vormI=0; this.vormN=n;
       // elke groep krijgt zijn eigen plek aan de hemel, ver van de vorige
