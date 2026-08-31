@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.88';
+  const VERSIE='v13.90';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1540,7 +1540,10 @@
   const ESC_N=6, ESC_HP=150, ESC_VOOR=14, ESC_MAAT=1.6, ESC_TERUG=10, ESC_VUUR=3.2;
   // DE NINJA: hoe ver hij verspringt, hoe ver de vier uit elkaar staan, hoe
   // lang een schaduw leeft, hoe hard ze wegvliegen, en zijn wachttijd.
-  const NINJA_VER=60, NINJA_TUS=16, NINJA_LEEF=2.0, NINJA_WEG=1.6, NINJA_SNEL=30;
+  // De vier van de ninja: hoe ver de rij van hem vandaan staat, en hoe ver de
+  // vier ONDERLING — die overlapten elkaar op 16 m, want de baas is breder.
+  const NINJA_VER=60, NINJA_TUS=85, NINJA_LEEF=2.0, NINJA_WEG=1.6, NINJA_SNEL=30;
+  const NINJA_ORDE=[3,1,3,0,2];   // Sjoerds volgorde: 4e, 2e, 4e, 1e, 3e plek
   const NINJA_CD=5, NINJA_RAKHP=50;
   // THE WHEEL's velg: kracht, straal (aandeel van zijn breedte), hoe groot de
   // naaf is (aandeel van de velgstraal), draaisnelheid, en wanneer hij terugkomt.
@@ -1953,7 +1956,11 @@
   // schade en straal per explosietrap
   // Sjoerd: "geen overkill aan raketten, maar dan goede homing die meer schade
   // kunnen hebben." Schade per trap omhoog; de aantallen blijven zoals ze zijn.
-  const EXDMG=[0,40,60,85], EXSTRAAL=[0,12,18,25];
+  // Sjoerd: "blast radius halveren, we gaan geen grote groepen meer aanvallen."
+  // De groepen zijn sinds v13.87 een stuk kleiner (7 lichte in plaats van 22),
+  // dus een klapstraal van 25 meter veegde het hele veld leeg. Nu de helft;
+  // de schade per raket blijft.
+  const EXDMG=[0,40,60,85], EXSTRAAL=[0,6,9,13];
   // DE ACHT TRAPPEN VAN DE ELECTRO. n = hoeveel schepen de ketting raakt,
   // dmg = schade per schakel, vuur = vlammen bij elke inslag,
   // blast = straal van de explosie bij elke inslag (0 = geen).
@@ -2012,7 +2019,7 @@
     {wit:14,n1:22,n2:26,kl1:0xfff2c0,kl2:0xffb03a, rook:9, ring:3, duur:1.7}
   ];
   const RAKETDMG=85;            // het maximum, trap 3 (was 50)
-  const RAKETBLAST=25;          // meter (was 10)
+  const RAKETBLAST=13;          // meter (was 25: halveren, v13.90)
   const RINGEN=6, RINGPT=44, RINGTIJD=0.42;
   const RING_DICHT=0.45;        // hoe snel de ring van THE WHEEL naar binnen klapt
   const GAMEOVER_WACHT=3;       // seconden dat GAME OVER blijft staan vóór de keuze
@@ -3394,11 +3401,20 @@
     schildAan:function(e,hp){
       e.schild=hp; e.schildM=hp;
       if(!e.schildM3){
-        const g=new THREE.SphereGeometry(1,18,12);
+        // ECHT EEN BAL, geen cirkel. Bij dekking 0,16 zag je alleen de rand
+        // oplichten en leek het een ring. Nu twee schillen: een doorzichtige
+        // bol PLUS een net van meridianen eroverheen, zodat je meteen ziet dat
+        // het een bol is en hoe sterk hij nog is.
+        const g=new THREE.SphereGeometry(1,20,14);
         const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0xff3a3a,
-          transparent:true,opacity:0.2,depthWrite:false,
+          transparent:true,opacity:0.28,depthWrite:false,
           blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
         m.renderOrder=9; m.frustumCulled=false;
+        const net=new THREE.Mesh(new THREE.SphereGeometry(1.02,16,10),
+          new THREE.MeshBasicMaterial({color:0xff8a8a,wireframe:true,
+            transparent:true,opacity:0.5,depthWrite:false,
+            blending:THREE.AdditiveBlending}));
+        net.frustumCulled=false; m.add(net); m.__net=net;
         this.par.add(m); e.schildM3=m; }
       e.schildM3.visible=true; },
 
@@ -3407,11 +3423,21 @@
       if(!(e.schild>0)){ e.schildM3.visible=false; return; }
       e.schildP=(e.schildP||0)+s*3.6;
       e.schildM3.position.copy(e.p);
-      e.schildM3.scale.set(e.bw*0.62,Math.max(e.bh,e.bw*0.4)*0.8,e.bw*0.5);
+      // een echte BOL: overal even dik, ruim om het schip heen
+      const R=Math.max(e.bw,e.bh)*0.62;
+      e.schildM3.scale.set(R,R,R);
       // pulseert, en gloeit feller naarmate hij bijna breekt
+      // hoe zwakker het schild, hoe heftiger hij pulseert en hoe feller het net
       const zwak=1-e.schild/Math.max(1,e.schildM);
-      e.schildM3.material.opacity=0.16+Math.sin(e.schildP)*0.05+zwak*0.14;
-      if(e.schildFlits>0){ e.schildFlits-=s; e.schildM3.material.opacity+=0.3; } },
+      const puls=Math.sin(e.schildP*(1+zwak*2.5))*(0.05+zwak*0.08);
+      e.schildM3.material.opacity=0.26+puls+zwak*0.12;
+      if(e.schildM3.__net){
+        e.schildM3.__net.material.opacity=0.4+puls*2+zwak*0.35;
+        e.schildM3.__net.rotation.y+=s*0.35;
+        e.schildM3.__net.rotation.x+=s*0.18; }
+      if(e.schildFlits>0){ e.schildFlits-=s;
+        e.schildM3.material.opacity+=0.35;
+        if(e.schildM3.__net) e.schildM3.__net.material.opacity+=0.5; } },
 
     schildBreekt:function(e){
       e.schild=0;
@@ -3539,9 +3565,14 @@
       e.ninjaCd=NINJA_CD;
       // waar komt de rij? links of rechts van zijn huidige plek, op één lijn
       // de rij staat ZESTIG METER verderop, niet half over zijn eigen plek heen
-      const hk=(Math.random()<0.5?-1:1);
-      const basisX=e.p.x+hk*NINJA_VER;
-      const echt=Math.floor(Math.random()*4);         // welke van de vier is hij
+      // De rij staat GECENTREERD om zijn eigen plek, niet zestig meter opzij —
+      // anders vliegt de buitenste ver buiten beeld. Sjoerd wil ze echt ver uit
+      // elkaar; in VR zie je een breed veld.
+      const basisX=this.kop.x;
+      // Sjoerds volgorde: 4e plek, 2e, 4e, 1e, 3e — en dan weer van voren af.
+      // Geen willekeur nodig; voor de speler is het toch niet te volgen.
+      this.ninjaBeurt=((this.ninjaBeurt||0)+1)%NINJA_ORDE.length;
+      const echt=NINJA_ORDE[this.ninjaBeurt];
       this.vonk(e.p.x,e.p.y,e.p.z,0xffffff,16,e.bw*0.5,0.6);
       this.vonk(e.p.x,e.p.y,e.p.z,0xcfe8ff,20,e.bw*0.8,0.9);
       this.schokRing(e.p);
@@ -3563,8 +3594,14 @@
           d.hp=d.hpM=1; d.schaduw=NINJA_LEEF;
           d.ninjaWeg=NINJA_WEG; d.ninjaX=wegX*NINJA_SNEL; d.ninjaY=wegY*NINJA_SNEL;
           d.baasNaam=e.baasNaam; d.gedrag=e.gedrag; d.cd=999;   // schaduwen vuren niet
-          if(d.bb&&e.bb) d.bb.m.material=e.bb.m.material;
-          d.bw=e.bw; d.bh=e.bh; d.sc=e.sc;
+          // ALLE VIER ZIEN ER PRECIES ALS DE BAAS UIT: zelfde plaatje, zelfde
+          // stuk van de plaat, zelfde maat. Alleen de echte heeft de krachtbalk.
+          if(d.bb&&e.bb){
+            d.bb.m.material=e.bb.m.material;
+            const a=e.bb.g.attributes.uv, b=d.bb.g.attributes.uv;
+            for(let q=0;q<a.count;q++) b.setXY(q,a.getX(q),a.getY(q));
+            b.needsUpdate=true; }
+          d.bw=e.bw; d.bh=e.bh; d.sc=e.sc; d.geenBalk=1;
           if(d.bb) d.bb.m.scale.set(d.bw,d.bh,1);
           this.vonk(x,y0,z0,0x9fe4f5,8,e.bw*0.4,0.4); } }
       return true; },
@@ -6291,6 +6328,7 @@
 
     baasBalk:function(e){
       if(e.intro) return;
+      if(e.geenBalk) return;                 // een schaduw van de ninja: geen balk
       const A=document.querySelector('#baasBalkA'), B=document.querySelector('#baasBalkB');
       const R=document.querySelector('#baasRand');
       if(!A||!B) return;
