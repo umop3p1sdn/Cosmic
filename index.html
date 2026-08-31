@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.83';
+  const VERSIE='v13.88';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1518,7 +1518,11 @@
   const MINAF_GROOT=38, MINAF_REUS=58;
   const DUIK_TOT=24;            // hoe dichtbij een duiker komt (was 10: in je gezicht)
   const DUIKROL_T=1.8;          // hoe lang de duiker rolt bij het wegtrekken
+  const DUIKROL_CD=9, DUIKROL_KANS=0.3;   // en hoe zelden hij het doet
   const SPREID_GROOT=26;        // hoe ver grote schepen onderling uit elkaar staan
+  // Sjoerd: "ze zitten soms echt boven op elkaar." Bij het neerzetten houdt
+  // elk schip minstens deze afstand tot de rest; anders wordt hij opzij gezet.
+  const SPREID_MIN=13, SPREID_POGING=14;
   // De scheervlucht van grote schepen: hoe ver naast je hij langsscheert, hoe
   // snel, hoe lang, en hoe vaak.
   const SCHEER_AF=26, SCHEER_SNEL=34, SCHEER_DUUR=5.0, SCHEER_EERST=14, SCHEER_ELK=22;
@@ -1570,7 +1574,7 @@
   const ROLKANS=0.45, ROLTIJD=1.8, ROLSNEL=3.5;
   // Het overhellen in een bocht: hoeveel, bij welke zijsnelheid vol, en hoe
   // traag hij erin en eruit komt. Eén formule voor alle plekken.
-  const HELLING=0.45, HELLING_V=18, HELLING_TRAAG=1.6;
+  const HELLING=1.35, HELLING_V=26, HELLING_TRAAG=2.2;
   // DE SPRINGER: hoe ver hij verspringt en hoe lang hij daarna moet wachten.
   // Sjoerd: de sprong en de duik waren te klein om te zien. Allebei verdubbeld.
   const SPRING_VER=50, SPRING_CD=10, SPRING_RUST=0.55;
@@ -1579,10 +1583,18 @@
   const SPRING_ALARM=16;
   // De SPLIT-S van BLUE SPINE: hoe lang de hele manoeuvre duurt, welk deel
   // daarvan de halve rol is, hoe groot de looping en hoe vaak hij het mag.
-  const SS_TIJD=1.7, SS_ROLDEEL=0.28, SS_STRAAL=17, SS_VAART=12, SS_CD=6;
+  // De ZIJSTAP van BLUE SPINE: hoe lang, wanneer hij haaks staat, wanneer hij
+  // weer uitdraait, hoe hard hij opzij schuift en hoeveel hij daarbij stijgt.
+  const SS_TIJD=1.3, SS_KANTEL=0.25, SS_TERUG=0.62, SS_ZIJ=34, SS_HOOG=7, SS_CD=6;
   // Eén keer een raket ontwijken: op welke afstand hij het merkt, hoe lang de
   // ruk duurt en hoe hard.
   const RAKWIJK_AF=22, RAKWIJK_T=0.45, RAKWIJK_V=26;
+  // FLARES: hoeveel per waaier, hoe breed, hoe snel eruit, hoe lang ze branden,
+  // hoe hard ze vallen, vanaf welke raketafstand, hoe vaak, en de wegtrekruk.
+  const FLARE_N=8, FLARE_SPREID=2.1, FLARE_V=26, FLARE_LEEF=4.0, FLARE_ZWAAR=13;
+  const FLARE_AF=42, FLARE_EERST=55, FLARE_SPAN=70, FLARE_MAAT=0.9, FLARE_MAX=40;
+  const FLARE_MAXSCHEPEN=2;     // alleen als hij alleen is of met z'n tweeën
+  const FLARE_ZOEK=70, FLARE_WEG=1.2, FLARE_WEGV=30;
   // HET SPOOKSCHIP: vanaf welke afstand hij vervaagt, waar hij weer verschijnt,
   // en hoe doorzichtig hij op zijn onzichtbaarst is.
   // Het spookschip werkt op TIJD: zichtbaar, glans, weg, en weer terug.
@@ -2100,20 +2112,20 @@
   //  Bewust ongelijk: een BULWARK houdt zich lang goed en klapt dan snel in,
   //  een SENTINEL raakt al vroeg gehavend en blijft daarna lang doorvechten.
   const TYPE=[
-    {n:'SCOUT',     pl:6, rij:0, br:6,  hp:14,  pt:60,  sp:13.0,  sal:1, cd:3.0, prof:'strafer', f1:0.70, f2:0.35},
-    {n:'WASP',      pl:6, rij:5, br:5,  hp:10,  pt:55,  sp:20.3, sal:1, cd:3.2, prof:'sluiper', f1:0.80, f2:0.45},
-    {n:'FIGHTER',   pl:6, rij:1, br:9,  hp:55,  pt:150, sp:10.3,  sal:2, cd:2.6, prof:'formatie', f1:0.65, f2:0.30},
+    {n:'SCOUT',     pl:6, rij:0, br:6,  hp:56,  pt:60,  sp:13.0,  sal:1, cd:3.0, prof:'strafer', f1:0.70, f2:0.35},
+    {n:'WASP',      pl:6, rij:5, br:5,  hp:40,  pt:55,  sp:20.3, sal:1, cd:3.2, prof:'sluiper', f1:0.80, f2:0.45},
+    {n:'FIGHTER',   pl:6, rij:1, br:9,  hp:110,  pt:150, sp:10.3,  sal:2, cd:2.6, prof:'formatie', f1:0.65, f2:0.30},
     {n:'SAUCER',    pl:6, rij:4, br:13, hp:110, pt:230, sp:5.5,  sal:1, cd:3.4, prof:'cirkel', f1:0.55, f2:0.22},
     {n:'BOMBER',    pl:6, rij:2, br:16, hp:160, pt:300, sp:4.6,  sal:3, cd:4.0, prof:'kruiper', f1:0.72, f2:0.28},
     {n:'HEAVY',     pl:6, rij:3, br:20, hp:250, pt:420, sp:3.2,  sal:2, cd:3.0, prof:'drijver', f1:0.78, f2:0.40},
-    {n:'RAZOR',     pl:12,rij:0, br:7,  hp:20,  pt:80,  sp:15.9, sal:1, cd:2.6, prof:'formatie', f1:0.75, f2:0.40},
-    {n:'VIPER',     pl:12,rij:6, br:6,  hp:18,  pt:75,  sp:21.8, sal:1, cd:2.4, prof:'duiker', f1:0.85, f2:0.50},
+    {n:'RAZOR',     pl:12,rij:0, br:7,  hp:60,  pt:80,  sp:15.9, sal:1, cd:2.6, prof:'formatie', f1:0.75, f2:0.40},
+    {n:'VIPER',     pl:12,rij:6, br:6,  hp:72,  pt:75,  sp:21.8, sal:1, cd:2.4, prof:'duiker', f1:0.85, f2:0.50},
     // SPINNER is nu BLACK RAVEN: Sjoerds mooie zwarte breedvleugel in level 1.
     // Meer kracht, en breed genoeg (13) voor de scheervlucht.
     {n:'SPINNER',   pl:12,rij:1, br:13, hp:110, pt:220, sp:10.2,  sal:2, cd:3.0, prof:'cirkel', f1:0.60, f2:0.25},
-    {n:'NIGHTBLADE',pl:12,rij:2, br:7,  hp:30,  pt:110, sp:18.8, sal:1, cd:3.0, prof:'sluiper', f1:0.68, f2:0.34},
+    {n:'NIGHTBLADE',pl:12,rij:2, br:7,  hp:90,  pt:110, sp:18.8, sal:1, cd:3.0, prof:'sluiper', f1:0.68, f2:0.34},
     {n:'REAPER',    pl:12,rij:7, br:11, hp:130, pt:210, sp:11.5,  sal:1, cd:2.0, prof:'strafer', snel:26, f1:0.50, f2:0.20},
-    {n:'LANCER',    pl:12,rij:9, br:9,  hp:75, pt:190, sp:12.9, sal:1, cd:3.0, prof:'duiker', f1:0.62, f2:0.38},
+    {n:'LANCER',    pl:12,rij:9, br:9,  hp:150, pt:190, sp:12.9, sal:1, cd:3.0, prof:'duiker', f1:0.62, f2:0.38},
     {n:'WEAVER',    pl:12,rij:10,br:15, hp:150, pt:290, sp:6.4,  sal:2, cd:3.2, prof:'sluiper', f1:0.66, f2:0.20},
     {n:'BROOD',     pl:12,rij:4, br:18, hp:180, pt:340, sp:3.7,  sal:3, cd:5.0, prof:'moeder', broed:40, f1:0.82, f2:0.45},
     {n:'SENTINEL',  pl:12,rij:5, br:12, hp:200, pt:330, sp:5.2,  sal:1, cd:6.0, prof:'kruiper', zwaar:1, f1:0.45, f2:0.18},
@@ -2123,11 +2135,11 @@
     // ---- de tweede twaalfrijige plaat: nog eens twaalf soorten ----
     // Hun gedrag komt uit echte luchtgevechtmanoeuvres: immelmann, split-s,
     // scissors, yo-yo en de barrel roll.
-    {n:'WRAITH',    pl:13,rij:0, br:9,  hp:60,  pt:130, sp:15.5, sal:1, cd:2.6, prof:'splitser',  f1:0.70, f2:0.30},
-    {n:'FALCON',    pl:13,rij:1, br:8,  hp:50,  pt:120, sp:21.8, sal:1, cd:2.2, prof:'immel',   f1:0.78, f2:0.42},
+    {n:'WRAITH',    pl:13,rij:0, br:9,  hp:120,  pt:130, sp:15.5, sal:1, cd:2.6, prof:'splitser',  f1:0.70, f2:0.30},
+    {n:'FALCON',    pl:13,rij:1, br:8,  hp:100,  pt:120, sp:21.8, sal:1, cd:2.2, prof:'immel',   f1:0.78, f2:0.42},
     {n:'INFERNO',   pl:13,rij:2, br:17, hp:210, pt:330, sp:4.6,  sal:3, cd:3.6, prof:'kruiper', f1:0.66, f2:0.26},
     {n:'HALO',      pl:13,rij:3, br:14, hp:170, pt:280, sp:6.4,  sal:2, cd:3.4, prof:'cirkel',  zwaar:1, f1:0.52, f2:0.24},
-    {n:'NEEDLE',    pl:13,rij:4, br:7,  hp:35,  pt:95,  sp:24.6, sal:1, cd:2.4, prof:'scissors',f1:0.84, f2:0.48},
+    {n:'NEEDLE',    pl:13,rij:4, br:7,  hp:105,  pt:95,  sp:24.6, sal:1, cd:2.4, prof:'scissors',f1:0.84, f2:0.48},
     {n:'BASILISK',  pl:13,rij:5, br:19, hp:260, pt:380, sp:4.0,  sal:3, cd:3.2, prof:'drijver', f1:0.80, f2:0.34},
     {n:'CYCLONE',   pl:13,rij:6, br:13, hp:150, pt:250, sp:8.3,  sal:2, cd:3.0, prof:'barrel',  f1:0.60, f2:0.28},
     {n:'SHRIKE',    pl:13,rij:7, br:10, hp:130,  pt:180, sp:16, sal:1, cd:2.0, prof:'yoyo',    snel:24, f1:0.55, f2:0.22},
@@ -2207,14 +2219,27 @@
       window.ART.nieuw=function(){ self.artVernieuw(); };
 
       // ---- vijand-sprites: eigen uv per mesh, één gedeeld materiaal ----
+      // Sjoerd: "soms zie ik iemand die ver weg is door de voorste heen."
+      // Dat kwam door depthWrite:false — de sprites schreven geen diepte, dus
+      // bepaalde de tekenvolgorde wie voor stond in plaats van de afstand. Met
+      // alphaTest erbij mag de dieptebuffer gewoon aan: de doorzichtige randen
+      // vallen weg door de alphaTest, en de rest staat op de goede plek.
       this.bbMat=new THREE.MeshBasicMaterial({map:this.ATLAS,transparent:true,alphaTest:0.20,
-        side:THREE.DoubleSide,depthWrite:false});
+        side:THREE.DoubleSide,depthWrite:true});
       this.bb=[];
       for(let i=0;i<90;i++){
         const g=new THREE.PlaneGeometry(1,1);
         const m=new THREE.Mesh(g,this.bbMat);
         m.visible=false; m.renderOrder=2; this.par.add(m);
         this.bb.push({m:m,g:g,vrij:true}); }
+      // de flares: een vaste voorraad hete bolletjes
+      this.flares=[];
+      for(let i=0;i<FLARE_MAX;i++){
+        const m=new THREE.Mesh(new THREE.SphereGeometry(1,8,6),
+          new THREE.MeshBasicMaterial({color:0xfff2c0,transparent:true,opacity:1,
+            depthWrite:false,blending:THREE.AdditiveBlending}));
+        m.visible=false; m.renderOrder=7; m.frustumCulled=false; this.par.add(m);
+        this.flares.push({m:m,live:false,t:0,p:new THREE.Vector3(),v:new THREE.Vector3()}); }
       this.romp=[];                                  // massieve romp per vijand (diagnose + altijd speelbaar)
       for(let i=0;i<90;i++){
         const m=new THREE.Mesh(new THREE.IcosahedronGeometry(1,0),
@@ -2414,6 +2439,8 @@
       for(const id in this.wep){ const W=this.wep[id];
         W.t=5; W.lvl=1; W.lvlT=this.zak.lvlT; W.mag=this.zak.mag;
         W.last=0; W.up=0; W.vorig=0; W.laz=null; }
+      if(this.flares) this.flares.forEach(function(F){ F.live=false; F.m.visible=false; });
+      this.flareVeld=FLARE_EERST+Math.random()*FLARE_SPAN;
       this.enemies.forEach(function(e){ e.live=false; e.dood=0; e.dood2=0;
         if(e.romp){ e.romp.visible=false; e.romp=null; } });
       this.bb.forEach(function(b){ b.vrij=true; b.m.visible=false; });
@@ -2863,6 +2890,92 @@
     // Ze zijn geen eigen scheepstype maar een EIGENSCHAP van bestaande soorten,
     // zodat ze in het golfplan meelopen zonder aparte regels.
 
+    // ---- FLARES (Sjoerds ontwerp, opgezocht hoe ze echt werken) ----
+    // Een vliegtuig dat een raket ziet aankomen werpt acht flares uit in een
+    // waaier en TREKT DAARNA IN EEN SCHERPE HOEK WEG, met gas erop. De raket
+    // ziet de hete flares en volgt er een in plaats van het vliegtuig.
+    // Ze branden een seconde of vier en vallen in een boog omlaag. Ze gaan
+    // alleen kapot van een directe treffer, niet van een schokgolf.
+    flareUit:function(e){
+      // Sjoerd: "gewoon soms. Misschien één keer per minuut tot twee minuten."
+      // Dus geen kans per schip maar een klok voor het HELE veld: pas als die
+      // afgelopen is mag de eerstvolgende bedreigde jager zijn flares gooien.
+      if(!this.flares) return false;
+      if(this.flareVeld===undefined) this.flareVeld=FLARE_EERST+Math.random()*FLARE_SPAN;
+      if(this.flareVeld>0) return false;
+      // Sjoerd: "het is het mooist als hij alleen is of met z'n tweeën, dan zie
+      // je het ook gebeuren." In een drukke golf gaat het gebaar verloren.
+      let inBeeld=0;
+      for(let i=0;i<this.enemies.length;i++)
+        if(this.enemies[i].live&&!this.enemies[i].dood) inBeeld++;
+      if(inBeeld>FLARE_MAXSCHEPEN) return false;
+      // is er een raket op hem onderweg, en dichtbij genoeg?
+      let R=null;
+      for(let i=0;i<this.rockets.length;i++){ const q=this.rockets[i];
+        if(!q.live||q.zoek!==e) continue;
+        if(q.m.position.distanceTo(e.p)<FLARE_AF){ R=q; break; } }
+      if(!R) return false;
+      // de klok opnieuw zetten: pas over een minuut tot twee gebeurt het weer
+      this.flareVeld=FLARE_EERST+Math.random()*FLARE_SPAN;
+      // de richting waar de raket vandaan komt
+      const naar=this.FL||(this.FL=new THREE.Vector3());
+      naar.subVectors(e.p,R.m.position).normalize();
+      // de waaier: acht flares, achterwaarts en uit elkaar
+      let n=0;
+      for(let i=0;i<this.flares.length&&n<FLARE_N;i++){ const F=this.flares[i];
+        if(F.live) continue;
+        const hk=((n/(FLARE_N-1))-0.5)*FLARE_SPREID;
+        F.live=true; F.t=FLARE_LEEF;
+        F.p.copy(e.p);
+        F.v.set(-naar.x*FLARE_V+Math.sin(hk)*FLARE_V*0.9,
+                Math.cos(hk)*FLARE_V*0.35+3,
+                -naar.z*FLARE_V);
+        F.m.visible=true; F.m.position.copy(F.p);
+        n++; }
+      // en hij trekt weg, tegen de raket in, met een versnelling
+      e.flareWeg=FLARE_WEG;
+      e.flareDir=new THREE.Vector3(naar.x,naar.y*0.3,naar.z).normalize();
+      // de raket verliest zijn doel en pakt een flare
+      R.zoek=null; R.flareLok=1;
+      this.vonk(e.p.x,e.p.y,e.p.z,0xfff2c0,6,4,0.4);
+      return true; },
+
+    flareTick:function(s){
+      if(!this.flares) return;
+      for(let i=0;i<this.flares.length;i++){ const F=this.flares[i];
+        if(!F.live) continue;
+        F.t-=s;
+        F.v.y-=FLARE_ZWAAR*s;                          // ze vallen in een boog
+        F.p.addScaledVector(F.v,s);
+        F.m.position.copy(F.p);
+        const k=Math.max(0,F.t/FLARE_LEEF);
+        F.m.scale.setScalar(FLARE_MAAT*(0.7+k*0.5)*(1+Math.sin(this.T*30+i)*0.15));
+        F.m.material.opacity=Math.min(1,k*2.2);
+        if(Math.random()<s*22) this.vonk(F.p.x,F.p.y,F.p.z,0xfff2c0,1,1.2,0.25);
+        if(Math.random()<s*7) this.rook(F.p.x,F.p.y,F.p.z,false,0.5,0.9);
+        if(F.t<=0){ F.live=false; F.m.visible=false; } } },
+
+    // een raket die zijn doel kwijt is zoekt de dichtstbijzijnde brandende flare
+    flareZoek:function(R){
+      if(!this.flares) return null;
+      let b=null,bd=FLARE_ZOEK;
+      for(let i=0;i<this.flares.length;i++){ const F=this.flares[i];
+        if(!F.live) continue;
+        const d=F.p.distanceTo(R.m.position);
+        if(d<bd){ bd=d; b=F; } }
+      return b; },
+
+    // een kogel kan een flare uitschieten (alleen een directe treffer)
+    flareTreffer:function(p){
+      if(!this.flares) return false;
+      for(let i=0;i<this.flares.length;i++){ const F=this.flares[i];
+        if(!F.live) continue;
+        if(p.distanceTo(F.p)<FLARE_MAAT*1.6){
+          F.live=false; F.m.visible=false;
+          this.vonk(F.p.x,F.p.y,F.p.z,0xfff2c0,6,2.5,0.4);
+          return true; } }
+      return false; },
+
     // ---- ÉÉN KEER ONTWIJKEN (Sjoerd) ----
     // Elk schip kan één keer per leven een naderende raket ontwijken: hij zet
     // een korte zijwaartse ruk in en de raket schiet erlangs. Daarna niet meer,
@@ -2899,36 +3012,33 @@
     splitSStart:function(e){
       if(e.ssT>0||e.ssCd>0) return;
       e.ssT=SS_TIJD; e.ssCd=SS_CD; e.ssZij=(Math.random()<0.5?-1:1);
+      e.ssOmhoog=(Math.random()<0.5?-1:1);
       e.ssY0=e.p.y; e.ssZ0=e.p.z;
       this.vonk(e.p.x,e.p.y,e.p.z,0x9fe4f5,4,e.sc*0.4,0.4); },
 
+    // Sjoerds ontwerp, en het ziet er veel beter uit dan de split-s: hij
+    // KANTELT tot zijn bovenkant naar de kant wijst waar hij heen wil — dus
+    // negentig graden, haaks — schuift in die houding snel die kant op, en
+    // komt afremmend weer rechtop. Als een jager die opzij wegschuift.
     splitSTick:function(e,s){
       if(!(e.ssT>0)) return false;
       e.ssT-=s;
       const deel=1-Math.max(0,e.ssT/SS_TIJD);            // 0 -> 1
-      if(deel<SS_ROLDEEL){
-        // 1. de halve rol: hij draait op zijn kop
-        const k=deel/SS_ROLDEEL;
-        if(e.bb) e.bb.m.rotation.z=k*Math.PI*e.ssZij;
-        e.p.z+=SS_VAART*0.4*s; }
-      else {
-        // 2. de dalende halve looping: op zijn kop trekt hij 'omhoog', wat in
-        //    de wereld omlaag en achterwaarts is. Een halve cirkel dus.
-        const k=(deel-SS_ROLDEEL)/(1-SS_ROLDEEL);        // 0 -> 1 door de looping
-        const hk=k*Math.PI;                              // halve cirkel
-        e.p.y=e.ssY0-SS_STRAAL*(1-Math.cos(hk));
-        e.p.z=e.ssZ0+SS_STRAAL*Math.sin(hk)*0.9;
-        // en hij rolt in het laatste stuk terug naar horizontaal
-        if(e.bb) e.bb.m.rotation.z=(1-k)*Math.PI*e.ssZij; }
+      // de kanteling: snel naar haaks, aan het eind weer terug naar recht
+      let hoek;
+      if(deel<SS_KANTEL) hoek=(deel/SS_KANTEL);                     // indraaien
+      else if(deel<SS_TERUG) hoek=1;                                // vasthouden
+      else hoek=1-((deel-SS_TERUG)/(1-SS_TERUG));                   // uitdraaien
+      if(e.bb) e.bb.m.rotation.z=hoek*(Math.PI/2)*e.ssZij;
+      // de vaart opzij: vol in het midden, afremmend aan het eind
+      const vaart=Math.sin(Math.min(1,deel*1.6)*Math.PI*0.5)*(1-Math.max(0,(deel-SS_TERUG)/(1-SS_TERUG))*0.85);
+      e.p.x+=e.ssZij*SS_ZIJ*vaart*s;
+      e.p.y+=Math.sin(deel*3.14)*SS_HOOG*s*e.ssOmhoog;
       if(e.bb) e.bb.m.position.copy(e.p);
       if(e.ssT<=0){
-        // Uit de manoeuvre: lager, en weer RECHTOP. In het echt eindig je de
-        // split-s in tegengestelde richting, maar onze schepen zijn van voren
-        // getekend — dan zou je tegen zijn achterkant aankijken, en die bestaat
-        // niet. Hij houdt dus zijn richting; alleen zijn hoogte en zijn tempo
-        // veranderen.
+        // recht, en een tikje sneller na de ontwijking
         e.ssT=0; if(e.bb) e.bb.m.rotation.z=0;
-        e.snelX=Math.min(2.2,(e.snelX||1)*1.25); }
+        e.snelX=Math.min(2.2,(e.snelX||1)*1.15); }
       return true; },
 
     // DE SPRINGER: raak je hem, dan verspringt hij naar een willekeurige plek
@@ -3703,7 +3813,7 @@
         // staan, en die zijn bij een uitgeknipt plaatje bijna zwart — dan krijgt
         // elk schip een donkere omlijning. Een hogere drempel snijdt die weg.
         this.losM[k]=new THREE.MeshBasicMaterial({map:tex,transparent:true,
-          alphaTest:RANDDREMPEL,side:THREE.DoubleSide,depthWrite:false}); }
+          alphaTest:RANDDREMPEL,side:THREE.DoubleSide,depthWrite:true}); }
       return this.losM[k]; },
 
     // Een los schip verkleinen tot LOS_MAX, en mipmaps aanzetten. Zonder mipmaps
@@ -4695,7 +4805,7 @@
         // stand, en veld liet een krachtveld om een gewoon schip staan.
         e.springRust=0; e.geestT=0; e.rol=0; e.valDir=null; e.valV=0; e.valRot=0; e.valTijd=0; e.valRolA=0; e.valNu=0;
         e.broedCd=0; e.broedUit=0; e.broedDir=null; e.broed=0; e.valDraai=undefined;
-        e.rakOp=0; e.rakWijkT=0; e.ssT=0; e.ssCd=0; e.hangarJager=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
+        e.rakOp=0; e.rakWijkT=0; e.ssT=0; e.ssCd=0; e.duikRolCd=0; e.flareCd=0; e.flareWeg=0; e.hangarJager=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
         e.scheer=0; e.scheerCd=undefined; e.scheerT=0;
         e.vp=null; e.vRicht=null;   // de vliegrichting opnieuw meten
         if(e.veld){ e.veld.visible=false; e.veld=null; }
@@ -4848,8 +4958,8 @@
       // DE ROLAANVAL is een eigenschap van een paar SOORTEN, niet van elk klein
       // schip. Anders gaat de hele lucht rollen en is het geen kunstje meer.
       if(ROLLERS.indexOf(TYPE[e.tp]&&(TYPE[e.tp].basis||TYPE[e.tp].n))>=0&&
-         !e.dood&&!e.dood2&&(e.rolT||0)<=0&&Math.random()<ROLKANS){
-        e.rolT=ROLTIJD; e.rolA=0; }
+         !e.dood&&!e.dood2&&(e.rolT||0)<=0&&!(e.duikRolCd>0)&&Math.random()<ROLKANS){
+        e.rolT=ROLTIJD; e.rolA=0; e.duikRolCd=DUIKROL_CD; }
       if(e.bw>=GROOTBR&&!e.dood&&!e.dood2){
         e.grBeurt=(e.grBeurt||0)+1;
         if(e.grBeurt%GROOT_ELK===0){ this.grootAanval(e); return; } }
@@ -5142,7 +5252,11 @@
       // vliegtuig dat naar rechts gaat doet zijn rechtervleugel omlaag, dus
       // rotation.z moet dan NEGATIEF zijn — er stond een plus. En het gebeurde
       // op twee plekken met verschillende formules; nu overal HELLING.
-      e.rol=(e.rol||0)+((-Math.max(-1,Math.min(1,zijV/HELLING_V))*HELLING+(e.rolBocht||0))-(e.rol||0))*Math.min(1,s*HELLING_TRAAG);
+      // Sjoerd: "gaat een vliegtuig naar rechts, dan gaat zijn LINKERkant
+      // omhoog." In v13.79 draaide ik het net de verkeerde kant op. En: hoe
+      // schuiner hij hangt, hoe sneller hij opzij gaat — de helling volgt dus
+      // de zijwaartse snelheid, en die kan tot bijna haaks oplopen.
+      e.rol=(e.rol||0)+((Math.max(-1,Math.min(1,zijV/HELLING_V))*HELLING+(e.rolBocht||0))-(e.rol||0))*Math.min(1,s*HELLING_TRAAG);
       // DE ROLAANVAL: kleine jagers draaien een volle rol terwijl ze op je af
       // duiken. Puur vertoon, maar het maakt een aanval veel levendiger.
       // DE ROL VOLGT ZIJN SNELHEID. Een schip dat hard van links naar rechts
@@ -6404,7 +6518,7 @@
       e.p.addScaledVector(naar,diep*s);
       e.p.y+=Math.sin(e.t*0.8+e.i0)*4*s;
       // het schip helt mee in de bocht
-      e.rolBocht=zijV*0.018;
+      e.rolBocht=-zijV*0.018;
       // hoever is hij opzij gekomen? voorbij de grens keert hij om en komt dichterbij
       // hoek blijft binnen +/-90 graden, anders klapt de meting om en flipt hij elk frame
       const hoek=hoekNu;
@@ -6482,7 +6596,7 @@
       else if(P==='strafer'){ e.p.x+=Math.cos(e.t*0.55+e.i0)*26*s*zij;
                               e.p.y+=Math.sin(e.t*0.7)*5*s*zij;
                               e.p.z+=Math.sin(e.t*1.1+e.i0)*STRAFE_DIEP*s;
-                              e.rolBocht=Math.sin(e.t*0.55+e.i0)*zij*0.35; }
+                              e.rolBocht=-Math.sin(e.t*0.55+e.i0)*zij*0.35; }
 
       else if(P==='cirkel'){ e.ex.a=(e.ex.a||e.i0)+s*0.85;
                              e.p.x+=Math.cos(e.ex.a)*22*s*zij;
@@ -6498,10 +6612,13 @@
         if(!e.ex.f) e.ex.f=1;
         if(e.ex.f===1){ if(afst>DUIK_TOT+e.r) e.p.addScaledVector(naar,sp*1.5*s);
                         else { e.ex.f=2; this.spuw(e,1,0.06);
-                               // Sjoerd: "graag andere as, zodat hij een mooie rol
-                               // maakt." Bij het wegtrekken rolt hij om zijn
-                               // LENGTEAS — het plaatje draait in zijn eigen vlak.
-                               e.rolT=DUIKROL_T; e.rolA=0; } }
+                               // GEMETEN: VIPER rolde 95% van de tijd, LANCER 66%
+                               // — een duiker trekt namelijk aan één stuk door weg
+                               // en rolde dus elke keer. Sjoerd: "een grote
+                               // draaimolen." Nu hoogstens eens per DUIKROL_CD,
+                               // en lang niet elke duik.
+                               if(!(e.duikRolCd>0)&&Math.random()<DUIKROL_KANS){
+                                 e.rolT=DUIKROL_T; e.rolA=0; e.duikRolCd=DUIKROL_CD; } } }
         else { e.p.addScaledVector(naar,-sp*1.1*s);
                if(afst>AFST[Math.min(2,e.stap)]+e.r) e.ex.f=1; }
         e.p.x+=Math.sin(e.t*3.0)*7*s; }
@@ -6616,6 +6733,12 @@
           if(e.bb) e.bb.m.position.copy(e.p);
           return; }
         if(e.ssCd>0) e.ssCd-=s;
+        if(e.duikRolCd>0) e.duikRolCd-=s;
+        this.flareUit(e);
+        // wegtrekken na de flares, tegen de raket in
+        if(e.flareWeg>0){ e.flareWeg-=s;
+          e.p.addScaledVector(e.flareDir,FLARE_WEGV*s);
+          if(e.bb) e.bb.m.position.copy(e.p); }
         if(this.splitSTick(e,s)) return;
         // ÉÉN KEER een raket ontwijken — elk schip, één keer per leven.
         if(this.rakWijkTick(e,s)) return;
@@ -6757,7 +6880,10 @@
       const plan=[];
       // hoeveel er hoogstens tegelijk van één soort mogen: hoe groter, hoe minder
       const cap=function(tp,n){ const b=TYPE[tp].br;
-        let mx=(b<=7)?22:((b<=12)?9:((b<=17)?4:2));
+        // Sjoerd: "2x zo veel kracht betekent 2x minder vliegtuigen." De
+        // lichte schepen kregen 2x tot 4x kracht; hun aantallen gaan evenredig
+        // omlaag, zodat een golf niet zwaarder wordt maar wel steviger voelt.
+        let mx=(b<=7)?7:((b<=12)?5:((b<=17)?4:2));
         // HIER LIEP HET SPEL VAST: in deze functie heet het scheepstype 'tp',
         // niet 'a.tp'. Precies dezelfde fout als 'h' vs 'H' in de laserlus.
         if(TYPE[tp]&&(TYPE[tp].basis||TYPE[tp].n)==='WRAITH') mx=Math.min(mx,4);
@@ -6960,7 +7086,7 @@
       const b=TYPE[a.tp].br;
       // Sjoerd: de springer/splitser komt soms in te grote groepen — hij
       // verdubbelt zichzelf immers. Van hem hoogstens drie tegelijk.
-      let gelijk=Math.min(n,(b<=7)?9:((b<=12)?5:((b<=17)?3:1)));
+      let gelijk=Math.min(n,(b<=7)?4:((b<=12)?3:((b<=17)?3:1)));
       if(TYPE[a.tp]&&(TYPE[a.tp].basis||TYPE[a.tp].n)==='WRAITH') gelijk=Math.min(gelijk,3);
       this.veldMax+=gelijk;
       this.vorm=a.vorm||'rij'; this.vormI=0; this.vormN=n;
@@ -6986,6 +7112,25 @@
       this.vormRm=(Math.random()<0.5)?-1:1;            // en soms gespiegeld
       for(let i=0;i<gelijk;i++) this.spawnVorm(a.tp);
       for(let i=gelijk;i<n;i++) this.rij.push(a.tp); },   // de rest wacht op een lege plek
+
+    // Zet een schip opzij tot het niet meer boven op een ander zit.
+    ontklont:function(e){
+      const eis=Math.max(SPREID_MIN,e.bw*0.9);
+      for(let p=0;p<SPREID_POGING;p++){
+        let bots=null, kort=1e9;
+        for(let i=0;i<this.enemies.length;i++){ const q=this.enemies[i];
+          if(!q.live||q===e) continue;
+          const d=q.p.distanceTo(e.p);
+          const nodig=Math.max(eis,q.bw*0.9);
+          if(d<nodig&&d<kort){ kort=d; bots=q; } }
+        if(!bots) return;
+        // wegduwen van degene die te dichtbij zit
+        const dx=e.p.x-bots.p.x, dy=e.p.y-bots.p.y;
+        const l=Math.hypot(dx,dy)||1;
+        const duw=(Math.max(eis,bots.bw*0.9)-kort)+3;
+        e.p.x+=dx/l*duw; e.p.y+=dy/l*duw*0.6;
+        if(Math.abs(dx)<0.5&&Math.abs(dy)<0.5) e.p.x+=(Math.random()<0.5?-1:1)*duw; }
+      if(e.bb) e.bb.m.position.copy(e.p); },
 
     // ---- waar en hoe een schip binnenkomt ----
     spawnVorm:function(tp){
@@ -7044,6 +7189,7 @@
       const e=this.spawn(tp,o);
       if(e&&V==='ring'){ e.ring={a:o.ring,r:34+Math.random()*8,
         dr:(Math.random()<0.5?-1:1)*(0.16+Math.random()*0.14)}; }
+      if(e&&V!=='ring') this.ontklont(e);      // niet boven op een ander zetten
       return e; },
 
     // ---- drie in een driehoek: de punt stuurt, de vleugels volgen ----
@@ -7380,7 +7526,7 @@
         // omhoog. Bazen regelen dit al in hun eigen routine.
         if(e.bb&&e.prof!=='baas'&&!e.dood){
           const zv=(e.p.x-xVoor)/Math.max(0.004,s);
-          e.rol=(e.rol||0)+((-Math.max(-1,Math.min(1,zv/HELLING_V))*HELLING)-(e.rol||0))*Math.min(1,s*HELLING_TRAAG);
+          e.rol=(e.rol||0)+((Math.max(-1,Math.min(1,zv/HELLING_V))*HELLING)-(e.rol||0))*Math.min(1,s*HELLING_TRAAG);
           // DIT was de plek die elke rol wiste: hij zette de kanteling terug
           // ZONDER de rolaanval erbij, en komt na alles. Nu telt de rol mee.
           // een schip MIDDEN IN EEN BREAK TURN houdt zijn eigen bankhoek
@@ -7439,7 +7585,7 @@
           let mis=false;
           for(let q=0;q<=stapN&&!mis;q++){
             kp2.copy(B.o).addScaledVector(B.dir,B.d-(B.sp*s)*(q/stapN));
-            if(this.genTreffer(kp2,B.dmg)||this.escTreffer(kp2,B.dmg)) mis=true; }
+            if(this.genTreffer(kp2,B.dmg)||this.escTreffer(kp2,B.dmg)||this.flareTreffer(kp2)) mis=true; }
           if(mis){ B.live=false; B.m.visible=false; continue; } }
         const g=this.treffer(B.o,B.dir,B.pd,B.d,B.tol);
         if(g){ this.raak(g.e,B.dmg,g.x,g.y,g.z);
@@ -7478,6 +7624,18 @@
             const d=e.p.distanceTo(R.m.position); if(d<bd){ bd=d; bz=e; } }
           R.zoek=bz; }
         const v=this.RV||(this.RV=new THREE.Vector3());
+        // AFGELEID DOOR EEN FLARE: hij volgt de hete flare in plaats van het
+        // schip, precies waar flares voor bedoeld zijn. Brandt die op, dan
+        // zoekt hij weer een schip.
+        if(R.flareLok){
+          const F=this.flareZoek(R);
+          if(F){ v.subVectors(F.p,R.m.position).normalize();
+            R.dir.lerp(v,Math.min(1,4.0*s)).normalize(); R.wacht=0;
+            if(F.p.distanceTo(R.m.position)<3){ F.live=false; F.m.visible=false;
+              this.knal(F.p,2.2); this.vonk(F.p.x,F.p.y,F.p.z,0xfff2c0,10,3,0.5);
+              R.live=false; R.m.visible=false; }
+            continue; }
+          R.flareLok=0; }
         if(R.zoek&&R.zoek.live){ v.subVectors(R.zoek.p,R.m.position).normalize();
           const k=(R.tot<R.swarm)?0.6:5.0;
           R.dir.lerp(v,Math.min(1,k*s)).normalize();
@@ -7785,7 +7943,8 @@
 
       this.ringTick(s); this.sigRijTick(s); this.wijzerTickD(s);
       this.camoTick(s);
-      this.stap='effecten'; this.bliksTick(s); this.straalTick(s); this.bomTick(s); this.balTick(s); this.vlekTick();
+      if(this.flareVeld>0) this.flareVeld-=s;
+      this.stap='effecten'; this.flareTick(s); this.bliksTick(s); this.straalTick(s); this.bomTick(s); this.balTick(s); this.vlekTick();
       // ---- rook: drijft op, dijt uit en vervaagt ----
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(!R.live) continue;
         R.life-=s/Math.max(0.3,R.leven);
