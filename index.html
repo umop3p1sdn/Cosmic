@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.74';
+  const VERSIE='v13.77';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1595,7 +1595,7 @@
   // jagers eruit komen en hoe taai die zijn.
   const MOEDERS=['TITAN'];
   const MOEDER_AAN=4, MOEDER_UIT=4, MOEDER_N=4, MOEDER_WEG=15;
-  const MOEDER_HP=200, MOEDER_SNEL=1.6, VELD_MAAT=0.62;
+  const MOEDER_HP=200, MOEDER_SNEL=1.6, VELD_MAAT=0.62, MOEDER_MAX=6;
   // De demo: hoe vaak hij van wapen mag wisselen, wanneer hij een groep ziet, en
   // wanneer het zo druk wordt dat hij zijn ult inzet.
   const DEMO_WISSEL=1.2, DEMO_GROEP=4, DEMO_NOOD=22, DEMO_NOODS=9;
@@ -3056,7 +3056,13 @@
     // Vier jagers schieten in een flits vijftien meter van hun moederschip weg.
     jagersUit:function(e){
       const self=this;
-      for(let k=0;k<MOEDER_N;k++){
+      // Hoogstens MOEDER_MAX jagers in de lucht: anders stapelen ze op tot een
+      // muur. Gemeten: RAVEN had er twaalf na 25 seconden.
+      let n=0;
+      for(let i=0;i<this.enemies.length;i++)
+        if(this.enemies[i].live&&this.enemies[i].hangarJager) n++;
+      const past=Math.max(0,Math.min(MOEDER_N,MOEDER_MAX-n));
+      for(let k=0;k<past;k++){
         const hk=(k/MOEDER_N)*6.283+Math.random()*0.4;
         this.sigNa(k*0.09,function(){
           if(!e.live) return;
@@ -3065,7 +3071,7 @@
             y:e.p.y+Math.sin(hk)*MOEDER_WEG*0.55,
             z:e.p.z+8});
           if(!j) return;
-          j.hp=j.hpM=MOEDER_HP;
+          j.hp=j.hpM=MOEDER_HP; j.hangarJager=1;
           j.snelX=MOEDER_SNEL;                    // ze vliegen snel en tactisch
           j.rolT=ROLTIJD; j.rolA=0;               // en komen rollend naar buiten
           self.vonk(j.p.x,j.p.y,j.p.z,0xcfe8ff,10,4,0.5);
@@ -3422,7 +3428,7 @@
             new THREE.MeshBasicMaterial({color:0x9fe4f5,transparent:true,opacity:0.22,
               depthWrite:false,blending:THREE.AdditiveBlending}));
           g.add(gl); g.frustumCulled=false; this.par.add(g); w.m=g; }
-        w.live=true; w.hp=ESC_HP; w.m.visible=true; }
+        w.live=true; w.hp=e.escHp||ESC_HP; w.m.visible=true; }
       this.schildAan(e,1e9); },
 
     escTick:function(e,s){
@@ -3431,8 +3437,11 @@
       for(let i=0;i<e.esc.length;i++){ const w=e.esc[i];
         if(!w.live) continue; leven++;
         if(e.escVorm==='ring'){
-          // IRONCLAD: een kring van mijnen om hem heen, langzaam draaiend
-          const hk=(i/e.esc.length)*6.283+this.T*0.4;
+          // IRONCLAD: een kring van mijnen om hem heen. Ze DRAAIDEN, waardoor
+          // je erop mikte en ze al weg waren als je kogel aankwam — de demo
+          // raakte er in negentig seconden geen één. Nu hangen ze stil, met
+          // alleen een lichte deining.
+          const hk=(i/e.esc.length)*6.283+Math.sin(this.T*0.5)*0.12;
           w.p.set(e.p.x+Math.cos(hk)*e.bw*0.7, e.p.y+Math.sin(hk)*e.bw*0.5, e.p.z+6); }
         else if(e.escVorm==='flank'){
           // THE WALKER: kanonnen op de flanken, twee links, twee rechts
@@ -3442,7 +3451,7 @@
           // LANCE: een rij vóór hem, op ooghoogte, iets golvend
           const k=(i/(e.esc.length-1))-0.5;
           w.p.set(e.p.x+k*e.bw*1.4, e.p.y+Math.sin(this.T*1.8+i)*1.8, e.p.z+ESC_VOOR); }
-        w.m.position.copy(w.p); w.m.scale.setScalar(ESC_MAAT*(1+Math.sin(this.T*5+i)*0.06));
+        w.m.position.copy(w.p); w.m.scale.setScalar((e.escMaat||ESC_MAAT)*(1+Math.sin(this.T*5+i)*0.06));
         // Sjoerd: "wat doen die wachters?" — ze vuren terug. Om de beurt een
         // lichte kogel, zodat je onder vuur staat terwijl je de rij opruimt.
         w.vT=(w.vT||Math.random()*ESC_VUUR)-s;
@@ -3459,7 +3468,7 @@
         if(!e.live||!e.esc) continue;
         for(let k=0;k<e.esc.length;k++){ const w=e.esc[k];
           if(!w.live) continue;
-          if(p.distanceTo(w.p)<ESC_MAAT*1.4){
+          if(p.distanceTo(w.p)<(e.escMaat||ESC_MAAT)*1.6){
             w.hp-=dmg; this.vonk(w.p.x,w.p.y,w.p.z,0xcfe8ff,3,2.5,0.35);
             if(w.hp<=0){ w.live=false; w.m.visible=false;
               this.vonk(w.p.x,w.p.y,w.p.z,0xffffff,8,4,0.6); this.knal(w.p,3); }
@@ -4609,7 +4618,7 @@
         // stand, en veld liet een krachtveld om een gewoon schip staan.
         e.springRust=0; e.geestT=0; e.rol=0; e.valDir=null; e.valV=0; e.valRot=0; e.valTijd=0; e.valRolA=0; e.valNu=0;
         e.broedCd=0; e.broedUit=0; e.broedDir=null; e.broed=0; e.valDraai=undefined;
-        e.rakOp=0; e.rakWijkT=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
+        e.rakOp=0; e.rakWijkT=0; e.hangarJager=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
         e.scheer=0; e.scheerCd=undefined; e.scheerT=0;
         e.vp=null; e.vRicht=null;   // de vliegrichting opnieuw meten
         if(e.veld){ e.veld.visible=false; e.veld=null; }
@@ -4645,13 +4654,15 @@
           // RAVEN: de hangar — krachtveld 4 s aan / uit, vier jagers eruit
           if(B.naam==='RAVEN'){ e.hangar=1; e.moedF=1; e.moedT=MOEDER_AAN; }
           // IRONCLAD: een ring van acht mijnen om hem heen (escorte in een kring)
-          if(B.naam==='IRONCLAD'){ e.escVorm='ring'; this.escStart(e); }
+          // De mijnen moeten RAAKBAAR zijn: ze staan in een kring om hem heen,
+          // dus je schoten gaan er vaak langs. Ze zijn nu groter en zachter.
+          if(B.naam==='IRONCLAD'){ e.escVorm='ring'; this.escStart(e); e.escMaat=2.6; e.escHp=90; }
           // THE WALKER: vier kanonnen op de flanken als generatoren, ze vuren terug
-          if(B.naam==='THE WALKER'){ e.escVorm='flank'; this.escStart(e); }
+          if(B.naam==='THE WALKER'){ e.escVorm='flank'; this.escStart(e); e.escMaat=2.4; e.escHp=110; }
           // SERAPH: overal schild, één wandelende opening (wisselend)
-          if(B.naam==='SERAPH') this.openStart(e,0,SERAPH_DRAAI,0.16);
+          if(B.naam==='SERAPH') this.openStart(e,0,SERAPH_DRAAI,0.26);
           // THE CORE: overal schild, vaste opening bovenop (de toren)
-          if(B.naam==='THE CORE') this.openStart(e,1.5708,0,0.14);
+          if(B.naam==='THE CORE') this.openStart(e,1.5708,0,0.24);
           // DEATHS HEAD: een zwerm om hem heen die je raketten opvangt
           if(B.naam==='DEATHS HEAD'){ e.zwermBaas=1; this.schildAan(e,1e9); }
           if(!this.baasMat) this.baasMat={};
@@ -7334,9 +7345,16 @@
             vg=this.vijTreffer(q,B.dmg,RAAKSTRAAL); } }
         if(vg){ B.live=false; B.m.visible=false; continue; }
         // eerst: raakt deze kogel een GENERATOR van WARDEN?
+        // Een kogel legt per beurt meters af, dus één punt controleren betekent
+        // dat hij dwars door een kleine bol heen schiet. Nu het hele traject van
+        // deze beurt, in stapjes.
         { const kp2=this.KP2||(this.KP2=new THREE.Vector3());
-          kp2.copy(B.o).addScaledVector(B.dir,B.d);
-          if(this.genTreffer(kp2,B.dmg)||this.escTreffer(kp2,B.dmg)){ B.live=false; B.m.visible=false; continue; } }
+          const stapN=Math.max(1,Math.min(8,Math.round((B.sp*s)/2)));
+          let mis=false;
+          for(let q=0;q<=stapN&&!mis;q++){
+            kp2.copy(B.o).addScaledVector(B.dir,B.d-(B.sp*s)*(q/stapN));
+            if(this.genTreffer(kp2,B.dmg)||this.escTreffer(kp2,B.dmg)) mis=true; }
+          if(mis){ B.live=false; B.m.visible=false; continue; } }
         const g=this.treffer(B.o,B.dir,B.pd,B.d,B.tol);
         if(g){ this.raak(g.e,B.dmg,g.x,g.y,g.z);
           // Een brandende laserstraal steekt zijn doel aan: de schade loopt door
@@ -8834,6 +8852,47 @@
     //   raket    op verspreide losse vijanden en bazen
     //   shotgun  op grote sterke vijanden en bazen dichtbij
     // en de ULT als het te druk wordt om alles te kunnen raken.
+    // ---- DE DEMO KENT DE ZWAKKE PLEKKEN ----
+    // Elke baas heeft een reden waarom je hem niet raakt en iets wat je eerst
+    // kapot moet maken. De demo zoekt dat doel: een generatorbol, een wachter,
+    // een mijn, een kanon, de naaf van het wiel, of de opening in het schild.
+    // Geeft het punt terug waar hij op moet mikken, of null.
+    demoZwak:function(){
+      const b=this.baas;
+      if(!b||!b.live||b.intro) return null;
+      const p=this.DZ||(this.DZ=new THREE.Vector3());
+      // 1. losse doelen: generatoren, wachters, mijnen, kanonnen
+      let dicht=null, bd=1e9;
+      const kies=function(lijst){
+        if(!lijst) return;
+        for(let i=0;i<lijst.length;i++){ const g=lijst[i];
+          if(!g.live) continue;
+          const d=g.p.distanceTo(this.kop);
+          if(d<bd){ bd=d; dicht=g.p; } } }.bind(this);
+      kies(b.gen); kies(b.esc);
+      if(dicht){ p.copy(dicht); return p; }
+      // 2. THE WHEEL: de naaf is het midden — daar mikken, niet op de rand
+      if(b.velg>0){ p.copy(b.p); return p; }
+      // 3. SERAPH / THE CORE: de opening in het schild
+      if(b.opening){
+        const r=b.bw*0.42, hk=b.opening.hoek;
+        p.set(b.p.x+Math.cos(hk)*r, b.p.y+Math.sin(hk)*r*0.75, b.p.z);
+        return p; }
+      // 4. DEATHS HEAD: eerst de zwerm dunnen
+      if(b.zwermBaas&&b.schild>0){
+        let z=null, zd=1e9;
+        for(let i=0;i<this.enemies.length;i++){ const q=this.enemies[i];
+          if(!q.live||!q.broed) continue;
+          const d=q.p.distanceTo(this.kop);
+          if(d<zd){ zd=d; z=q.p; } }
+        if(z){ p.copy(z); return p; } }
+      // 5. RAVEN / het moederschip: alleen schieten als het veld weg is
+      if(b.moedF===1) return null;
+      // 6. THE EYES: alleen het open oog
+      if(b.baasNaam==='THE EYES'&&b.schild>0) return null;
+      // 7. anders gewoon op hem
+      p.copy(b.p); return p; },
+
     demoWapen:function(h,doel,doos){
       this.dWapT=(this.dWapT||0)-1/72;
       if(this.dWapT>0||doos) return;
@@ -8884,7 +8943,11 @@
         try{ this.toonWissel(W); }catch(e){} } },
 
     demoTick:function(s){
-      const hand=document.querySelector('#touchHand');
+      // De demo hing vast aan #touchHand — het losse handje voor het scherm.
+      // Bestaat dat niet (in een bril, of als de opstelling anders is), dan deed
+      // de demo helemaal niets. Nu valt hij terug op een echte hand of de camera.
+      const hand=document.querySelector('#touchHand')
+        ||this.hands[this.prim]||this.hands[this.spec]||this.cam;
       if(!hand||!hand.object3D) return;
       this.dT=(this.dT||0)+s;
       if(this.over){                                    // doodgegaan: even wachten, dan door
@@ -8975,6 +9038,13 @@
       // Tijdens de WARNING van een baas ketst alles af: dan niet vuren, dat
       // scheelt je magazijn en het leest ook logischer.
       if(best&&best.intro){ window.AIM=null; window.AIM2={}; return; }
+      // ---- EERST: heeft de baas een zwakke plek? Dan daarop. ----
+      { const zw=this.demoZwak();
+        if(zw){ const hp0=this.DZH||(this.DZH=new THREE.Vector3());
+          hA.object3D.getWorldPosition(hp0);
+          mik.copy(zw).sub(hp0).normalize();
+          window.AIM=mik;
+          best=this.baas; } }
       // ---- HET JUISTE WAPEN VOOR DE SITUATIE ----
       // De hoofdhand houdt altijd de mitrailleur; het BIJWAPEN zit in de andere
       // hand. Sjoerd zag wapen 2 nooit omdat de demo nooit wisselde.
