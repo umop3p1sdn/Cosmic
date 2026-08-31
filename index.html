@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.78';
+  const VERSIE='v13.82';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1517,7 +1517,7 @@
   // een derde van je blik.
   const MINAF_GROOT=38, MINAF_REUS=58;
   const DUIK_TOT=24;            // hoe dichtbij een duiker komt (was 10: in je gezicht)
-  const DUIKROL_T=0.9;          // hoe lang de duiker rolt bij het wegtrekken
+  const DUIKROL_T=1.8;          // hoe lang de duiker rolt bij het wegtrekken
   const SPREID_GROOT=26;        // hoe ver grote schepen onderling uit elkaar staan
   // De scheervlucht van grote schepen: hoe ver naast je hij langsscheert, hoe
   // snel, hoe lang, en hoe vaak.
@@ -1565,7 +1565,12 @@
   const DUIK_HOEK=0.9965, DUIK_VER=130;
   const WIJK_TIJD=0.55, WIJK_KRACHT=16, WIJK_RUST=2.6;
   const ROLLERS=['RAZOR','FALCON'];
-  const ROLKANS=0.45, ROLTIJD=0.9, ROLSNEL=7.0;
+  // Sjoerd: "ze moeten echt twee keer zo langzaam omrollen." ROLSNEL van 7,0
+  // naar 3,5, en de rol duurt dan ook twee keer zo lang.
+  const ROLKANS=0.45, ROLTIJD=1.8, ROLSNEL=3.5;
+  // Het overhellen in een bocht: hoeveel, bij welke zijsnelheid vol, en hoe
+  // traag hij erin en eruit komt. Eén formule voor alle plekken.
+  const HELLING=0.45, HELLING_V=18, HELLING_TRAAG=1.6;
   // DE SPRINGER: hoe ver hij verspringt en hoe lang hij daarna moet wachten.
   // Sjoerd: de sprong en de duik waren te klein om te zien. Allebei verdubbeld.
   const SPRING_VER=50, SPRING_CD=10, SPRING_RUST=0.55;
@@ -1584,6 +1589,9 @@
   // DE HERPAKKER: hoe lang hij tuimelt, hoeveel sneller hij daarna gaat, en de
   // wachttijd tot hij het opnieuw kan.
   const HERPAK_TIJD=1.1, HERPAK_SNEL=1.5, HERPAK_CD=10, HERPAK_MAX=2.6;
+  // De BREAK TURN van de herpakker: zijn bankhoek, hoe snel hij daarheen rolt,
+  // en hoe hard hij de bocht trekt.
+  const BRK_BANK=1.15, BRK_ROLSNEL=9.0, BRK_G=30;
   // Welke soorten deze drie kunstjes hebben.
   const SPRINGERS=['WRAITH'], GEESTEN=['NIGHTBLADE'], HERPAKKERS=['VIPER'];
   // DE KLOK: hoe snel hij rolt, hoe vaak hij vuurt, hoe lang zijn raket recht
@@ -2940,15 +2948,32 @@
     // DE HERPAKKER: raak je hem, dan tuimelt hij even alsof hij neergaat, maar
     // hij herstelt zich, gaat sneller vliegen en schiet terug.
     herpakStart:function(e){
-      e.herpakT=HERPAK_TIJD; e.herpakCd=HERPAK_CD; e.herpakR=0;
+      e.herpakT=HERPAK_TIJD; e.herpakCd=HERPAK_CD; e.herpakR=0; e.brkZij=0; e.brkRol=0;
       this.vonk(e.p.x,e.p.y,e.p.z,0xff8a3d,8,e.sc*0.5,0.6);
       this.rook(e.p.x,e.p.y,e.p.z,false,1.8,1.6); },
 
     herpakTick:function(e,s){
       e.herpakT-=s;
-      e.herpakR=(e.herpakR||0)+s*9;
-      if(e.bb) e.bb.m.rotation.z=e.herpakR;
-      e.p.y-=s*22;                                       // hij zakt hard weg
+      // DE BREAK TURN — hoe een echte jager dit doet. Opgezocht: een piloot
+      // die van een aanval af wil, rolt EERST hard op zijn kant en trekt DAN
+      // de bocht in. Hij valt niet recht omlaag; hij snijdt weg. De rolhoek is
+      // hoog (rond de zestig graden) en de bocht loopt mee met die hoek.
+      // Bron: basic fighter maneuvers, de 'break turn'.
+      const deel=1-Math.max(0,e.herpakT/HERPAK_TIJD);    // 0 -> 1 door de manoeuvre
+      // welke kant? één keer kiezen, en die houdt hij
+      if(!e.brkZij) e.brkZij=(Math.random()<0.5?-1:1);
+      // 1. de rol: in het eerste derde deel snel naar zijn bankhoek, daarna
+      //    houdt hij die vast en aan het eind komt hij weer recht
+      const rolDoel=(deel<0.75)?BRK_BANK*e.brkZij:0;
+      e.brkRol=(e.brkRol||0)+(rolDoel-(e.brkRol||0))*Math.min(1,s*BRK_ROLSNEL);
+      if(e.bb) e.bb.m.rotation.z=e.brkRol;
+      // 2. de bocht: hij trekt loodrecht op zijn eigen vleugels, dus hoe
+      //    schuiner hij hangt, hoe meer de bocht opzij en omlaag gaat
+      const bank=e.brkRol;
+      const kracht=BRK_G*Math.sin(Math.min(1,deel*3.2));  // opbouwen, niet meteen vol
+      e.p.x+=Math.sin(bank)*kracht*s;
+      e.p.y-=(1-Math.cos(bank))*kracht*s*0.55;            // hoogteverlies volgt uit de bocht
+      e.p.z+=Math.cos(bank)*kracht*s*0.25;
       if(e.herpakT<=0){
         // en herstelt zich: sneller, en meteen vuren. Eén keer versnellen per
         // duik — anders stapelt hij bij elke beurt op tot honderden malen.
@@ -3204,6 +3229,9 @@
           V.m.material.opacity=Math.min(V.m.material.opacity,e.bb.m.material.opacity); } },
 
     // ---- HET RODE SCHILD (Sjoerds ontwerp) ----
+    // LET OP: deze bollen heten e.genBol, NIET e.gen — dat laatste is al het
+    // generatienummer van de splitser (BLUE SPINE). Daar liep het spel op vast:
+    // genWeg deed forEach op een getal. Zelfde soort fout als a.tp vs tp.
     // Een breekbaar schild met eigen kracht. Je schoten ketsen af met rode
     // vonken tot het breekt; dan een knal, en daarna is het schip zelf kwetsbaar.
     // Het komt NIET terug — anders dan het krachtveld van het moederschip.
@@ -3484,7 +3512,7 @@
     // hoe open je hem). Twee bollen naast hem voeden een rood schild dat ALLES
     // opvangt. Schiet beide bollen kapot en het schild valt, definitief.
     genStart:function(e){
-      e.gen=[];
+      e.genBol=[];
       for(let i=0;i<2;i++){
         const g=new THREE.Mesh(new THREE.SphereGeometry(1,16,12),
           new THREE.MeshBasicMaterial({color:0xff5a5a,transparent:true,opacity:0.9,depthWrite:false}));
@@ -3492,14 +3520,14 @@
           new THREE.MeshBasicMaterial({color:0xff2020,transparent:true,opacity:0.25,
             depthWrite:false,blending:THREE.AdditiveBlending}));
         g.add(gl); g.frustumCulled=false; this.par.add(g);
-        e.gen.push({m:g,hp:GEN_HP,hpM:GEN_HP,zij:i?1:-1,live:true,p:new THREE.Vector3()}); }
+        e.genBol.push({m:g,hp:GEN_HP,hpM:GEN_HP,zij:i?1:-1,live:true,p:new THREE.Vector3()}); }
       // het schild van de baas: onbreekbaar zolang een generator leeft
       this.schildAan(e,1e9); },
 
     genTick:function(e,s){
-      if(!e.gen) return;
+      if(!e.genBol) return;
       let leven=0;
-      for(let i=0;i<e.gen.length;i++){ const g=e.gen[i];
+      for(let i=0;i<e.genBol.length;i++){ const g=e.genBol[i];
         if(!g.live) continue; leven++;
         g.p.set(e.p.x+g.zij*e.bw*GEN_AF, e.p.y+Math.sin(this.T*1.3+i*3)*2.5, e.p.z+GEN_VOOR);
         g.m.position.copy(g.p); g.m.scale.setScalar(GEN_MAAT*(1+Math.sin(this.T*4+i)*0.08));
@@ -3509,10 +3537,10 @@
       // Dus: één bol kapot doet niets; pas bij twee valt het schild. Dan loopt
       // een klok van tien seconden — daarna staan de bollen weer, en het schild.
       if(leven===0){
-        if(e.schild>0){ this.schildBreekt(e); e.genT=GEN_TERUG; }
-        else { e.genT-=s;
-          if(e.genT<=0){
-            for(let i=0;i<e.gen.length;i++){ const g=e.gen[i];
+        if(e.schild>0){ this.schildBreekt(e); e.genBolT=GEN_TERUG; }
+        else { e.genBolT-=s;
+          if(e.genBolT<=0){
+            for(let i=0;i<e.genBol.length;i++){ const g=e.genBol[i];
               g.live=true; g.hp=g.hpM; g.m.visible=true;
               this.vonk(g.p.x,g.p.y,g.p.z,0xff5a5a,10,4,0.6); }
             this.schildAan(e,1e9); } } } },
@@ -3520,8 +3548,8 @@
     // Een kogel of raket die een generator raakt: schade aan de bol.
     genTreffer:function(p,dmg){
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
-        if(!e.live||!e.gen) continue;
-        for(let k=0;k<e.gen.length;k++){ const g=e.gen[k];
+        if(!e.live||!e.genBol) continue;
+        for(let k=0;k<e.genBol.length;k++){ const g=e.genBol[k];
           if(!g.live) continue;
           if(p.distanceTo(g.p)<GEN_MAAT*1.3){
             g.hp-=dmg; this.vonk(g.p.x,g.p.y,g.p.z,0xff8a8a,4,3,0.4);
@@ -3533,9 +3561,9 @@
       return false; },
 
     genWeg:function(e){
-      if(!e.gen) return;
-      e.gen.forEach(function(g){ g.live=false; g.m.visible=false; });
-      e.gen=null; },
+      if(!e.genBol) return;
+      e.genBol.forEach(function(g){ g.live=false; g.m.visible=false; });
+      e.genBol=null; },
 
     // ---- DE SCHILDWERPER (Sjoerds ontwerp): AMBER RING ----
     // Schiet af en toe een rode bliksemstraal naar een LICHT schip in de buurt,
@@ -5061,7 +5089,11 @@
       // zijn rechterkant omhoog. Hoe sneller opzij, hoe schuiner.
       if(e.baanY) e.p.y+=(e.baanY-(e.baanY0||0)); e.baanY0=e.baanY||0;
       const zijV=(e.p.x-xv)/Math.max(0.004,s);
-      e.rol=(e.rol||0)+((Math.max(-1,Math.min(1,zijV/13))*0.50+(e.rolBocht||0))-(e.rol||0))*Math.min(1,s*2.4);
+      // GEMETEN: vier van de vijf schepen helden de VERKEERDE kant over. Een
+      // vliegtuig dat naar rechts gaat doet zijn rechtervleugel omlaag, dus
+      // rotation.z moet dan NEGATIEF zijn — er stond een plus. En het gebeurde
+      // op twee plekken met verschillende formules; nu overal HELLING.
+      e.rol=(e.rol||0)+((-Math.max(-1,Math.min(1,zijV/HELLING_V))*HELLING+(e.rolBocht||0))-(e.rol||0))*Math.min(1,s*HELLING_TRAAG);
       // DE ROLAANVAL: kleine jagers draaien een volle rol terwijl ze op je af
       // duiken. Puur vertoon, maar het maakt een aanval veel levendiger.
       // DE ROL VOLGT ZIJN SNELHEID. Een schip dat hard van links naar rechts
@@ -6323,7 +6355,7 @@
       e.p.addScaledVector(naar,diep*s);
       e.p.y+=Math.sin(e.t*0.8+e.i0)*4*s;
       // het schip helt mee in de bocht
-      e.rolBocht=-zijV*0.018;
+      e.rolBocht=zijV*0.018;
       // hoever is hij opzij gekomen? voorbij de grens keert hij om en komt dichterbij
       // hoek blijft binnen +/-90 graden, anders klapt de meting om en flipt hij elk frame
       const hoek=hoekNu;
@@ -6401,7 +6433,7 @@
       else if(P==='strafer'){ e.p.x+=Math.cos(e.t*0.55+e.i0)*26*s*zij;
                               e.p.y+=Math.sin(e.t*0.7)*5*s*zij;
                               e.p.z+=Math.sin(e.t*1.1+e.i0)*STRAFE_DIEP*s;
-                              e.rolBocht=-Math.sin(e.t*0.55+e.i0)*zij*0.35; }
+                              e.rolBocht=Math.sin(e.t*0.55+e.i0)*zij*0.35; }
 
       else if(P==='cirkel'){ e.ex.a=(e.ex.a||e.i0)+s*0.85;
                              e.p.x+=Math.cos(e.ex.a)*22*s*zij;
@@ -6518,7 +6550,7 @@
         if(MOEDERS.indexOf(nm2)>=0) this.moederTick(e,s);
         if(e.schildM3) this.schildTick(e,s);
         if(WERPERS.indexOf(nm2)>=0) this.werperTick(e,s);
-        if(e.gen) this.genTick(e,s);
+        if(e.genBol) this.genTick(e,s);
         if(e.esc) this.escTick(e,s);
         if(e.ninja||e.schaduw>0){ if(this.ninjaTick(e,s)) return; }
         if(e.velgM3) this.velgTick(e,s);
@@ -6629,7 +6661,7 @@
         lk.set(eye.x,e.p.y,eye.z); b.m.lookAt(lk);
         // lookAt wist de rotatie om de kijkas. Daarna weer de rol en de
         // kanteling erop: overhellen, de rolaanval en de rol van een duiker.
-        if(e.rolT>0){ e.rolT-=s; e.rolA=(e.rolA||0)+s*ROLSNEL*(e.rolVaart||1.4); }
+        if(e.rolT>0){ e.rolT-=s; e.rolA=(e.rolA||0)+s*ROLSNEL*(e.rolVaart||1.0); }
         else if(e.rolA){ e.rolA=0; }                    // klaar: recht
         b.m.rotation.z=(e.rol||0)+(e.rolA||0)+(e.wijkT>0?e.wijkY*0.05:0);
         if(e.flash>0) e.flash-=s;
@@ -7297,10 +7329,11 @@
         // omhoog. Bazen regelen dit al in hun eigen routine.
         if(e.bb&&e.prof!=='baas'&&!e.dood){
           const zv=(e.p.x-xVoor)/Math.max(0.004,s);
-          e.rol=(e.rol||0)+((Math.max(-1,Math.min(1,zv/22))*0.55)-(e.rol||0))*Math.min(1,s*3.0);
+          e.rol=(e.rol||0)+((-Math.max(-1,Math.min(1,zv/HELLING_V))*HELLING)-(e.rol||0))*Math.min(1,s*HELLING_TRAAG);
           // DIT was de plek die elke rol wiste: hij zette de kanteling terug
           // ZONDER de rolaanval erbij, en komt na alles. Nu telt de rol mee.
-          e.bb.m.rotation.z=e.rol+(e.rolA||0); }
+          // een schip MIDDEN IN EEN BREAK TURN houdt zijn eigen bankhoek
+          if(!(e.herpakT>0)) e.bb.m.rotation.z=e.rol+(e.rolA||0); }
         if(e.p.z>70&&!e.ring&&e.stijl!=='over'&&e.stijl!=='route'){ this.bbVrij(e.bb); e.bb=null; e.live=false;   // pas ver achter je opruimen
           if(e.romp){ e.romp.visible=false; e.romp=null; } }               // ontsnapt
         if(window.PAUSED) return; }
@@ -8871,7 +8904,7 @@
           if(!g.live) continue;
           const d=g.p.distanceTo(this.kop);
           if(d<bd){ bd=d; dicht=g.p; } } }.bind(this);
-      kies(b.gen); kies(b.esc);
+      kies(b.genBol); kies(b.esc);
       if(dicht){ p.copy(dicht); return p; }
       // 2. THE WHEEL: de naaf is het midden — daar mikken, niet op de rand
       if(b.velg>0){ p.copy(b.p); return p; }
