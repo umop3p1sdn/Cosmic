@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.67';
+  const VERSIE='v13.73';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1423,6 +1423,7 @@
   const RUIMTE_HEL=78;
   // Waar TITAN PRIME komt te staan. Meteen goed, niet aan komen vliegen.
   const REUSAFSTAND=60;
+  const BAAS_MAXAF=125;         // een baas komt nooit verder dan dit
   const PARADE_AFSTAND=14;      // eerst zo dichtbij komt iedereen
   const PARADE_VERMAX=105;      // en niet verder terug dan dit
   const PARADE_DICHT_T=1.6;     // seconden vlak voor je neus
@@ -1529,7 +1530,16 @@
   // breedte hij schilden geeft (alleen lichte en middenmoot).
   const WERPERS=['ORACLE'];
   // WARDEN's generatoren: kracht per bol, hoe ver naast hem, hoe groot.
-  const GEN_HP=180, GEN_AF=0.75, GEN_VOOR=6, GEN_MAAT=2.6;
+  const GEN_HP=180, GEN_AF=0.75, GEN_VOOR=6, GEN_MAAT=2.6, GEN_TERUG=10;
+  // LANCE's escorte: hoeveel wachters, hun kracht, waar ze hangen, en hoe snel
+  // een nieuwe rij komt.
+  const ESC_N=6, ESC_HP=150, ESC_VOOR=14, ESC_MAAT=1.6, ESC_TERUG=10, ESC_VUUR=3.2;
+  // THE WHEEL's velg: kracht, straal (aandeel van zijn breedte), hoe groot de
+  // naaf is (aandeel van de velgstraal), draaisnelheid, en wanneer hij terugkomt.
+  const VELG_HP=900, VELG_R=0.55, VELG_NAAF=0.35, VELG_ROL=1.4, VELG_TERUG=12;
+  const OOG_WISSEL=4.0;         // THE EYES: om de hoeveel seconden het open oog wisselt
+  const SERAPH_DRAAI=0.5;       // hoe snel SERAPH's opening rondwandelt (rad/s)
+  const ZWB_MIN=6, ZWB_MAX=18, ZWB_ELK=12;   // DEATHS HEAD's zwerm
   const WERP_ELK=2.5, WERP_BEREIK=60, WERP_MAXBR=12, WERP_SEG=14, WERP_DUUR=0.35;
   const SCHILDGOLF_VANAF=3, SCHILDGOLF_KANS=0.3;   // Sjoerd: vanaf level 3
   // De schildarena: twee werpers en drie groepen na elkaar, vanaf level 6.
@@ -1558,6 +1568,9 @@
   // Op hoeveel meter een naderende raket hem laat verspringen. Iets ruimer dan
   // de kleinste klapstraal (12 m), zodat hij er net buiten landt.
   const SPRING_ALARM=16;
+  // Eén keer een raket ontwijken: op welke afstand hij het merkt, hoe lang de
+  // ruk duurt en hoe hard.
+  const RAKWIJK_AF=22, RAKWIJK_T=0.45, RAKWIJK_V=26;
   // HET SPOOKSCHIP: vanaf welke afstand hij vervaagt, waar hij weer verschijnt,
   // en hoe doorzichtig hij op zijn onzichtbaarst is.
   // Het spookschip werkt op TIJD: zichtbaar, glans, weg, en weer terug.
@@ -1911,7 +1924,9 @@
     {n:5,ex:3}    // trap 8: het maximum — big boom
   ];
   // schade en straal per explosietrap
-  const EXDMG=[0,26,38,50], EXSTRAAL=[0,12,18,25];
+  // Sjoerd: "geen overkill aan raketten, maar dan goede homing die meer schade
+  // kunnen hebben." Schade per trap omhoog; de aantallen blijven zoals ze zijn.
+  const EXDMG=[0,40,60,85], EXSTRAAL=[0,12,18,25];
   // DE ACHT TRAPPEN VAN DE ELECTRO. n = hoeveel schepen de ketting raakt,
   // dmg = schade per schakel, vuur = vlammen bij elke inslag,
   // blast = straal van de explosie bij elke inslag (0 = geen).
@@ -1969,7 +1984,7 @@
     {wit:12,n1:18,n2:18,kl1:0xfff2c0,kl2:0xffb03a, rook:6, ring:2, duur:1.3},
     {wit:14,n1:22,n2:26,kl1:0xfff2c0,kl2:0xffb03a, rook:9, ring:3, duur:1.7}
   ];
-  const RAKETDMG=50;            // het maximum, trap 3
+  const RAKETDMG=85;            // het maximum, trap 3 (was 50)
   const RAKETBLAST=25;          // meter (was 10)
   const RINGEN=6, RINGPT=44, RINGTIJD=0.42;
   const RING_DICHT=0.45;        // hoe snel de ring van THE WHEEL naar binnen klapt
@@ -2833,6 +2848,31 @@
     // Ze zijn geen eigen scheepstype maar een EIGENSCHAP van bestaande soorten,
     // zodat ze in het golfplan meelopen zonder aparte regels.
 
+    // ---- ÉÉN KEER ONTWIJKEN (Sjoerd) ----
+    // Elk schip kan één keer per leven een naderende raket ontwijken: hij zet
+    // een korte zijwaartse ruk in en de raket schiet erlangs. Daarna niet meer,
+    // dus je tweede raket komt aan.
+    rakWijkTick:function(e,s){
+      if(e.rakOp) return false;                       // al gebruikt
+      if(e.rakWijkT>0){
+        e.rakWijkT-=s;
+        e.p.x+=e.rakWijkX*s; e.p.y+=e.rakWijkY*s;
+        if(e.bb) e.bb.m.position.copy(e.p);
+        return true; }
+      for(let i=0;i<this.rockets.length;i++){ const R=this.rockets[i];
+        if(!R.live||R.zoek!==e) continue;
+        if(R.m.position.distanceTo(e.p)>RAKWIJK_AF) continue;
+        // wegduiken: haaks op de aanvliegrichting
+        const d=this.RWK||(this.RWK=new THREE.Vector3());
+        d.subVectors(e.p,R.m.position).normalize();
+        const zij=(Math.random()<0.5)?1:-1;
+        e.rakWijkT=RAKWIJK_T;
+        e.rakWijkX=-d.z*zij*RAKWIJK_V; e.rakWijkY=(Math.random()-0.3)*RAKWIJK_V*0.7;
+        e.rakOp=1;                                    // dit was zijn ene kans
+        this.vonk(e.p.x,e.p.y,e.p.z,0x9fe4f5,5,e.sc*0.4,0.4);
+        return true; }
+      return false; },
+
     // DE SPRINGER: raak je hem, dan verspringt hij naar een willekeurige plek
     // binnen 25 m en vuurt meteen. Hoogstens eens in de tien seconden, dus
     // tussendoor kun je hem gewoon raken.
@@ -3187,6 +3227,181 @@
       this.schokRing(e.p); this.schokRing(e.p);
       SND.boom(e.p.x*0.02,false); },
 
+    // ---- DE OPENING (Sjoerd): overal schild, behalve op één plek. Bij SERAPH
+    // wandelt die plek langzaam rond (wisselend schild: je moet meebewegen), bij
+    // THE CORE staat hij vast bovenop (de toren). Treffers buiten de opening
+    // ketsen af; het schild is niet te breken.
+    openStart:function(e,hoek0,draai,maat){
+      e.opening={hoek:hoek0,draai:draai,maat:maat};
+      if(!e.openM3){
+        const g=new THREE.RingGeometry(0.8,1,24);
+        const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0x9fe4f5,
+          transparent:true,opacity:0.7,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+        m.renderOrder=9; m.frustumCulled=false; this.par.add(m); e.openM3=m; }
+      e.openM3.visible=true; },
+
+    openTick:function(e,s){
+      if(!e.opening||!e.openM3) return;
+      e.opening.hoek+=e.opening.draai*s;
+      // de ring markeert waar de opening zit
+      const r=e.bw*0.42, hk=e.opening.hoek;
+      e.openM3.position.set(e.p.x+Math.cos(hk)*r,e.p.y+Math.sin(hk)*r*0.75,e.p.z+1.5);
+      e.openM3.scale.setScalar(e.bw*e.opening.maat*1.1);
+      e.openM3.lookAt(this.kop);
+      e.openM3.material.opacity=0.55+Math.sin(this.T*5)*0.2; },
+
+    // true als de treffer BUITEN de opening viel (en dus afketst)
+    openTreffer:function(e,px,py,pz){
+      if(!e.opening) return false;
+      const r=e.bw*0.42, hk=e.opening.hoek;
+      const ox=e.p.x+Math.cos(hk)*r, oy=e.p.y+Math.sin(hk)*r*0.75;
+      const d=Math.hypot((px||e.p.x)-ox,(py||e.p.y)-oy);
+      if(d<e.bw*e.opening.maat) return false;         // in de opening: raakt
+      this.vonk(px||e.p.x,py||e.p.y,pz||e.p.z,0x9fe4f5,3,3,0.3);
+      return true; },
+
+    openWeg:function(e){ if(e.openM3) e.openM3.visible=false; e.opening=null; },
+
+    // ---- THE EYES: het WISSELENDE oog. Drie ogen; er is er telkens maar één
+    // kwetsbaar, en dat wisselt elke OOG_WISSEL seconden. Je moet meebewegen.
+    oogTick:function(e,s){
+      if(!e.trioI&&e.trioI!==0) return;
+      const nu=Math.floor(this.T/OOG_WISSEL)%3;
+      const open=(e.trioI===nu);
+      if(open){ if(e.schild>0){ e.schild=0; if(e.schildM3) e.schildM3.visible=false;
+          this.vonk(e.p.x,e.p.y,e.p.z,0x9fe4f5,8,e.bw*0.4,0.6); } }
+      else if(!(e.schild>0)) this.schildAan(e,1e9); },
+
+    // ---- DEATHS HEAD: DE ZWERM. Om hem heen hangen jagers die je raketten en
+    // kogels opvangen; zolang er ZWERM_MIN of meer leven staat zijn schild. Dun
+    // de zwerm uit en hij is open; elke twaalf seconden roept hij er twaalf bij.
+    zwermBaasTick:function(e,s){
+      e.zwT=(e.zwT===undefined)?1.5:e.zwT-s;
+      let n=0; for(let i=0;i<this.enemies.length;i++) if(this.enemies[i].live&&this.enemies[i].broed) n++;
+      if(e.zwT<=0){ e.zwT=ZWB_ELK;
+        const self=this, past=Math.max(0,Math.min(12,ZWB_MAX-n));
+        for(let k=0;k<past;k++){ const hk=(k/12)*6.283-1.5708;
+          this.sigNa(k*0.05,function(){ if(!e.live) return;
+            const v=self.spawn(BROEDSEL,{x:e.p.x+Math.cos(hk)*e.bw*0.4,y:e.p.y+Math.sin(hk)*e.bh*0.4,z:e.p.z+3});
+            if(!v) return; v.broed=1; v.prof='broed'; v.ex={}; v.stijl='vrij';
+            v.broedUit=BROED_UIT; v.broedDir=new THREE.Vector3(Math.cos(hk),Math.sin(hk),0); v.snelX=BROED_SNEL; }); } }
+      if(n>=ZWB_MIN){ if(!(e.schild>0)) this.schildAan(e,1e9); }
+      else if(e.schild>0){ e.schild=0; if(e.schildM3) e.schildM3.visible=false;
+        this.vonk(e.p.x,e.p.y,e.p.z,0xff5a5a,10,e.bw*0.4,0.7); } },
+
+    // ---- THE WHEEL: DE VELG ----
+    // Een draaiende gouden ring om hem heen. Treffers op de RAND raken de velg,
+    // die eigen kracht heeft en te breken is. Treffers op de NAAF (het midden)
+    // raken hem meteen — een klein doel dat je precies moet mikken. Is de velg
+    // gebroken, dan is alles open; na twaalf seconden groeit hij terug.
+    velgStart:function(e){
+      e.velg=VELG_HP; e.velgM=VELG_HP; e.velgT=0;
+      if(!e.velgM3){
+        const g=new THREE.TorusGeometry(1,0.06,10,48);
+        const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0xffd030,
+          transparent:true,opacity:0.7,depthWrite:false,blending:THREE.AdditiveBlending}));
+        m.renderOrder=9; m.frustumCulled=false; this.par.add(m); e.velgM3=m; }
+      e.velgM3.visible=true; },
+
+    velgTick:function(e,s){
+      if(!e.velgM3) return;
+      if(e.velg<=0){
+        e.velgM3.visible=false; e.velgT-=s;
+        if(e.velgT<=0){ e.velg=e.velgM; e.velgM3.visible=true;
+          this.vonk(e.p.x,e.p.y,e.p.z,0xffd030,14,e.bw*0.5,0.8); }
+        return; }
+      e.velgM3.position.copy(e.p);
+      e.velgM3.scale.setScalar(e.bw*VELG_R);
+      e.velgM3.lookAt(this.kop);
+      e.velgM3.rotateZ(this.T*VELG_ROL);
+      const zwak=1-e.velg/e.velgM;
+      e.velgM3.material.opacity=0.45+zwak*0.4+Math.sin(this.T*6)*0.08;
+      if(e.velgFlits>0){ e.velgFlits-=s; e.velgM3.material.opacity+=0.3; } },
+
+    // Geeft true als de treffer op de velg landde (en dus niet op de baas).
+    velgTreffer:function(e,px,py,pz,dmg){
+      if(!(e.velg>0)) return false;
+      const dx=(px||e.p.x)-e.p.x, dy=(py||e.p.y)-e.p.y;
+      const r=Math.hypot(dx,dy)/Math.max(1,e.bw*VELG_R);
+      if(r<VELG_NAAF) return false;                    // de naaf: hij raakt
+      e.velg-=dmg; e.velgFlits=0.1;
+      this.vonk(px||e.p.x,py||e.p.y,pz||e.p.z,0xffd030,4,3,0.35);
+      if(e.velg<=0){ e.velgT=VELG_TERUG;
+        this.vonk(e.p.x,e.p.y,e.p.z,0xffffff,14,e.bw*0.6,0.7);
+        this.vonk(e.p.x,e.p.y,e.p.z,0xffd030,22,e.bw*0.9,1.0);
+        this.schokRing(e.p); SND.boom(e.p.x*0.02,false); }
+      return true; },
+
+    velgWeg:function(e){ if(e.velgM3) e.velgM3.visible=false; e.velg=0; },
+
+    // ---- LANCE: HET ESCORTE ----
+    // Een rij van zes zoekers hangt stil vóór hem als een muur van wachters.
+    // Ze vangen je schoten op; pas als de rij is opgeruimd kun je hém raken.
+    // Na tien seconden roept hij een nieuwe rij op. Tussendoor vuurt hij zelf.
+    escStart:function(e){
+      e.esc=[]; e.escT=0;
+      const n=(e.escVorm==='ring')?8:((e.escVorm==='flank')?4:ESC_N);
+      for(let i=0;i<n;i++) e.esc.push({live:false,hp:0,p:new THREE.Vector3(),m:null});
+      this.escRij(e); },
+
+    escRij:function(e){
+      for(let i=0;i<e.esc.length;i++){ const w=e.esc[i];
+        if(!w.m){
+          const g=new THREE.Mesh(new THREE.SphereGeometry(1,12,10),
+            new THREE.MeshBasicMaterial({color:0xcfe8ff,transparent:true,opacity:0.85,depthWrite:false}));
+          const gl=new THREE.Mesh(new THREE.SphereGeometry(1.6,12,10),
+            new THREE.MeshBasicMaterial({color:0x9fe4f5,transparent:true,opacity:0.22,
+              depthWrite:false,blending:THREE.AdditiveBlending}));
+          g.add(gl); g.frustumCulled=false; this.par.add(g); w.m=g; }
+        w.live=true; w.hp=ESC_HP; w.m.visible=true; }
+      this.schildAan(e,1e9); },
+
+    escTick:function(e,s){
+      if(!e.esc) return;
+      let leven=0;
+      for(let i=0;i<e.esc.length;i++){ const w=e.esc[i];
+        if(!w.live) continue; leven++;
+        if(e.escVorm==='ring'){
+          // IRONCLAD: een kring van mijnen om hem heen, langzaam draaiend
+          const hk=(i/e.esc.length)*6.283+this.T*0.4;
+          w.p.set(e.p.x+Math.cos(hk)*e.bw*0.7, e.p.y+Math.sin(hk)*e.bw*0.5, e.p.z+6); }
+        else if(e.escVorm==='flank'){
+          // THE WALKER: kanonnen op de flanken, twee links, twee rechts
+          const zij=(i<e.esc.length/2)?-1:1, rij=(i%2)?1:-1;
+          w.p.set(e.p.x+zij*e.bw*0.55, e.p.y+rij*e.bh*0.25, e.p.z+5); }
+        else {
+          // LANCE: een rij vóór hem, op ooghoogte, iets golvend
+          const k=(i/(e.esc.length-1))-0.5;
+          w.p.set(e.p.x+k*e.bw*1.4, e.p.y+Math.sin(this.T*1.8+i)*1.8, e.p.z+ESC_VOOR); }
+        w.m.position.copy(w.p); w.m.scale.setScalar(ESC_MAAT*(1+Math.sin(this.T*5+i)*0.06));
+        // Sjoerd: "wat doen die wachters?" — ze vuren terug. Om de beurt een
+        // lichte kogel, zodat je onder vuur staat terwijl je de rij opruimt.
+        w.vT=(w.vT||Math.random()*ESC_VUUR)-s;
+        if(w.vT<=0){ w.vT=ESC_VUUR;
+          const d=this.EV||(this.EV=new THREE.Vector3());
+          d.subVectors(this.kop,w.p).normalize();
+          this.sigSchot(e,d,{van:w.p,soort:4,sp:26,hp:1,dmg:5,groot:0.6,neus:0,kleur:0xcfe8ff}); } }
+      if(leven===0){
+        if(e.schild>0){ this.schildBreekt(e); e.escT=ESC_TERUG; }
+        else { e.escT-=s; if(e.escT<=0) this.escRij(e); } } },
+
+    escTreffer:function(p,dmg){
+      for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
+        if(!e.live||!e.esc) continue;
+        for(let k=0;k<e.esc.length;k++){ const w=e.esc[k];
+          if(!w.live) continue;
+          if(p.distanceTo(w.p)<ESC_MAAT*1.4){
+            w.hp-=dmg; this.vonk(w.p.x,w.p.y,w.p.z,0xcfe8ff,3,2.5,0.35);
+            if(w.hp<=0){ w.live=false; w.m.visible=false;
+              this.vonk(w.p.x,w.p.y,w.p.z,0xffffff,8,4,0.6); this.knal(w.p,3); }
+            return true; } } }
+      return false; },
+
+    escWeg:function(e){
+      if(!e.esc) return;
+      e.esc.forEach(function(w){ w.live=false; if(w.m) w.m.visible=false; });
+      e.esc=null; },
+
     // ---- WARDEN: DE GENERATOREN (Sjoerds principe: waarom onraakbaar, en
     // hoe open je hem). Twee bollen naast hem voeden een rood schild dat ALLES
     // opvangt. Schiet beide bollen kapot en het schild valt, definitief.
@@ -3212,8 +3427,17 @@
         g.m.position.copy(g.p); g.m.scale.setScalar(GEN_MAAT*(1+Math.sin(this.T*4+i)*0.08));
         // de voedingsdraad: rode bliksem van bol naar baas, af en toe
         if(Math.random()<s*1.6) this.bliksemStraal(g.p,e.p,0xff5a5a); }
-      if(leven===0&&e.schild>0){ this.schildBreekt(e); }
-      else if(leven===1&&e.schild>1e8){ e.schild=e.schildM=Math.round(e.hpM*0.25); } },
+      // Sjoerd: "beide kapot, niet half. En na tien seconden groeien ze terug."
+      // Dus: één bol kapot doet niets; pas bij twee valt het schild. Dan loopt
+      // een klok van tien seconden — daarna staan de bollen weer, en het schild.
+      if(leven===0){
+        if(e.schild>0){ this.schildBreekt(e); e.genT=GEN_TERUG; }
+        else { e.genT-=s;
+          if(e.genT<=0){
+            for(let i=0;i<e.gen.length;i++){ const g=e.gen[i];
+              g.live=true; g.hp=g.hpM; g.m.visible=true;
+              this.vonk(g.p.x,g.p.y,g.p.z,0xff5a5a,10,4,0.6); }
+            this.schildAan(e,1e9); } } } },
 
     // Een kogel of raket die een generator raakt: schade aan de bol.
     genTreffer:function(p,dmg){
@@ -3955,6 +4179,10 @@
       // hij meteen — met de volle explosie.
       if(e.dood){ e.valKlap=1; e.valNu=1; return; }
       if(!e.live||e.hp<=0) return;
+      // THE WHEEL: treffer op de velg? dan niet op hem.
+      if(e.velgM3&&this.velgTreffer(e,px,py,pz,dmg)) return;
+      // SERAPH / THE CORE: buiten de opening? dan ketst hij af.
+      if(e.opening&&this.openTreffer(e,px,py,pz)) return;
       // HET RODE SCHILD vangt de schade op tot het breekt.
       if(e.schild>0){
         e.schild-=dmg; e.schildFlits=0.12;
@@ -4051,7 +4279,7 @@
       if(e.onzicht&&!e.spookOp){ e.spookOp=1; this.spookEinde(e); }
       if(e.veld){ e.veld.visible=false; }
       if(e.schildM3){ e.schildM3.visible=false; e.schild=0; }
-      this.genWeg(e);
+      this.genWeg(e); this.escWeg(e); this.velgWeg(e); this.openWeg(e);
       const T=TYPE[e.tp];
       this.punt(e);
       // Een splitser valt bij zijn dood uiteen in twee kleinere, die zelf niet
@@ -4310,6 +4538,7 @@
         // stand, en veld liet een krachtveld om een gewoon schip staan.
         e.springRust=0; e.geestT=0; e.rol=0; e.valDir=null; e.valV=0; e.valRot=0; e.valTijd=0; e.valRolA=0; e.valNu=0;
         e.broedCd=0; e.broedUit=0; e.broedDir=null; e.broed=0; e.valDraai=undefined;
+        e.rakOp=0; e.rakWijkT=0;
         e.scheer=0; e.scheerCd=undefined; e.scheerT=0;
         e.vp=null; e.vRicht=null;   // de vliegrichting opnieuw meten
         if(e.veld){ e.veld.visible=false; e.veld=null; }
@@ -4322,7 +4551,8 @@
         e.prof=T.prof; e.form=null; e.uit=0; e.dood=0; e.doodT=0; e.ring=null;
         e.stijl=(opt&&opt.stijl)||'halte'; e.zij=(opt&&opt.zij)||1; e.overs=0;
         e.dood2=0; e.dt=0; e.stuur=0; e.dz=0; e.hulpT=9; e.baasNaam=''; e.gedrag=''; e.trioI=null;
-        this.genWeg(e);
+        this.genWeg(e); this.escWeg(e); this.velgWeg(e); this.openWeg(e);
+        e.hangar=0; e.escVorm=null; e.zwermBaas=0; e.zwT=undefined;
         e.trip=0; e.tripT=0; e.tripAan=0; e.weer=0; e.wapens=null; e.vuur='duo'; e.rookT=0;
         e.rijst=0; e.rt=0; e.parade=0; e.broed=0; e.gen=0; e.brT=0; e.ax=undefined;
         e.omT=0; e.omZij=0; e.vrede=0;
@@ -4338,6 +4568,20 @@
           const bt=B.tex;
           e.baasNaam=B.naam; e.gedrag=B.gedrag||'schip'; e.vuur=B.vuur||'duo';
           if(B.naam==='WARDEN') this.genStart(e);
+          if(B.naam==='LANCE') this.escStart(e);
+          if(B.naam==='THE WHEEL') this.velgStart(e);
+          // RAVEN: de hangar — krachtveld 4 s aan / uit, vier jagers eruit
+          if(B.naam==='RAVEN'){ e.hangar=1; e.moedF=1; e.moedT=MOEDER_AAN; }
+          // IRONCLAD: een ring van acht mijnen om hem heen (escorte in een kring)
+          if(B.naam==='IRONCLAD'){ e.escVorm='ring'; this.escStart(e); }
+          // THE WALKER: vier kanonnen op de flanken als generatoren, ze vuren terug
+          if(B.naam==='THE WALKER'){ e.escVorm='flank'; this.escStart(e); }
+          // SERAPH: overal schild, één wandelende opening (wisselend)
+          if(B.naam==='SERAPH') this.openStart(e,0,SERAPH_DRAAI,0.16);
+          // THE CORE: overal schild, vaste opening bovenop (de toren)
+          if(B.naam==='THE CORE') this.openStart(e,1.5708,0,0.14);
+          // DEATHS HEAD: een zwerm om hem heen die je raketten opvangt
+          if(B.naam==='DEATHS HEAD'){ e.zwermBaas=1; this.schildAan(e,1e9); }
           if(!this.baasMat) this.baasMat={};
           if(!this.baasMat[bt.uuid]) this.baasMat[bt.uuid]=new THREE.MeshBasicMaterial(
             {map:bt,transparent:true,alphaTest:0.06,side:THREE.DoubleSide,depthWrite:false});
@@ -4661,7 +4905,10 @@
       const F=R[e.trip];
       // GROTE SCHEPEN BLIJVEN OP AFSTAND. Van dichtbij zie je hoe grof hun
       // tekening is; op afstand oogt hij als een kolos. Hoe breder, hoe verder.
-      let doel=reus?REUSAFSTAND:(F.d+e.r*0.32);
+      // Sjoerd: "zorg dat bazen binnen bereik zitten in plaats van te ver weg."
+      // De dans wilde tot 195 m; kogels halen 150, de laser 170. Nu hoogstens
+      // BAAS_MAXAF, zodat elk wapen bij hem komt.
+      let doel=reus?REUSAFSTAND:(Math.min(BAAS_MAXAF,F.d)+e.r*0.32);
       if(!reus&&e.bw>=GROOTBR)
         doel=Math.max(doel,(e.bw>=REUSBR)?MINAF_REUS:MINAF_GROOT);
 
@@ -6186,6 +6433,12 @@
         if(e.schildM3) this.schildTick(e,s);
         if(WERPERS.indexOf(nm2)>=0) this.werperTick(e,s);
         if(e.gen) this.genTick(e,s);
+        if(e.esc) this.escTick(e,s);
+        if(e.velgM3) this.velgTick(e,s);
+        if(e.hangar) this.moederTick(e,s);
+        if(e.opening) this.openTick(e,s);
+        if(e.baasNaam==='THE EYES') this.oogTick(e,s);
+        if(e.zwermBaas) this.zwermBaasTick(e,s);
         // DE SCHEERVLUCHT van grote schepen: hier, waar elk schip langskomt.
         if(this.scheerTick(e,s)) return;
         if(e.broedCd>0) e.broedCd-=s;
@@ -6194,6 +6447,8 @@
           e.p.addScaledVector(e.broedDir,BROED_VAART*s);
           if(e.bb) e.bb.m.position.copy(e.p);
           return; }
+        // ÉÉN KEER een raket ontwijken — elk schip, één keer per leven.
+        if(this.rakWijkTick(e,s)) return;
         // WEGDUIKEN als je op hem mikt — alleen de schepen die dat mogen.
         if(e.wijker){ this.mikTick(e,s); if(e.wijkT>0) return; }
         // DE SPRINGER duikt ook weg voor een RAKET die bijna inslaat.
@@ -7001,7 +7256,7 @@
         // eerst: raakt deze kogel een GENERATOR van WARDEN?
         { const kp2=this.KP2||(this.KP2=new THREE.Vector3());
           kp2.copy(B.o).addScaledVector(B.dir,B.d);
-          if(this.genTreffer(kp2,B.dmg)){ B.live=false; B.m.visible=false; continue; } }
+          if(this.genTreffer(kp2,B.dmg)||this.escTreffer(kp2,B.dmg)){ B.live=false; B.m.visible=false; continue; } }
         const g=this.treffer(B.o,B.dir,B.pd,B.d,B.tol);
         if(g){ this.raak(g.e,B.dmg,g.x,g.y,g.z);
           // Een brandende laserstraal steekt zijn doel aan: de schade loopt door
@@ -7116,6 +7371,7 @@
               this.raak(e,dmg*Math.max(0.25,deel),P.x,P.y,P.z); }
             // en de generatoren van WARDEN
             for(let k2=0;k2<6;k2++) if(!this.genTreffer(P,dmg*0.6)) break;
+            for(let k2=0;k2<6;k2++) if(!this.escTreffer(P,dmg*0.6)) break;
             for(let k=0;k<KET_LUS;k++) if(!this.vijTreffer(P,9,straal*0.6)) break; }
           R.live=false; R.m.visible=false; } }
 
