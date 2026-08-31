@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.82';
+  const VERSIE='v13.83';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1577,6 +1577,9 @@
   // Op hoeveel meter een naderende raket hem laat verspringen. Iets ruimer dan
   // de kleinste klapstraal (12 m), zodat hij er net buiten landt.
   const SPRING_ALARM=16;
+  // De SPLIT-S van BLUE SPINE: hoe lang de hele manoeuvre duurt, welk deel
+  // daarvan de halve rol is, hoe groot de looping en hoe vaak hij het mag.
+  const SS_TIJD=1.7, SS_ROLDEEL=0.28, SS_STRAAL=17, SS_VAART=12, SS_CD=6;
   // Eén keer een raket ontwijken: op welke afstand hij het merkt, hoe lang de
   // ruk duurt en hoe hard.
   const RAKWIJK_AF=22, RAKWIJK_T=0.45, RAKWIJK_V=26;
@@ -2884,6 +2887,49 @@
         this.vonk(e.p.x,e.p.y,e.p.z,0x9fe4f5,5,e.sc*0.4,0.4);
         return true; }
       return false; },
+
+    // ---- DE SPLIT-S (BLUE SPINE) ----
+    // Opgezocht: een luchtgevechtsmanoeuvre om je uit een gevecht terug te
+    // trekken. Je rolt half tot je op je kop hangt, maakt een DALENDE HALVE
+    // LOOPING, en komt lager en in tegengestelde richting weer horizontaal uit.
+    // Bedoeld om te voorkomen dat iemand achter je een raketvergrendeling
+    // krijgt. Bron: Split S, air combat manoeuvring.
+    // Je begint met de halve rol omdat een mens negatieve g veel slechter
+    // verdraagt dan positieve — op je kop trekken gaat veel harder.
+    splitSStart:function(e){
+      if(e.ssT>0||e.ssCd>0) return;
+      e.ssT=SS_TIJD; e.ssCd=SS_CD; e.ssZij=(Math.random()<0.5?-1:1);
+      e.ssY0=e.p.y; e.ssZ0=e.p.z;
+      this.vonk(e.p.x,e.p.y,e.p.z,0x9fe4f5,4,e.sc*0.4,0.4); },
+
+    splitSTick:function(e,s){
+      if(!(e.ssT>0)) return false;
+      e.ssT-=s;
+      const deel=1-Math.max(0,e.ssT/SS_TIJD);            // 0 -> 1
+      if(deel<SS_ROLDEEL){
+        // 1. de halve rol: hij draait op zijn kop
+        const k=deel/SS_ROLDEEL;
+        if(e.bb) e.bb.m.rotation.z=k*Math.PI*e.ssZij;
+        e.p.z+=SS_VAART*0.4*s; }
+      else {
+        // 2. de dalende halve looping: op zijn kop trekt hij 'omhoog', wat in
+        //    de wereld omlaag en achterwaarts is. Een halve cirkel dus.
+        const k=(deel-SS_ROLDEEL)/(1-SS_ROLDEEL);        // 0 -> 1 door de looping
+        const hk=k*Math.PI;                              // halve cirkel
+        e.p.y=e.ssY0-SS_STRAAL*(1-Math.cos(hk));
+        e.p.z=e.ssZ0+SS_STRAAL*Math.sin(hk)*0.9;
+        // en hij rolt in het laatste stuk terug naar horizontaal
+        if(e.bb) e.bb.m.rotation.z=(1-k)*Math.PI*e.ssZij; }
+      if(e.bb) e.bb.m.position.copy(e.p);
+      if(e.ssT<=0){
+        // Uit de manoeuvre: lager, en weer RECHTOP. In het echt eindig je de
+        // split-s in tegengestelde richting, maar onze schepen zijn van voren
+        // getekend — dan zou je tegen zijn achterkant aankijken, en die bestaat
+        // niet. Hij houdt dus zijn richting; alleen zijn hoogte en zijn tempo
+        // veranderen.
+        e.ssT=0; if(e.bb) e.bb.m.rotation.z=0;
+        e.snelX=Math.min(2.2,(e.snelX||1)*1.25); }
+      return true; },
 
     // DE SPRINGER: raak je hem, dan verspringt hij naar een willekeurige plek
     // binnen 25 m en vuurt meteen. Hoogstens eens in de tien seconden, dus
@@ -4307,7 +4353,9 @@
       // seconden — daartussen kun je hem gewoon kapotschieten.
       if(e.hp>0&&!e.dood&&!e.dood2&&TYPE[e.tp]){
         const nm=TYPE[e.tp].basis||TYPE[e.tp].n;
-        if(SPRINGERS.indexOf(nm)>=0&&!(e.springCd>0)) this.springWeg(e);
+        // BLUE SPINE verspringt niet meer (Sjoerd: "geen teleport-achtige
+        // dingen"); hij maakt een SPLIT-S, een echte ontwijkmanoeuvre.
+        if(SPRINGERS.indexOf(nm)>=0) this.splitSStart(e);
         else if(HERPAKKERS.indexOf(nm)>=0&&!(e.herpakCd>0)&&!(e.herpakT>0))
           this.herpakStart(e); }
       const p=(1-e.hp/e.hpM), q=e.hp/e.hpM;
@@ -4392,7 +4440,8 @@
       this.punt(e);
       // Een splitser valt bij zijn dood uiteen in twee kleinere, die zelf niet
       // meer splitsen. Anders vult het veld zich met kopieën.
-      if(T.prof==='splitser'&&!e.gen&&!window.PAUSED){
+      // Sjoerd: "hij hoeft ook niet meer in tweeën te splitsen."
+      if(false&&T.prof==='splitser'&&!e.gen&&!window.PAUSED){
         for(let k=0;k<2;k++){
           const v=this.spawn(e.tp,{x:e.p.x+(k?7:-7),y:e.p.y+(Math.random()-0.5)*5,z:e.p.z});
           if(v){ v.gen=1; v.hp=v.hpM=Math.max(1,Math.round(v.hpM*0.42));
@@ -4646,7 +4695,7 @@
         // stand, en veld liet een krachtveld om een gewoon schip staan.
         e.springRust=0; e.geestT=0; e.rol=0; e.valDir=null; e.valV=0; e.valRot=0; e.valTijd=0; e.valRolA=0; e.valNu=0;
         e.broedCd=0; e.broedUit=0; e.broedDir=null; e.broed=0; e.valDraai=undefined;
-        e.rakOp=0; e.rakWijkT=0; e.hangarJager=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
+        e.rakOp=0; e.rakWijkT=0; e.ssT=0; e.ssCd=0; e.hangarJager=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
         e.scheer=0; e.scheerCd=undefined; e.scheerT=0;
         e.vp=null; e.vRicht=null;   // de vliegrichting opnieuw meten
         if(e.veld){ e.veld.visible=false; e.veld=null; }
@@ -5099,11 +5148,11 @@
       // DE ROL VOLGT ZIJN SNELHEID. Een schip dat hard van links naar rechts
       // schiet hoort ook hard te rollen; eerst draaide iedereen even snel.
       // de rol zelf loopt in de beurtlus (één plek), hier alleen de kanteling
-      if(e.rolT>0){ if(e.bb) e.bb.m.rotation.z=e.rol+(e.rolA||0); }
+      if(e.rolT>0&&!(e.ssT>0)&&!(e.herpakT>0)){ if(e.bb) e.bb.m.rotation.z=e.rol+(e.rolA||0); }
       // Een WRAK draait zichzelf (tollen, duikelen). Deze regel zette hem elke
       // beurt terug op zijn vliegstand, dus bleef hij rechtop hangen terwijl hij
       // viel. Nu alleen voor schepen die nog leven.
-      else if(e.bb&&!e.dood&&!e.dood2) e.bb.m.rotation.z=e.rol;
+      else if(e.bb&&!e.dood&&!e.dood2&&!(e.ssT>0)&&!(e.herpakT>0)) e.bb.m.rotation.z=e.rol;
       e.p.y=reus
         ? (this.kop.y-e.bh*0.34+Math.sin(e.t*0.13)*e.hb)   // hoofd blijft op ooghoogte
         : (this.kop.y+hoogte+Math.sin(e.t*0.33)*e.hb);
@@ -6566,6 +6615,8 @@
           e.p.addScaledVector(e.broedDir,BROED_VAART*s);
           if(e.bb) e.bb.m.position.copy(e.p);
           return; }
+        if(e.ssCd>0) e.ssCd-=s;
+        if(this.splitSTick(e,s)) return;
         // ÉÉN KEER een raket ontwijken — elk schip, één keer per leven.
         if(this.rakWijkTick(e,s)) return;
         // WEGDUIKEN als je op hem mikt — alleen de schepen die dat mogen.
@@ -7333,7 +7384,7 @@
           // DIT was de plek die elke rol wiste: hij zette de kanteling terug
           // ZONDER de rolaanval erbij, en komt na alles. Nu telt de rol mee.
           // een schip MIDDEN IN EEN BREAK TURN houdt zijn eigen bankhoek
-          if(!(e.herpakT>0)) e.bb.m.rotation.z=e.rol+(e.rolA||0); }
+          if(!(e.herpakT>0)&&!(e.ssT>0)) e.bb.m.rotation.z=e.rol+(e.rolA||0); }
         if(e.p.z>70&&!e.ring&&e.stijl!=='over'&&e.stijl!=='route'){ this.bbVrij(e.bb); e.bb=null; e.live=false;   // pas ver achter je opruimen
           if(e.romp){ e.romp.visible=false; e.romp=null; } }               // ontsnapt
         if(window.PAUSED) return; }
