@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.64';
+  const VERSIE='v13.67';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1521,6 +1521,20 @@
   // De scheervlucht van grote schepen: hoe ver naast je hij langsscheert, hoe
   // snel, hoe lang, en hoe vaak.
   const SCHEER_AF=26, SCHEER_SNEL=34, SCHEER_DUUR=5.0, SCHEER_EERST=14, SCHEER_ELK=22;
+  // Het rode schild: wie het altijd heeft, hoe sterk, en vanaf welk level een
+  // deel van de kleine jagers een dun schildje krijgt.
+  const SCHILD_GROOT=['HAULER','BULWARK','WATCHER'];
+  const SCHILD_DEEL=0.5, SCHILD_DUN=0.25, SCHILD_VANAF=7, SCHILD_KANS=0.3;
+  // De schildwerper: welk schip, hoe vaak (2 per 5 s), hoe ver, en tot welke
+  // breedte hij schilden geeft (alleen lichte en middenmoot).
+  const WERPERS=['ORACLE'];
+  // WARDEN's generatoren: kracht per bol, hoe ver naast hem, hoe groot.
+  const GEN_HP=180, GEN_AF=0.75, GEN_VOOR=6, GEN_MAAT=2.6;
+  const WERP_ELK=2.5, WERP_BEREIK=60, WERP_MAXBR=12, WERP_SEG=14, WERP_DUUR=0.35;
+  const SCHILDGOLF_VANAF=3, SCHILDGOLF_KANS=0.3;   // Sjoerd: vanaf level 3
+  // De schildarena: twee werpers en drie groepen na elkaar, vanaf level 6.
+  const ARENA_VANAF=6, ARENA_KANS=0.18, ARENA_GROEPEN=3;
+  const ARENA_X=42, ARENA_Y=8, ARENA_Z=85;   // waar de twee torens hangen
   // De rolaanval van kleine jagers: hoe breed ze mogen zijn, hoe vaak, hoe lang
   // en hoe snel ze rollen.
   // WELKE SCHEPEN de rolaanval doen. Twee soorten, verder niemand: zo blijft het
@@ -2068,14 +2082,14 @@
     // Meer kracht, en breed genoeg (13) voor de scheervlucht.
     {n:'SPINNER',   pl:12,rij:1, br:13, hp:110, pt:220, sp:10.2,  sal:2, cd:3.0, prof:'cirkel', f1:0.60, f2:0.25},
     {n:'NIGHTBLADE',pl:12,rij:2, br:7,  hp:30,  pt:110, sp:18.8, sal:1, cd:3.0, prof:'sluiper', f1:0.68, f2:0.34},
-    {n:'REAPER',    pl:12,rij:7, br:11, hp:90, pt:210, sp:11.5,  sal:1, cd:2.0, prof:'strafer', snel:26, f1:0.50, f2:0.20},
+    {n:'REAPER',    pl:12,rij:7, br:11, hp:130, pt:210, sp:11.5,  sal:1, cd:2.0, prof:'strafer', snel:26, f1:0.50, f2:0.20},
     {n:'LANCER',    pl:12,rij:9, br:9,  hp:75, pt:190, sp:12.9, sal:1, cd:3.0, prof:'duiker', f1:0.62, f2:0.38},
     {n:'WEAVER',    pl:12,rij:10,br:15, hp:150, pt:290, sp:6.4,  sal:2, cd:3.2, prof:'sluiper', f1:0.66, f2:0.20},
     {n:'BROOD',     pl:12,rij:4, br:18, hp:180, pt:340, sp:3.7,  sal:3, cd:5.0, prof:'moeder', broed:40, f1:0.82, f2:0.45},
     {n:'SENTINEL',  pl:12,rij:5, br:12, hp:200, pt:330, sp:5.2,  sal:1, cd:6.0, prof:'kruiper', zwaar:1, f1:0.45, f2:0.18},
     {n:'BULWARK',   pl:12,rij:8, br:22, hp:290, pt:450, sp:3.2,  sal:3, cd:3.5, prof:'kruiper', f1:0.85, f2:0.30},
     {n:'WATCHER',   pl:12,rij:11,br:26, hp:360, pt:560, sp:2.4,  sal:3, cd:4.2, prof:'drijver', zwaar:1, f1:0.58, f2:0.26},
-    {n:'HAULER',    pl:12,rij:3, br:34, hp:100, pt:700, sp:2.4,  sal:4, cd:4.6, prof:'drijver', draagt:1, zwaar:1, f1:0.75, f2:0.35},
+    {n:'HAULER',    pl:12,rij:3, br:34, hp:380, pt:700, sp:2.4,  sal:4, cd:4.6, prof:'drijver', draagt:1, zwaar:1, f1:0.75, f2:0.35},
     // ---- de tweede twaalfrijige plaat: nog eens twaalf soorten ----
     // Hun gedrag komt uit echte luchtgevechtmanoeuvres: immelmann, split-s,
     // scissors, yo-yo en de barrel roll.
@@ -2086,7 +2100,7 @@
     {n:'NEEDLE',    pl:13,rij:4, br:7,  hp:35,  pt:95,  sp:24.6, sal:1, cd:2.4, prof:'scissors',f1:0.84, f2:0.48},
     {n:'BASILISK',  pl:13,rij:5, br:19, hp:260, pt:380, sp:4.0,  sal:3, cd:3.2, prof:'drijver', f1:0.80, f2:0.34},
     {n:'CYCLONE',   pl:13,rij:6, br:13, hp:150, pt:250, sp:8.3,  sal:2, cd:3.0, prof:'barrel',  f1:0.60, f2:0.28},
-    {n:'SHRIKE',    pl:13,rij:7, br:10, hp:95,  pt:180, sp:16, sal:1, cd:2.0, prof:'yoyo',    snel:24, f1:0.55, f2:0.22},
+    {n:'SHRIKE',    pl:13,rij:7, br:10, hp:130,  pt:180, sp:16, sal:1, cd:2.0, prof:'yoyo',    snel:24, f1:0.55, f2:0.22},
     {n:'VENOM',     pl:13,rij:8, br:11, hp:120, pt:210, sp:14.1, sal:2, cd:2.8, prof:'scissors',f1:0.72, f2:0.38},
     {n:'ORACLE',    pl:13,rij:9, br:16, hp:200, pt:320, sp:5.5,  sal:3, cd:3.8, prof:'kruiper', zwaar:1, f1:0.48, f2:0.20},
     {n:'TITAN',     pl:13,rij:10,br:24, hp:330, pt:460, sp:3.2,  sal:2, cd:3.4, prof:'drijver', f1:0.86, f2:0.32},
@@ -2866,8 +2880,7 @@
         dek=1-k*(1-GEEST_MIN);
         if(!e.glansOp){ e.glansOp=1;
           this.vonk(e.p.x,e.p.y,e.p.z,0xffffff,16,e.sc*0.7,0.7);
-          this.vonk(e.p.x,e.p.y,e.p.z,0x9fe4f5,12,e.sc*0.5,0.6);
-          this.toonMelding('CLOAKING','#9fe4f5'); } }
+          this.vonk(e.p.x,e.p.y,e.p.z,0x9fe4f5,12,e.sc*0.5,0.6); } }
       else if(t2<GEEST_ZICHT+GEEST_GLANS+GEEST_WEG) dek=GEEST_MIN;  // weg
       else {                                                        // en terug
         const k=(t2-GEEST_ZICHT-GEEST_GLANS-GEEST_WEG)/GEEST_TERUG;
@@ -2898,8 +2911,7 @@
         e.herpakT=0;
         e.snelX=Math.min(HERPAK_MAX,(e.snelX||1)*HERPAK_SNEL);
         e.bT=0; e.burst=Math.max(2,e.burst||1);
-        this.vonk(e.p.x,e.p.y,e.p.z,0x6cf0ff,14,e.sc*0.6,0.7);
-        this.toonMelding('RECOVERED','#6cf0ff'); } },
+        this.vonk(e.p.x,e.p.y,e.p.z,0x6cf0ff,14,e.sc*0.6,0.7); } },
 
     // DE KLOK (Sjoerds ontwerp). Hij rolt onophoudelijk om zijn as en vuurt
     // elke seconde één zoeker af, op het volgende uur van de wijzerplaat: eerst
@@ -2963,7 +2975,6 @@
           e.moedF=0; e.moedT=MOEDER_UIT;
           this.vonk(e.p.x,e.p.y,e.p.z,0x6cf0ff,20,e.sc*1.1,0.9);
           this.schokRing(e.p); this.schokRing(e.p);
-          this.toonMelding('SHIELD DOWN','#6cf0ff');
           SND.zwiep&&SND.zwiep(e.p.x*0.02);
           this.jagersUit(e); } }
       else {
@@ -2972,8 +2983,7 @@
         if(e.moedT<=0){
           e.moedF=1; e.moedT=MOEDER_AAN;
           this.vonk(e.p.x,e.p.y,e.p.z,0x6cf0ff,16,e.sc*0.9,0.8);
-          this.schokRing(e.p);
-          this.toonMelding('SHIELD UP','#6cf0ff'); } } },
+          this.schokRing(e.p); } } },
 
     // De bol om het moederschip heen: een gloeiend vlak dat pulseert.
     veldToon:function(e,s,aan){
@@ -3015,8 +3025,7 @@
           j.snelX=MOEDER_SNEL;                    // ze vliegen snel en tactisch
           j.rolT=ROLTIJD; j.rolA=0;               // en komen rollend naar buiten
           self.vonk(j.p.x,j.p.y,j.p.z,0xcfe8ff,10,4,0.5);
-          self.vonk(j.p.x,j.p.y,j.p.z,0x6cf0ff,8,6,0.45); }); }
-      this.toonGroot('FIGHTERS LAUNCHED','#6cf0ff'); },
+          self.vonk(j.p.x,j.p.y,j.p.z,0x6cf0ff,8,6,0.45); }); } },
 
     // ---- SCHROEIVLEKKEN (Sjoerds truukje) ----
     // In plaats van een tweede tekening leggen we donkere vlekken OP het schip,
@@ -3070,8 +3079,7 @@
       else e.scheerCd-=s;
       if(e.scheerCd<=0&&!e.scheer){
         e.scheer=1; e.scheerT=SCHEER_DUUR; e.scheerZij=(e.p.x<this.kop.x)?1:-1;
-        e.scheerCd=SCHEER_ELK+Math.random()*12;
-        this.toonMelding('INCOMING','#ffb03a'); }
+        e.scheerCd=SCHEER_ELK+Math.random()*12; }
       if(!e.scheer) return false;
       e.scheerT-=s;
       const dx=(this.kop.x+e.scheerZij*SCHEER_AF)-e.p.x;
@@ -3144,6 +3152,135 @@
         V.m.scale.setScalar(V.gr);
         if(e.bb.m.material&&e.bb.m.material.opacity<0.95)
           V.m.material.opacity=Math.min(V.m.material.opacity,e.bb.m.material.opacity); } },
+
+    // ---- HET RODE SCHILD (Sjoerds ontwerp) ----
+    // Een breekbaar schild met eigen kracht. Je schoten ketsen af met rode
+    // vonken tot het breekt; dan een knal, en daarna is het schip zelf kwetsbaar.
+    // Het komt NIET terug — anders dan het krachtveld van het moederschip.
+    schildAan:function(e,hp){
+      e.schild=hp; e.schildM=hp;
+      if(!e.schildM3){
+        const g=new THREE.SphereGeometry(1,18,12);
+        const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0xff3a3a,
+          transparent:true,opacity:0.2,depthWrite:false,
+          blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+        m.renderOrder=9; m.frustumCulled=false;
+        this.par.add(m); e.schildM3=m; }
+      e.schildM3.visible=true; },
+
+    schildTick:function(e,s){
+      if(!e.schildM3) return;
+      if(!(e.schild>0)){ e.schildM3.visible=false; return; }
+      e.schildP=(e.schildP||0)+s*3.6;
+      e.schildM3.position.copy(e.p);
+      e.schildM3.scale.set(e.bw*0.62,Math.max(e.bh,e.bw*0.4)*0.8,e.bw*0.5);
+      // pulseert, en gloeit feller naarmate hij bijna breekt
+      const zwak=1-e.schild/Math.max(1,e.schildM);
+      e.schildM3.material.opacity=0.16+Math.sin(e.schildP)*0.05+zwak*0.14;
+      if(e.schildFlits>0){ e.schildFlits-=s; e.schildM3.material.opacity+=0.3; } },
+
+    schildBreekt:function(e){
+      e.schild=0;
+      if(e.schildM3) e.schildM3.visible=false;
+      this.vonk(e.p.x,e.p.y,e.p.z,0xffffff,14,e.sc*0.7,0.6);
+      this.vonk(e.p.x,e.p.y,e.p.z,0xff3a3a,20,e.sc*1.0,0.9);
+      this.schokRing(e.p); this.schokRing(e.p);
+      SND.boom(e.p.x*0.02,false); },
+
+    // ---- WARDEN: DE GENERATOREN (Sjoerds principe: waarom onraakbaar, en
+    // hoe open je hem). Twee bollen naast hem voeden een rood schild dat ALLES
+    // opvangt. Schiet beide bollen kapot en het schild valt, definitief.
+    genStart:function(e){
+      e.gen=[];
+      for(let i=0;i<2;i++){
+        const g=new THREE.Mesh(new THREE.SphereGeometry(1,16,12),
+          new THREE.MeshBasicMaterial({color:0xff5a5a,transparent:true,opacity:0.9,depthWrite:false}));
+        const gl=new THREE.Mesh(new THREE.SphereGeometry(1.5,16,12),
+          new THREE.MeshBasicMaterial({color:0xff2020,transparent:true,opacity:0.25,
+            depthWrite:false,blending:THREE.AdditiveBlending}));
+        g.add(gl); g.frustumCulled=false; this.par.add(g);
+        e.gen.push({m:g,hp:GEN_HP,hpM:GEN_HP,zij:i?1:-1,live:true,p:new THREE.Vector3()}); }
+      // het schild van de baas: onbreekbaar zolang een generator leeft
+      this.schildAan(e,1e9); },
+
+    genTick:function(e,s){
+      if(!e.gen) return;
+      let leven=0;
+      for(let i=0;i<e.gen.length;i++){ const g=e.gen[i];
+        if(!g.live) continue; leven++;
+        g.p.set(e.p.x+g.zij*e.bw*GEN_AF, e.p.y+Math.sin(this.T*1.3+i*3)*2.5, e.p.z+GEN_VOOR);
+        g.m.position.copy(g.p); g.m.scale.setScalar(GEN_MAAT*(1+Math.sin(this.T*4+i)*0.08));
+        // de voedingsdraad: rode bliksem van bol naar baas, af en toe
+        if(Math.random()<s*1.6) this.bliksemStraal(g.p,e.p,0xff5a5a); }
+      if(leven===0&&e.schild>0){ this.schildBreekt(e); }
+      else if(leven===1&&e.schild>1e8){ e.schild=e.schildM=Math.round(e.hpM*0.25); } },
+
+    // Een kogel of raket die een generator raakt: schade aan de bol.
+    genTreffer:function(p,dmg){
+      for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
+        if(!e.live||!e.gen) continue;
+        for(let k=0;k<e.gen.length;k++){ const g=e.gen[k];
+          if(!g.live) continue;
+          if(p.distanceTo(g.p)<GEN_MAAT*1.3){
+            g.hp-=dmg; this.vonk(g.p.x,g.p.y,g.p.z,0xff8a8a,4,3,0.4);
+            if(g.hp<=0){ g.live=false; g.m.visible=false;
+              this.vonk(g.p.x,g.p.y,g.p.z,0xffffff,12,5,0.7);
+              this.vonk(g.p.x,g.p.y,g.p.z,0xff3a3a,16,7,1.0);
+              this.knal(g.p,4); this.schokRing(g.p); }
+            return true; } } }
+      return false; },
+
+    genWeg:function(e){
+      if(!e.gen) return;
+      e.gen.forEach(function(g){ g.live=false; g.m.visible=false; });
+      e.gen=null; },
+
+    // ---- DE SCHILDWERPER (Sjoerds ontwerp): AMBER RING ----
+    // Schiet af en toe een rode bliksemstraal naar een LICHT schip in de buurt,
+    // dat daarmee een dun schild krijgt. Twee per vijf seconden, bereik 60 m.
+    // De straal springt niet over: één lijn van romp naar doel. Schakel hem
+    // uit en de rest blijft kwetsbaar — dat is de puzzel.
+    werperTick:function(e,s){
+      if(e.werpT===undefined) e.werpT=2.5;
+      e.werpT-=s;
+      if(e.werpT>0) return;
+      e.werpT=WERP_ELK;
+      let doel=null, bd=WERP_BEREIK;
+      for(let i=0;i<this.enemies.length;i++){ const q=this.enemies[i];
+        if(!q.live||q===e||q.dood||q.dood2||q.schild>0) continue;
+        if(q.bw>WERP_MAXBR) continue;                    // alleen lichte
+        const d=q.p.distanceTo(e.p);
+        if(d<bd){ bd=d; doel=q; } }
+      if(!doel) return;
+      this.schildAan(doel,Math.round(doel.hpM*SCHILD_DUN));
+      this.bliksemStraal(e.p,doel.p,0xff4a4a);
+      this.vonk(doel.p.x,doel.p.y,doel.p.z,0xff5a5a,8,doel.sc*0.5,0.5);
+      SND.zap&&SND.zap(e.p.x*0.02); },
+
+    // Een kartelige rode bliksem van A naar B, kort zichtbaar. Eigen voorraad,
+    // los van de electro van de speler.
+    bliksemStraal:function(a,b,kl){
+      if(!this.bliks){ this.bliks=[];
+        for(let i=0;i<4;i++){
+          const g=new THREE.BufferGeometry();
+          g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(3*WERP_SEG),3));
+          const m=new THREE.Line(g,new THREE.LineBasicMaterial({color:kl,transparent:true,opacity:0.95,depthWrite:false}));
+          m.frustumCulled=false; m.visible=false; this.par.add(m);
+          this.bliks.push({m:m,t:0}); } }
+      const L=this.bliks.find(q=>q.t<=0)||this.bliks[0];
+      const P=L.m.geometry.attributes.position;
+      for(let i=0;i<WERP_SEG;i++){ const k=i/(WERP_SEG-1);
+        const j=(i===0||i===WERP_SEG-1)?0:(Math.random()-0.5)*3.2;
+        const j2=(i===0||i===WERP_SEG-1)?0:(Math.random()-0.5)*3.2;
+        P.setXYZ(i,a.x+(b.x-a.x)*k+j,a.y+(b.y-a.y)*k+j2,a.z+(b.z-a.z)*k); }
+      P.needsUpdate=true; L.m.material.color.setHex(kl);
+      L.m.visible=true; L.t=WERP_DUUR; },
+
+    bliksTick:function(s){
+      if(!this.bliks) return;
+      for(let i=0;i<this.bliks.length;i++){ const L=this.bliks[i]; if(L.t<=0) continue;
+        L.t-=s; L.m.material.opacity=Math.max(0,L.t/WERP_DUUR);
+        if(L.t<=0) L.m.visible=false; } },
 
     // Een los schip stort TUIMELEND neer: hij kantelt om zijn as en valt omlaag,
     // met vuur en rook achter zich aan. Mooier dan uit elkaar spatten in stukjes
@@ -3818,6 +3955,12 @@
       // hij meteen — met de volle explosie.
       if(e.dood){ e.valKlap=1; e.valNu=1; return; }
       if(!e.live||e.hp<=0) return;
+      // HET RODE SCHILD vangt de schade op tot het breekt.
+      if(e.schild>0){
+        e.schild-=dmg; e.schildFlits=0.12;
+        this.vonk(px||e.p.x,py||e.p.y,pz||e.p.z,0xff5a5a,4,3.5,0.35);
+        if(e.schild<=0) this.schildBreekt(e);
+        return; }
       // MET HET KRACHTVELD OP komt er niets doorheen: je schoten ketsen af.
       if(e.moedF===1){
         this.vonk(px||e.p.x,py||e.p.y,pz||e.p.z,0x6cf0ff,4,3.0,0.35);
@@ -3864,8 +4007,7 @@
               // eerst RECHT naar buiten, snel — daarna doet zijn gewone gedrag het
               v.broedUit=BROED_UIT; v.broedDir=new THREE.Vector3(Math.cos(hk),Math.sin(hk),0);
               v.snelX=BROED_SNEL;
-              self.vonk(v.p.x,v.p.y,v.p.z,0x8fd84a,4,4,0.5); }); }
-          this.toonMelding('SWARM','#8fd84a'); } }
+              self.vonk(v.p.x,v.p.y,v.p.z,0x8fd84a,4,4,0.5); }); } } }
       else if(e.hp>0&&e.bb){                         // gewone schepen laten ook wat los
         const hx=(px!==undefined)?px:e.p.x, hy=(py!==undefined)?py:e.p.y, hz=(pz!==undefined)?pz:e.p.z;
         if(Math.random()<0.30) this.brok(e,hx,hy,hz,false);
@@ -3908,6 +4050,8 @@
       // zwarte rooksliert terwijl zijn wrak neerstort.
       if(e.onzicht&&!e.spookOp){ e.spookOp=1; this.spookEinde(e); }
       if(e.veld){ e.veld.visible=false; }
+      if(e.schildM3){ e.schildM3.visible=false; e.schild=0; }
+      this.genWeg(e);
       const T=TYPE[e.tp];
       this.punt(e);
       // Een splitser valt bij zijn dood uiteen in twee kleinere, die zelf niet
@@ -4158,6 +4302,7 @@
         // Wie mag er wegduiken? Het aandeel groeit per level, en snelle schepen
         // krijgen voorrang — een kolos die wegduikt leest raar.
         e.wijker=(Math.random()<this.duikKans()*((T.br<=9)?1.4:((T.br<13)?0.7:0.15)))?1:0;
+        e.schild=0; e.schildFlits=0; if(e.schildM3) e.schildM3.visible=false; e.werpT=undefined;
         e.klokR=0; e.klokU=0; e.klokT=0; e.klokWeg=0;
         // DEZE VIER WERDEN NIET GEWIST. springRust is de gevaarlijkste: zolang
         // die loopt slaat de baanfunctie over, dus een hergebruikt schip stond
@@ -4177,6 +4322,7 @@
         e.prof=T.prof; e.form=null; e.uit=0; e.dood=0; e.doodT=0; e.ring=null;
         e.stijl=(opt&&opt.stijl)||'halte'; e.zij=(opt&&opt.zij)||1; e.overs=0;
         e.dood2=0; e.dt=0; e.stuur=0; e.dz=0; e.hulpT=9; e.baasNaam=''; e.gedrag=''; e.trioI=null;
+        this.genWeg(e);
         e.trip=0; e.tripT=0; e.tripAan=0; e.weer=0; e.wapens=null; e.vuur='duo'; e.rookT=0;
         e.rijst=0; e.rt=0; e.parade=0; e.broed=0; e.gen=0; e.brT=0; e.ax=undefined;
         e.omT=0; e.omZij=0; e.vrede=0;
@@ -4191,6 +4337,7 @@
           const B=(opt&&opt.baas)||this.bazen[(Math.max(1,this.level)-1)%this.bazen.length];
           const bt=B.tex;
           e.baasNaam=B.naam; e.gedrag=B.gedrag||'schip'; e.vuur=B.vuur||'duo';
+          if(B.naam==='WARDEN') this.genStart(e);
           if(!this.baasMat) this.baasMat={};
           if(!this.baasMat[bt.uuid]) this.baasMat[bt.uuid]=new THREE.MeshBasicMaterial(
             {map:bt,transparent:true,alphaTest:0.06,side:THREE.DoubleSide,depthWrite:false});
@@ -4227,6 +4374,12 @@
         e.sc=T.br*((opt&&opt.sc)||1);
         if(T.prof==='baas'&&e.gedrag==='reus'){ e.sc=134;
           e.hp=e.hpM=Math.round(6200*BAAS_TAAI*((opt&&opt.hp)||1)); }   // de eindbaas blijft zwaarder
+        // HET RODE SCHILD, nu de kracht bekend is. Kolossen altijd (halve kracht);
+        // kleine jagers een dun schildje, pas in de latere levels.
+        { const bn=T.basis||T.n;
+          if(T.prof!=='baas'&&SCHILD_GROOT.indexOf(bn)>=0) this.schildAan(e,Math.round(e.hpM*SCHILD_DEEL));
+          else if(T.prof!=='baas'&&T.br<=9&&this.level>=SCHILD_VANAF&&Math.random()<SCHILD_KANS)
+            this.schildAan(e,Math.round(e.hpM*SCHILD_DUN)); }
         // de reus is enorm maar zijn raakbol blijft binnen zijn houdafstand,
         // anders ramt hij je onafgebroken terwijl hij gewoon staat te vechten
         // De raakbol was 42% van de breedte: dat is 84% van de HALVE breedte, dus
@@ -4821,7 +4974,7 @@
         this.vonk(e.p.x,e.p.y,e.p.z,0xff2a3d,4,6,0.6);
         this.wijsDreiging(B);
         gezet++; }
-      if(gezet){ SND.boom(e.p.x*0.02); this.toonMelding('INCOMING','#ff8a3d'); }
+      if(gezet){ SND.boom(e.p.x*0.02); }
       return gezet; },
 
     // ======================================================================
@@ -4980,7 +5133,6 @@
         if(!R.live) continue;
         if(R.m.position.distanceTo(e.p)>SPRING_ALARM) continue;
         this.springWeg(e);
-        this.toonMelding('BLINK','#c07dff');
         return; } },
 
     // Een ontwijkmanoeuvre: hij zwenkt hard opzij, rolt om zijn as en pakt
@@ -6031,6 +6183,9 @@
         if(GEESTEN.indexOf(nm2)>=0) this.spookTick(e,s);
         if(KLOKKEN.indexOf(nm2)>=0){ this.klokTick(e,s); e.bT=9e9; }
         if(MOEDERS.indexOf(nm2)>=0) this.moederTick(e,s);
+        if(e.schildM3) this.schildTick(e,s);
+        if(WERPERS.indexOf(nm2)>=0) this.werperTick(e,s);
+        if(e.gen) this.genTick(e,s);
         // DE SCHEERVLUCHT van grote schepen: hier, waar elk schip langskomt.
         if(this.scheerTick(e,s)) return;
         if(e.broedCd>0) e.broedCd-=s;
@@ -6201,7 +6356,25 @@
       // hoe vaak een golf gemengd is: level 1 bijna nooit, level 12 meestal
       const mixKans=Math.min(0.72,0.06+(LV-1)*0.065);
       const mixNu=(R(w*31+LV*7)<mixKans);
-      if(mixNu&&LV>=2){
+      // DE SCHILDGOLF (Sjoerd): eerst de schildwerper, twee seconden later een
+      // aanvalsgroep lichte jagers — die krijgen dan meteen twee schilden van
+      // hem als ze aankomen. Vanaf level 7, af en toe.
+      const werperTp=TYPE.findIndex(function(q){ return q&&(q.basis||q.n)==='ORACLE'; });
+      // DE SCHILDARENA (Sjoerd): twee werpers als torens, links en rechts, en
+      // daarna drie groepen jagers na elkaar — elke nieuwe groep krijgt weer
+      // schilden. Schakel de torens uit, of blijf schilden breken. Late levels.
+      if(LV>=ARENA_VANAF&&werperTp>=0&&R(w*59+LV*5)<ARENA_KANS){
+        zet(werperTp,1,0,'links'); zet(werperTp,1,0.3,'rechts');
+        for(let b=0;b<ARENA_GROEPEN;b++){
+          zet(k(o+2+b),5+Math.floor(LV*0.3),2.5+b*0.1);
+          if(b===ARENA_GROEPEN-1||R(w*13+b)<0.4) zet(m(o+4+b),2,3.0); }
+      }
+      else if(LV>=SCHILDGOLF_VANAF&&werperTp>=0&&R(w*43+LV*3)<SCHILDGOLF_KANS){
+        zet(werperTp,1,0);
+        zet(k(o+2),5+Math.floor(LV*0.4),2.0);
+        if(R(w*7+LV)<0.5) zet(m(o+4),2,3.5);
+      }
+      else if(mixNu&&LV>=2){
         // hoeveel GROTE schepen als anker: 1 tot 3, en pas laat in het spel drie
         const nG=(LV>=9&&w>=6&&R(w*3+LV)<0.35)?3:((LV>=5&&w>=4&&R(w*5+LV)<0.5)?2:1);
         for(let b=0;b<nG;b++) zet(g(o+b*2),1,b*1.6);
@@ -6321,8 +6494,7 @@
         const B=this.sigSchot(e,this.sigRicht(e,(i-1)*0.26,0.03),
           {sp:17,hp:GROOTRAKHP+4,dmg:14,zoek:1,draai:2.0,groot:2.4,
            neus:1,kleur:0xff7a30,stijl:3,kop:(e.tp||0)%25});
-        if(B){ B.zwaar=1; B.groot2=2.4; } }
-      this.toonMelding('TRIDENT','#ff7a30'); },
+        if(B){ B.zwaar=1; B.groot2=2.4; } } },
 
     spookZet:function(tp){
       const hk=(Math.random()-0.5)*1.2;
@@ -6356,7 +6528,7 @@
       // Een spookgroep: één schip, maar met zijn eigen gedrag en zonder tekening.
       if(a.spook){ this.spookZet(a.tp); this.veldMax+=1; return; }
       const n=Math.max(1,a.n|0);
-      if(a.form){ this.formatie(a.tp,n); this.veldMax+=Math.min(n,6); return; }
+      if(a.form&&a.form!=='links'&&a.form!=='rechts'){ this.formatie(a.tp,n); this.veldMax+=Math.min(n,6); return; }
       const b=TYPE[a.tp].br;
       const gelijk=Math.min(n,(b<=7)?9:((b<=12)?5:((b<=17)?3:1)));
       this.veldMax+=gelijk;
@@ -6371,6 +6543,12 @@
         :((Math.random()<0.22)?'route'
         :((a.vorm==='slinger'||Math.random()<0.45)?'over':'halte'));
       this.vormZ=(Math.random()<0.5)?-1:1;
+      // Een TOREN van de schildarena: vaste plek links of rechts, hangt stil
+      if(a.form==='links'||a.form==='rechts'){
+        const zij=(a.form==='links')?-1:1;
+        const t=this.spawn(a.tp,{x:zij*ARENA_X,y:this.kop.y+ARENA_Y,z:-ARENA_Z,stijl:'halte'});
+        if(t){ t.toren=1; }
+        return; }
       const rl=(this.level<=3)?ROUTEVROEG:ROUTENAMEN;   // vroege levels: alleen banen die voor je blijven
       this.vormR=rl[Math.floor(Math.random()*rl.length)];
       this.vormRs=0.85+Math.random()*0.4;              // de een vliegt een ruimere baan dan de ander
@@ -6820,6 +6998,10 @@
             q.copy(B.o).addScaledVector(B.dir,B.pd+sprong*(k/n));
             vg=this.vijTreffer(q,B.dmg,RAAKSTRAAL); } }
         if(vg){ B.live=false; B.m.visible=false; continue; }
+        // eerst: raakt deze kogel een GENERATOR van WARDEN?
+        { const kp2=this.KP2||(this.KP2=new THREE.Vector3());
+          kp2.copy(B.o).addScaledVector(B.dir,B.d);
+          if(this.genTreffer(kp2,B.dmg)){ B.live=false; B.m.visible=false; continue; } }
         const g=this.treffer(B.o,B.dir,B.pd,B.d,B.tol);
         if(g){ this.raak(g.e,B.dmg,g.x,g.y,g.z);
           // Een brandende laserstraal steekt zijn doel aan: de schade loopt door
@@ -6932,6 +7114,8 @@
               // vol in het midden, minder aan de rand
               const deel=1-Math.max(0,af-e.r)/straal;
               this.raak(e,dmg*Math.max(0.25,deel),P.x,P.y,P.z); }
+            // en de generatoren van WARDEN
+            for(let k2=0;k2<6;k2++) if(!this.genTreffer(P,dmg*0.6)) break;
             for(let k=0;k<KET_LUS;k++) if(!this.vijTreffer(P,9,straal*0.6)) break; }
           R.live=false; R.m.visible=false; } }
 
@@ -7161,7 +7345,7 @@
 
       this.ringTick(s); this.sigRijTick(s); this.wijzerTickD(s);
       this.camoTick(s);
-      this.stap='effecten'; this.straalTick(s); this.bomTick(s); this.balTick(s); this.vlekTick();
+      this.stap='effecten'; this.bliksTick(s); this.straalTick(s); this.bomTick(s); this.balTick(s); this.vlekTick();
       // ---- rook: drijft op, dijt uit en vervaagt ----
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(!R.live) continue;
         R.life-=s/Math.max(0.3,R.leven);
