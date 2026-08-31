@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.58';
+  const VERSIE='v13.62';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -574,15 +574,17 @@
     // RAVEN was de tweekoppige robotvogel (9578). Sjoerd vond hem niet mooi;
     // hij is nu de grote grijze kruiser met de mast (9923).
     {nr:'9923', rol:'baas', beurt:5,  naam:'RAVEN',       gedrag:'schip', vuur:'duo'},
-    {nr:'9569', rol:'baas', beurt:6,  naam:'IRONCLAD',    gedrag:'mech', vuur:'zwaar'},
+    // Sjoerds nieuwe bazen voor 6, 8 en 10 (v13.62): de zwarte jager met de
+    // hoge staarten, de grijze walker met kanonnen, en het ringstation.
+    {nr:'9940', rol:'baas', beurt:6,  naam:'IRONCLAD',    gedrag:'mech', vuur:'zwaar'},
     {nr:'9563', rol:'baas', beurt:7,  naam:'THE EYES',    gedrag:'drieluik', vuur:'straal'},
     {nr:'9564', rol:'baas', beurt:7,  naam:'THE EYES',    gedrag:'drieluik', vuur:'straal'},
     {nr:'9565', rol:'baas', beurt:7,  naam:'THE EYES',    gedrag:'drieluik', vuur:'straal'},
-    {nr:'9557', rol:'baas', beurt:8,  naam:'THE WALKER',  gedrag:'mech', vuur:'duo'},
-    {nr:'9580', rol:'baas', beurt:9,  naam:'ARACHNID',    gedrag:'schip', vuur:'zwerm'},
-    {nr:'9583', rol:'baas', beurt:10, naam:'SERAPH',      gedrag:'mech', vuur:'straal'},
-    {nr:'9587', rol:'baas', beurt:11, naam:'THE CORE',    gedrag:'schijf', vuur:'zwaar'},
-    {nr:'9555', rol:'baas', beurt:12, naam:'DEATHS HEAD', gedrag:'schedel', vuur:'zwaar'},
+    {nr:'9937', rol:'baas', beurt:8,  naam:'THE WALKER',  gedrag:'mech', vuur:'duo'},
+    {nr:'9580', rol:'baas', beurt:0,  naam:'ARACHNID',    gedrag:'schip', vuur:'zwerm'},
+    {nr:'9583', rol:'baas', beurt:9,  naam:'SERAPH',      gedrag:'mech', vuur:'straal'},
+    {nr:'9936', rol:'baas', beurt:10, naam:'THE CORE',    gedrag:'schijf', vuur:'zwaar'},
+    {nr:'9555', rol:'baas', beurt:11, naam:'DEATHS HEAD', gedrag:'schedel', vuur:'zwaar'},
     {nr:'9573', rol:'baas', beurt:99, naam:'TITAN PRIME', gedrag:'reus', vuur:'reus'},
     // achtergronden waar je met beide benen op de grond staat: daar hoort geen
     // planeet in de lucht. Helderheid alleen is niet genoeg — dit landschap is donker.
@@ -590,8 +592,8 @@
     // 9823 heeft al ringplaneten en manen in de plaat zelf, dus die staat vast op
     // level 13. 9822 heeft veel lege ruimte en draait mee in de rotatie, zodat de
     // zwevende planeten daar goed tot hun recht komen.
-    {nr:'9823', rol:'hemel', grond:0, level:13, naam:'planetenstelsel met ringen'},
-    {nr:'9822', rol:'hemel', grond:0, level:9, naam:'zwart gat met komeet'},
+    {nr:'9823', rol:'hemel', grond:0, level:11, naam:'planetenstelsel met ringen'},
+    {nr:'9822', rol:'hemel', grond:0, level:6,  naam:'zwart gat met komeet'},
     {nr:'9523', rol:'hemel', grond:1, naam:'landschap met paddenstoelbomen'},
     {nr:'9510', rol:'hemel', grond:1, naam:'wolken boven water'},
     {nr:'9516', rol:'hemel', grond:1, naam:'blauwe lucht'},
@@ -1509,6 +1511,8 @@
   // Was 52 en 78. Nooit in je gezicht — een kolos van 30 m op 40 m vult al
   // een derde van je blik.
   const MINAF_GROOT=38, MINAF_REUS=58;
+  const DUIK_TOT=24;            // hoe dichtbij een duiker komt (was 10: in je gezicht)
+  const DUIKROL_T=0.9;          // hoe lang de duiker rolt bij het wegtrekken
   const SPREID_GROOT=26;        // hoe ver grote schepen onderling uit elkaar staan
   // De scheervlucht van grote schepen: hoe ver naast je hij langsscheert, hoe
   // snel, hoe lang, en hoe vaak.
@@ -1761,7 +1765,9 @@
   const CLUSTER_AF=55;          // op hoeveel meter een clusterbom uiteenvalt
   const SCHUW_AF=90, SCHUW_HOEK=0.986;   // wanneer een schuwe merkt dat je mikt
   const SLAAP_AF=42, SLAAP_MAAL=2.6;     // waar een slaper wakker wordt
-  const MOEDER_ELK=0.55;        // hoe vaak een zwerm-moeder er een laat vallen
+  const MOEDER_ELK=0.55;        // (oud) hoe vaak een zwerm-moeder er een laat vallen
+  // BROOD: twaalf jagers in klokpatroon per treffer, hoogstens eens per BROED_CD.
+  const BROED_N=12, BROED_MAX=24, BROED_CD=9, BROED_UIT=0.7, BROED_VAART=42, BROED_SNEL=1.5;
   const KOPPEL_SNEL=1.7;        // hoeveel sneller de overgebleven helft gaat
   // Hoe ver een raket vooruit mikt op je beweging. 0 = recht op je huidige plek.
   const VOORUIT=0.55;
@@ -2110,10 +2116,11 @@
     [ 6, 8, 9,19, 2,18,11,12,10,24, 5,25],      // 6  NEEDLE weg, + HEAVY, SHRIKE
     [ 8, 9,19, 2,18,11,12,10,24, 5,13,16],      // 7  RAZOR weg, + BROOD, WATCHER
     [ 9,19,18,11,12,10,24, 5,13,16,28,26],      // 8  SPINNER en FIGHTER weg, + DE HANGAR, VENOM
-    [19,18,11,12,10,24, 5,13,16,28,15,21],      // 9  NIGHTBLADE weg, + BULWARK, HALO
-    [18,11,12,10,24, 5,13,16,28,15,17,27],      // 10 FALCON weg, + HAULER, ORACLE
-    [11,12,10,24, 5,13,16,28,15,17,20,23],      // 11 WRAITH weg, + INFERNO, BASILISK
-    [12,10,24, 5,13,16,28,15,17,20,23,29]       // 12 LANCER weg, + NOVA — het zwaarste
+    // Sjoerd: "een lelijk level eruit." Het oude 9 is weg; zijn schepen zijn
+    // verdeeld over 9 en 10, zodat de opbouw naar zwaar doorloopt.
+    [19,18,11,12,10,24, 5,13,16,28,15,21,27],   // 9  (was 10) + BULWARK, HALO, ORACLE
+    [11,12,10,24, 5,13,16,28,15,17,20,23],      // 10 (was 11) + HAULER, INFERNO, BASILISK
+    [12,10,24, 5,13,16,28,15,17,20,23,29]       // 11 (was 12) + NOVA — het zwaarste
   ];
   const LEVELS=NIVEAU.length;
   //          -  raket shotgun laser electro mitrailleur
@@ -3802,7 +3809,10 @@
       // verdween meteen. Dit was de oorzaak: elke kogel die een WRAK nog raakte
       // liet hem verdwijnen — en je schiet natuurlijk door op wat je net raakte.
       // Een wrak incasseert nu gewoon een vonkje en valt door.
-      if(e.dood){ this.vonk(px||e.p.x,py||e.p.y,pz||e.p.z,0xffb03a,2,3,0.4); return; }
+      // Sjoerd: "een wrak valt, maar één extra raak schot maakt hem alsnog af."
+      // Dus: hij stort neer, en schiet je hem nog een keer raak, dan ontploft
+      // hij meteen — met de volle explosie.
+      if(e.dood){ e.valKlap=1; e.valNu=1; return; }
       if(!e.live||e.hp<=0) return;
       // MET HET KRACHTVELD OP komt er niets doorheen: je schoten ketsen af.
       if(e.moedF===1){
@@ -3828,16 +3838,30 @@
       // Een moederschip laat bij elke treffer een broedsel los, met een korte
       // rustpauze zodat een mitrailleur er geen zwerm van maakt.
       if(e.hp>0&&TYPE[e.tp].prof==='moeder'){
-        e.brT=(e.brT||0)-0.016;
-        if(e.brT<=0){ e.brT=0.55;
+        // BROOD, Sjoerds ontwerp: bij een treffer laat de zwerm-moeder TWAALF
+        // jagers los, elk op een uur van de wijzerplaat — de klok-techniek. Ze
+        // schieten snel naar buiten en vallen dan aan. Hoogstens eens per
+        // BROED_CD, anders wordt het een muur.
+        if(!(e.broedCd>0)){
+          e.broedCd=BROED_CD;
           let n=0;
           for(let i=0;i<this.enemies.length;i++)
             if(this.enemies[i].live&&this.enemies[i].broed) n++;
-          if(n<10){
-            const v=this.spawn(BROEDSEL,{x:e.p.x+(Math.random()-0.5)*e.bw*0.7,
-              y:e.p.y+(Math.random()-0.5)*e.bh*0.5, z:e.p.z+4});
-            if(v){ v.broed=1; v.prof='broed'; v.ex={}; v.stijl='vrij';
-              this.vonk(v.p.x,v.p.y,v.p.z,0x8fd84a,5,6,0.6); } } } }
+          const past=Math.max(0,Math.min(BROED_N,BROED_MAX-n));
+          const self=this;
+          for(let k=0;k<past;k++){
+            const hk=(k/BROED_N)*6.283-1.5708;      // uur 0 bovenaan
+            this.sigNa(k*0.05,function(){
+              if(!e.live) return;
+              const v=self.spawn(BROEDSEL,{x:e.p.x+Math.cos(hk)*e.bw*0.35,
+                y:e.p.y+Math.sin(hk)*e.bh*0.35, z:e.p.z+3});
+              if(!v) return;
+              v.broed=1; v.prof='broed'; v.ex={}; v.stijl='vrij';
+              // eerst RECHT naar buiten, snel — daarna doet zijn gewone gedrag het
+              v.broedUit=BROED_UIT; v.broedDir=new THREE.Vector3(Math.cos(hk),Math.sin(hk),0);
+              v.snelX=BROED_SNEL;
+              self.vonk(v.p.x,v.p.y,v.p.z,0x8fd84a,4,4,0.5); }); }
+          this.toonMelding('SWARM','#8fd84a'); } }
       else if(e.hp>0&&e.bb){                         // gewone schepen laten ook wat los
         const hx=(px!==undefined)?px:e.p.x, hy=(py!==undefined)?py:e.p.y, hz=(pz!==undefined)?pz:e.p.z;
         if(Math.random()<0.30) this.brok(e,hx,hy,hz,false);
@@ -3955,11 +3979,17 @@
       e.p.addScaledVector(e.valDir,e.valSn*s);
       e.p.y-=e.valV*s;
       if(e.bb){
-        // eigen richting, eigen tempo, en het draaien loopt op naarmate hij valt
-        e.bb.m.rotation.z=(e.bb.m.rotation.z||0)+s*(e.valRot||VALKANTEL)*(1+e.doodT*(e.valRotV||0));
-        e.bb.m.position.copy(e.p); }
+        // Sjoerd: "als ze vallen is hun lock met mij los, soms vallen ze langs
+        // mij en zie je de platte kant." Een wrak keek niet meer naar je: hij
+        // hield zijn oude kijkrichting terwijl hij langs je viel. Nu blijft hij
+        // naar een punt op eigen hoogte kijken, en komt zijn eigen rol erop.
+        e.valRolA=(e.valRolA||0)+s*(e.valRot||VALKANTEL)*(1+e.doodT*(e.valRotV||0));
+        e.bb.m.position.copy(e.p);
+        const lk=this.LK2||(this.LK2=new THREE.Vector3());
+        lk.set(this.kop.x,e.p.y,this.kop.z); e.bb.m.lookAt(lk);
+        e.bb.m.rotation.z=e.valRolA; }
       if(e.fase>=1) this.brandTick(e,s);
-      if(e.doodT>(e.valTijd||VALDUUR)||e.p.y<this.kop.y-(e.valEind||VALDIEP)){
+      if(e.valNu||e.doodT>(e.valTijd||VALDUUR)||e.p.y<this.kop.y-(e.valEind||VALDIEP)){
         if(e.valKlap){
           // een echte explosie: vuurbal, ringen, rook
           this.vonk(e.p.x,e.p.y,e.p.z,0xffffff,8,e.sc*0.5,0.5);
@@ -4122,7 +4152,8 @@
         // die loopt slaat de baanfunctie over, dus een hergebruikt schip stond
         // stil. geestT liet hem in de verkeerde fase beginnen, rol gaf een scheve
         // stand, en veld liet een krachtveld om een gewoon schip staan.
-        e.springRust=0; e.geestT=0; e.rol=0; e.valDir=null; e.valV=0; e.valRot=0; e.valTijd=0;
+        e.springRust=0; e.geestT=0; e.rol=0; e.valDir=null; e.valV=0; e.valRot=0; e.valTijd=0; e.valRolA=0; e.valNu=0;
+        e.broedCd=0; e.broedUit=0; e.broedDir=null; e.broed=0;
         e.scheer=0; e.scheerCd=undefined; e.scheerT=0;
         e.vp=null; e.vRicht=null;   // de vliegrichting opnieuw meten
         if(e.veld){ e.veld.visible=false; e.veld=null; }
@@ -4541,10 +4572,8 @@
       // duiken. Puur vertoon, maar het maakt een aanval veel levendiger.
       // DE ROL VOLGT ZIJN SNELHEID. Een schip dat hard van links naar rechts
       // schiet hoort ook hard te rollen; eerst draaide iedereen even snel.
-      if(e.rolT>0){ e.rolT-=s;
-        const vaart=Math.min(2.4,0.7+Math.abs(zijV)/12);
-        e.rolA=(e.rolA||0)+s*ROLSNEL*vaart;
-        if(e.bb) e.bb.m.rotation.z=e.rol+e.rolA; }
+      // de rol zelf loopt in de beurtlus (één plek), hier alleen de kanteling
+      if(e.rolT>0){ if(e.bb) e.bb.m.rotation.z=e.rol+(e.rolA||0); }
       // Een WRAK draait zichzelf (tollen, duikelen). Deze regel zette hem elke
       // beurt terug op zijn vliegstand, dus bleef hij rechtop hangen terwijl hij
       // viel. Nu alleen voor schepen die nog leven.
@@ -5886,9 +5915,16 @@
                               e.p.x+=Math.cos(e.t*0.35)*4*s*zij; }
 
       else if(P==='duiker'){                          // valt aan tot vlakbij en trekt terug
+        // DUIKER KWAM TOT 10 M. Dat is in je gezicht — en zo dichtbij draait de
+        // platte sprite met lookAt om zijn as, dan zie je hem van opzij. Sjoerd
+        // zag CRIMSON CLAW zo "zwaaien om zijn verticale as". Nu tot DUIK_TOT.
         if(!e.ex.f) e.ex.f=1;
-        if(e.ex.f===1){ if(afst>10+e.r) e.p.addScaledVector(naar,sp*1.5*s);
-                        else { e.ex.f=2; this.spuw(e,1,0.06); } }
+        if(e.ex.f===1){ if(afst>DUIK_TOT+e.r) e.p.addScaledVector(naar,sp*1.5*s);
+                        else { e.ex.f=2; this.spuw(e,1,0.06);
+                               // Sjoerd: "graag andere as, zodat hij een mooie rol
+                               // maakt." Bij het wegtrekken rolt hij om zijn
+                               // LENGTEAS — het plaatje draait in zijn eigen vlak.
+                               e.rolT=DUIKROL_T; e.rolA=0; } }
         else { e.p.addScaledVector(naar,-sp*1.1*s);
                if(afst>AFST[Math.min(2,e.stap)]+e.r) e.ex.f=1; }
         e.p.x+=Math.sin(e.t*3.0)*7*s; }
@@ -5986,6 +6022,12 @@
         if(MOEDERS.indexOf(nm2)>=0) this.moederTick(e,s);
         // DE SCHEERVLUCHT van grote schepen: hier, waar elk schip langskomt.
         if(this.scheerTick(e,s)) return;
+        if(e.broedCd>0) e.broedCd-=s;
+        // een broedsel dat net is losgelaten schiet eerst recht naar buiten
+        if(e.broedUit>0){ e.broedUit-=s;
+          e.p.addScaledVector(e.broedDir,BROED_VAART*s);
+          if(e.bb) e.bb.m.position.copy(e.p);
+          return; }
         // WEGDUIKEN als je op hem mikt — alleen de schepen die dat mogen.
         if(e.wijker){ this.mikTick(e,s); if(e.wijkT>0) return; }
         // DE SPRINGER duikt ook weg voor een RAKET die bijna inslaat.
@@ -6071,7 +6113,17 @@
 
       // ---- sprite bijwerken ----
       if(e.romp){ e.romp.position.copy(e.p); e.romp.rotation.y+=s*1.1; e.romp.rotation.x+=s*0.7; }
-      const b=e.bb; if(b){ b.m.position.copy(e.p); b.m.lookAt(eye);
+      const b=e.bb; if(b){ b.m.position.copy(e.p);
+        // lookAt kantelt een sprite die ver boven of onder je hangt om zijn
+        // verticale as; op een plat plaatje zie je dan zijn zijkant. Kijk daarom
+        // naar een punt op zijn EIGEN hoogte, dan blijft hij recht.
+        const lk=this.LK||(this.LK=new THREE.Vector3());
+        lk.set(eye.x,e.p.y,eye.z); b.m.lookAt(lk);
+        // lookAt wist de rotatie om de kijkas. Daarna weer de rol en de
+        // kanteling erop: overhellen, de rolaanval en de rol van een duiker.
+        if(e.rolT>0){ e.rolT-=s; e.rolA=(e.rolA||0)+s*ROLSNEL*(e.rolVaart||1.4); }
+        else if(e.rolA){ e.rolA=0; }                    // klaar: recht
+        b.m.rotation.z=(e.rol||0)+(e.rolA||0)+(e.wijkT>0?e.wijkY*0.05:0);
         if(e.flash>0) e.flash-=s;
         const kf=1+(e.flash>0?0.12:0);
         b.m.scale.set((e.bw||e.sc)*kf,(e.bh||e.sc)*kf,1); } },
@@ -6413,8 +6465,13 @@
       // niet meer.
       if(L>=LEVELS){ const R=(this.bazen||[]).filter(function(b){ return b.beurt>=99; });
         if(R.length) return R[0]; }
-      const B=(this.bazen||[]).filter(function(b){ return b.beurt<99; });
+      // Bazen met beurt 0 doen niet mee (ARACHNID, sinds level 9 eruit ging).
+      // En de baas van een level is die met beurt === level, niet de zoveelste
+      // in de lijst — anders verschuift alles als er eentje wegvalt.
+      const B=(this.bazen||[]).filter(function(b){ return b.beurt>0&&b.beurt<99; });
       if(!B.length) return (this.bazen||[])[0]||null;
+      const eig=B.filter(function(b){ return b.beurt===Math.max(1,L); });
+      if(eig.length) return eig[Math.floor(Math.random()*eig.length)];
       return B[(Math.max(1,L)-1)%B.length]; },
     reusKeus:function(){
       const R=(this.bazen||[]).filter(function(b){ return b.gedrag==='reus'; });
@@ -6704,7 +6761,9 @@
         if(e.bb&&e.prof!=='baas'&&!e.dood){
           const zv=(e.p.x-xVoor)/Math.max(0.004,s);
           e.rol=(e.rol||0)+((Math.max(-1,Math.min(1,zv/22))*0.55)-(e.rol||0))*Math.min(1,s*3.0);
-          e.bb.m.rotation.z=e.rol; }
+          // DIT was de plek die elke rol wiste: hij zette de kanteling terug
+          // ZONDER de rolaanval erbij, en komt na alles. Nu telt de rol mee.
+          e.bb.m.rotation.z=e.rol+(e.rolA||0); }
         if(e.p.z>70&&!e.ring&&e.stijl!=='over'&&e.stijl!=='route'){ this.bbVrij(e.bb); e.bb=null; e.live=false;   // pas ver achter je opruimen
           if(e.romp){ e.romp.visible=false; e.romp=null; } }               // ontsnapt
         if(window.PAUSED) return; }
