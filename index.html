@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.57';
+  const VERSIE='v13.58';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1456,7 +1456,9 @@
   const LOSBRAND_ELK=0.12;      // seconden tussen twee vlammetjes van een los schip
   // Hoe de brand meeschaalt met het schip: 1 = de maat die bij een jager van
   // vijf meter hoort. Een kolos van 24 brandt dan bijna vijf keer zo groot.
-  const BRANDSCHAAL=0.20, BRANDMIN=1.35;   // en een ondergrens voor kleine jagers
+  // Sjoerd: "rook mag een klein stapje groter en meer aanwezig, niet overkill."
+  // Schaal 0,20 → 0,26, ondergrens 1,35 → 1,7.
+  const BRANDSCHAAL=0.26, BRANDMIN=1.7;
   const VALROOK=0.40;           // seconden tussen twee pluimen van een wrak
   // Hoe hard een neerstortend wrak draait, per manier van vallen.
   // Het neerstorten: versnelling omlaag, hoe hij kantelt, hoe lang, hoe diep.
@@ -3933,6 +3935,12 @@
         v.y=0; v.normalize();
         // Sjoerd: "vallen mag een klein beetje sneller, met hun vliegsnelheid."
         e.valDir=v; e.valSn=Math.max(4,sn*VALVAART); e.valV=0;
+        // Sjoerd: "rotatiesnelheid en -richting random. Nu draaien ze allemaal
+        // dezelfde kant en snelheid — bij een electro is dat heel saai." Elk
+        // wrak kiest zijn eigen kant en zijn eigen tempo, en versnelt anders.
+        e.valRot=(Math.random()<0.5?-1:1)*VALKANTEL*(0.35+Math.random()*1.6);
+        e.valRotV=Math.random()*1.4;                        // hoe hard hij bijdraait
+        e.valVersnel=VALVERSNEL*(0.7+Math.random()*0.7);    // sommige vallen sneller
         // PER SCHIP WILLEKEURIG: hoe ver hij valt voor het eind, en of hij dan
         // ontploft of gewoon uit beeld zakt. Sjoerd: "per vliegtuig misschien
         // een beetje random of hij wel of niet, of wanneer hij ontploft."
@@ -3940,14 +3948,18 @@
         // horizon — net buiten je blik in een bril. Ondergrens omhoog zodat je
         // elke val ziet: 35 tot 70 m.
         e.valEind=VALDIEP*(0.78+Math.random()*0.77);
-        e.valKlap=(Math.random()<KLAPKANS)?1:0; }
-      e.valV+=s*VALVERSNEL;
+        e.valKlap=(Math.random()<KLAPKANS)?1:0;
+        // en WANNEER hij ontploft verschilt ook: tussen 2,2 en 6 seconden
+        e.valTijd=2.2+Math.random()*3.8; }
+      e.valV+=s*(e.valVersnel||VALVERSNEL);
       e.p.addScaledVector(e.valDir,e.valSn*s);
       e.p.y-=e.valV*s;
-      if(e.bb){ e.bb.m.rotation.z=(e.bb.m.rotation.z||0)+s*VALKANTEL*(e.valDir.x<0?-1:1);
+      if(e.bb){
+        // eigen richting, eigen tempo, en het draaien loopt op naarmate hij valt
+        e.bb.m.rotation.z=(e.bb.m.rotation.z||0)+s*(e.valRot||VALKANTEL)*(1+e.doodT*(e.valRotV||0));
         e.bb.m.position.copy(e.p); }
       if(e.fase>=1) this.brandTick(e,s);
-      if(e.doodT>VALDUUR||e.p.y<this.kop.y-(e.valEind||VALDIEP)){
+      if(e.doodT>(e.valTijd||VALDUUR)||e.p.y<this.kop.y-(e.valEind||VALDIEP)){
         if(e.valKlap){
           // een echte explosie: vuurbal, ringen, rook
           this.vonk(e.p.x,e.p.y,e.p.z,0xffffff,8,e.sc*0.5,0.5);
@@ -4110,7 +4122,7 @@
         // die loopt slaat de baanfunctie over, dus een hergebruikt schip stond
         // stil. geestT liet hem in de verkeerde fase beginnen, rol gaf een scheve
         // stand, en veld liet een krachtveld om een gewoon schip staan.
-        e.springRust=0; e.geestT=0; e.rol=0; e.valDir=null; e.valV=0;
+        e.springRust=0; e.geestT=0; e.rol=0; e.valDir=null; e.valV=0; e.valRot=0; e.valTijd=0;
         e.scheer=0; e.scheerCd=undefined; e.scheerT=0;
         e.vp=null; e.vRicht=null;   // de vliegrichting opnieuw meten
         if(e.veld){ e.veld.visible=false; e.veld=null; }
@@ -5598,8 +5610,8 @@
         this.vonk(px,py,pz,0xfff2c0,1,1.4*fel*sch,0.18*sch);
         this.vonk(px,py,pz,0xffb03a,1,2.0*fel*sch,0.32*sch);
         if(zw&&Math.random()<0.5) this.vonk(px,py,pz,0xff6a2a,1,2.6*sch,0.45*sch);
-        if(Math.random()<0.35)
-          this.rook(px,py,pz+2,zw,(zw?PLUIMMAAT*1.3:PLUIMMAAT)*sch,ROOKLEEF); } },
+        if(Math.random()<0.45)
+          this.rook(px,py,pz+2,zw,(zw?PLUIMMAAT*1.4:PLUIMMAAT)*sch,ROOKLEEF*1.2); } },
 
     brandTick:function(e,s){
       if(e.fase<1||!e.bb) return;
