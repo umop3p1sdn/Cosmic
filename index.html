@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.90';
+  const VERSIE='v13.91';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1517,6 +1517,7 @@
   // een derde van je blik.
   const MINAF_GROOT=38, MINAF_REUS=58;
   const DUIK_TOT=24;            // hoe dichtbij een duiker komt (was 10: in je gezicht)
+  const DUIK_BAAN=0.55, DUIK_ZIJ=1.5, DUIK_HOOG=0.7;   // en hoe hij om je heen draait
   const DUIKROL_T=1.8;          // hoe lang de duiker rolt bij het wegtrekken
   const DUIKROL_CD=9, DUIKROL_KANS=0.3;   // en hoe zelden hij het doet
   const SPREID_GROOT=26;        // hoe ver grote schepen onderling uit elkaar staan
@@ -6659,7 +6660,15 @@
                                  e.rolT=DUIKROL_T; e.rolA=0; e.duikRolCd=DUIKROL_CD; } } }
         else { e.p.addScaledVector(naar,-sp*1.1*s);
                if(afst>AFST[Math.min(2,e.stap)]+e.r) e.ex.f=1; }
-        e.p.x+=Math.sin(e.t*3.0)*7*s; }
+        // GEMETEN: hij pendelde 54 m voor-achter maar bewoog 0 m in hoogte en
+        // maar 15 opzij — dus altijd op dezelfde lijn. Sjoerd: "blijft op één
+        // plek voor en naar achter, laat hem ook wat rondvliegen." Nu draait
+        // hij langzaam om je heen terwijl hij aanvalt, en stijgt en daalt.
+        e.ex.ba=(e.ex.ba||e.i0)+s*DUIK_BAAN;
+        const t=this.DT2||(this.DT2=new THREE.Vector3());
+        t.set(-naar.z,0,naar.x).normalize();
+        e.p.addScaledVector(t,Math.cos(e.ex.ba)*sp*DUIK_ZIJ*s);
+        e.p.y+=Math.sin(e.ex.ba*0.7)*sp*DUIK_HOOG*s; }
 
       else if(P==='drijver'){ e.p.x+=Math.cos(e.t*0.3)*2.5*s; }
 
