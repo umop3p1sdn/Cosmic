@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.98';
+  const VERSIE='v13.99';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -3040,11 +3040,20 @@
       // Hij moet VER genoeg van je af zijn, anders slaat de raket in voordat
       // de flares eruit zijn en zie je er niets van.
       if(e.p.distanceTo(this.kop)<FLARE_MINAF) return false;
-      // is er een raket op hem onderweg, en dichtbij genoeg?
+      // SJOERDS BUG: "flares werken alleen als er één vliegtuig over is." Een
+      // raket zoekt het DICHTSTBIJZIJNDE schip, en in een groep is dat bijna
+      // nooit het ene met flares — behalve als hij de laatste is. Hij eiste hier
+      // dat de raket OP HEM was gericht. Nu reageert hij op elke raket die op
+      // hem AFKOMT: dichtbij genoeg en zijn kant op vliegend.
       let R=null;
+      const rv=this.FRV||(this.FRV=new THREE.Vector3());
       for(let i=0;i<this.rockets.length;i++){ const q=this.rockets[i];
-        if(!q.live||q.zoek!==e) continue;
-        if(q.m.position.distanceTo(e.p)<FLARE_AF){ R=q; break; } }
+        if(!q.live||q.flareLok) continue;
+        const d=q.m.position.distanceTo(e.p);
+        if(d>FLARE_AF) continue;
+        // komt hij deze kant op? (richting raket vs richting naar het schip)
+        rv.subVectors(e.p,q.m.position).normalize();
+        if(q.zoek===e||rv.dot(q.dir)>0.55){ R=q; break; } }
       if(!R) return false;
       // hij heeft ze nu gebruikt: pas weer na zijn eigen wachttijd
       e.flareCd=FLARE_CD;
