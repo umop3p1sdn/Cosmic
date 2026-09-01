@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.91';
+  const VERSIE='v13.92';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1598,7 +1598,7 @@
   const FLARE_N=8, FLARE_SPREID=2.1, FLARE_V=26, FLARE_LEEF=4.0, FLARE_ZWAAR=13;
   const FLARE_AF=42, FLARE_EERST=55, FLARE_SPAN=70, FLARE_MAAT=0.9, FLARE_MAX=40;
   const FLARE_MAXSCHEPEN=2;     // alleen als hij alleen is of met z'n tweeën
-  const FLARE_ZOEK=70, FLARE_WEG=1.2, FLARE_WEGV=30;
+  const FLARE_ZOEK=70, FLARE_WEG=1.2, FLARE_WEGV=30, FLARE_HAP=34;
   // HET SPOOKSCHIP: vanaf welke afstand hij vervaagt, waar hij weer verschijnt,
   // en hoe doorzichtig hij op zijn onzichtbaarst is.
   // Het spookschip werkt op TIJD: zichtbaar, glans, weg, en weer terug.
@@ -2963,6 +2963,23 @@
         if(Math.random()<s*7) this.rook(F.p.x,F.p.y,F.p.z,false,0.5,0.9);
         if(F.t<=0){ F.live=false; F.m.visible=false; } } },
 
+    // Elke raket die vlak langs een brandende flare komt hapt toe — ook een
+    // raket die op een ANDER schip zat. Zo werken flares: de zoeker ziet de
+    // heetste bron, niet het toestel waar hij op was afgestuurd.
+    flareLokAlles:function(){
+      if(!this.flares) return;
+      let brandt=false;
+      for(let i=0;i<this.flares.length;i++) if(this.flares[i].live){ brandt=true; break; }
+      if(!brandt) return;
+      for(let i=0;i<this.rockets.length;i++){ const R=this.rockets[i];
+        if(!R.live||R.flareLok) continue;
+        for(let k=0;k<this.flares.length;k++){ const F=this.flares[k];
+          if(!F.live) continue;
+          if(F.p.distanceTo(R.m.position)<FLARE_HAP){
+            R.zoek=null; R.flareLok=1;
+            this.vonk(R.m.position.x,R.m.position.y,R.m.position.z,0xfff2c0,3,2,0.3);
+            break; } } } },
+
     // een raket die zijn doel kwijt is zoekt de dichtstbijzijnde brandende flare
     flareZoek:function(R){
       if(!this.flares) return null;
@@ -3138,6 +3155,10 @@
       e.p.x+=Math.sin(bank)*kracht*s;
       e.p.y-=(1-Math.cos(bank))*kracht*s*0.55;            // hoogteverlies volgt uit de bocht
       e.p.z+=Math.cos(bank)*kracht*s*0.25;
+      // DE TELEPORT: dit verplaatste wel e.p maar NIET zijn sprite. Dus stond
+      // hij visueel stil en sprong hij aan het eind ineens naar zijn nieuwe
+      // plek. Nu vliegt hij de bocht ook echt zichtbaar.
+      if(e.bb) e.bb.m.position.copy(e.p);
       if(e.herpakT<=0){
         // en herstelt zich: sneller, en meteen vuren. Eén keer versnellen per
         // duik — anders stapelt hij bij elke beurt op tot honderden malen.
@@ -7991,7 +8012,7 @@
       this.ringTick(s); this.sigRijTick(s); this.wijzerTickD(s);
       this.camoTick(s);
       if(this.flareVeld>0) this.flareVeld-=s;
-      this.stap='effecten'; this.flareTick(s); this.bliksTick(s); this.straalTick(s); this.bomTick(s); this.balTick(s); this.vlekTick();
+      this.stap='effecten'; this.flareTick(s); this.flareLokAlles(); this.bliksTick(s); this.straalTick(s); this.bomTick(s); this.balTick(s); this.vlekTick();
       // ---- rook: drijft op, dijt uit en vervaagt ----
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(!R.live) continue;
         R.life-=s/Math.max(0.3,R.leven);
