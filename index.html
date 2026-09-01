@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.95';
+  const VERSIE='v13.96';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1612,13 +1612,13 @@
   // FLARES: hoeveel per waaier, hoe breed, hoe snel eruit, hoe lang ze branden,
   // hoe hard ze vallen, vanaf welke raketafstand, hoe vaak, en de wegtrekruk.
   const FLARE_N=8, FLARE_SPREID=2.1, FLARE_V=26, FLARE_LEEF=4.0, FLARE_ZWAAR=13;
-  const FLARE_AF=42, FLARE_EERST=55, FLARE_SPAN=70, FLARE_MAAT=0.9, FLARE_MAX=40;
+  const FLARE_AF=42, FLARE_DEEL=1/15, FLARE_CD=16, FLARE_MAAT=0.9, FLARE_MAX=40;
   // Sjoerd: "mag ook bij meer, want juist dan gebruik je raketten." Tot vijf.
   const FLARE_MAXSCHEPEN=5;     // tot vijf schepen in de lucht (was 2)
   // Hij moet ook VER genoeg weg zijn, anders slaat de raket in voordat de
   // flares eruit zijn. Sjoerd: "liefst als een vliegtuig verder weg is."
   const FLARE_MINAF=55;
-  const FLARE_ZOEK=70, FLARE_WEG=1.2, FLARE_WEGV=30, FLARE_HAP=34;
+  const FLARE_ZOEK=70, FLARE_WEG=1.2, FLARE_WEGV=30, FLARE_HAP=34, FLARE_INSLAG=5;
   // HET SPOOKSCHIP: vanaf welke afstand hij vervaagt, waar hij weer verschijnt,
   // en hoe doorzichtig hij op zijn onzichtbaarst is.
   // Het spookschip werkt op TIJD: zichtbaar, glans, weg, en weer terug.
@@ -2468,7 +2468,6 @@
         W.t=5; W.lvl=1; W.lvlT=this.zak.lvlT; W.mag=this.zak.mag;
         W.last=0; W.up=0; W.vorig=0; W.laz=null; }
       if(this.flares) this.flares.forEach(function(F){ F.live=false; F.m.visible=false; });
-      this.flareVeld=FLARE_EERST+Math.random()*FLARE_SPAN;
       this.enemies.forEach(function(e){ e.live=false; e.dood=0; e.dood2=0;
         if(e.romp){ e.romp.visible=false; e.romp=null; } });
       this.bb.forEach(function(b){ b.vrij=true; b.m.visible=false; });
@@ -2981,12 +2980,11 @@
     // Ze branden een seconde of vier en vallen in een boog omlaag. Ze gaan
     // alleen kapot van een directe treffer, niet van een schokgolf.
     flareUit:function(e){
-      // Sjoerd: "gewoon soms. Misschien één keer per minuut tot twee minuten."
-      // Dus geen kans per schip maar een klok voor het HELE veld: pas als die
-      // afgelopen is mag de eerstvolgende bedreigde jager zijn flares gooien.
-      if(!this.flares) return false;
-      if(this.flareVeld===undefined) this.flareVeld=FLARE_EERST+Math.random()*FLARE_SPAN;
-      if(this.flareVeld>0) return false;
+      // Sjoerd: "flare mag ook wel vaker. Doe maar tussen de 10-20 van die
+      // kleine vliegtuigen één met flares." Dus niet meer een klok voor het hele
+      // veld, maar een eigenschap van het schip: ongeveer één op de vijftien
+      // heeft flares aan boord. Dat wordt bij het neerzetten bepaald.
+      if(!this.flares||!e.heeftFlare) return false;
       // Sjoerd: "het is het mooist als hij alleen is of met z'n tweeën, dan zie
       // je het ook gebeuren." In een drukke golf gaat het gebaar verloren.
       let inBeeld=0;
@@ -3002,8 +3000,8 @@
         if(!q.live||q.zoek!==e) continue;
         if(q.m.position.distanceTo(e.p)<FLARE_AF){ R=q; break; } }
       if(!R) return false;
-      // de klok opnieuw zetten: pas over een minuut tot twee gebeurt het weer
-      this.flareVeld=FLARE_EERST+Math.random()*FLARE_SPAN;
+      // hij heeft ze nu gebruikt: pas weer na zijn eigen wachttijd
+      e.flareCd=FLARE_CD;
       // de richting waar de raket vandaan komt
       const naar=this.FL||(this.FL=new THREE.Vector3());
       naar.subVectors(e.p,R.m.position).normalize();
@@ -4943,6 +4941,8 @@
         // krijgen voorrang — een kolos die wegduikt leest raar.
         e.wijker=(Math.random()<this.duikKans()*((T.br<=9)?1.4:((T.br<13)?0.7:0.15)))?1:0;
         e.schild=0; e.schildFlits=0; if(e.schildM3) e.schildM3.visible=false; e.werpT=undefined;
+        // ongeveer één op de vijftien kleine jagers heeft flares aan boord
+        e.heeftFlare=(T.br<=12&&Math.random()<FLARE_DEEL)?1:0;
         e.klokR=0; e.klokU=0; e.klokT=0; e.klokWeg=0;
         // DEZE VIER WERDEN NIET GEWIST. springRust is de gevaarlijkste: zolang
         // die loopt slaat de baanfunctie over, dus een hergebruikt schip stond
@@ -6901,6 +6901,7 @@
         if(e.duikRolCd>0) e.duikRolCd-=s;
         if(e.klimCd>0) e.klimCd-=s;
         if(this.klimTick(e,s)) return;
+        if(e.flareCd>0) e.flareCd-=s;
         this.flareUit(e);
         // wegtrekken na de flares, tegen de raket in
         if(e.flareWeg>0){ e.flareWeg-=s;
@@ -7794,15 +7795,25 @@
         // AFGELEID DOOR EEN FLARE: hij volgt de hete flare in plaats van het
         // schip, precies waar flares voor bedoeld zijn. Brandt die op, dan
         // zoekt hij weer een schip.
+        // DE RAKET BEVROOR: de 'continue' hieronder sloeg de rest van de lus
+        // over, dus werd hij niet meer verplaatst — hij bleef stilhangen bij de
+        // flare. Nu stuurt hij alleen bij en loopt de gewone beweging door: hij
+        // vliegt er echt op af, slaat in en neemt de flare mee.
         if(R.flareLok){
           const F=this.flareZoek(R);
           if(F){ v.subVectors(F.p,R.m.position).normalize();
             R.dir.lerp(v,Math.min(1,4.0*s)).normalize(); R.wacht=0;
-            if(F.p.distanceTo(R.m.position)<3){ F.live=false; F.m.visible=false;
-              this.knal(F.p,2.2); this.vonk(F.p.x,F.p.y,F.p.z,0xfff2c0,10,3,0.5);
-              R.live=false; R.m.visible=false; }
-            continue; }
-          R.flareLok=0; }
+            if(F.p.distanceTo(R.m.position)<FLARE_INSLAG){
+              F.live=false; F.m.visible=false;
+              // samen kapot: de flare spat uiteen en de raket ontploft erop
+              this.vonk(F.p.x,F.p.y,F.p.z,0xffffff,10,3,0.4);
+              this.vonk(F.p.x,F.p.y,F.p.z,0xfff2c0,16,5,0.7);
+              this.vonk(F.p.x,F.p.y,F.p.z,0xff8a2a,12,6,0.9);
+              this.rook(F.p.x,F.p.y,F.p.z,true,1.6,1.8);
+              this.knal(F.p,4.5); this.schokRing(F.p);
+              SND.boom(F.p.x*0.02,false);
+              R.live=false; R.m.visible=false; } }
+          else R.flareLok=0; }
         if(R.zoek&&R.zoek.live){ v.subVectors(R.zoek.p,R.m.position).normalize();
           const k=(R.tot<R.swarm)?0.6:5.0;
           R.dir.lerp(v,Math.min(1,k*s)).normalize();
@@ -8110,7 +8121,6 @@
 
       this.ringTick(s); this.sigRijTick(s); this.wijzerTickD(s);
       this.camoTick(s);
-      if(this.flareVeld>0) this.flareVeld-=s;
       this.stap='effecten'; this.flareTick(s); this.flareLokAlles(); this.bliksTick(s); this.straalTick(s); this.bomTick(s); this.balTick(s); this.vlekTick();
       // ---- rook: drijft op, dijt uit en vervaagt ----
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(!R.live) continue;
