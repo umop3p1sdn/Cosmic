@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.92';
+  const VERSIE='v13.95';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -545,11 +545,13 @@
     // een breedgevleugelde bommenwerper wordt groter, en de schotels het grootst.
     {nr:'9868', rol:'schip', schip:'WASP',      naam:'GREY DART',    br:5},
     {nr:'9872', rol:'schip', schip:'SCOUT',     naam:'OLIVE HAWK',   br:6},
-    {nr:'9873', rol:'schip', schip:'NEEDLE',    naam:'RED LANCE',    br:7},
+    // Sjoerd: level 1 had drie schepen die optisch op elkaar leken. RED LANCE
+    // en VIOLET WING hebben hun plaatje geruild.
+    {nr:'9879', rol:'schip', schip:'NEEDLE',    naam:'RED LANCE',    br:7},
     {nr:'9874', rol:'schip', schip:'RAZOR',     naam:'PALE EDGE',    br:7},
     {nr:'9875', rol:'schip', schip:'VIPER',     naam:'BRONZE FANG',  br:6},
     {nr:'9918', rol:'schip', schip:'SPINNER',   naam:'BLACK RAVEN',  br:13},   // level 1: mooi en pittig
-    {nr:'9879', rol:'schip', schip:'NIGHTBLADE',naam:'VIOLET WING',  br:7},
+    {nr:'9873', rol:'schip', schip:'NIGHTBLADE',naam:'VIOLET WING',  br:7},
     {nr:'9880', rol:'schip', schip:'FALCON',    naam:'IRON FALCON',  br:8},
     {nr:'9881', rol:'schip', schip:'FIGHTER',   naam:'STEEL TALON',  br:9},
     // DE SPLITSER: raak je hem kapot, dan komen er twee kleinere uit. Sjoerd gaf
@@ -1518,6 +1520,19 @@
   const MINAF_GROOT=38, MINAF_REUS=58;
   const DUIK_TOT=24;            // hoe dichtbij een duiker komt (was 10: in je gezicht)
   const DUIK_BAAN=0.55, DUIK_ZIJ=1.5, DUIK_HOOG=0.7;   // en hoe hij om je heen draait
+  // De vloeiende baan die de scissors verving: hoe snel hij omzwenkt, hoe ver
+  // opzij en hoe veel hij daarbij stijgt en daalt.
+  const SMOOTH_DRAAI=0.30, SMOOTH_ZIJ=2.4, SMOOTH_HOOG=1.0;
+  // DE KLIMROL bij een treffer: hoe lang, hoe hoog (samen ~30 m), hoe ver opzij,
+  // hoeveel zijn snelheid wisselt, en de wachttijd.
+  const KLIM_TIJD=1.6, KLIM_HOOG=29, KLIM_ZIJ=17, KLIM_SNELV=0.55, KLIM_CD=6;
+  // Variant 2: eerst omlaag, dan rollend opzij. DUIK_DEEL is welk deel van de
+  // manoeuvre het zakken kost.
+  const KLIM_DUIKKANS=0.5, DUIK_DEEL=0.42, KDUIK_HOOG=20, KDUIK_ZIJ=30;
+  // Sjoerd: "het is wel zijn move — niet bij elke hit, maar ook niet zeldzaam,
+  // en niet binnen zes seconden als hij net geraakt is." De wachttijd van zes
+  // seconden begrenst het; de kans mag daarom hoog.
+  const KLIM_KANS=0.8;
   const DUIKROL_T=1.8;          // hoe lang de duiker rolt bij het wegtrekken
   const DUIKROL_CD=9, DUIKROL_KANS=0.3;   // en hoe zelden hij het doet
   const SPREID_GROOT=26;        // hoe ver grote schepen onderling uit elkaar staan
@@ -1545,6 +1560,7 @@
   // vier ONDERLING — die overlapten elkaar op 16 m, want de baas is breder.
   const NINJA_VER=60, NINJA_TUS=85, NINJA_LEEF=2.0, NINJA_WEG=1.6, NINJA_SNEL=30;
   const NINJA_ORDE=[3,1,3,0,2];   // Sjoerds volgorde: 4e, 2e, 4e, 1e, 3e plek
+  const VUUR_VLAK=9;            // hoe steil een schip van onderaf mag schieten
   const NINJA_CD=5, NINJA_RAKHP=50;
   // THE WHEEL's velg: kracht, straal (aandeel van zijn breedte), hoe groot de
   // naaf is (aandeel van de velgstraal), draaisnelheid, en wanneer hij terugkomt.
@@ -1597,7 +1613,11 @@
   // hoe hard ze vallen, vanaf welke raketafstand, hoe vaak, en de wegtrekruk.
   const FLARE_N=8, FLARE_SPREID=2.1, FLARE_V=26, FLARE_LEEF=4.0, FLARE_ZWAAR=13;
   const FLARE_AF=42, FLARE_EERST=55, FLARE_SPAN=70, FLARE_MAAT=0.9, FLARE_MAX=40;
-  const FLARE_MAXSCHEPEN=2;     // alleen als hij alleen is of met z'n tweeën
+  // Sjoerd: "mag ook bij meer, want juist dan gebruik je raketten." Tot vijf.
+  const FLARE_MAXSCHEPEN=5;     // tot vijf schepen in de lucht (was 2)
+  // Hij moet ook VER genoeg weg zijn, anders slaat de raket in voordat de
+  // flares eruit zijn. Sjoerd: "liefst als een vliegtuig verder weg is."
+  const FLARE_MINAF=55;
   const FLARE_ZOEK=70, FLARE_WEG=1.2, FLARE_WEGV=30, FLARE_HAP=34;
   // HET SPOOKSCHIP: vanaf welke afstand hij vervaagt, waar hij weer verschijnt,
   // en hoe doorzichtig hij op zijn onzichtbaarst is.
@@ -2898,6 +2918,62 @@
     // Ze zijn geen eigen scheepstype maar een EIGENSCHAP van bestaande soorten,
     // zodat ze in het golfplan meelopen zonder aparte regels.
 
+    // ---- DE KLIMROL (Sjoerds ontwerp) ----
+    // Raak je hem, dan klimt hij weg over dertig meter terwijl hij om zijn
+    // lengteas rolt — de tegenovergestelde kant op dan waar hij heen ging — en
+    // hij wisselt daarbij van snelheid, zodat je schot eroverheen gaat.
+    klimStart:function(e){
+      if(e.klimT>0||e.klimCd>0) return;
+      e.klimT=KLIM_TIJD; e.klimCd=KLIM_CD;
+      e.klimY0=e.p.y;
+      // TEGENGESTELD AAN ZIJN AANVLIEGROUTE. Sjoerd: "na de duik is opzij
+      // tegengesteld aan zijn aanvliegroute." Dus niet zijn spawnkant maar de
+      // kant waar hij op dit moment echt heen vliegt, gemeten uit vRicht.
+      let heen=e.zij||1;
+      if(e.vRicht&&Math.abs(e.vRicht.x)>0.5){
+        const naar0=this.KZ||(this.KZ=new THREE.Vector3());
+        naar0.subVectors(this.kop,e.p).normalize();
+        heen=((-naar0.z)*e.vRicht.x+naar0.x*e.vRicht.z)>0?1:-1; }
+      e.klimZij=-heen;
+      // Sjoerd: "soms doet hij iets anders — dan duikt hij sneller omlaag en
+      // tegengesteld. Eerst omlaag 20 en rolt dan tegengesteld 30 meter opzij."
+      // Twee varianten dus: klimmen, of duiken-en-wegrollen.
+      e.klimDuik=(Math.random()<KLIM_DUIKKANS)?1:0;
+      this.vonk(e.p.x,e.p.y,e.p.z,0xcfe8ff,4,e.sc*0.4,0.35); },
+
+    klimTick:function(e,s){
+      if(!(e.klimT>0)) return false;
+      e.klimT-=s;
+      const deel=1-Math.max(0,e.klimT/KLIM_TIJD);       // 0 -> 1
+      const t=this.KL||(this.KL=new THREE.Vector3());
+      const naar=this.KL2||(this.KL2=new THREE.Vector3());
+      naar.subVectors(this.kop,e.p).normalize();
+      t.set(-naar.z,0,naar.x).normalize();
+      if(e.klimDuik){
+        // VARIANT 2: eerst twintig meter omlaag, DAN rollend dertig opzij.
+        if(deel<DUIK_DEEL){
+          const k=deel/DUIK_DEEL;
+          e.p.y-=Math.cos(k*1.5708)*KDUIK_HOOG/DUIK_DEEL*s;
+          if(e.bb) e.bb.m.rotation.z=k*0.9*e.klimZij; }
+        else {
+          const k=(deel-DUIK_DEEL)/(1-DUIK_DEEL);
+          e.p.addScaledVector(t,e.klimZij*KDUIK_ZIJ/(1-DUIK_DEEL)*Math.sin(k*3.14)*0.5*s);
+          if(e.bb) e.bb.m.rotation.z=(0.9+k*5.4)*e.klimZij; } }
+      else {
+        // VARIANT 1: klimmen, eerst hard dan afvlakkend — samen dertig meter
+        e.p.y+=Math.cos(deel*1.5708)*KLIM_HOOG*s;
+        e.p.addScaledVector(t,e.klimZij*KLIM_ZIJ*Math.sin(deel*3.14)*s);
+        if(e.bb) e.bb.m.rotation.z=deel*6.283*e.klimZij; }
+      if(e.bb) e.bb.m.position.copy(e.p);
+      // snelheid wisselt: hij trekt op en valt terug
+      e.snelX=1+Math.sin(deel*6.283)*KLIM_SNELV;
+      if(e.klimT<=0){
+        // Netjes afsluiten: rol op nul en de gewone kanteling weer overnemen.
+        // Hij eindigde op 66 graden omdat e.rol nog van vóór de manoeuvre was.
+        e.klimT=0; e.snelX=1; e.rol=0;
+        if(e.bb) e.bb.m.rotation.z=0; }
+      return true; },
+
     // ---- FLARES (Sjoerds ontwerp, opgezocht hoe ze echt werken) ----
     // Een vliegtuig dat een raket ziet aankomen werpt acht flares uit in een
     // waaier en TREKT DAARNA IN EEN SCHERPE HOEK WEG, met gas erop. De raket
@@ -2917,6 +2993,9 @@
       for(let i=0;i<this.enemies.length;i++)
         if(this.enemies[i].live&&!this.enemies[i].dood) inBeeld++;
       if(inBeeld>FLARE_MAXSCHEPEN) return false;
+      // Hij moet VER genoeg van je af zijn, anders slaat de raket in voordat
+      // de flares eruit zijn en zie je er niets van.
+      if(e.p.distanceTo(this.kop)<FLARE_MINAF) return false;
       // is er een raket op hem onderweg, en dichtbij genoeg?
       let R=null;
       for(let i=0;i<this.rockets.length;i++){ const q=this.rockets[i];
@@ -3602,7 +3681,10 @@
       for(let i=0;i<4;i++){
         const x=basisX+(i-1.5)*NINJA_TUS;
         const wegX=((i<2)?-1:1)*(0.7+Math.random()*0.6);
-        const wegY=(Math.random()-0.5)*0.8;
+        // GEMETEN: hij zakte tot negen meter onder je ogen en vuurde van daar
+        // drie raketten op een rij omhoog. Sjoerd: "die gaan veel te laag."
+        // De vier blijven nu rond ooghoogte, met alleen een lichte spreiding.
+        const wegY=(Math.random()-0.5)*0.22;
         if(i===echt){
           // hijzelf: hij verspringt naar die plek en vliegt weg
           e.p.set(x,y0,z0);
@@ -4500,6 +4582,10 @@
       // hij meteen — met de volle explosie.
       if(e.dood){ e.valKlap=1; e.valNu=1; return; }
       if(!e.live||e.hp<=0) return;
+      // DE KLIMROL: niet bij elke treffer — Sjoerd: "het is geen circus." Een
+      // kans per treffer, en daarna een ruime wachttijd.
+      if(TYPE[e.tp]&&TYPE[e.tp].prof==='scissors'&&e.hp>0&&!e.dood&&!e.dood2
+         &&!(e.klimCd>0)&&Math.random()<KLIM_KANS) this.klimStart(e);
       // DE NINJA: bij een treffer verspringt hij en laat vier beelden achter.
       if(e.ninja&&e.hp>0&&!e.dood&&!e.dood2) this.ninjaHit(e);
       // THE WHEEL: treffer op de velg? dan niet op hem.
@@ -4864,7 +4950,7 @@
         // stand, en veld liet een krachtveld om een gewoon schip staan.
         e.springRust=0; e.geestT=0; e.rol=0; e.valDir=null; e.valV=0; e.valRot=0; e.valTijd=0; e.valRolA=0; e.valNu=0;
         e.broedCd=0; e.broedUit=0; e.broedDir=null; e.broed=0; e.valDraai=undefined;
-        e.rakOp=0; e.rakWijkT=0; e.ssT=0; e.ssCd=0; e.duikRolCd=0; e.flareCd=0; e.flareWeg=0; e.hangarJager=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
+        e.rakOp=0; e.rakWijkT=0; e.ssT=0; e.ssCd=0; e.duikRolCd=0; e.klimT=0; e.klimCd=0; e.klimDuik=0; e.flareCd=0; e.flareWeg=0; e.hangarJager=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
         e.scheer=0; e.scheerCd=undefined; e.scheerT=0;
         e.vp=null; e.vRicht=null;   // de vliegrichting opnieuw meten
         if(e.veld){ e.veld.visible=false; e.veld=null; }
@@ -5325,7 +5411,7 @@
       // Een WRAK draait zichzelf (tollen, duikelen). Deze regel zette hem elke
       // beurt terug op zijn vliegstand, dus bleef hij rechtop hangen terwijl hij
       // viel. Nu alleen voor schepen die nog leven.
-      else if(e.bb&&!e.dood&&!e.dood2&&!(e.ssT>0)&&!(e.herpakT>0)) e.bb.m.rotation.z=e.rol;
+      else if(e.bb&&!e.dood&&!e.dood2&&!(e.ssT>0)&&!(e.herpakT>0)&&!(e.klimT>0)) e.bb.m.rotation.z=e.rol;
       e.p.y=reus
         ? (this.kop.y-e.bh*0.34+Math.sin(e.t*0.13)*e.hb)   // hoofd blijft op ooghoogte
         : (this.kop.y+hoogte+Math.sin(e.t*0.33)*e.hb);
@@ -5570,6 +5656,9 @@
 
     // Eén raket klaarzetten. Alle patronen hieronder gebruiken deze.
     sigSchot:function(e,dir,opt){
+      // GEMETEN: een NEERSTORTEND WRAK vuurde gewoon door, van 96 meter onder
+      // je ogen. Dat waren de lage schoten die Sjoerd zag. Een wrak schiet niet.
+      if(e&&(e.dood||e.dood2||!e.live)) return;
       const o=opt||{};
       for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(B.live) continue;
         B.live=true; B.buis=null; B.m.visible=!(this.kopVak&&this.kopVak.length);
@@ -5630,8 +5719,12 @@
 
     // Een richting die x graden naast je ligt, gezien vanaf de baas.
     sigRicht:function(e,zij,op){
+      // Een schip dat ver onder je hangt schiet steil omhoog; dat leest slecht.
+      // Hij richt dan iets vlakker, alsof hij vanaf ooghoogte vuurt.
       const d=this.SR||(this.SR=new THREE.Vector3());
-      d.subVectors(this.kop,e.p).normalize();
+      d.subVectors(this.kop,e.p);
+      if(d.y>VUUR_VLAK) d.y=VUUR_VLAK+(d.y-VUUR_VLAK)*0.35;
+      d.normalize();
       const rechts=this.SR2||(this.SR2=new THREE.Vector3());
       rechts.set(-d.z,0,d.x).normalize();
       d.addScaledVector(rechts,zij||0);
@@ -6739,11 +6832,15 @@
                e.p.x+=Math.cos(e.t*0.6)*6*s; } }
 
       else if(P==='scissors'){
-        // SCISSORS: korte omkeringen om je te laten overschieten
-        e.ex.sc=(e.ex.sc||0)-s;
-        if(e.ex.sc<=0){ e.ex.sc=0.7+Math.random()*0.5; e.ex.zw=-(e.ex.zw||1); }
-        e.p.x+=(e.ex.zw||1)*24*s;
-        e.p.y+=(e.ex.zw||1)*7*s; }
+        // GEEN SCISSORS MEER. Sjoerd: "geen scissorsbeweging, ik zeg toch smooth
+        // vliegen." Die keerde elke 0,7 tot 1,2 s abrupt om — 26 scherpe knikken
+        // per 25 s, tegen 2 bij een strafer. Nu een ruime vloeiende baan om je
+        // heen; zijn ontwijking zit in de KLIMROL hieronder.
+        e.ex.sc=(e.ex.sc||e.i0)+s*SMOOTH_DRAAI;
+        const ts=this.SM||(this.SM=new THREE.Vector3());
+        ts.set(-naar.z,0,naar.x).normalize();
+        e.p.addScaledVector(ts,Math.cos(e.ex.sc)*sp*SMOOTH_ZIJ*s);
+        e.p.y+=Math.sin(e.ex.sc*0.62+e.i0)*sp*SMOOTH_HOOG*s; }
 
       else if(P==='yoyo'){
         // LOW YO-YO: dipt omlaag om snelheid te winnen en klimt er weer uit
@@ -6802,6 +6899,8 @@
           return; }
         if(e.ssCd>0) e.ssCd-=s;
         if(e.duikRolCd>0) e.duikRolCd-=s;
+        if(e.klimCd>0) e.klimCd-=s;
+        if(this.klimTick(e,s)) return;
         this.flareUit(e);
         // wegtrekken na de flares, tegen de raket in
         if(e.flareWeg>0){ e.flareWeg-=s;
@@ -7598,7 +7697,7 @@
           // DIT was de plek die elke rol wiste: hij zette de kanteling terug
           // ZONDER de rolaanval erbij, en komt na alles. Nu telt de rol mee.
           // een schip MIDDEN IN EEN BREAK TURN houdt zijn eigen bankhoek
-          if(!(e.herpakT>0)&&!(e.ssT>0)) e.bb.m.rotation.z=e.rol+(e.rolA||0); }
+          if(!(e.herpakT>0)&&!(e.ssT>0)&&!(e.klimT>0)) e.bb.m.rotation.z=e.rol+(e.rolA||0); }
         if(e.p.z>70&&!e.ring&&e.stijl!=='over'&&e.stijl!=='route'){ this.bbVrij(e.bb); e.bb=null; e.live=false;   // pas ver achter je opruimen
           if(e.romp){ e.romp.visible=false; e.romp=null; } }               // ontsnapt
         if(window.PAUSED) return; }
