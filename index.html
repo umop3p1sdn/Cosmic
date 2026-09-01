@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.97';
+  const VERSIE='v13.98';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1504,7 +1504,11 @@
   const LOG_MAX=200;            // hoeveel regels het logboek bewaart
   const DOOS_MAX=260;           // hoeveel beurten de zwarte doos onthoudt
   const BAL_N=6, BAL_TIJD=0.55;  // vuurballen bij een raketinslag
-  const KOGELSNEL=185;          // meter per seconde — moet kloppen met bolt()
+  // Sjoerd: "kogels snel maken, instant hit, maar per seconde dezelfde schade."
+  // Was 185: op 150 meter bijna een seconde onderweg. Nu zó snel dat een kogel
+  // binnen één beurt aankomt. Schade per kogel en vuurtempo blijven gelijk,
+  // dus de schade per seconde verandert niet — alleen de wachttijd verdwijnt.
+  const KOGELSNEL=1400;
   // Het nabranden van de laser: hoeveel schade per tik, hoe vaak, en hoeveel
   // brand een schip hoogstens kan oplopen.
   const BRAND_DMG=3, BRAND_TIK=0.25, BRAND_MAX=60;
@@ -1616,12 +1620,16 @@
   // FLARES: hoeveel per waaier, hoe breed, hoe snel eruit, hoe lang ze branden,
   // hoe hard ze vallen, vanaf welke raketafstand, hoe vaak, en de wegtrekruk.
   const FLARE_N=8, FLARE_SPREID=2.1, FLARE_V=26, FLARE_LEEF=4.0, FLARE_ZWAAR=13;
-  const FLARE_AF=42, FLARE_DEEL=1/15, FLARE_CD=16, FLARE_MAAT=0.9, FLARE_MAX=40;
+  // GEMETEN in echt spel: een schip met flares gooide ze meestal NIET omdat hij
+  // binnen 55 m stond of de raket al voorbij de 42 m was. Sjoerd: "ik zie nog
+  // steeds geen flares." Ruimer: hij merkt de raket eerder op (65 m), hoeft
+  // minder ver weg te staan (35 m), en één op de tien heeft ze.
+  const FLARE_AF=65, FLARE_DEEL=1/10, FLARE_CD=14, FLARE_MAAT=1.4, FLARE_MAX=40;
   // Sjoerd: "mag ook bij meer, want juist dan gebruik je raketten." Tot vijf.
-  const FLARE_MAXSCHEPEN=5;     // tot vijf schepen in de lucht (was 2)
+  const FLARE_MAXSCHEPEN=8;     // tot acht schepen in de lucht
   // Hij moet ook VER genoeg weg zijn, anders slaat de raket in voordat de
   // flares eruit zijn. Sjoerd: "liefst als een vliegtuig verder weg is."
-  const FLARE_MINAF=55;
+  const FLARE_MINAF=35;
   const FLARE_ZOEK=70, FLARE_WEG=1.2, FLARE_WEGV=30, FLARE_HAP=34, FLARE_INSLAG=5;
   // HET SPOOKSCHIP: vanaf welke afstand hij vervaagt, waar hij weer verschijnt,
   // en hoe doorzichtig hij op zijn onzichtbaarst is.
@@ -2287,7 +2295,7 @@
         const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
           new THREE.MeshBasicMaterial({map:self.STREEP,transparent:true,blending:THREE.AdditiveBlending,
             depthWrite:false,color:0xffffff}));
-        m.renderOrder=6; return m; },{o:1,dir:1,d:0,pd:0,md:0,sz:1,tol:0,dmg:1,sp:185});
+        m.renderOrder=6; return m; },{o:1,dir:1,d:0,pd:0,md:0,sz:1,tol:0,dmg:1,sp:1400});
       // 110 was te krap geworden: een zwerm van 44 plus een combinatie van drie
       // aanvallen loopt daar zo overheen, en dan verdwijnen er schoten.
       this.vij=[]; this.mkPool(this.vij,VIJ_POOL,function(){
@@ -4348,7 +4356,7 @@
       for(let i=0;i<this.bolts.length;i++){ const B=this.bolts[i]; if(B.live) continue;
         B.o.copy(o); B.dir.copy(d); B.d=0; B.pd=0; B.md=md; B.sz=sz; B.tol=tol; B.dmg=dmg||1;
         B.brand=0; B.hagelKop=0; B.vlamT=0;
-        B.sp=snel||185;
+        B.sp=snel||KOGELSNEL;
         B.live=true; B.m.material.color.setHex(col); B.m.visible=true;   // JOUW kogel: altijd zichtbaar
         this.richtQuad(B.m,o,d,sz*3.2,sz*0.5); return B; } },   // teruggeven: de laser zet er brand op
 
