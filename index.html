@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.96';
+  const VERSIE='v13.97';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1472,7 +1472,7 @@
   const VALVAART=0.8;           // aandeel van zijn vliegsnelheid dat hij vasthoudt
   // Hoe ver een wrak van je wegdraait tijdens de val (radialen; 0,785 = 45
   // graden) en in hoeveel seconden hij daar komt.
-  const VALDRAAI_MAX=0.785, VALDRAAI_T=2.0;
+  const VALDRAAI_MAX=0.52, VALDRAAI_T=2.0, VALROL_MAX=1.0;   // was 0,785: te plat
   const KLAPKANS=0.55;          // kans dat een wrak ontploft in plaats van wegzakt
   const STORTMAX=40;            // hoeveel wrakken er tegelijk mogen neerstorten
   // Hoe hard schepen vliegen in de eerste levels: level 1 op 62 procent,
@@ -1533,6 +1533,10 @@
   // en niet binnen zes seconden als hij net geraakt is." De wachttijd van zes
   // seconden begrenst het; de kans mag daarom hoog.
   const KLIM_KANS=0.8;
+  // De hoog-yoyo van BLUE SPINE: hoe lang, hoe hoog, hoe ver naar buiten, hoe
+  // schuin hij daarbij hangt, hoeveel hij afremt, en de wachttijd.
+  const YOYO_TIJD=1.9, YOYO_HOOG=22, YOYO_ZIJ=19, YOYO_BANK=1.0, YOYO_REM=0.45;
+  const YOYO_KANS=0.8, YOYO_CD=6;
   const DUIKROL_T=1.8;          // hoe lang de duiker rolt bij het wegtrekken
   const DUIKROL_CD=9, DUIKROL_KANS=0.3;   // en hoe zelden hij het doet
   const SPREID_GROOT=26;        // hoe ver grote schepen onderling uit elkaar staan
@@ -1594,7 +1598,7 @@
   const ROLKANS=0.45, ROLTIJD=1.8, ROLSNEL=3.5;
   // Het overhellen in een bocht: hoeveel, bij welke zijsnelheid vol, en hoe
   // traag hij erin en eruit komt. Eén formule voor alle plekken.
-  const HELLING=1.35, HELLING_V=26, HELLING_TRAAG=2.2;
+  const HELLING=1.35, HELLING_V=26, HELLING_TRAAG=2.2, HELLING_MAX=0.92, HELLING_KRIMP=1.1;
   // DE SPRINGER: hoe ver hij verspringt en hoe lang hij daarna moet wachten.
   // Sjoerd: de sprong en de duik waren te klein om te zien. Allebei verdubbeld.
   const SPRING_VER=50, SPRING_CD=10, SPRING_RUST=0.55;
@@ -2916,6 +2920,40 @@
     // ---- DRIE BIJZONDERE SCHEPEN (Sjoerds ontwerp) ----
     // Ze zijn geen eigen scheepstype maar een EIGENSCHAP van bestaande soorten,
     // zodat ze in het golfplan meelopen zonder aparte regels.
+
+    // ---- DE HOOG-YOYO (BLUE SPINE) ----
+    // Zijn eigen ontwijking: hij trekt in een ruime boog omhoog en naar buiten,
+    // laat je eronderdoor schieten, en zakt er aan de andere kant weer in. Een
+    // vloeiende halve golf — geen knikken, geen teleport, en hij eindigt
+    // rechtop. Ontleend aan de high yo-yo uit het luchtgevecht.
+    yoyoStart:function(e){
+      if(e.yoT>0||e.yoCd>0) return;
+      e.yoT=YOYO_TIJD; e.yoCd=YOYO_CD;
+      const naar=this.YO||(this.YO=new THREE.Vector3());
+      naar.subVectors(this.kop,e.p).normalize();
+      const rechts=this.YO2||(this.YO2=new THREE.Vector3());
+      rechts.set(-naar.z,0,naar.x).normalize();
+      const vk=(e.vRicht&&e.vRicht.length()>0.5)?e.vRicht.dot(rechts):0;
+      e.yoZij=(vk>0)?-1:1;                             // naar de andere kant
+      this.vonk(e.p.x,e.p.y,e.p.z,0x9fe4f5,4,e.sc*0.4,0.35); },
+
+    yoyoTick:function(e,s){
+      if(!(e.yoT>0)) return false;
+      e.yoT-=s;
+      const deel=1-Math.max(0,e.yoT/YOYO_TIJD);
+      const naar=this.YO||(this.YO=new THREE.Vector3());
+      naar.subVectors(this.kop,e.p).normalize();
+      const t=this.YO2||(this.YO2=new THREE.Vector3());
+      t.set(-naar.z,0,naar.x).normalize();
+      const hk=deel*3.1416;
+      e.p.y+=Math.cos(hk)*YOYO_HOOG*s;                 // omhoog, over de top, omlaag
+      e.p.addScaledVector(t,e.yoZij*Math.sin(hk)*YOYO_ZIJ*s);
+      if(e.bb){ e.bb.m.rotation.z=Math.sin(hk)*YOYO_BANK*e.yoZij;
+        e.bb.m.position.copy(e.p); }
+      e.snelX=1-Math.sin(hk)*YOYO_REM;                 // remt boven in de boog
+      if(e.yoT<=0){ e.yoT=0; e.snelX=1; e.rol=0;
+        if(e.bb) e.bb.m.rotation.z=0; }
+      return true; },
 
     // ---- DE KLIMROL (Sjoerds ontwerp) ----
     // Raak je hem, dan klimt hij weg over dertig meter terwijl hij om zijn
@@ -4584,6 +4622,9 @@
       // kans per treffer, en daarna een ruime wachttijd.
       if(TYPE[e.tp]&&TYPE[e.tp].prof==='scissors'&&e.hp>0&&!e.dood&&!e.dood2
          &&!(e.klimCd>0)&&Math.random()<KLIM_KANS) this.klimStart(e);
+      // DE HOOG-YOYO van BLUE SPINE, zijn eigen ontwijking.
+      if(TYPE[e.tp]&&TYPE[e.tp].prof==='splitser'&&e.hp>0&&!e.dood&&!e.dood2
+         &&!(e.yoCd>0)&&Math.random()<YOYO_KANS) this.yoyoStart(e);
       // DE NINJA: bij een treffer verspringt hij en laat vier beelden achter.
       if(e.ninja&&e.hp>0&&!e.dood&&!e.dood2) this.ninjaHit(e);
       // THE WHEEL: treffer op de velg? dan niet op hem.
@@ -4780,7 +4821,8 @@
         if(e.valDraai===undefined) e.valDraai=(Math.random()<0.5?-1:1)*(0.4+Math.random()*0.6);
         const weg=Math.min(1,e.doodT/VALDRAAI_T)*e.valDraai*VALDRAAI_MAX;
         e.bb.m.rotateY(weg);
-        e.bb.m.rotation.z=e.valRolA; }
+        // de rol van een wrak mag niet zo ver dat je zijn zijkant ziet
+        e.bb.m.rotation.z=Math.max(-VALROL_MAX,Math.min(VALROL_MAX,e.valRolA)); }
       if(e.fase>=1) this.brandTick(e,s);
       if(e.valNu||e.doodT>(e.valTijd||VALDUUR)||e.p.y<this.kop.y-(e.valEind||VALDIEP)){
         if(e.valKlap){
@@ -4950,7 +4992,7 @@
         // stand, en veld liet een krachtveld om een gewoon schip staan.
         e.springRust=0; e.geestT=0; e.rol=0; e.valDir=null; e.valV=0; e.valRot=0; e.valTijd=0; e.valRolA=0; e.valNu=0;
         e.broedCd=0; e.broedUit=0; e.broedDir=null; e.broed=0; e.valDraai=undefined;
-        e.rakOp=0; e.rakWijkT=0; e.ssT=0; e.ssCd=0; e.duikRolCd=0; e.klimT=0; e.klimCd=0; e.klimDuik=0; e.flareCd=0; e.flareWeg=0; e.hangarJager=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
+        e.rakOp=0; e.rakWijkT=0; e.ssT=0; e.ssCd=0; e.duikRolCd=0; e.klimT=0; e.klimCd=0; e.klimDuik=0; e.yoT=0; e.yoCd=0; e.flareCd=0; e.flareWeg=0; e.hangarJager=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
         e.scheer=0; e.scheerCd=undefined; e.scheerT=0;
         e.vp=null; e.vRicht=null;   // de vliegrichting opnieuw meten
         if(e.veld){ e.veld.visible=false; e.veld=null; }
@@ -5402,6 +5444,11 @@
       // schuiner hij hangt, hoe sneller hij opzij gaat — de helling volgt dus
       // de zijwaartse snelheid, en die kan tot bijna haaks oplopen.
       e.rol=(e.rol||0)+((Math.max(-1,Math.min(1,zijV/HELLING_V))*HELLING+(e.rolBocht||0))-(e.rol||0))*Math.min(1,s*HELLING_TRAAG);
+      // Sjoerd: "niet mooi om platte vliegtuigen te zien." De kanteling plus de
+      // bocht konden samen tot 85 graden komen — dan kijk je tegen de zijkant.
+      // Harde grens op HELLING_MAX.
+      if(e.rol>HELLING_MAX) e.rol=HELLING_MAX;
+      else if(e.rol<-HELLING_MAX) e.rol=-HELLING_MAX;
       // DE ROLAANVAL: kleine jagers draaien een volle rol terwijl ze op je af
       // duiken. Puur vertoon, maar het maakt een aanval veel levendiger.
       // DE ROL VOLGT ZIJN SNELHEID. Een schip dat hard van links naar rechts
@@ -5411,7 +5458,7 @@
       // Een WRAK draait zichzelf (tollen, duikelen). Deze regel zette hem elke
       // beurt terug op zijn vliegstand, dus bleef hij rechtop hangen terwijl hij
       // viel. Nu alleen voor schepen die nog leven.
-      else if(e.bb&&!e.dood&&!e.dood2&&!(e.ssT>0)&&!(e.herpakT>0)&&!(e.klimT>0)) e.bb.m.rotation.z=e.rol;
+      else if(e.bb&&!e.dood&&!e.dood2&&!(e.ssT>0)&&!(e.herpakT>0)&&!(e.klimT>0)&&!(e.yoT>0)) e.bb.m.rotation.z=e.rol;
       e.p.y=reus
         ? (this.kop.y-e.bh*0.34+Math.sin(e.t*0.13)*e.hb)   // hoofd blijft op ooghoogte
         : (this.kop.y+hoogte+Math.sin(e.t*0.33)*e.hb);
@@ -6901,6 +6948,8 @@
         if(e.duikRolCd>0) e.duikRolCd-=s;
         if(e.klimCd>0) e.klimCd-=s;
         if(this.klimTick(e,s)) return;
+        if(e.yoCd>0) e.yoCd-=s;
+        if(this.yoyoTick(e,s)) return;
         if(e.flareCd>0) e.flareCd-=s;
         this.flareUit(e);
         // wegtrekken na de flares, tegen de raket in
@@ -7005,7 +7054,24 @@
         // kanteling erop: overhellen, de rolaanval en de rol van een duiker.
         if(e.rolT>0){ e.rolT-=s; e.rolA=(e.rolA||0)+s*ROLSNEL*(e.rolVaart||1.0); }
         else if(e.rolA){ e.rolA=0; }                    // klaar: recht
-        b.m.rotation.z=(e.rol||0)+(e.rolA||0)+(e.wijkT>0?e.wijkY*0.05:0);
+        // ÉÉN HARDE GRENS, op de plek waar de sprite echt wordt gezet. Losse
+        // grenzen bij elke routine hielpen niet: e.rol, e.rolA (een volle rol),
+        // rolBocht en de wijkstand telden hier alsnog op tot 90 graden — dan
+        // kijk je recht tegen de zijkant. Sjoerd zag het bij NEEDLE, NIGHTBLADE
+        // en BLACK RAVEN. Alleen de VOLLE ROL van de rolaanval mag er langs,
+        // want dat is een bedoeld kunstje.
+        // ÉÉN HARDE GRENS, op de plek waar de sprite echt wordt gezet.
+        // GEMETEN: het is niet de kanteling alleen. Een schip dat DICHTBIJ EN
+        // OPZIJ hangt kijkt al schuin (rotation.y), en de kanteling komt daar
+        // bovenop — samen 89 graden, en dan zie je zijn zijkant. Dus wordt de
+        // kanteling kleiner naarmate hij schuiner in beeld staat.
+        if(e.rolT>0) b.m.rotation.z=(e.rol||0)+(e.rolA||0);
+        else {
+          const schuin=Math.abs(b.m.rotation.y);        // hoe schuin hij al staat
+          const ruimte=Math.max(0,HELLING_MAX-schuin*HELLING_KRIMP);
+          let rz=(e.rol||0)+(e.wijkT>0?e.wijkY*0.05:0);
+          if(rz>ruimte) rz=ruimte; else if(rz<-ruimte) rz=-ruimte;
+          b.m.rotation.z=rz; }
         if(e.flash>0) e.flash-=s;
         const kf=1+(e.flash>0?0.12:0);
         b.m.scale.set((e.bw||e.sc)*kf,(e.bh||e.sc)*kf,1); } },
@@ -7698,7 +7764,7 @@
           // DIT was de plek die elke rol wiste: hij zette de kanteling terug
           // ZONDER de rolaanval erbij, en komt na alles. Nu telt de rol mee.
           // een schip MIDDEN IN EEN BREAK TURN houdt zijn eigen bankhoek
-          if(!(e.herpakT>0)&&!(e.ssT>0)&&!(e.klimT>0)) e.bb.m.rotation.z=e.rol+(e.rolA||0); }
+          if(!(e.herpakT>0)&&!(e.ssT>0)&&!(e.klimT>0)&&!(e.yoT>0)) e.bb.m.rotation.z=e.rol+(e.rolA||0); }
         if(e.p.z>70&&!e.ring&&e.stijl!=='over'&&e.stijl!=='route'){ this.bbVrij(e.bb); e.bb=null; e.live=false;   // pas ver achter je opruimen
           if(e.romp){ e.romp.visible=false; e.romp=null; } }               // ontsnapt
         if(window.PAUSED) return; }
