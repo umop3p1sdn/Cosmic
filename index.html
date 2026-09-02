@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.00';
+  const VERSIE='v14.01';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1629,7 +1629,10 @@
   const RAKWIJK_AF=22, RAKWIJK_T=0.45, RAKWIJK_V=26;
   // FLARES: hoeveel per waaier, hoe breed, hoe snel eruit, hoe lang ze branden,
   // hoe hard ze vallen, vanaf welke raketafstand, hoe vaak, en de wegtrekruk.
-  const FLARE_N=8, FLARE_SPREID=2.1, FLARE_V=26, FLARE_LEEF=4.0, FLARE_ZWAAR=13;
+  // Sjoerd: "iets langzamer laten dalen zodat een raket meer kans heeft, klein
+  // beetje flakkeren groot-klein, en hij gooit ze één voor één eruit."
+  const FLARE_N=8, FLARE_SPREID=2.1, FLARE_V=26, FLARE_LEEF=5.0, FLARE_ZWAAR=6;
+  const FLARE_REM=0.55, FLARE_FLAK=13, FLARE_FLAKDIEP=0.35, FLARE_TUSSEN=0.09;
   // GEMETEN in echt spel: een schip met flares gooide ze meestal NIET omdat hij
   // binnen 55 m stond of de raket al voorbij de 42 m was. Sjoerd: "ik zie nog
   // steeds geen flares." Ruimer: hij merkt de raket eerder op (65 m), hoeft
@@ -2285,9 +2288,15 @@
       // de flares: een vaste voorraad hete bolletjes
       this.flares=[];
       for(let i=0;i<FLARE_MAX;i++){
+        // Sjoerd: "kern fel en iets wakkeren eromheen als gloed." Dus een witte
+        // kern met een oranje gloedbol eromheen die tegengesteld ademt.
         const m=new THREE.Mesh(new THREE.SphereGeometry(1,8,6),
-          new THREE.MeshBasicMaterial({color:0xfff2c0,transparent:true,opacity:1,
+          new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:1,
             depthWrite:false,blending:THREE.AdditiveBlending}));
+        const gl=new THREE.Mesh(new THREE.SphereGeometry(2.6,8,6),
+          new THREE.MeshBasicMaterial({color:0xffa63a,transparent:true,opacity:0.4,
+            depthWrite:false,blending:THREE.AdditiveBlending}));
+        m.add(gl); m.__gloed=gl;
         m.visible=false; m.renderOrder=7; m.frustumCulled=false; this.par.add(m);
         this.flares.push({m:m,live:false,t:0,p:new THREE.Vector3(),v:new THREE.Vector3()}); }
       this.romp=[];                                  // massieve romp per vijand (diagnose + altijd speelbaar)
@@ -3071,18 +3080,22 @@
       // de richting waar de raket vandaan komt
       const naar=this.FL||(this.FL=new THREE.Vector3());
       naar.subVectors(e.p,R.m.position).normalize();
-      // de waaier: acht flares, achterwaarts en uit elkaar
-      let n=0;
-      for(let i=0;i<this.flares.length&&n<FLARE_N;i++){ const F=this.flares[i];
-        if(F.live) continue;
-        const hk=((n/(FLARE_N-1))-0.5)*FLARE_SPREID;
-        F.live=true; F.t=FLARE_LEEF;
-        F.p.copy(e.p);
-        F.v.set(-naar.x*FLARE_V+Math.sin(hk)*FLARE_V*0.9,
-                Math.cos(hk)*FLARE_V*0.35+3,
-                -naar.z*FLARE_V);
-        F.m.visible=true; F.m.position.copy(F.p);
-        n++; }
+      // ÉÉN VOOR ÉÉN eruit, zoals op de echte beelden — niet als één wolk.
+      const self=this;
+      for(let n=0;n<FLARE_N;n++){
+        this.sigNa(n*FLARE_TUSSEN,function(){
+          if(!e.live) return;
+          for(let i=0;i<self.flares.length;i++){ const F=self.flares[i];
+            if(F.live) continue;
+            const hk=((n/(FLARE_N-1))-0.5)*FLARE_SPREID;
+            F.live=true; F.t=FLARE_LEEF; F.f0=Math.random()*6.28;
+            F.p.copy(e.p);
+            F.v.set(-naar.x*FLARE_V+Math.sin(hk)*FLARE_V*0.9,
+                    Math.cos(hk)*FLARE_V*0.35+3,
+                    -naar.z*FLARE_V);
+            F.m.visible=true; F.m.position.copy(F.p);
+            self.vonk(F.p.x,F.p.y,F.p.z,0xfff2c0,2,1.5,0.25);
+            break; } }); }
       // en hij trekt weg, tegen de raket in, met een versnelling
       e.flareWeg=FLARE_WEG;
       e.flareDir=new THREE.Vector3(naar.x,naar.y*0.3,naar.z).normalize();
@@ -3097,11 +3110,18 @@
         if(!F.live) continue;
         F.t-=s;
         F.v.y-=FLARE_ZWAAR*s;                          // ze vallen in een boog
+        F.v.multiplyScalar(1-FLARE_REM*s);             // en remmen af: langer zichtbaar
         F.p.addScaledVector(F.v,s);
         F.m.position.copy(F.p);
         const k=Math.max(0,F.t/FLARE_LEEF);
-        F.m.scale.setScalar(FLARE_MAAT*(0.7+k*0.5)*(1+Math.sin(this.T*30+i)*0.15));
+        // FLAKKEREN: groot, klein, groot, klein — zoals een brandende korrel
+        const fl=1+Math.sin(this.T*FLARE_FLAK+(F.f0||0))*FLARE_FLAKDIEP;
+        F.m.scale.setScalar(FLARE_MAAT*(0.7+k*0.5)*fl);
         F.m.material.opacity=Math.min(1,k*2.2);
+        // de gloed eromheen wakkert tegengesteld: als de kern klein is, gloeit
+        // hij ruim — dan lijkt het of hij ademt.
+        if(F.m.__gloed){ F.m.__gloed.material.opacity=(0.20+0.24/fl)*Math.min(1,k*2.2);
+          F.m.__gloed.scale.setScalar(1.05/fl); }
         if(Math.random()<s*22) this.vonk(F.p.x,F.p.y,F.p.z,0xfff2c0,1,1.2,0.25);
         if(Math.random()<s*7) this.rook(F.p.x,F.p.y,F.p.z,false,0.5,0.9);
         if(F.t<=0){ F.live=false; F.m.visible=false; } } },
