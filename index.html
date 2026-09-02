@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.04';
+  const VERSIE='v14.05';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1567,6 +1567,17 @@
   // De schildwerper: welk schip, hoe vaak (2 per 5 s), hoe ver, en tot welke
   // breedte hij schilden geeft (alleen lichte en middenmoot).
   const WERPERS=['ORACLE'];
+  // AMBER RING als tussenbaas. De Z-route: hoe lang een poot is, hoe snel hij
+  // sprint, hoe lang hij stilstaat om te vuren, en de wegsprong bij een treffer.
+  const UFO_POOT=46, UFO_HOOG=18, UFO_SNEL=78, UFO_MAXTIJD=1.6;
+  const UFO_RUST=1.1, UFO_RUSTV=0.9, UFO_RUST0=1.5, UFO_MINAF=45, UFO_MAXAF=125;
+  const UFO_WEGKANS=0.22, UFO_WEGCD=7, UFO_WEGAF=60, UFO_VUURSNEL=1.4;
+  // Zijn schild: 350 kracht, 5 s aan / 5 s uit, en wat eraf is blijft eraf.
+  const RS_HP=350, RS_AAN=5, RS_UIT=5, RS_HULPKANS=0.35, RS_HULPN=2, RS_HULPMAX=4;
+  // HET PORTAAL waar GHOST WING uit komt: hoe ver weg, hoe groot, hoe lang het
+  // opent, doorlaat en sluit, en hoeveel ruimte het om zich heen wil.
+  const PORT_AF=70, PORT_AFV=45, PORT_HOOG=30, PORT_TUSSEN=55, PORT_VRIJ=32;
+  const PORT_MAAT=13, PORT_OPEN=0.9, PORT_DOOR=0.7, PORT_DICHT=0.8, PORT_DRAAI=0.9;
   // WARDEN's generatoren: kracht per bol, hoe ver naast hem, hoe groot.
   const GEN_HP=180, GEN_AF=0.75, GEN_VOOR=6, GEN_MAAT=2.6, GEN_TERUG=10;
   // LANCE's escorte: hoeveel wachters, hun kracht, waar ze hangen, en hoe snel
@@ -2198,7 +2209,7 @@
     {n:'CYCLONE',   pl:13,rij:6, br:13, hp:150, pt:250, sp:8.3,  sal:2, cd:3.0, prof:'barrel',  f1:0.60, f2:0.28},
     {n:'SHRIKE',    pl:13,rij:7, br:10, hp:130,  pt:180, sp:16, sal:1, cd:2.0, prof:'yoyo',    snel:24, f1:0.55, f2:0.22},
     {n:'VENOM',     pl:13,rij:8, br:11, hp:120, pt:210, sp:14.1, sal:2, cd:2.8, prof:'scissors',f1:0.72, f2:0.38},
-    {n:'ORACLE',    pl:13,rij:9, br:16, hp:200, pt:320, sp:5.5,  sal:3, cd:3.8, prof:'kruiper', zwaar:1, f1:0.48, f2:0.20},
+    {n:'ORACLE',    pl:13,rij:9, br:16, hp:520, pt:320, sp:5.5,  sal:3, cd:3.8, prof:'kruiper', zwaar:1, f1:0.48, f2:0.20},
     {n:'TITAN',     pl:13,rij:10,br:24, hp:330, pt:460, sp:3.2,  sal:2, cd:3.4, prof:'drijver', f1:0.86, f2:0.32},
     {n:'NOVA',      pl:13,rij:11,br:29, hp:400, pt:600, sp:3.2,  sal:3, cd:4.0, prof:'immel',   zwaar:1, f1:0.62, f2:0.25},
     {n:'MOTHERSHIP',pl:0, rij:0, br:60, hp:3900,pt:9000,sp:4.0,  sal:3, cd:1.9, prof:'baas', zwaar:1, f1:0.70, f2:0.32}
@@ -2500,7 +2511,7 @@
         W.t=5; W.lvl=1; W.lvlT=this.zak.lvlT; W.mag=this.zak.mag;
         W.last=0; W.up=0; W.vorig=0; W.laz=null; }
       if(this.flares) this.flares.forEach(function(F){ F.live=false; F.m.visible=false; });
-      this.sleepWeg();
+      this.sleepWeg(); this.portaalWeg();
       this.enemies.forEach(function(e){ e.live=false; e.dood=0; e.dood2=0;
         if(e.romp){ e.romp.visible=false; e.romp=null; } });
       this.bb.forEach(function(b){ b.vrij=true; b.m.visible=false; });
@@ -2949,6 +2960,180 @@
     // ---- DRIE BIJZONDERE SCHEPEN (Sjoerds ontwerp) ----
     // Ze zijn geen eigen scheepstype maar een EIGENSCHAP van bestaande soorten,
     // zodat ze in het golfplan meelopen zonder aparte regels.
+
+    // ---- AMBER RING: DE WILDE UFO (Sjoerds ontwerp) ----
+    // Z-vormige routes: hij schiet in een rechte lijn naar een nieuw punt, staat
+    // dan stil om te vuren, en schiet weer weg — maar telkens onder een andere
+    // hoek, zodat het pad een zigzag wordt. De sprints zijn zo snel dat je hem
+    // bijna niet kunt volgen. Bij een treffer springt hij soms zestig meter weg.
+    ufoTick:function(e,s){
+      // eerst de klok
+      if(e.ufoT===undefined){ e.ufoT=0; e.ufoRust=UFO_RUST0; e.ufoDoel=null; }
+      // SCHILD AF = STILSTAAN EN VUREN. Sjoerd: "hij schiet elke keer als zijn
+      // schild down is." Dat is het ritme: schild op, dan zigzagt hij en is hij
+      // onraakbaar; schild af, dan staat hij stil, vuurt hard en is te raken.
+      if(!e.rsAan&&!e.rsOp){ e.ufoDoel=null; e.ufoRust=0.3;
+        // hij zat vaak nog in 'nader' en vuurde dan niet; nu meteen in vuurstand
+        if(e.mode!=='vuren'){ e.mode='vuren'; e.burst=Math.max(2,TYPE[e.tp].sal||1); e.bT=0.2; }
+        if(e.bT>UFO_VUURSNEL) e.bT=UFO_VUURSNEL;
+        return false; }
+      // STILSTAAN en vuren
+      if(e.ufoRust>0){ e.ufoRust-=s; return false; }
+      // SPRINTEN naar het volgende punt van de Z
+      if(!e.ufoDoel){
+        // de nieuwe poot van de Z: haaks-achtig op de vorige, dus scherpe knik
+        e.ufoZij=-(e.ufoZij||1);
+        const naar=this.UF||(this.UF=new THREE.Vector3());
+        naar.subVectors(this.kop,e.p).normalize();
+        const t=this.UF2||(this.UF2=new THREE.Vector3());
+        t.set(-naar.z,0,naar.x).normalize();
+        e.ufoDoel=new THREE.Vector3(e.p.x,e.p.y,e.p.z)
+          .addScaledVector(t,e.ufoZij*(UFO_POOT*(0.7+Math.random()*0.6)))
+          .addScaledVector(naar,(Math.random()-0.45)*UFO_POOT*0.5);
+        e.ufoDoel.y+=(Math.random()-0.5)*UFO_HOOG;
+        // niet te dichtbij en niet te ver
+        const d=e.ufoDoel.distanceTo(this.kop);
+        if(d<UFO_MINAF) e.ufoDoel.addScaledVector(naar,-(UFO_MINAF-d));
+        if(d>UFO_MAXAF) e.ufoDoel.addScaledVector(naar,(d-UFO_MAXAF));
+        e.ufoT=0; }
+      // de sprint zelf: heel snel, met een korte aanloop en afremming
+      e.ufoT+=s;
+      const dir=this.UF3||(this.UF3=new THREE.Vector3());
+      dir.subVectors(e.ufoDoel,e.p);
+      const rest=dir.length();
+      if(rest<3||e.ufoT>UFO_MAXTIJD){
+        e.ufoDoel=null; e.ufoRust=UFO_RUST+Math.random()*UFO_RUSTV;
+        e.bT=0;                                          // meteen vuren als hij stopt
+        return false; }
+      dir.multiplyScalar(1/rest);
+      // een boog: snel op gang, vol in het midden
+      const vaart=UFO_SNEL*Math.min(1,e.ufoT*6)*Math.min(1,rest/8);
+      e.p.addScaledVector(dir,vaart*s);
+      if(e.bb) e.bb.m.position.copy(e.p);
+      return true; },
+
+    // AMBER RING's schild: 350 kracht, en het gaat vijf seconden aan, vijf uit.
+    // Sjoerd: "reset niet als hij aan uit aan gaat" — dus wat je eraf schiet
+    // blijft eraf. Is het op, dan blijft hij open.
+    ringSchild:function(e,s){
+      if(e.rsOp) return;                                 // schild is definitief stuk
+      if(e.rsT===undefined){ e.rsT=RS_AAN; e.rsAan=1; e.rsRest=RS_HP; }
+      e.rsT-=s;
+      if(e.rsT<=0){
+        if(e.rsAan){ e.rsAan=0; e.rsT=RS_UIT;
+          // schild uit: de gaten waar hulp doorheen komt
+          if(Math.random()<RS_HULPKANS) this.ringHulp(e); }
+        else { e.rsAan=1; e.rsT=RS_AAN; } }
+      // het zichtbare schild volgt de stand, maar de KRACHT blijft staan
+      if(e.rsAan&&!(e.schild>0)) this.schildAan(e,e.rsRest);
+      else if(!e.rsAan&&e.schild>0){ e.rsRest=e.schild; e.schild=0;
+        if(e.schildM3) e.schildM3.visible=false; }
+      if(e.rsAan) e.rsRest=e.schild;
+      if(e.rsRest<=0){ e.rsOp=1; e.schild=0;
+        if(e.schildM3) e.schildM3.visible=false; } },
+
+    // GHOST WING komt door een PORTAAL als het schild valt (Sjoerds ontwerp):
+    // een lichtblauwe ring op ruime afstand, die opent, het schip doorlaat en
+    // weer sluit.
+    ringHulp:function(e){
+      const tp=TYPE.findIndex(function(q){ return q&&(q.basis||q.n)==='INFERNO'; });
+      if(tp<0) return;
+      let n=0;
+      for(let i=0;i<this.enemies.length;i++) if(this.enemies[i].live&&this.enemies[i].ringHulpje) n++;
+      if(n>=RS_HULPMAX) return;
+      for(let k=0;k<RS_HULPN;k++) this.portaalOpen(tp,e,k);
+    },
+
+    // ---- HET PORTAAL ----
+    portaalOpen:function(tp,bij,k){
+      if(!this.portalen) this.portalen=[];
+      // een plek ver genoeg van alles vandaan, en niet over een ander portaal
+      let p=null;
+      for(let poging=0;poging<20&&!p;poging++){
+        const hk=Math.random()*6.283;
+        const af=PORT_AF+Math.random()*PORT_AFV;
+        const q=new THREE.Vector3(this.kop.x+Math.cos(hk)*af,
+          this.kop.y+(Math.random()-0.3)*PORT_HOOG,
+          this.kop.z-Math.abs(Math.sin(hk))*af-20);
+        let vrij=true;
+        for(let i=0;i<this.portalen.length;i++)
+          if(this.portalen[i].p.distanceTo(q)<PORT_TUSSEN) vrij=false;
+        for(let i=0;i<this.enemies.length&&vrij;i++)
+          if(this.enemies[i].live&&this.enemies[i].p.distanceTo(q)<PORT_VRIJ) vrij=false;
+        if(vrij) p=q; }
+      if(!p) return;
+      // de ring: een torus die opengaat, plus een gloedschijf erbinnen
+      const g=new THREE.TorusGeometry(1,0.09,12,44);
+      const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0x6fd8ff,
+        transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));
+      m.frustumCulled=false; m.renderOrder=8;
+      const vl=new THREE.Mesh(new THREE.CircleGeometry(0.94,32),
+        new THREE.MeshBasicMaterial({color:0x2a9fd8,transparent:true,opacity:0,
+          depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+      vl.frustumCulled=false; m.add(vl);
+      this.par.add(m);
+      this.portalen.push({m:m,vl:vl,p:p,t:0,fase:0,tp:tp,uit:0,maat:PORT_MAAT}); },
+
+    portaalTick:function(s){
+      if(!this.portalen) return;
+      for(let i=this.portalen.length-1;i>=0;i--){ const P=this.portalen[i];
+        P.t+=s;
+        P.m.position.copy(P.p);
+        P.m.lookAt(this.kop);
+        P.m.rotation.z+=s*PORT_DRAAI;
+        if(P.fase===0){
+          // OPENEN: hij groeit uit het niets, met een felle flits
+          const k=Math.min(1,P.t/PORT_OPEN);
+          const r=P.maat*(0.05+k*0.95);
+          P.m.scale.setScalar(r);
+          P.m.material.opacity=k;
+          P.vl.material.opacity=k*0.5*(1-k*0.4);
+          if(Math.random()<s*30){ const hk=Math.random()*6.283;
+            this.vonk(P.p.x+Math.cos(hk)*r,P.p.y+Math.sin(hk)*r,P.p.z,0x9fe4f5,1,1.4,0.3); }
+          if(k>=1){ P.fase=1; P.t=0;
+            this.vonk(P.p.x,P.p.y,P.p.z,0xffffff,10,P.maat*0.5,0.5);
+            this.schokRing(P.p); } }
+        else if(P.fase===1){
+          // DOORLATEN: het schip komt eruit
+          P.m.scale.setScalar(P.maat);
+          P.m.material.opacity=0.9+Math.sin(this.T*8)*0.1;
+          P.vl.material.opacity=0.30+Math.sin(this.T*6)*0.08;
+          if(!P.uit){ P.uit=1;
+            const v=this.spawn(P.tp,{x:P.p.x,y:P.p.y,z:P.p.z});
+            if(v){ v.ringHulpje=1;
+              this.vonk(P.p.x,P.p.y,P.p.z,0x9fe4f5,12,P.maat*0.6,0.6); } }
+          if(P.t>PORT_DOOR){ P.fase=2; P.t=0; } }
+        else {
+          // SLUITEN: hij krimpt en dooft
+          const k=Math.min(1,P.t/PORT_DICHT);
+          P.m.scale.setScalar(P.maat*(1-k*0.95));
+          P.m.material.opacity=1-k;
+          P.vl.material.opacity=(1-k)*0.3;
+          if(k>=1){ this.par.remove(P.m); this.portalen.splice(i,1); } } } },
+
+    portaalWeg:function(){
+      if(!this.portalen) return;
+      this.portalen.forEach(function(P){ this.par.remove(P.m); },this);
+      this.portalen=[]; },
+
+    // Bij een treffer: soms zestig meter wegspringen. Niet elke keer, anders is
+    // hij niet te raken.
+    ufoWeg:function(e){
+      if(e.ufoWegCd>0) return;
+      if(!e.rsAan&&!e.rsOp) return;                     // schild af: hij blijft staan
+      if(Math.random()>UFO_WEGKANS){ e.ufoWegCd=1.2; return; }
+      e.ufoWegCd=UFO_WEGCD;
+      const naar=this.UF||(this.UF=new THREE.Vector3());
+      naar.subVectors(this.kop,e.p).normalize();
+      const t=this.UF2||(this.UF2=new THREE.Vector3());
+      t.set(-naar.z,0,naar.x).normalize();
+      const zij=(Math.random()<0.5?-1:1);
+      e.ufoDoel=new THREE.Vector3(e.p.x,e.p.y,e.p.z)
+        .addScaledVector(t,zij*UFO_WEGAF)
+        .addScaledVector(naar,-(Math.random()*20));
+      e.ufoDoel.y+=(Math.random()-0.5)*14;
+      e.ufoT=0; e.ufoRust=0;
+      this.vonk(e.p.x,e.p.y,e.p.z,0xffd06a,6,e.sc*0.4,0.4); },
 
     // ---- DE HOOG-YOYO (BLUE SPINE) ----
     // Zijn eigen ontwijking: hij trekt in een ruime boog omhoog en naar buiten,
@@ -4671,6 +4856,9 @@
       // kans per treffer, en daarna een ruime wachttijd.
       if(TYPE[e.tp]&&TYPE[e.tp].prof==='scissors'&&e.hp>0&&!e.dood&&!e.dood2
          &&!(e.klimCd>0)&&Math.random()<KLIM_KANS) this.klimStart(e);
+      // AMBER RING springt soms weg bij een treffer.
+      if(TYPE[e.tp]&&WERPERS.indexOf(TYPE[e.tp].basis||TYPE[e.tp].n)>=0
+         &&e.hp>0&&!e.dood&&!e.dood2) this.ufoWeg(e);
       // DE HOOG-YOYO van BLUE SPINE, zijn eigen ontwijking.
       if(TYPE[e.tp]&&TYPE[e.tp].prof==='splitser'&&e.hp>0&&!e.dood&&!e.dood2
          &&!(e.yoCd>0)&&Math.random()<YOYO_KANS) this.yoyoStart(e);
@@ -5041,7 +5229,9 @@
         // stand, en veld liet een krachtveld om een gewoon schip staan.
         e.springRust=0; e.geestT=0; e.rol=0; e.valDir=null; e.valV=0; e.valRot=0; e.valTijd=0; e.valRolA=0; e.valNu=0;
         e.broedCd=0; e.broedUit=0; e.broedDir=null; e.broed=0; e.valDraai=undefined;
-        e.rakOp=0; e.rakWijkT=0; e.ssT=0; e.ssCd=0; e.duikRolCd=0; e.klimT=0; e.klimCd=0; e.klimDuik=0; e.yoT=0; e.yoCd=0; e.flareCd=0; e.flareWeg=0; e.hangarJager=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
+        e.rakOp=0; e.rakWijkT=0; e.ssT=0; e.ssCd=0; e.duikRolCd=0;
+        e.ufoT=undefined; e.ufoDoel=null; e.ufoRust=0; e.ufoWegCd=0; e.ufoZij=0;
+        e.rsT=undefined; e.rsAan=0; e.rsRest=0; e.rsOp=0; e.ringHulpje=0; e.klimT=0; e.klimCd=0; e.klimDuik=0; e.yoT=0; e.yoCd=0; e.flareCd=0; e.flareWeg=0; e.hangarJager=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
         e.scheer=0; e.scheerCd=undefined; e.scheerT=0;
         e.vp=null; e.vRicht=null;   // de vliegrichting opnieuw meten
         if(e.veld){ e.veld.visible=false; e.veld=null; }
@@ -6981,7 +7171,10 @@
         if(KLOKKEN.indexOf(nm2)>=0){ this.klokTick(e,s); e.bT=9e9; }
         if(MOEDERS.indexOf(nm2)>=0) this.moederTick(e,s);
         if(e.schildM3) this.schildTick(e,s);
-        if(WERPERS.indexOf(nm2)>=0) this.werperTick(e,s);
+        if(WERPERS.indexOf(nm2)>=0){ this.werperTick(e,s);
+          this.ringSchild(e,s);
+          if(this.ufoTick(e,s)) return; }
+        if(e.ufoWegCd>0) e.ufoWegCd-=s;
         if(e.genBol) this.genTick(e,s);
         if(e.esc) this.escTick(e,s);
         if(e.ninja||e.schaduw>0){ if(this.ninjaTick(e,s)) return; }
@@ -8296,7 +8489,7 @@
 
       this.ringTick(s); this.sigRijTick(s); this.wijzerTickD(s);
       this.camoTick(s);
-      this.stap='effecten'; this.flareTick(s); this.flareLokAlles(); this.bliksTick(s); this.straalTick(s); this.bomTick(s); this.balTick(s); this.vlekTick();
+      this.stap='effecten'; this.portaalTick(s); this.flareTick(s); this.flareLokAlles(); this.bliksTick(s); this.straalTick(s); this.bomTick(s); this.balTick(s); this.vlekTick();
       // ---- rook: drijft op, dijt uit en vervaagt ----
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(!R.live) continue;
         R.life-=s/Math.max(0.3,R.leven);
