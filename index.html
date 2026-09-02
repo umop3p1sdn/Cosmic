@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v13.99';
+  const VERSIE='v14.00';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -602,6 +602,7 @@
     {nr:'9516', rol:'hemel', grond:1, naam:'blauwe lucht'},
     // losse objecten
     {nr:'9531', rol:'object', naam:'satelliet'},
+    {nr:'9969', rol:'sleep',  naam:'reclamevliegtuig'},
     {nr:'9532', rol:'planeet', naam:'aarde'},
     {nr:'9533', rol:'planeet', naam:'aarde groot'},
     {nr:'9534', rol:'planeet', naam:'maan'}
@@ -655,6 +656,9 @@
           if(N){ t.__lijst=N;                                  // de nummerlijst gaat voor
             if(N.rol==='baas'){ t.__baas=1; window.ART.objs.push(t);
               KAART.bazen.push({naam:nm,url:url,lijst:N});
+              if(window.ART.nieuw) window.ART.nieuw(); return; }
+            // het reclamevliegtuig: eigen plek, geen vijand en geen prop
+            if(N.rol==='sleep'){ t.__baas=0; window.ART.sleep=t;
               if(window.ART.nieuw) window.ART.nieuw(); return; }
             if(N.rol==='object'||N.rol==='planeet'){ t.__baas=0; window.ART.objs.push(t);
               if(window.ART.nieuw) window.ART.nieuw(); return; }
@@ -1425,6 +1429,12 @@
   const RUIMTE_HEL=78;
   // Waar TITAN PRIME komt te staan. Meteen goed, niet aan komen vliegen.
   const REUSAFSTAND=60;
+  // HET RECLAMEVLIEGTUIG: waar hij binnenkomt, hoe snel, hoe groot, waar de
+  // banner begint in de plaat, in hoeveel reepjes, en hoe hard die golft.
+  const SLEEP_X=150, SLEEP_Y=26, SLEEP_Z=-95, SLEEP_SNEL=17, SLEEP_UIT=210;
+  const SLEEP_BREED=54, SLEEP_KNIP=0.55, SLEEP_REEP=7;
+  const SLEEP_GOLF=1.5, SLEEP_TEMPO=2.6, SLEEP_LAG=3.4;
+  const SLEEP_LEVEL=1, SLEEP_GOLF_NR=3, SLEEP_NA=2.5;   // wanneer hij langskomt
   const BAAS_MAXAF=125;         // een baas komt nooit verder dan dit
   const PARADE_AFSTAND=14;      // eerst zo dichtbij komt iedereen
   const PARADE_VERMAX=105;      // en niet verder terug dan dit
@@ -2480,6 +2490,7 @@
         W.t=5; W.lvl=1; W.lvlT=this.zak.lvlT; W.mag=this.zak.mag;
         W.last=0; W.up=0; W.vorig=0; W.laz=null; }
       if(this.flares) this.flares.forEach(function(F){ F.live=false; F.m.visible=false; });
+      this.sleepWeg();
       this.enemies.forEach(function(e){ e.live=false; e.dood=0; e.dood2=0;
         if(e.romp){ e.romp.visible=false; e.romp=null; } });
       this.bb.forEach(function(b){ b.vrij=true; b.m.visible=false; });
@@ -7164,6 +7175,8 @@
       // DE SCHILDGOLF (Sjoerd): eerst de schildwerper, twee seconden later een
       // aanvalsgroep lichte jagers — die krijgen dan meteen twee schilden van
       // hem als ze aankomen. Vanaf level 7, af en toe.
+      // HET RECLAMEVLIEGTUIG komt in level 1, golf 3 langs. Puur decor.
+      if(LV===SLEEP_LEVEL&&w===SLEEP_GOLF_NR) this.sigNa(SLEEP_NA,function(){ this.sleepStart(); }.bind(this));
       const werperTp=TYPE.findIndex(function(q){ return q&&(q.basis||q.n)==='ORACLE'; });
       // DE SCHILDARENA (Sjoerd): twee werpers als torens, links en rechts, en
       // daarna drie groepen jagers na elkaar — elke nieuwe groep krijgt weer
@@ -7736,7 +7749,7 @@
           SND.laz(this.dir.x*0.5,L.k,L.n); }
         if(L.k>=L.n) W.laz=null; }
 
-      this.objTick(s);
+      this.objTick(s); this.sleepTick(s);
       if(window.DEMO) this.demoTick(s);
 
       // ---- doorlopend vuren zolang de trigger vast zit ----
@@ -9339,6 +9352,62 @@
       this.objI=kies; },
 
     // ---- de trage drift van de losse objecten ----
+    // ---- HET RECLAMEVLIEGTUIG (Sjoerds idee) ----
+    // Komt in level 1, golf 3, van rechts binnen en vliegt rustig naar links.
+    // Geen vijand: je kunt hem niet raken en hij schiet niet. Het vliegtuig zelf
+    // vliegt STRAK; alleen de banner erachter golft, in losse verticale reepjes.
+    sleepStart:function(){
+      if(this.sleep||!window.ART||!window.ART.sleep) return;
+      const tex=window.ART.sleep;
+      const S={t:0, x:SLEEP_X, y:SLEEP_Y, z:SLEEP_Z, delen:[]};
+      // het vliegtuig: één strak vlak, het linkerdeel van de plaat
+      const mk=function(u0,u1,br,hg){
+        const g=new THREE.PlaneGeometry(1,1);
+        const uv=g.attributes.uv;
+        uv.setXY(0,u0,1); uv.setXY(1,u1,1); uv.setXY(2,u0,0); uv.setXY(3,u1,0);
+        uv.needsUpdate=true;
+        const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:tex,transparent:true,
+          alphaTest:0.12,side:THREE.DoubleSide,depthWrite:true}));
+        m.frustumCulled=false; m.scale.set(br,hg,1);
+        return m; };
+      const totB=SLEEP_BREED, hg=totB/3.60;              // de plaat is 3,60 breed
+      // deel 1: het vliegtuig, van 0 tot SLEEP_KNIP
+      S.vliegtuig=mk(0,SLEEP_KNIP,totB*SLEEP_KNIP,hg);
+      this.par.add(S.vliegtuig);
+      // deel 2: de banner, in reepjes die elk hun eigen golf krijgen
+      for(let i=0;i<SLEEP_REEP;i++){
+        const u0=SLEEP_KNIP+(1-SLEEP_KNIP)*(i/SLEEP_REEP);
+        const u1=SLEEP_KNIP+(1-SLEEP_KNIP)*((i+1)/SLEEP_REEP);
+        const m=mk(u0,u1,totB*(u1-u0)*1.02,hg);          // 2% overlap: geen naden
+        this.par.add(m);
+        S.delen.push({m:m,u:(i+0.5)/SLEEP_REEP,x:(u0+u1)/2}); }
+      this.sleep=S; },
+
+    sleepTick:function(s){
+      const S=this.sleep; if(!S) return;
+      S.t+=s;
+      S.x-=SLEEP_SNEL*s;                                 // van rechts naar links
+      const hg=SLEEP_BREED/3.60;
+      // het vliegtuig: strak, alleen een heel lichte deining
+      const vy=S.y+Math.sin(S.t*0.5)*0.5;
+      S.vliegtuig.position.set(S.x+SLEEP_BREED*SLEEP_KNIP*0.5,vy,S.z);
+      S.vliegtuig.rotation.set(0,0,Math.sin(S.t*0.5)*0.02);
+      // de banner: elk reepje golft, sterker naar achteren, met vertraging
+      for(let i=0;i<S.delen.length;i++){ const D=S.delen[i];
+        const kracht=SLEEP_GOLF*(0.15+D.u);              // achteraan wappert het meest
+        const fase=S.t*SLEEP_TEMPO-D.u*SLEEP_LAG;
+        D.m.position.set(S.x+SLEEP_BREED*(SLEEP_KNIP+(1-SLEEP_KNIP)*D.u),
+          vy+Math.sin(fase)*kracht, S.z+Math.cos(fase*0.7)*kracht*0.5);
+        D.m.rotation.set(0,0,Math.cos(fase)*kracht*0.06); }
+      // uit beeld? opruimen
+      if(S.x<-SLEEP_UIT) this.sleepWeg(); },
+
+    sleepWeg:function(){
+      const S=this.sleep; if(!S) return;
+      if(S.vliegtuig) this.par.remove(S.vliegtuig);
+      S.delen.forEach(function(D){ this.par.remove(D.m); },this);
+      this.sleep=null; },
+
     objTick:function(s){
       if(!this.skyObjs||!this.skyObjs.length) return;
       const k=this.kop||{x:0,y:1.6,z:0};
