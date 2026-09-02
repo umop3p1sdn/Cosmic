@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.06';
+  const VERSIE='v14.08';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1573,7 +1573,7 @@
   const UFO_RUST=1.1, UFO_RUSTV=0.9, UFO_RUST0=1.5, UFO_MINAF=45, UFO_MAXAF=125;
   const UFO_WEGKANS=0.22, UFO_WEGCD=7, UFO_WEGAF=60, UFO_VUURSNEL=1.4;
   // Zijn schild: 350 kracht, 5 s aan / 5 s uit, en wat eraf is blijft eraf.
-  const RS_HP=350, RS_AAN=5, RS_UIT=5, RS_HULPKANS=0.35, RS_HULPN=2, RS_HULPMAX=4;
+  const RS_HP=350, RS_AAN=5, RS_UIT=3, RS_HULPKANS=0.35, RS_HULPN=2, RS_HULPMAX=4;   // Sjoerd: 5 s aan, 3 s af
   // LANCE als dubbelprofiel-baas: een zwaarder schild, en hoe vaak een treffer
   // zijn break turn uitlokt.
   const LANCE_SCHILD=900, LANCE_BRKKANS=0.5;
@@ -5615,7 +5615,7 @@
       // Sjoerd: "zorg dat bazen binnen bereik zitten in plaats van te ver weg."
       // De dans wilde tot 195 m; kogels halen 150, de laser 170. Nu hoogstens
       // BAAS_MAXAF, zodat elk wapen bij hem komt.
-      let doel=reus?REUSAFSTAND:(Math.min(BAAS_MAXAF,F.d)+e.r*0.32);
+      let doel=reus?REUSAFSTAND:(Math.min(e.dubbel?UFO_MAXAF*0.75:BAAS_MAXAF,F.d)+e.r*0.32);
       if(!reus&&e.bw>=GROOTBR)
         doel=Math.max(doel,(e.bw>=REUSBR)?MINAF_REUS:MINAF_GROOT);
 
@@ -5679,8 +5679,12 @@
         bx=Math.sin(f)*e.zb; by=Math.cos(f*0.5)*e.hb*2.1; }
       else if(BB.vorm===5){     // WIEG: brede trage zwaai met een korte tik erin
         bx=(Math.sin(f)*0.8+Math.sin(f*3)*0.2)*e.zb; by=Math.sin(f*1.3)*e.hb; }
-      e.p.x=zijPlek+bx;
-      e.baanY=by;
+      // DE TELEPORT NAAR HET MIDDEN: deze regel schreef de x van de baas elke
+      // beurt hard voor uit zijn dans. Voor LANCE — die zijn eigen sprints
+      // vliegt — betekende dat: sprint klaar, en hup, terug op zijn dansplek.
+      // Een baas met het dubbelprofiel houdt zijn eigen plek.
+      if(!e.dubbel) e.p.x=zijPlek+bx;
+      e.baanY=e.dubbel?0:by;
       // Zoals iets wat vliegt een bocht maakt: gaat hij naar links, dan komt
       // zijn rechterkant omhoog. Hoe sneller opzij, hoe schuiner.
       if(e.baanY) e.p.y+=(e.baanY-(e.baanY0||0)); e.baanY0=e.baanY||0;
