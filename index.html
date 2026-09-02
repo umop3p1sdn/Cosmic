@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.03';
+  const VERSIE='v14.04';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1613,6 +1613,7 @@
   // Het overhellen in een bocht: hoeveel, bij welke zijsnelheid vol, en hoe
   // traag hij erin en eruit komt. Eén formule voor alle plekken.
   const HELLING=1.35, HELLING_V=26, HELLING_TRAAG=2.2, HELLING_MAX=0.92, HELLING_KRIMP=1.1;
+  const PLATGRENS=0.50;         // cos(60°): platter dan dit mag geen schip staan
   // DE SPRINGER: hoe ver hij verspringt en hoe lang hij daarna moet wachten.
   // Sjoerd: de sprong en de duik waren te klein om te zien. Allebei verdubbeld.
   const SPRING_VER=50, SPRING_CD=10, SPRING_RUST=0.55;
@@ -5503,6 +5504,11 @@
       // schiet hoort ook hard te rollen; eerst draaide iedereen even snel.
       // de rol zelf loopt in de beurtlus (één plek), hier alleen de kanteling
       if(e.rolT>0&&!(e.ssT>0)&&!(e.herpakT>0)){ if(e.bb) e.bb.m.rotation.z=e.rol+(e.rolA||0); }
+      else if(e.bb&&!e.dood&&!e.dood2&&!(e.ssT>0)&&!(e.herpakT>0)&&!(e.klimT>0)&&!(e.yoT>0)){
+        const rm=Math.max(0,HELLING_MAX-Math.abs(e.bb.m.rotation.y)*HELLING_KRIMP);
+        let rz=e.rol||0;
+        if(rz>rm) rz=rm; else if(rz<-rm) rz=-rm;
+        e.bb.m.rotation.z=rz; }
       // Een WRAK draait zichzelf (tollen, duikelen). Deze regel zette hem elke
       // beurt terug op zijn vliegstand, dus bleef hij rechtop hangen terwijl hij
       // viel. Nu alleen voor schepen die nog leven.
@@ -7814,11 +7820,64 @@
           // DIT was de plek die elke rol wiste: hij zette de kanteling terug
           // ZONDER de rolaanval erbij, en komt na alles. Nu telt de rol mee.
           // een schip MIDDEN IN EEN BREAK TURN houdt zijn eigen bankhoek
-          if(!(e.herpakT>0)&&!(e.ssT>0)&&!(e.klimT>0)&&!(e.yoT>0)) e.bb.m.rotation.z=e.rol+(e.rolA||0); }
+          // DEZE REGEL OVERSCHREEF DE GRENS. Hij komt NA de begrensde regel in
+          // de sprite-routine en schreef e.rol rechtstreeks — daardoor kwam
+          // BLACK RAVEN alsnog op 77 graden en zag Sjoerd zijn platte zijkant.
+          // Nu gebruikt hij dezelfde grens, met dezelfde krimp bij schuine stand.
+          if(!(e.herpakT>0)&&!(e.ssT>0)&&!(e.klimT>0)&&!(e.yoT>0)){
+            const ruimte=Math.max(0,HELLING_MAX-Math.abs(e.bb.m.rotation.y)*HELLING_KRIMP);
+            let rz=(e.rol||0)+(e.rolA||0);
+            if(!(e.rolT>0)){ if(rz>ruimte) rz=ruimte; else if(rz<-ruimte) rz=-ruimte; }
+            e.bb.m.rotation.z=rz; } }
         if(e.p.z>70&&!e.ring&&e.stijl!=='over'&&e.stijl!=='route'){ this.bbVrij(e.bb); e.bb=null; e.live=false;   // pas ver achter je opruimen
           if(e.romp){ e.romp.visible=false; e.romp=null; } }               // ontsnapt
         if(window.PAUSED) return; }
 
+      // ---- DE LAATSTE GRENS TEGEN PLATTE SCHEPEN ----
+      // Ik heb dit vier keer bij een afzonderlijke routine geprobeerd en steeds
+      // schreef een latere regel er alsnog overheen. Daarom nu HIER, aan het
+      // eind van de beurt, als allerlaatste: geen enkel schip staat platter dan
+      // PLATGRENS ten opzichte van je kijklijn. Kunstjes die met opzet rollen
+      // (rolaanval, klok, klimrol, yoyo, split-s, break turn) blijven vrij.
+      { const nrm=this.PG||(this.PG=new THREE.Vector3());
+        for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
+          // NIET op zichtbaarheid filteren: het SPOOKSCHIP is af en toe
+          // onzichtbaar, werd dan overgeslagen, en stond scheef zodra hij weer
+          // verscheen. Daar zag Sjoerd zijn platte kant.
+          if(!e.live||!e.bb) continue;
+          // Wrakken vallen hier ook onder: die draaien wel weg, maar mogen ook
+          // niet zo plat komen te staan dat je hun zijkant ziet.
+          if(e.rolT>0||e.klimT>0||e.yoT>0||e.ssT>0||e.herpakT>0||e.klokR) continue;
+          if(e.intro) continue;                         // baasintro doet zijn eigen ding
+          const m=e.bb.m;
+          nrm.set(0,0,1).applyQuaternion(m.quaternion);
+          const kx=this.kop.x-e.p.x, ky=this.kop.y-e.p.y, kz=this.kop.z-e.p.z;
+          const kl=Math.hypot(kx,ky,kz)||1;
+          const d=Math.abs((nrm.x*kx+nrm.y*ky+nrm.z*kz)/kl);
+          if(d>=PLATGRENS) continue;                    // staat goed genoeg
+          // GEMETEN: het is niet zijn kanteling (rotation.z was 0) maar zijn
+          // KIJKRICHTING. De sprite richt zich op een kopie van je hoofdpositie
+          // die aan het begin van de beurt is gemaakt; bij een schip op dertien
+          // meter scheelt dat al 87 graden. Dus: opnieuw richten op je ECHTE
+          // plek, en dan de kanteling er weer op.
+          const rz=m.rotation.z;
+          const lk2=this.PG2||(this.PG2=new THREE.Vector3());
+          lk2.set(this.kop.x,e.p.y,this.kop.z);
+          m.lookAt(lk2);
+          // een wrak mag zijn eigen wegdraai houden, maar begrensd
+          if(e.dood&&e.valDraai!==undefined){
+            const w=Math.min(1,e.doodT/VALDRAAI_T)*e.valDraai*VALDRAAI_MAX;
+            m.rotateY(Math.max(-0.45,Math.min(0.45,w))); }
+          m.rotation.z=rz;
+          // helpt dat niet genoeg, dan ook de kanteling terugdraaien
+          nrm.set(0,0,1).applyQuaternion(m.quaternion);
+          if(Math.abs((nrm.x*kx+nrm.y*ky+nrm.z*kz)/kl)<PLATGRENS){
+            let r2=rz;
+            for(let p=0;p<6&&Math.abs(r2)>0.02;p++){
+              r2*=0.5; m.rotation.z=r2;
+              nrm.set(0,0,1).applyQuaternion(m.quaternion);
+              if(Math.abs((nrm.x*kx+nrm.y*ky+nrm.z*kz)/kl)>=PLATGRENS) break; }
+            e.rol=r2; } } }
       this.vpTick();   // aan het EIND: waar stond iedereen deze beurt?
       this.stap='brand';
       // ---- schepen die in BRAND staan door de laser ----
