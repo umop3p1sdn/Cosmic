@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.05';
+  const VERSIE='v14.06';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1574,6 +1574,9 @@
   const UFO_WEGKANS=0.22, UFO_WEGCD=7, UFO_WEGAF=60, UFO_VUURSNEL=1.4;
   // Zijn schild: 350 kracht, 5 s aan / 5 s uit, en wat eraf is blijft eraf.
   const RS_HP=350, RS_AAN=5, RS_UIT=5, RS_HULPKANS=0.35, RS_HULPN=2, RS_HULPMAX=4;
+  // LANCE als dubbelprofiel-baas: een zwaarder schild, en hoe vaak een treffer
+  // zijn break turn uitlokt.
+  const LANCE_SCHILD=900, LANCE_BRKKANS=0.5;
   // HET PORTAAL waar GHOST WING uit komt: hoe ver weg, hoe groot, hoe lang het
   // opent, doorlaat en sluit, en hoeveel ruimte het om zich heen wil.
   const PORT_AF=70, PORT_AFV=45, PORT_HOOG=30, PORT_TUSSEN=55, PORT_VRIJ=32;
@@ -3017,7 +3020,7 @@
     // blijft eraf. Is het op, dan blijft hij open.
     ringSchild:function(e,s){
       if(e.rsOp) return;                                 // schild is definitief stuk
-      if(e.rsT===undefined){ e.rsT=RS_AAN; e.rsAan=1; e.rsRest=RS_HP; }
+      if(e.rsT===undefined){ e.rsT=RS_AAN; e.rsAan=1; e.rsRest=e.rsHp||RS_HP; }
       e.rsT-=s;
       if(e.rsT<=0){
         if(e.rsAan){ e.rsAan=0; e.rsT=RS_UIT;
@@ -4856,9 +4859,12 @@
       // kans per treffer, en daarna een ruime wachttijd.
       if(TYPE[e.tp]&&TYPE[e.tp].prof==='scissors'&&e.hp>0&&!e.dood&&!e.dood2
          &&!(e.klimCd>0)&&Math.random()<KLIM_KANS) this.klimStart(e);
-      // AMBER RING springt soms weg bij een treffer.
-      if(TYPE[e.tp]&&WERPERS.indexOf(TYPE[e.tp].basis||TYPE[e.tp].n)>=0
+      // AMBER RING springt soms weg bij een treffer — en LANCE ook.
+      if(TYPE[e.tp]&&(WERPERS.indexOf(TYPE[e.tp].basis||TYPE[e.tp].n)>=0||e.dubbel)
          &&e.hp>0&&!e.dood&&!e.dood2) this.ufoWeg(e);
+      // LANCE doet daarbij ook de BREAK TURN van BRONZE FANG, met de versnelling
+      if(e.dubbel&&e.hp>0&&!e.dood&&!e.dood2&&!(e.herpakCd>0)&&!(e.herpakT>0)
+         &&!(e.ufoDoel)&&Math.random()<LANCE_BRKKANS) this.herpakStart(e);
       // DE HOOG-YOYO van BLUE SPINE, zijn eigen ontwijking.
       if(TYPE[e.tp]&&TYPE[e.tp].prof==='splitser'&&e.hp>0&&!e.dood&&!e.dood2
          &&!(e.yoCd>0)&&Math.random()<YOYO_KANS) this.yoyoStart(e);
@@ -5231,7 +5237,7 @@
         e.broedCd=0; e.broedUit=0; e.broedDir=null; e.broed=0; e.valDraai=undefined;
         e.rakOp=0; e.rakWijkT=0; e.ssT=0; e.ssCd=0; e.duikRolCd=0;
         e.ufoT=undefined; e.ufoDoel=null; e.ufoRust=0; e.ufoWegCd=0; e.ufoZij=0;
-        e.rsT=undefined; e.rsAan=0; e.rsRest=0; e.rsOp=0; e.ringHulpje=0; e.klimT=0; e.klimCd=0; e.klimDuik=0; e.yoT=0; e.yoCd=0; e.flareCd=0; e.flareWeg=0; e.hangarJager=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
+        e.rsT=undefined; e.rsAan=0; e.rsRest=0; e.rsOp=0; e.ringHulpje=0; e.dubbel=0; e.rsHp=0; e.klimT=0; e.klimCd=0; e.klimDuik=0; e.yoT=0; e.yoCd=0; e.flareCd=0; e.flareWeg=0; e.hangarJager=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
         e.scheer=0; e.scheerCd=undefined; e.scheerT=0;
         e.vp=null; e.vRicht=null;   // de vliegrichting opnieuw meten
         if(e.veld){ e.veld.visible=false; e.veld=null; }
@@ -5261,9 +5267,14 @@
           const bt=B.tex;
           e.baasNaam=B.naam; e.gedrag=B.gedrag||'schip'; e.vuur=B.vuur||'duo';
           if(B.naam==='WARDEN') this.genStart(e);
-          if(B.naam==='LANCE'){ e.ninja=1; e.ninjaCd=0; }
+          // LANCE (Sjoerd): "zijn moves werken niet goed. Geef hem hetzelfde
+          // profiel als AMBER RING gecombineerd met BRONZE FANG — en laat hem
+          // beide uitvoeren." Dus: Z-sprints, schild aan/uit zonder reset,
+          // portalen met hulptroepen, wegsprong bij een treffer, EN de break
+          // turn van de herpakker met de versnelling erna.
+          if(B.naam==='LANCE'){ e.dubbel=1; e.rsHp=LANCE_SCHILD; }
           if(B.naam==='THE WHEEL') this.velgStart(e);
-          if(B.naam==='LANCE') e.eigenVuur='ninja';
+          if(B.naam==='LANCE') e.eigenVuur=null;
           // RAVEN: de hangar — krachtveld 4 s aan / uit, vier jagers eruit
           if(B.naam==='RAVEN'){ e.hangar=1; e.moedF=1; e.moedT=MOEDER_AAN; }
           // IRONCLAD: een ring van acht mijnen om hem heen (escorte in een kring)
@@ -7171,9 +7182,10 @@
         if(KLOKKEN.indexOf(nm2)>=0){ this.klokTick(e,s); e.bT=9e9; }
         if(MOEDERS.indexOf(nm2)>=0) this.moederTick(e,s);
         if(e.schildM3) this.schildTick(e,s);
-        if(WERPERS.indexOf(nm2)>=0){ this.werperTick(e,s);
+        if(WERPERS.indexOf(nm2)>=0||e.dubbel){
+          if(WERPERS.indexOf(nm2)>=0) this.werperTick(e,s);
           this.ringSchild(e,s);
-          if(this.ufoTick(e,s)) return; }
+          if(!(e.herpakT>0)&&this.ufoTick(e,s)) return; }
         if(e.ufoWegCd>0) e.ufoWegCd-=s;
         if(e.genBol) this.genTick(e,s);
         if(e.esc) this.escTick(e,s);
@@ -7270,7 +7282,7 @@
           e.bT=(e.bT||0)-s;
           if(e.bT<=0){ e.bT=((TYPE[e.tp].cd||3.4)+Math.random()*1.6)*VUURTEMPO;
             this.spuw(e,TYPE[e.tp].sal||1,0.06); } } }
-      else if(e.prof==='baas'){ this.baasBaan(e,s,naar,afst); }
+      else if(e.prof==='baas'){ if(!(e.dubbel&&(e.ufoDoel||e.herpakT>0))) this.baasBaan(e,s,naar,afst); }
       else if(e.prof==='duiker'){ this.profiel(e,s,naar,afst,sp);
         if(e.mode==='nader'&&afst>AFST[Math.min(2,e.stap)]+e.r*1.3+1.2) this.halte(e,s,naar,afst,sp*0.4); }
       else if(e.stijl==='route'){ this.routeBaan(e,s,sp); }
