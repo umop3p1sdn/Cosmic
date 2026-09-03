@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.08';
+  const VERSIE='v14.09';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -7880,8 +7880,12 @@
         // waar in de beurt zijn we? dit verschuift terwijl de beurt loopt
         this.stap='start'; }
       if(window.PHASE==='menu'){ this.menuTick(s); return; }
-      // de demo moet zichzelf kunnen oplappen; die staat dus VOOR de pauzegrens
-      if(window.DEMO&&this.over){ this.dOver=(this.dOver||0)+s;
+      // de demo moet zichzelf kunnen oplappen; die staat dus VOOR de pauzegrens.
+      // HET SPEL HING NA GAME OVER IN DE DEMO: deze regel deed 'return' vóór
+      // overTick, dus telde de GAME OVER-klok (overT) nooit af, weigerde verder()
+      // eeuwig, en kwam er nooit een CONTINUE. Nu telt de klok hier ook.
+      if(window.DEMO&&this.over){ this.overTick(s);
+        this.dOver=(this.dOver||0)+s;
         if(this.dOver>2.2){ this.dOver=0; this.verder(); }
         return; }
       // Ook op het paneel wil je zien waar je op mikt: bij pauze, bij GAME OVER
