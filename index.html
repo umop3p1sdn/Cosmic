@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.12';
+  const VERSIE='v14.13';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -956,6 +956,7 @@
   '      <a-entity id="mBaasNaam" position="0 0.640 -1.30"></a-entity>'+
   '      <a-plane id="baasBalkA" visible="false" position="0 0.575 -1.31" width="0.001" height="0.001" material="color:#000000;shader:flat;opacity:0;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-plane id="baasBalkB" visible="false" position="-0.345 0.575 -1.30" width="0.68" height="0.024" material="color:#ff3d55;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="baasBalkS" visible="false" position="-0.345 0.552 -1.30" width="0.68" height="0.012" material="color:#ffd030;shader:flat;opacity:0.9;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-plane id="baasRand" visible="false" position="0 0.575 -1.315" width="0.001" height="0.001" material="color:#000000;shader:flat;opacity:0;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-entity id="mBaasPct" position="0.40 0.575 -1.30"></a-entity>'+
   '      <a-entity id="mHull" position="-0.545 -0.085 -1.25"></a-entity>'+
@@ -1598,9 +1599,13 @@
   // naaf is (aandeel van de velgstraal), draaisnelheid, en wanneer hij terugkomt.
   const VELG_HP=900, VELG_R=0.55, VELG_NAAF=0.35, VELG_ROL=1.4, VELG_TERUG=12;
   const VELG_AAN=5, VELG_AF=3, VELG_HALF=0.5;   // Sjoerd: 5 s op (halve schade), 3 s af
+  const VELG_SLIJT=0.6, VELG_KAPOT=15;           // schild slijt per treffer; kapot = 15 s weg
   // De wijde ronde van THE WHEEL: straal, hoeveel die wisselt, hoeksnelheid,
   // hoogtegolf, hoe strak hij zijn baan volgt, en hoe vaak hij van kant keert.
-  const WIEL_R=80, WIEL_RV=20, WIEL_HOEKSNEL=0.32, WIEL_HOOG=12, WIEL_VOLG=1.4, WIEL_KEERKANS=0.08;
+  // Sjoerd: "hij vliegt letterlijk door mij heen." Een baas van 60 m breed
+  // met een bol van 74 m moet ver blijven: straal 115, nooit onder 90.
+  const WIEL_R=115, WIEL_RV=15, WIEL_HOEKSNEL=0.26, WIEL_HOOG=14, WIEL_VOLG=1.4, WIEL_KEERKANS=0.08;
+  const WIEL_MINR=90;
   const WIEL_HOEK=1.15;         // ~66 graden links en rechts: hij blijft vóór je
   const OOG_WISSEL=4.0;         // THE EYES: om de hoeveel seconden het open oog wisselt
   const SERAPH_DRAAI=0.5;       // hoe snel SERAPH's opening rondwandelt (rad/s)
@@ -2983,10 +2988,11 @@
       if(e.flareCd>0) e.flareCd-=s;
       this.flareUit(e);
       if(e.flareWeg>0){ e.flareWeg-=s; e.p.addScaledVector(e.flareDir,FLARE_WEGV*0.4*s); }
-      if(this.scheerTick(e,s)) return true;
+      // geen scheervlucht voor THE WHEEL: met 60 m breedte vliegt hij dan door je heen
       e.wielT+=s;
       // langzaam van straal wisselen, zodat de ronde niet steeds dezelfde is
       e.wielR+=(WIEL_R+Math.sin(e.wielT*0.23)*WIEL_RV-e.wielR)*Math.min(1,s*0.6);
+      if(e.wielR<WIEL_MINR) e.wielR=WIEL_MINR;
       e.wielA+=e.wielDr*WIEL_HOEKSNEL*s;
       // BLIJF VÓÓR JE: de cirkel loopt van -WIEL_HOEK tot +WIEL_HOEK graden om
       // je heen en keert dan om. Anders vliegt hij achter je, waar hij als
@@ -3729,7 +3735,7 @@
     // afstand zodat je ze mooi kan zien." Geeft true zolang hij scheert.
     scheerTick:function(e,s){
       const T=TYPE[e.tp];
-      if(!T||e.bw<GROOTBR||e.gedrag==='reus'||(T.prof==='baas'&&!e.wiel)||e.dood||e.dood2) return false;
+      if(!T||e.bw<GROOTBR||e.gedrag==='reus'||T.prof==='baas'||e.dood||e.dood2) return false;
       if(e.scheerCd===undefined) e.scheerCd=SCHEER_EERST+Math.random()*10;
       else e.scheerCd-=s;
       if(e.scheerCd<=0&&!e.scheer){
@@ -3935,7 +3941,9 @@
     // raken hem meteen — een klein doel dat je precies moet mikken. Is de velg
     // gebroken, dan is alles open; na twaalf seconden groeit hij terug.
     velgStart:function(e){
-      e.velg=VELG_HP; e.velgM=VELG_HP; e.velgT=0;
+      // velgT was 0: dan sloeg de klok bij de eerste beurt meteen om en stond
+      // het schild permanent uit. Nu begint hij vol en AAN.
+      e.velg=VELG_HP; e.velgM=VELG_HP; e.velgT=VELG_AAN; e.velgAan=1; e.velgRest=VELG_HP; e.velgKapot=0;
       if(!e.velgM3){
         // Sjoerd: "de ring zit om mij heen, en hij heeft geen grote shield." De
         // torus was 66 m breed en plat; nu een echte BOL om de baas, met een
@@ -3952,12 +3960,18 @@
 
     velgTick:function(e,s){
       if(!e.velgM3) return;
-      // aan en af, op de klok: VELG_AAN seconden op, VELG_AF seconden af
-      e.velgT=(e.velgT===undefined?VELG_AAN:e.velgT)-s;
+      // KAPOT: dan blijft hij weg tot hij is aangegroeid
+      if(e.velgKapot>0){ e.velgKapot-=s;
+        if(e.velgKapot<=0){ e.velg=e.velgM; e.velgRest=e.velgM; e.velgT=VELG_AAN; e.velgAan=1;
+          this.vonk(e.p.x,e.p.y,e.p.z,0xffd030,14,e.bw*0.5,0.8); }
+        else { e.velgM3.visible=false; return; } }
+      // aan en af, op de klok — en wat eraf is geschoten BLIJFT eraf
+      if(e.velgT===undefined){ e.velgT=VELG_AAN; e.velgAan=1; e.velgRest=e.velg; }
+      e.velgT-=s;
       if(e.velgT<=0){
-        if(e.velg>0){ e.velg=0; e.velgT=VELG_AF;
+        if(e.velgAan){ e.velgAan=0; e.velgRest=e.velg; e.velg=0; e.velgT=VELG_AF;
           this.vonk(e.p.x,e.p.y,e.p.z,0xffd030,10,e.bw*0.4,0.6); }
-        else { e.velg=e.velgM; e.velgT=VELG_AAN;
+        else { e.velgAan=1; e.velg=e.velgRest; e.velgT=VELG_AAN;
           this.vonk(e.p.x,e.p.y,e.p.z,0xffd030,14,e.bw*0.5,0.8); } }
       if(e.velg<=0){ e.velgM3.visible=false; return; }
       e.velgM3.visible=true;
@@ -3978,6 +3992,14 @@
       if(!(e.velg>0)) return false;
       e.velgFlits=0.1;
       this.vonk(px||e.p.x,py||e.p.y,pz||e.p.z,0xffd030,4,3,0.35);
+      // Sjoerd: "kan zijn schild kapot? Dan daar graag een krachtbalk van."
+      // Het schild heeft eigen kracht en slijt bij elke treffer. Is het op,
+      // dan is het kapot: 15 s weg, en dan groeit het weer aan.
+      e.velg-=dmg*VELG_SLIJT;
+      if(e.velg<=0){ e.velg=0; e.velgKapot=VELG_KAPOT; e.velgT=0;
+        this.vonk(e.p.x,e.p.y,e.p.z,0xffffff,14,e.bw*0.5,0.7);
+        this.vonk(e.p.x,e.p.y,e.p.z,0xffd030,22,e.bw*0.8,1.0);
+        this.schokRing(e.p); SND.boom(e.p.x*0.02,false); }
       return false; },
 
     velgWeg:function(e){ if(e.velgM3) e.velgM3.visible=false; e.velg=0; },
@@ -5292,7 +5314,7 @@
         e.rakOp=0; e.rakWijkT=0; e.ssT=0; e.ssCd=0; e.duikRolCd=0;
         e.ufoT=undefined; e.ufoDoel=null; e.ufoRust=0; e.ufoWegCd=0; e.ufoZij=0;
         e.rsT=undefined; e.rsAan=0; e.rsRest=0; e.rsOp=0; e.ringHulpje=0; e.dubbel=0; e.rsHp=0;
-        e.wiel=0; e.wielA=undefined; e.klimT=0; e.klimCd=0; e.klimDuik=0; e.yoT=0; e.yoCd=0; e.flareCd=0; e.flareWeg=0; e.hangarJager=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
+        e.wiel=0; e.wielA=undefined; e.velgKapot=0; e.velgAan=0; e.velgRest=0; e.klimT=0; e.klimCd=0; e.klimDuik=0; e.yoT=0; e.yoCd=0; e.flareCd=0; e.flareWeg=0; e.hangarJager=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
         e.scheer=0; e.scheerCd=undefined; e.scheerT=0;
         e.vp=null; e.vRicht=null;   // de vliegrichting opnieuw meten
         if(e.veld){ e.veld.visible=false; e.veld=null; }
@@ -6820,6 +6842,14 @@
       B.setAttribute('height','0.024');
       B.setAttribute('position',(-0.345+br/2).toFixed(4)+' 0.575 -1.30');
       this.hudTekst('#mBaasPct',Math.round(d*100)+'%','#ff6a7d',0.034,0.16,'hBaasPct');
+      // schildbalk van THE WHEEL: goud, onder de rode
+      const S2=document.querySelector('#baasBalkS');
+      if(S2&&e.velgM3&&e.velgM!==undefined){
+        const sb=0.69*Math.max(0,(e.velgKapot>0?0:(e.velgAan?e.velg:e.velgRest||0))/e.velgM);
+        S2.setAttribute('visible',sb>0.001);
+        S2.setAttribute('width',Math.max(0.001,sb).toFixed(4));
+        S2.setAttribute('height','0.012');
+        S2.setAttribute('position',(-0.345+sb/2).toFixed(4)+' 0.552 -1.30'); }
       B.setAttribute('material','color:'+(d>0.5?'#ff3d55':(d>0.2?'#ffb03a':'#ffe45c'))+
         ';shader:flat;depthWrite:false;depthTest:false'); },
 
@@ -6965,7 +6995,7 @@
 
     baasBalkUit:function(){
       this.balkAan=false; this.balkD=-1;
-      ['#baasBalkA','#baasBalkB'].forEach(function(id){
+      ['#baasBalkA','#baasBalkB','#baasBalkS'].forEach(function(id){
         const e=document.querySelector(id); if(e) e.setAttribute('visible',false); });
       ['#baasRand'].forEach(function(id){
         const e2=document.querySelector(id); if(e2) e2.setAttribute('visible',false); });
@@ -7244,7 +7274,9 @@
         // GEEN 'return' hier: dat sloeg de krachtbalk, het aankijken en het
         // vuren over. Sjoerd zag een baas zonder balk die hem niet aankeek en
         // niet aanviel. De beweging gebeurt hier; de rest loopt gewoon door.
-        if(e.wiel) this.wielTick(e,s);
+        // pas NA de intro: anders trekt de ronde hem weg van zijn intro-doel,
+        // eindigt de intro nooit, en zie je geen krachtbalk (Sjoerd)
+        if(e.wiel&&!e.intro) this.wielTick(e,s);
         if(WERPERS.indexOf(nm2)>=0||e.dubbel){
           if(WERPERS.indexOf(nm2)>=0) this.werperTick(e,s);
           this.ringSchild(e,s);
