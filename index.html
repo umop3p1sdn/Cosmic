@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.14';
+  const VERSIE='v14.15';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1340,11 +1340,15 @@
       {t:6.0,d:186,v:1.8,zw:0.34,zb:44,hb:10,aanval:'zwaar', zeg:'TALON'},
       {t:4.0,d:98, v:2.0,zw:0.75,zb:58,hb:13,aanval:'jacht', zeg:''} ],
     // drie ogen: trekken ver terug, draaien om elkaar heen, vuren om beurten
+    // Sjoerd: "de drie ogen moeten verder uit elkaar, ze overlappen bijna. Ook
+    // verder weg — wel binnen schietbereik." GEMETEN: ze stonden 39-52 m uit
+    // elkaar terwijl elk oog 60 m breed is, op 72 m van je af. Nu blijven ze
+    // op 130-195 m en dansen ze veel breder (zb).
     'THE EYES':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:6.0,d:186,v:1.4,zw:0.90,zb:30,hb:18,aanval:'zwaar', zeg:'THE EYES ALIGN'},
-      {t:5.0,d:129, v:1.2,zw:1.20,zb:24,hb:22,aanval:'sig',   zeg:''},
-      {t:4.0,d:84, v:1.6,zw:1.50,zb:18,hb:26,aanval:'kort',  zeg:'GAZE'} ],
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:95,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:6.0,d:186,v:1.4,zw:0.90,zb:80,hb:18,aanval:'zwaar', zeg:'THE EYES ALIGN'},
+      {t:5.0,d:158,v:1.2,zw:1.20,zb:72,hb:22,aanval:'sig',   zeg:''},
+      {t:4.0,d:150,v:1.6,zw:1.50,zb:66,hb:26,aanval:'kort',  zeg:'GAZE'} ],
     // stampt heen en weer, breed en zwaar
     'THE WALKER':[
       {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
@@ -1610,6 +1614,7 @@
   const WIEL_MINR=90;
   const WIEL_HOEK=1.15;         // ~66 graden links en rechts: hij blijft vóór je
   const OOG_WISSEL=4.0;         // THE EYES: om de hoeveel seconden het open oog wisselt
+  const OOG_UITEEN=88;          // hoe ver de drie ogen uit elkaar staan (ze zijn 60 m breed)
   const SERAPH_DRAAI=0.5;       // hoe snel SERAPH's opening rondwandelt (rad/s)
   const ZWB_MIN=6, ZWB_MAX=18, ZWB_ELK=12;   // DEATHS HEAD's zwerm
   const WERP_ELK=2.5, WERP_BEREIK=60, WERP_MAXBR=12, WERP_SEG=14, WERP_DUUR=0.35;
@@ -5666,7 +5671,10 @@
           this.vonk(px,py,e.p.z+2,(e.fase>=2)?0xff5a3c:0xffb03a,4,6,1.0);
           this.vonk(px,py,e.p.z+2,0x707070,3,3,1.9); } }
       const reus=(e.gedrag==='reus');
-      const zijPlek=(e.trioI!==undefined&&e.trioI!==null)?((e.trioI-1)*46):0;
+      // GEMETEN: dit stond op 46 m terwijl elk oog 60 m BREED is — vandaar de
+      // overlap. Dit is de echte knop, niet de duwkracht die ik eerst probeerde:
+      // deze regel schrijft de x elke beurt hard voor.
+      const zijPlek=(e.trioI!==undefined&&e.trioI!==null)?((e.trioI-1)*OOG_UITEEN):0;
       const hoogte=(e.trioI!==undefined&&e.trioI!==null)?((e.trioI-1)*9):0;
 
       // ---- de trip: elke baas komt dichtbij en trekt zich weer terug ----
