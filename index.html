@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.13';
+  const VERSIE='v14.14';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -584,9 +584,11 @@
     {nr:'9565', rol:'baas', beurt:7,  naam:'THE EYES',    gedrag:'drieluik', vuur:'straal'},
     {nr:'9937', rol:'baas', beurt:8,  naam:'THE WALKER',  gedrag:'mech', vuur:'duo'},
     {nr:'9580', rol:'baas', beurt:0,  naam:'ARACHNID',    gedrag:'schip', vuur:'zwerm'},
-    {nr:'9583', rol:'baas', beurt:9,  naam:'SERAPH',      gedrag:'mech', vuur:'straal'},
-    {nr:'9936', rol:'baas', beurt:10, naam:'THE CORE',    gedrag:'schijf', vuur:'zwaar'},
-    {nr:'9555', rol:'baas', beurt:11, naam:'DEATHS HEAD', gedrag:'schedel', vuur:'zwaar'},
+    // Sjoerd, v14.14: drie nieuwe baasplaten. De grote robot (9583), THE CORE
+    // (9936) en de schedel (9555) zijn eruit — die pasten niet in het spel.
+    {nr:'0005', rol:'baas', beurt:9,  naam:'SERAPH',      gedrag:'schip', vuur:'straal'},
+    {nr:'0007', rol:'baas', beurt:10, naam:'THE CORE',    gedrag:'schijf', vuur:'zwaar'},
+    {nr:'0006', rol:'baas', beurt:11, naam:'DEATHS HEAD', gedrag:'schijf', vuur:'zwaar'},
     {nr:'9573', rol:'baas', beurt:99, naam:'TITAN PRIME', gedrag:'reus', vuur:'reus'},
     // achtergronden waar je met beide benen op de grond staat: daar hoort geen
     // planeet in de lucht. Helderheid alleen is niet genoeg — dit landschap is donker.
