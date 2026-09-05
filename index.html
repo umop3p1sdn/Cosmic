@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.16';
+  const VERSIE='v14.17';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1369,18 +1369,23 @@
       {t:5.0,d:111, v:1.3,zw:0.40,zb:24,hb:20,aanval:'sig',   zeg:''},
       {t:4.0,d:72, v:1.7,zw:0.50,zb:18,hb:16,aanval:'kort',  zeg:'DESCENT'} ],
     // hangt in het midden en pulseert; beweegt weinig, vuurt veel vormen
+    // THE CORE is een lang station: hij schuift als een muur voorbij, traag maar
+    // over grote breedte, in plaats van op een plek te wiebelen (was zb 10-18).
     'THE CORE':[
       {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:6.0,d:134, v:0.9,zw:0.20,zb:14,hb:8, aanval:'sig',   zeg:''},
-      {t:5.5,d:186,v:1.1,zw:0.16,zb:10,hb:6, aanval:'zwaar', zeg:'OVERCHARGE'},
-      {t:4.5,d:89, v:1.3,zw:0.28,zb:18,hb:10,aanval:'kort',  zeg:''} ],
+      {t:7.0,d:150,v:0.5,zw:0.20,zb:90,hb:8, aanval:'sig',   zeg:''},
+      {t:5.5,d:186,v:0.7,zw:0.16,zb:75,hb:6, aanval:'zwaar', zeg:'OVERCHARGE'},
+      {t:5.5,d:125,v:0.6,zw:0.28,zb:105,hb:10,aanval:'kort',  zeg:''} ],
     // sluipt langzaam dichterbij en slaat dan hard toe
+    // De eindbaas rolt om je heen: brede zwaaien, wisselend tempo, en hij komt
+    // dicht bij zonder erdoorheen te vliegen. Hij stond eerder vrijwel stil
+    // (zb 12-28); nu 60-110.
     'DEATHS HEAD':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:7.0,d:186,v:1.0,zw:0.12,zb:26,hb:6, aanval:'zwaar', zeg:'MARKED'},
-      {t:5.0,d:98, v:1.1,zw:0.20,zb:22,hb:7, aanval:'jacht', zeg:''},
-      {t:3.5,d:72, v:2.2,zw:0.36,zb:12,hb:5, aanval:'kort',  zeg:'EXECUTION'},
-      {t:4.0,d:145,v:1.8,zw:0.18,zb:28,hb:6, aanval:'niets', zeg:''} ],
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:70, hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:7.0,d:170,v:1.0,zw:0.30,zb:95, hb:14,aanval:'zwaar', zeg:'MARKED'},
+      {t:5.0,d:125,v:1.5,zw:0.55,zb:110,hb:18,aanval:'jacht', zeg:''},
+      {t:3.5,d:100,v:2.4,zw:0.80,zb:75, hb:12,aanval:'kort',  zeg:'EXECUTION'},
+      {t:4.0,d:150,v:1.8,zw:0.35,zb:88, hb:10,aanval:'niets', zeg:''} ],
     // de eindbaas: alle bewegingen, in wisselende volgorde
     'TITAN PRIME':[
       {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
@@ -1594,6 +1599,11 @@
   // cirkelen, hoe snel, hoe hoog ze golven, hun maat, en hoe lang hij openligt.
   const SERA_N=3, SERA_HP=260, SERA_R=85, SERA_RV=30, SERA_SNEL=0.55;
   const SERA_HOOG=16, SERA_MAAT=3.2, SERA_OPEN=4;
+  // Het gedeelde schildspel van de laatste drie bazen: kracht per doelwit, hoe
+  // groot ze zijn, en hoe lang het schild valt als ze allemaal kapot zijn.
+  const DOEL_HP=190, DOEL_MAAT=4.0, DOEL_OPEN=5;   // iets zachter en groter: haalbaar
+  const CORE_SNEL=0.7, CORE_R=34;   // hoe snel en hoe ver de knooppunten schuiven
+  const HEAD_SNEL=0.5, HEAD_R=30;   // hoe snel en hoe wijd de kernen meedraaien
   // LANCE's escorte: hoeveel wachters, hun kracht, waar ze hangen, en hoe snel
   // een nieuwe rij komt.
   const ESC_N=6, ESC_HP=150, ESC_VOOR=14, ESC_MAAT=1.6, ESC_TERUG=10, ESC_VUUR=3.2;
@@ -2986,74 +2996,92 @@
     // Ze zijn geen eigen scheepstype maar een EIGENSCHAP van bestaande soorten,
     // zodat ze in het golfplan meelopen zonder aparte regels.
 
-    // ---- SERAPH: DRIE VLIEGENDE GENERATORBOLLEN (Sjoerd) ----
-    // Sjoerd: "die grote robot was slecht, zijn schild en moves waren raar, ik
-    // moest in de ring schieten. Geef hem een schild met iets wat kapot moet, en
-    // timing. Laat de ballen die het schild maken door het veld vliegen alsof
-    // het vliegtuigen zijn." Dus: geen ring meer, maar drie bollen die elk hun
-    // eigen baan om je heen vliegen. Alle drie kapot = vier seconden open.
-    seraStart:function(e){
-      e.sera=[];
-      for(let i=0;i<SERA_N;i++){
+    // ---- HET SCHILDSPEL VAN DE LAATSTE DRIE BAZEN (Sjoerd) ----
+    // Sjoerd: "deze drie bazen moeten een goede shield-eindgame hebben, net als
+    // hun voorgangers." Elk heeft doelwitten die zijn schild voeden; alle
+    // doelwitten kapot = het schild valt een paar seconden. Maar ze bewegen
+    // elk op hun eigen manier, zodat de drie gevechten niet hetzelfde voelen.
+    //
+    //   SERAPH      3 bollen die als jagers om je heen cirkelen
+    //   THE CORE    4 knooppunten die langs zijn romp schuiven en van plek wisselen
+    //   DEATHS HEAD 6 kernen die met het wiel meedraaien, steeds sneller
+    //
+    doelStart:function(e,n,soort){
+      e.doelen=[]; e.doelSoort=soort;
+      for(let i=0;i<n;i++){
+        const kl=(soort==='core')?0xffc040:((soort==='head')?0xff6a4a:0x8fd8ff);
         const g=new THREE.Mesh(new THREE.SphereGeometry(1,14,10),
-          new THREE.MeshBasicMaterial({color:0x8fd8ff,transparent:true,opacity:0.95,
+          new THREE.MeshBasicMaterial({color:kl,transparent:true,opacity:0.95,
             depthWrite:false,blending:THREE.AdditiveBlending}));
         const gl=new THREE.Mesh(new THREE.SphereGeometry(1.9,12,8),
-          new THREE.MeshBasicMaterial({color:0x2a7fd8,transparent:true,opacity:0.35,
+          new THREE.MeshBasicMaterial({color:kl,transparent:true,opacity:0.3,
             depthWrite:false,blending:THREE.AdditiveBlending}));
         g.add(gl); g.frustumCulled=false; g.renderOrder=8; this.par.add(g);
-        e.sera.push({m:g,hp:SERA_HP,hpM:SERA_HP,live:true,p:new THREE.Vector3(),
-          // elk zijn eigen hoek, straal, hoogte en draairichting — maar allemaal
-          // dezelfde snelheid, anders lopen ze elkaar in en lijken het er twee
-          hk:(i/SERA_N)*6.283, r:SERA_R+i*SERA_RV*0.7,
-          dr:(i%2?1:-1), y0:(i/SERA_N)*6.283, sn:SERA_SNEL}); }
-      e.seraT=0; this.schildAan(e,1e9); },
+        e.doelen.push({m:g,hp:DOEL_HP,hpM:DOEL_HP,live:true,p:new THREE.Vector3(),
+          i:i, hk:(i/n)*6.283, f0:(i/n)*6.283, r:0}); }
+      e.doelT=0; this.schildAan(e,1e9); },
 
-    seraTick:function(e,s){
-      if(!e.sera) return;
+    doelTick:function(e,s){
+      if(!e.doelen) return;
       let leven=0;
-      for(let i=0;i<e.sera.length;i++){ const g=e.sera[i];
+      const n=e.doelen.length;
+      for(let i=0;i<n;i++){ const g=e.doelen[i];
         if(!g.live) continue; leven++;
-        // elk zijn eigen baan om JOU heen, op eigen hoogte en snelheid
-        g.hk+=g.dr*g.sn*s;
-        // eigen straal per bol, met een trage golf eromheen
-        const rWil=SERA_R+i*SERA_RV*0.7+Math.sin(this.T*0.35+g.y0)*8;
-        g.r+=(rWil-g.r)*Math.min(1,s*0.5);
-        g.p.set(this.kop.x+Math.sin(g.hk)*g.r,
-                this.kop.y+8+i*7+Math.sin(this.T*0.8+g.y0)*SERA_HOOG,
-                this.kop.z-Math.cos(g.hk)*g.r);
+        if(e.doelSoort==='core'){
+          // THE CORE: knooppunten SCHUIVEN langs zijn lange romp, heen en weer,
+          // en wisselen af en toe van kant. Je moet meebewegen met de romp.
+          const f=this.T*CORE_SNEL+g.f0;
+          const langs=Math.sin(f)*Math.max(CORE_R,e.bw*0.46);
+          const uit=Math.cos(f*1.7)*Math.max(CORE_R*0.4,e.bh*0.55);
+          g.p.set(e.p.x+langs, e.p.y+uit, e.p.z+Math.sin(f*0.8)*10-4); }
+        else if(e.doelSoort==='head'){
+          // DEATHS HEAD: kernen draaien MET het wiel mee, en steeds sneller
+          // naarmate er minder over zijn — de laatste is het lastigst.
+          g.hk+=s*HEAD_SNEL*(1+(n-leven)*0.35);        // sneller naarmate er minder over zijn
+          const r=Math.max(HEAD_R,e.bw*0.44);           // e.bw kan bij het starten nog 0 zijn
+          g.p.set(e.p.x+Math.cos(g.hk)*r, e.p.y+Math.sin(g.hk)*r*0.8,
+                  e.p.z+Math.sin(g.hk*2)*8); }
+        else {
+          // SERAPH: elk zijn eigen baan om JOU heen
+          g.hk+=((i%2)?1:-1)*SERA_SNEL*s;
+          const rWil=SERA_R+i*SERA_RV*0.7+Math.sin(this.T*0.35+g.f0)*8;
+          if(!g.r) g.r=rWil;                          // eerste beurt: meteen op zijn baan
+          g.r+=(rWil-g.r)*Math.min(1,s*0.5);
+          g.p.set(this.kop.x+Math.sin(g.hk)*g.r,
+                  this.kop.y+8+i*7+Math.sin(this.T*0.8+g.f0)*SERA_HOOG,
+                  this.kop.z-Math.cos(g.hk)*g.r); }
         g.m.position.copy(g.p);
-        g.m.scale.setScalar(SERA_MAAT*(1+Math.sin(this.T*5+i)*0.1));
-        if(Math.random()<s*1.2) this.bliksemStraal(g.p,e.p,0x6fd8ff); }
-      // alle drie kapot: het schild valt, VIER seconden, dan komen ze terug
+        g.m.scale.setScalar(DOEL_MAAT*(1+Math.sin(this.T*5+i)*0.1));
+        if(Math.random()<s*1.2) this.bliksemStraal(g.p,e.p,
+          (e.doelSoort==='core')?0xffc040:((e.doelSoort==='head')?0xff6a4a:0x6fd8ff)); }
+      // alles kapot: het schild valt een paar seconden en komt dan terug
       if(leven===0){
-        if(e.schild>0){ this.schildBreekt(e); e.seraT=SERA_OPEN; }
-        else { e.seraT-=s;
-          if(e.seraT<=0){
-            for(let i=0;i<e.sera.length;i++){ const g=e.sera[i];
+        if(e.schild>0){ this.schildBreekt(e); e.doelT=DOEL_OPEN;
+          this.toonMelding('SHIELD DOWN','#ffe45c'); }
+        else { e.doelT-=s;
+          if(e.doelT<=0){
+            for(let i=0;i<n;i++){ const g=e.doelen[i];
               g.live=true; g.hp=g.hpM; g.m.visible=true;
               this.vonk(g.p.x,g.p.y,g.p.z,0x6fd8ff,10,4,0.6); }
             this.schildAan(e,1e9); } } } },
 
-    seraWeg:function(e){
-      if(!e.sera) return;
-      e.sera.forEach(function(g){ this.par.remove(g.m); },this);
-      e.sera=null; },
-
-    // een kogel of raket die een bol raakt
-    seraTreffer:function(e,px,py,pz,dmg){
-      if(!e.sera) return false;
-      for(let i=0;i<e.sera.length;i++){ const g=e.sera[i];
+    doelTreffer:function(e,px,py,pz,dmg){
+      if(!e.doelen) return false;
+      for(let i=0;i<e.doelen.length;i++){ const g=e.doelen[i];
         if(!g.live) continue;
-        const d=Math.hypot(px-g.p.x,py-g.p.y,pz-g.p.z);
-        if(d>SERA_MAAT*2.2) continue;
-        g.hp-=dmg; this.vonk(px,py,pz,0x8fd8ff,5,3,0.4);
+        if(Math.hypot(px-g.p.x,py-g.p.y,pz-g.p.z)>DOEL_MAAT*2.2) continue;
+        g.hp-=dmg; this.vonk(px,py,pz,0xffffff,5,3,0.4);
         if(g.hp<=0){ g.live=false; g.m.visible=false;
           this.vonk(g.p.x,g.p.y,g.p.z,0xffffff,14,6,0.6);
           this.vonk(g.p.x,g.p.y,g.p.z,0x6fd8ff,20,9,0.9);
           this.schokRing(g.p); SND.boom(g.p.x*0.02,false); }
         return true; }
       return false; },
+
+    doelWeg:function(e){
+      if(!e.doelen) return;
+      e.doelen.forEach(function(g){ this.par.remove(g.m); },this);
+      e.doelen=null; },
 
     // ---- THE WHEEL: DE WIJDE RONDE (Sjoerd) ----
     // Een wiel rolt: hij vliegt wijde rondes om je heen op zestig tot honderd
@@ -5026,8 +5054,8 @@
          &&!(e.yoCd>0)&&Math.random()<YOYO_KANS) this.yoyoStart(e);
       // DE NINJA: bij een treffer verspringt hij en laat vier beelden achter.
       if(e.ninja&&e.hp>0&&!e.dood&&!e.dood2) this.ninjaHit(e);
-      // SERAPH: eerst kijken of je een van zijn bollen raakt
-      if(e.sera&&this.seraTreffer(e,px||e.p.x,py||e.p.y,pz||e.p.z,dmg)) return;
+      // de laatste drie bazen: eerst kijken of je een van hun doelwitten raakt
+      if(e.doelen&&this.doelTreffer(e,px||e.p.x,py||e.p.y,pz||e.p.z,dmg)) return;
       // THE WHEEL: velg op = halve schade, velg af = vol.
       if(e.velgM3){ this.velgTreffer(e,px,py,pz,dmg); if(e.velg>0) dmg*=VELG_HALF; }
       // SERAPH / THE CORE: buiten de opening? dan ketst hij af.
@@ -5397,7 +5425,7 @@
         e.ufoT=undefined; e.ufoDoel=null; e.ufoRust=0; e.ufoWegCd=0; e.ufoZij=0;
         e.rsT=undefined; e.rsAan=0; e.rsRest=0; e.rsOp=0; e.ringHulpje=0; e.dubbel=0; e.rsHp=0;
         e.wiel=0; e.wielA=undefined; e.velgKapot=0; e.velgAan=0; e.velgRest=0;
-        if(e.sera) this.seraWeg(e); e.seraT=0; e.klimT=0; e.klimCd=0; e.klimDuik=0; e.yoT=0; e.yoCd=0; e.flareCd=0; e.flareWeg=0; e.hangarJager=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
+        if(e.doelen) this.doelWeg(e); e.doelT=0; e.doelSoort=null; e.klimT=0; e.klimCd=0; e.klimDuik=0; e.yoT=0; e.yoCd=0; e.flareCd=0; e.flareWeg=0; e.hangarJager=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
         e.scheer=0; e.scheerCd=undefined; e.scheerT=0;
         e.vp=null; e.vRicht=null;   // de vliegrichting opnieuw meten
         if(e.veld){ e.veld.visible=false; e.veld=null; }
@@ -5444,11 +5472,14 @@
           // THE WALKER: vier kanonnen op de flanken als generatoren, ze vuren terug
           if(B.naam==='THE WALKER'){ e.escVorm='flank'; this.escStart(e); e.escMaat=2.4; e.escHp=110; }
           // SERAPH: overal schild, één wandelende opening (wisselend)
-          if(B.naam==='SERAPH') this.seraStart(e);   // v14.16: drie vliegende bollen i.p.v. de ring
+          if(B.naam==='SERAPH') this.doelStart(e,3,'sera');       // drie vliegende bollen
           // THE CORE: overal schild, vaste opening bovenop (de toren)
-          if(B.naam==='THE CORE') this.openStart(e,1.5708,0,0.24);
+          if(B.naam==='THE CORE') this.doelStart(e,4,'core');     // vier schuivende knooppunten
           // DEATHS HEAD: een zwerm om hem heen die je raketten opvangt
-          if(B.naam==='DEATHS HEAD'){ e.zwermBaas=1; this.schildAan(e,1e9); }
+          // De nieuwe plaat van DEATHS HEAD (IMG_0006) heeft een wiel. Hij
+          // krijgt daarom de wijde ronde van THE WHEEL — hij stond stil (nul
+          // meter breedte gemeten) en rolt nu om je heen.
+          if(B.naam==='DEATHS HEAD') this.doelStart(e,3,'head');
           if(!this.baasMat) this.baasMat={};
           if(!this.baasMat[bt.uuid]) this.baasMat[bt.uuid]=new THREE.MeshBasicMaterial(
             {map:bt,transparent:true,alphaTest:0.06,side:THREE.DoubleSide,depthWrite:false});
@@ -7363,7 +7394,7 @@
         // pas NA de intro: anders trekt de ronde hem weg van zijn intro-doel,
         // eindigt de intro nooit, en zie je geen krachtbalk (Sjoerd)
         if(e.wiel&&!e.intro) this.wielTick(e,s);
-        if(e.sera&&!e.intro) this.seraTick(e,s);
+        if(e.doelen&&!e.intro) this.doelTick(e,s);
         if(WERPERS.indexOf(nm2)>=0||e.dubbel){
           if(WERPERS.indexOf(nm2)>=0) this.werperTick(e,s);
           this.ringSchild(e,s);
@@ -7917,8 +7948,11 @@
       if(eig.length) return eig[Math.floor(Math.random()*eig.length)];
       return B[(Math.max(1,L)-1)%B.length]; },
     reusKeus:function(){
+      // Sjoerd: "level 11 zie ik helemaal niets vliegen." Er is geen baas met
+      // gedrag 'reus' meer (de schedel is vervangen), dus viel hij terug op de
+      // baas van LEVEL 1. Nu pakt hij gewoon de baas die bij level 11 hoort.
       const R=(this.bazen||[]).filter(function(b){ return b.gedrag==='reus'; });
-      return R[0]||this.baasKeus(1); },
+      return R[0]||this.baasKeus(LEVELS)||this.baasKeus(1); },
     // Elke baas even sterk. Een oplopende kracht maakte de late gevechten
     // alleen maar langer, niet spannender; het verschil moet uit zijn gedrag
     // en zijn hulptroepen komen.
@@ -8734,7 +8768,10 @@
           this.baasTrio=[];
           const L=this.level, laatste=(L>=LEVELS), voorlaatste=(L===LEVELS-1);
           const kr=this.baasKracht(L);
-          if(voorlaatste){                              // drie tegelijk als opmaat naar het einde
+          // Sjoerd: "level 10 is nog steeds 3 bazen in plaats van gewoon 1."
+          // De 'drie tegelijk als opmaat' is eruit; alleen THE EYES blijft een
+          // trio, want dat hoort bij zijn drie platen.
+          if(false){                                    // (was: voorlaatste)
             const B=(this.bazen||[]).filter(function(b){ return b.beurt<99; });
             for(let k=0;k<3&&B.length;k++){
               const zj=(Math.random()<0.5?-1:1);
@@ -9009,14 +9046,14 @@
         if(!e.live) continue;
         // SERAPH's bollen EERST: ze vliegen los van hem, dus de 'continue'
         // hieronder (die geldt voor het schip zelf) sloeg ze anders over.
-        if(e.sera){ for(let q=0;q<e.sera.length;q++){ const g=e.sera[q];
+        if(e.doelen){ for(let q=0;q<e.doelen.length;q++){ const g=e.doelen[q];
           if(!g.live) continue;
           const gx=g.p.x-o.x, gy=g.p.y-o.y, gz=g.p.z-o.z;
           let tg=gx*dir.x+gy*dir.y+gz*dir.z;
           if(tg<t0-1||tg>t1+1||tg>=bt) continue;
           tg=Math.max(t0,Math.min(t1,tg));
           const hx=gx-dir.x*tg, hy=gy-dir.y*tg, hz=gz-dir.z*tg;
-          const rg=SERA_MAAT*2.2+(tol||0);
+          const rg=DOEL_MAAT*2.2+(tol||0);
           if(hx*hx+hy*hy+hz*hz<rg*rg){ bt=tg; be=e; } } }
         const vx=e.p.x-o.x, vy=e.p.y-o.y, vz=e.p.z-o.z;
         let t=vx*dir.x+vy*dir.y+vz*dir.z;
@@ -9924,7 +9961,7 @@
           if(!g.live) continue;
           const d=g.p.distanceTo(this.kop);
           if(d<bd){ bd=d; dicht=g.p; } } }.bind(this);
-      kies(b.genBol); kies(b.esc); kies(b.sera);   // v14.16: SERAPH's vliegende bollen
+      kies(b.genBol); kies(b.esc); kies(b.doelen);   // v14.17: de doelwitten van de laatste drie
       if(dicht){ p.copy(dicht); return p; }
       // 2. THE WHEEL: de naaf is het midden — daar mikken, niet op de rand
       if(b.velg>0){ p.copy(b.p); return p; }
