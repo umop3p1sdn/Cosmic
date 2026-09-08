@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.22';
+  const VERSIE='v14.23';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2220,37 +2220,37 @@
   //  een SENTINEL raakt al vroeg gehavend en blijft daarna lang doorvechten.
   const TYPE=[
     {n:'SCOUT',     pl:6, rij:0, br:6,  hp:56,  pt:60,  sp:13.0,  sal:1, cd:3.0, prof:'strafer', f1:0.70, f2:0.35},
-    {n:'WASP',      pl:6, rij:5, br:5,  hp:40,  pt:55,  sp:20.3, sal:1, cd:3.2, prof:'sluiper', f1:0.80, f2:0.45},
-    {n:'FIGHTER',   pl:6, rij:1, br:9,  hp:110,  pt:150, sp:10.3,  sal:2, cd:2.6, prof:'formatie', f1:0.65, f2:0.30},
-    {n:'SAUCER',    pl:6, rij:4, br:13, hp:110, pt:230, sp:5.5,  sal:1, cd:3.4, prof:'cirkel', f1:0.55, f2:0.22},
+    {n:'WASP',      pl:6, rij:5, br:4,  hp:40,  pt:55,  sp:20.3, sal:1, cd:3.2, prof:'sluiper', f1:0.80, f2:0.45},
+    {n:'FIGHTER',   pl:6, rij:1, br:12,  hp:110,  pt:150, sp:10.3,  sal:2, cd:2.6, prof:'formatie', f1:0.65, f2:0.30},
+    {n:'SAUCER',    pl:6, rij:4, br:17, hp:110, pt:230, sp:5.5,  sal:1, cd:3.4, prof:'cirkel', f1:0.55, f2:0.22},
     {n:'BOMBER',    pl:6, rij:2, br:16, hp:160, pt:300, sp:4.6,  sal:3, cd:4.0, prof:'kruiper', f1:0.72, f2:0.28},
     {n:'HEAVY',     pl:6, rij:3, br:20, hp:250, pt:420, sp:3.2,  sal:2, cd:3.0, prof:'drijver', f1:0.78, f2:0.40},
-    {n:'RAZOR',     pl:12,rij:0, br:7,  hp:60,  pt:80,  sp:15.9, sal:1, cd:2.6, prof:'formatie', f1:0.75, f2:0.40},
-    {n:'VIPER',     pl:12,rij:6, br:6,  hp:72,  pt:75,  sp:21.8, sal:1, cd:2.4, prof:'duiker', f1:0.85, f2:0.50},
+    {n:'RAZOR',     pl:12,rij:0, br:5,  hp:60,  pt:80,  sp:15.9, sal:1, cd:2.6, prof:'formatie', f1:0.75, f2:0.40},
+    {n:'VIPER',     pl:12,rij:6, br:8,  hp:72,  pt:75,  sp:21.8, sal:1, cd:2.4, prof:'duiker', f1:0.85, f2:0.50},
     // SPINNER is nu BLACK RAVEN: Sjoerds mooie zwarte breedvleugel in level 1.
     // Meer kracht, en breed genoeg (13) voor de scheervlucht.
-    {n:'SPINNER',   pl:12,rij:1, br:13, hp:110, pt:220, sp:10.2,  sal:2, cd:3.0, prof:'cirkel', f1:0.60, f2:0.25},
-    {n:'NIGHTBLADE',pl:12,rij:2, br:7,  hp:90,  pt:110, sp:18.8, sal:1, cd:3.0, prof:'sluiper', f1:0.68, f2:0.34},
-    {n:'REAPER',    pl:12,rij:7, br:11, hp:130, pt:210, sp:11.5,  sal:1, cd:2.0, prof:'strafer', snel:26, f1:0.50, f2:0.20},
-    {n:'LANCER',    pl:12,rij:9, br:9,  hp:150, pt:190, sp:12.9, sal:1, cd:3.0, prof:'duiker', f1:0.62, f2:0.38},
+    {n:'SPINNER',   pl:12,rij:1, br:18, hp:110, pt:220, sp:10.2,  sal:2, cd:3.0, prof:'cirkel', f1:0.60, f2:0.25},
+    {n:'NIGHTBLADE',pl:12,rij:2, br:9,  hp:90,  pt:110, sp:18.8, sal:1, cd:3.0, prof:'sluiper', f1:0.68, f2:0.34},
+    {n:'REAPER',    pl:12,rij:7, br:19, hp:130, pt:210, sp:11.5,  sal:1, cd:2.0, prof:'strafer', snel:26, f1:0.50, f2:0.20},
+    {n:'LANCER',    pl:12,rij:9, br:11,  hp:150, pt:190, sp:12.9, sal:1, cd:3.0, prof:'duiker', f1:0.62, f2:0.38},
     {n:'WEAVER',    pl:12,rij:10,br:15, hp:150, pt:290, sp:6.4,  sal:2, cd:3.2, prof:'sluiper', f1:0.66, f2:0.20},
     {n:'BROOD',     pl:12,rij:4, br:18, hp:180, pt:340, sp:3.7,  sal:3, cd:5.0, prof:'moeder', broed:40, f1:0.82, f2:0.45},
-    {n:'SENTINEL',  pl:12,rij:5, br:12, hp:200, pt:330, sp:5.2,  sal:1, cd:6.0, prof:'kruiper', zwaar:1, f1:0.45, f2:0.18},
+    {n:'SENTINEL',  pl:12,rij:5, br:15, hp:200, pt:330, sp:5.2,  sal:1, cd:6.0, prof:'kruiper', zwaar:1, f1:0.45, f2:0.18},
     {n:'BULWARK',   pl:12,rij:8, br:22, hp:290, pt:450, sp:3.2,  sal:3, cd:3.5, prof:'kruiper', f1:0.85, f2:0.30},
     {n:'WATCHER',   pl:12,rij:11,br:26, hp:360, pt:560, sp:2.4,  sal:3, cd:4.2, prof:'drijver', zwaar:1, f1:0.58, f2:0.26},
     {n:'HAULER',    pl:12,rij:3, br:34, hp:380, pt:700, sp:2.4,  sal:4, cd:4.6, prof:'drijver', draagt:1, zwaar:1, f1:0.75, f2:0.35},
     // ---- de tweede twaalfrijige plaat: nog eens twaalf soorten ----
     // Hun gedrag komt uit echte luchtgevechtmanoeuvres: immelmann, split-s,
     // scissors, yo-yo en de barrel roll.
-    {n:'WRAITH',    pl:13,rij:0, br:9,  hp:120,  pt:130, sp:15.5, sal:1, cd:2.6, prof:'splitser',  f1:0.70, f2:0.30},
-    {n:'FALCON',    pl:13,rij:1, br:8,  hp:100,  pt:120, sp:21.8, sal:1, cd:2.2, prof:'immel',   f1:0.78, f2:0.42},
+    {n:'WRAITH',    pl:13,rij:0, br:16,  hp:120,  pt:130, sp:15.5, sal:1, cd:2.6, prof:'splitser',  f1:0.70, f2:0.30},
+    {n:'FALCON',    pl:13,rij:1, br:10,  hp:100,  pt:120, sp:21.8, sal:1, cd:2.2, prof:'immel',   f1:0.78, f2:0.42},
     {n:'INFERNO',   pl:13,rij:2, br:17, hp:210, pt:330, sp:4.6,  sal:3, cd:3.6, prof:'kruiper', f1:0.66, f2:0.26},
     {n:'HALO',      pl:13,rij:3, br:14, hp:170, pt:280, sp:6.4,  sal:2, cd:3.4, prof:'cirkel',  zwaar:1, f1:0.52, f2:0.24},
     {n:'NEEDLE',    pl:13,rij:4, br:7,  hp:105,  pt:95,  sp:24.6, sal:1, cd:2.4, prof:'scissors',f1:0.84, f2:0.48},
     {n:'BASILISK',  pl:13,rij:5, br:19, hp:260, pt:380, sp:4.0,  sal:3, cd:3.2, prof:'drijver', f1:0.80, f2:0.34},
     {n:'CYCLONE',   pl:13,rij:6, br:13, hp:150, pt:250, sp:8.3,  sal:2, cd:3.0, prof:'barrel',  f1:0.60, f2:0.28},
-    {n:'SHRIKE',    pl:13,rij:7, br:10, hp:130,  pt:180, sp:16, sal:1, cd:2.0, prof:'yoyo',    snel:24, f1:0.55, f2:0.22},
-    {n:'VENOM',     pl:13,rij:8, br:11, hp:120, pt:210, sp:14.1, sal:2, cd:2.8, prof:'scissors',f1:0.72, f2:0.38},
+    {n:'SHRIKE',    pl:13,rij:7, br:14, hp:130,  pt:180, sp:16, sal:1, cd:2.0, prof:'yoyo',    snel:24, f1:0.55, f2:0.22},
+    {n:'VENOM',     pl:13,rij:8, br:13, hp:120, pt:210, sp:14.1, sal:2, cd:2.8, prof:'scissors',f1:0.72, f2:0.38},
     {n:'ORACLE',    pl:13,rij:9, br:16, hp:520, pt:320, sp:5.5,  sal:3, cd:3.8, prof:'kruiper', zwaar:1, f1:0.48, f2:0.20},
     {n:'TITAN',     pl:13,rij:10,br:24, hp:330, pt:460, sp:3.2,  sal:2, cd:3.4, prof:'drijver', f1:0.86, f2:0.32},
     {n:'NOVA',      pl:13,rij:11,br:29, hp:400, pt:600, sp:3.2,  sal:3, cd:4.0, prof:'immel',   zwaar:1, f1:0.62, f2:0.25},
