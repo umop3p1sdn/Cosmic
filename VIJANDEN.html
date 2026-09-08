@@ -80,7 +80,16 @@ h2{font-size:14px;letter-spacing:2px;color:#9fe4f5;margin:26px 0 8px;border-bott
     if(nm){ gevonden++;
       var basis=(pad?pad+"/":"Art/");
       im.src=basis+encodeURIComponent(nm); }
-    else { im.alt="IMG_"+im.getAttribute("data-nr"); im.style.minHeight="18px"; } });
+    else {
+      // niet in de opslag: probeer alsnog de gangbare paden, kleine letters eerst
+      var nr=im.getAttribute("data-nr");
+      var kans=["Art/IMG_"+nr+".png","Art/IMG_"+nr+".PNG",
+                "art/IMG_"+nr+".png","art/IMG_"+nr+".PNG",
+                "IMG_"+nr+".png","IMG_"+nr+".PNG"], i=0;
+      im.onerror=function(){
+        if(i>=kans.length){ im.alt="IMG_"+nr; im.style.minHeight="18px"; return; }
+        im.src=kans[i++]; };
+      im.onerror(); } });
   if(!gevonden) document.getElementById("uitleg").style.display="block";
 })();
 </script></body></html>
