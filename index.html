@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.21';
+  const VERSIE='v14.22';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -584,11 +584,11 @@
     {nr:'9565', rol:'baas', beurt:7,  naam:'THE EYES',    gedrag:'drieluik', vuur:'straal'},
     {nr:'9937', rol:'baas', beurt:8,  naam:'THE WALKER',  gedrag:'mech', vuur:'duo'},
     {nr:'9580', rol:'baas', beurt:0,  naam:'ARACHNID',    gedrag:'schip', vuur:'zwerm'},
-    // Sjoerd, v14.14: drie nieuwe baasplaten. De grote robot (9583), THE CORE
+    // Sjoerd, v14.14: drie nieuwe baasplaten. De grote robot (9583), LONGSHIP
     // (9936) en de schedel (9555) zijn eruit — die pasten niet in het spel.
-    {nr:'0005', rol:'baas', beurt:9,  naam:'SERAPH',      gedrag:'schip', vuur:'straal'},
-    {nr:'0007', rol:'baas', beurt:10, naam:'THE CORE',    gedrag:'schijf', vuur:'zwaar'},
-    {nr:'0006', rol:'baas', beurt:11, naam:'DEATHS HEAD', gedrag:'schijf', vuur:'zwaar'},
+    {nr:'0005', rol:'baas', beurt:9,  naam:'AEGIS',     gedrag:'schip', vuur:'straal'},
+    {nr:'0007', rol:'baas', beurt:10, naam:'LONGSHIP',    gedrag:'schijf', vuur:'zwaar'},
+    {nr:'0006', rol:'baas', beurt:11, naam:'AXLE', gedrag:'schijf', vuur:'zwaar'},
     {nr:'9573', rol:'baas', beurt:99, naam:'TITAN PRIME', gedrag:'reus', vuur:'reus'},
     // achtergronden waar je met beide benen op de grond staat: daar hoort geen
     // planeet in de lucht. Helderheid alleen is niet genoeg — dit landschap is donker.
@@ -1363,15 +1363,15 @@
       {t:6.5,d:186,v:1.6,zw:0.40,zb:44,hb:12,aanval:'zwaar', zeg:'VENOM'},
       {t:4.0,d:104, v:1.4,zw:0.60,zb:46,hb:11,aanval:'jacht', zeg:''} ],
     // zweeft hoog, daalt neer, stijgt weer op
-    'SERAPH':[
+    'AEGIS':[
       {t:4.0,d:195,v:3.4,zw:0.22,zb:168,hb:27,aanval:'jacht', zeg:'DISENGAGING'},
       {t:6.0,d:186,v:1.2,zw:0.30,zb:67,hb:40,aanval:'zwaar', zeg:'ASCENDING'},
       {t:5.0,d:111, v:1.3,zw:0.40,zb:57,hb:34,aanval:'sig',   zeg:''},
       {t:4.0,d:72, v:1.7,zw:0.50,zb:43,hb:27,aanval:'kort',  zeg:'DESCENT'} ],
     // hangt in het midden en pulseert; beweegt weinig, vuurt veel vormen
-    // THE CORE is een lang station: hij schuift als een muur voorbij, traag maar
+    // LONGSHIP is een lang station: hij schuift als een muur voorbij, traag maar
     // over grote breedte, in plaats van op een plek te wiebelen (was zb 10-18).
-    'THE CORE':[
+    'LONGSHIP':[
       {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
       {t:7.0,d:150,v:0.5,zw:0.20,zb:90,hb:8, aanval:'sig',   zeg:''},
       {t:5.5,d:186,v:0.7,zw:0.16,zb:75,hb:6, aanval:'zwaar', zeg:'OVERCHARGE'},
@@ -1380,7 +1380,7 @@
     // De eindbaas rolt om je heen: brede zwaaien, wisselend tempo, en hij komt
     // dicht bij zonder erdoorheen te vliegen. Hij stond eerder vrijwel stil
     // (zb 12-28); nu 60-110.
-    'DEATHS HEAD':[
+    'AXLE':[
       {t:4.0,d:195,v:3.4,zw:0.22,zb:70, hb:16,aanval:'jacht', zeg:'DISENGAGING'},
       {t:7.0,d:170,v:1.0,zw:0.30,zb:95, hb:14,aanval:'zwaar', zeg:'MARKED'},
       {t:5.0,d:125,v:1.5,zw:0.55,zb:110,hb:18,aanval:'jacht', zeg:''},
@@ -1595,7 +1595,7 @@
   const PORT_MAAT=13, PORT_OPEN=0.9, PORT_DOOR=0.7, PORT_DICHT=0.8, PORT_DRAAI=0.9;
   // WARDEN's generatoren: kracht per bol, hoe ver naast hem, hoe groot.
   const GEN_HP=180, GEN_AF=0.75, GEN_VOOR=6, GEN_MAAT=2.6, GEN_TERUG=10;
-  // SERAPH's drie vliegende bollen: hoeveel, hun kracht, hoe ver ze om je heen
+  // HALO's drie vliegende bollen: hoeveel, hun kracht, hoe ver ze om je heen
   // cirkelen, hoe snel, hoe hoog ze golven, hun maat, en hoe lang hij openligt.
   const SERA_N=3, SERA_HP=260, SERA_R=85, SERA_RV=30, SERA_SNEL=0.55;
   const SERA_HOOG=16, SERA_MAAT=3.2, SERA_OPEN=4;
@@ -1631,8 +1631,8 @@
   const WIEL_HOEK=1.15;         // ~66 graden links en rechts: hij blijft vóór je
   const OOG_WISSEL=4.0;         // THE EYES: om de hoeveel seconden het open oog wisselt
   const OOG_UITEEN=88;          // hoe ver de drie ogen uit elkaar staan (ze zijn 60 m breed)
-  const SERAPH_DRAAI=0.5;       // hoe snel SERAPH's opening rondwandelt (rad/s)
-  const ZWB_MIN=6, ZWB_MAX=18, ZWB_ELK=12;   // DEATHS HEAD's zwerm
+  const HALO_DRAAI=0.5;       // hoe snel HALO's opening rondwandelt (rad/s)
+  const ZWB_MIN=6, ZWB_MAX=18, ZWB_ELK=12;   // AXLE's zwerm
   const WERP_ELK=2.5, WERP_BEREIK=60, WERP_MAXBR=12, WERP_SEG=14, WERP_DUUR=0.35;
   const SCHILDGOLF_VANAF=3, SCHILDGOLF_KANS=0.3;   // Sjoerd: vanaf level 3
   // De schildarena: twee werpers en drie groepen na elkaar, vanaf level 6.
@@ -1808,9 +1808,10 @@
     'THE EYES':   {fn:'sigOgen',   cd:2.0},
     'THE WALKER': {fn:'sigZweep',  cd:3.0},
     'ARACHNID':   {fn:'sigPoten',  cd:3.3},
-    'SERAPH':     {fn:'sigSalvo',  cd:4.2},
-    'THE CORE':   {fn:'sigPuls',   cd:2.4},
-    'DEATHS HEAD':{fn:'sigJagers', cd:2.6},
+    'HALO':     {fn:'sigSalvo',  cd:4.2},
+    'AEGIS':    {fn:'sigSalvo',  cd:3.8},
+    'LONGSHIP':   {fn:'sigPuls',   cd:2.4},
+    'AXLE':{fn:'sigJagers', cd:2.6},
     'TITAN PRIME':{fn:'sigTitan',  cd:2.2}
   };
   const SIG_OMSLAG=0.5;         // onder de helft kracht komt zijn tweede vorm
@@ -1868,9 +1869,10 @@
     'THE EYES':   {vorm:'regen',   n:6, meer:2, sp:15, draai:3.0, dmg:5, groot:1.1, neus:0, kl:0x60ff90, roep:'RAIN OF EYES'},
     'THE WALKER': {vorm:'ketting', n:6, meer:2,sp:18, draai:2.4, dmg:4, groot:0.9, neus:0, kl:0xff8a30, roep:'STAMPEDE'},
     'ARACHNID':   {vorm:'bloem',   n:6, meer:2, sp:12, draai:2.6, dmg:5, groot:1.0, neus:2, kl:0x90ff40, roep:'BROOD'},
-    'SERAPH':     {vorm:'regen',   n:6, meer:2, sp:16, draai:3.4, dmg:5, groot:1.2, neus:2, kl:0xffe8b0, roep:'DESCENT'},
-    'THE CORE':   {vorm:'bloem',   n:6, meer:2,sp:14, draai:3.0, dmg:5, groot:1.0, neus:2, kl:0x40e0ff, roep:'CORE BLOOM'},
-    'DEATHS HEAD':{vorm:'schaar',  n:6, meer:2, sp:12, draai:4.0, dmg:8, groot:1.4, neus:1, kl:0xff2050, roep:'PINCER'},
+    'HALO':     {vorm:'regen',   n:6, meer:2, sp:16, draai:3.4, dmg:5, groot:1.2, neus:2, kl:0xffe8b0, roep:'DESCENT'},
+    'AEGIS':    {vorm:'regen',   n:7, meer:2, sp:17, draai:3.6, dmg:7, groot:1.3, neus:2, kl:0x9fe4f5, roep:'AEGIS ONLINE'},
+    'LONGSHIP':   {vorm:'bloem',   n:6, meer:2,sp:14, draai:3.0, dmg:5, groot:1.0, neus:2, kl:0x40e0ff, roep:'CORE BLOOM'},
+    'AXLE':{vorm:'schaar',  n:6, meer:2, sp:12, draai:4.0, dmg:8, groot:1.4, neus:1, kl:0xff2050, roep:'PINCER'},
     'TITAN PRIME':{vorm:'regen',   n:6, meer:2,sp:15, draai:3.2, dmg:6, groot:1.2, neus:1, kl:0xff4060, roep:'ANNIHILATION'},
     _:            {vorm:'golf',    n:6, meer:2, sp:14, draai:2.6, dmg:6, groot:1.0, neus:0, kl:0xff4030, roep:'HUNTERS'}
   };
@@ -1887,9 +1889,10 @@
     'THE EYES':   {n:3,meer:2,sp:12,draai:2.4,hp:6, dmg:12,groot:1.6,spreid:0.44,na:0.20,kl:0x60ff90,roep:'JUDGE'},
     'THE WALKER': {n:3,meer:2,sp:10,draai:1.5,hp:8, dmg:14,groot:1.9,spreid:0.38,na:0.26,kl:0xff8a30,roep:'CRUSHER'},
     'ARACHNID':   {n:3,meer:2,sp:9, draai:1.7,hp:8, dmg:13,groot:1.8,spreid:0.42,na:0.24,kl:0x90ff40,roep:'VENOM BOMB',splijt:4},
-    'SERAPH':     {n:3,meer:2,sp:13,draai:2.6,hp:7, dmg:14,groot:1.8,spreid:0.32,na:0.22,kl:0xffe8b0,roep:'WRATH'},
-    'THE CORE':   {n:3,meer:2,sp:11,draai:2.0,hp:8, dmg:13,groot:1.8,spreid:0.36,na:0.24,kl:0x40e0ff,roep:'MELTDOWN'},
-    'DEATHS HEAD':{n:3,meer:2,sp:10,draai:3.0,hp:9, dmg:16,groot:2.0,spreid:0.28,na:0.30,kl:0xff2050,roep:'EXECUTION'},
+    'HALO':     {n:3,meer:2,sp:13,draai:2.6,hp:7, dmg:14,groot:1.8,spreid:0.32,na:0.22,kl:0xffe8b0,roep:'WRATH'},
+    'AEGIS':    {n:3,meer:2,sp:14,draai:2.8,hp:8, dmg:16,groot:1.9,spreid:0.30,na:0.22,kl:0x9fe4f5,roep:'BARRIER'},
+    'LONGSHIP':   {n:3,meer:2,sp:11,draai:2.0,hp:8, dmg:13,groot:1.8,spreid:0.36,na:0.24,kl:0x40e0ff,roep:'MELTDOWN'},
+    'AXLE':{n:3,meer:2,sp:10,draai:3.0,hp:9, dmg:16,groot:2.0,spreid:0.28,na:0.30,kl:0xff2050,roep:'EXECUTION'},
     'TITAN PRIME':{n:4,meer:3,sp:11,draai:2.4,hp:10,dmg:16,groot:2.2,spreid:0.46,na:0.20,kl:0xff4060,roep:'TITAN FIST',splijt:5},
     _:            {n:2,meer:1,sp:10,draai:1.6,hp:8, dmg:14,groot:1.9,spreid:0.30,na:0.35,kl:0xff3020,roep:'HEAVY'}
   };
@@ -1929,7 +1932,7 @@
   const VOORUIT=0.55;
   // Welke bazen ontwijkende raketten vuren: raak je er een, dan zwenkt hij hard
   // opzij en pakt daarna zijn koers weer op.
-  const ONTWIJKERS=['RAVEN','ARACHNID','TITAN PRIME'];   // DEATHS HEAD eruit: v14.18
+  const ONTWIJKERS=['RAVEN','ARACHNID','TITAN PRIME'];   // AXLE eruit: v14.18
   // De BAAN van elke baas: 0 heen en weer · 1 liggende acht · 2 cirkel ·
   // 3 schokken (stilhangen en dan opzij schieten) · 4 duiken · 5 wiegen met tik.
   // puls = hoeveel zijn tempo golft, zodat hij niet als een metronoom beweegt.
@@ -1938,8 +1941,9 @@
     'LANCE':      {vorm:3,puls:1.1,pulsS:1.3},  'THE WHEEL': {vorm:2,puls:0.4,pulsS:0.9},
     'RAVEN':      {vorm:3,puls:1.3,pulsS:1.6},  'IRONCLAD':  {vorm:0,puls:0.2,pulsS:0.4},
     'THE EYES':   {vorm:2,puls:0.6,pulsS:1.1},  'THE WALKER':{vorm:5,puls:0.7,pulsS:0.8},
-    'ARACHNID':   {vorm:3,puls:1.2,pulsS:1.9},  'SERAPH':    {vorm:4,puls:0.5,pulsS:0.6},
-    'THE CORE':   {vorm:2,puls:0.35,pulsS:1.4}, 'DEATHS HEAD':{vorm:1,puls:0.6,pulsS:0.7},
+    'ARACHNID':   {vorm:3,puls:1.2,pulsS:1.9},  'HALO':    {vorm:4,puls:0.5,pulsS:0.6},
+    'AEGIS':      {vorm:4,puls:0.5,pulsS:0.7},
+    'LONGSHIP':   {vorm:2,puls:0.35,pulsS:1.4}, 'AXLE':{vorm:1,puls:0.6,pulsS:0.7},
     'TITAN PRIME':{vorm:1,puls:0.9,pulsS:1.2},  _:           {vorm:0,puls:0.4,pulsS:0.8}
   };
   // Hoe de raketten van elke baas VLIEGEN. 1 spiraal · 2 sluipwesp (schokt en
@@ -1956,8 +1960,9 @@
     'LANCE':      {s:0,sfS:3.0,k:0.5},    'THE WHEEL': {s:3,sfS:4.2,k:0.5},
     'RAVEN':      {s:4,sfS:3.4,k:0.5},    'IRONCLAD':  {s:5,sfS:1.3,k:0.5},
     'THE EYES':   {s:0,sfS:2.2,k:0.5},    'THE WALKER':{s:5,sfS:2.0,k:0.5},
-    'ARACHNID':   {s:2,sfS:4.6,k:0.5},    'SERAPH':    {s:4,sfS:1.6,k:0.5},
-    'THE CORE':   {s:0,sfS:5.5,k:0.5},    'DEATHS HEAD':{s:2,sfS:1.2,k:0.5},
+    'ARACHNID':   {s:2,sfS:4.6,k:0.5},    'HALO':    {s:4,sfS:1.6,k:0.5},
+    'AEGIS':      {s:4,sfS:1.6,k:0.5},
+    'LONGSHIP':   {s:0,sfS:5.5,k:0.5},    'AXLE':{s:2,sfS:1.2,k:0.5},
     'TITAN PRIME':{s:3,sfS:3.2,k:0.5},    _:           {s:0,sfS:3.0,k:0.5}
   };
   // De zwerm: veel trage raketten tegelijk. Los zijn ze zo kapot, samen dwingen
@@ -3004,9 +3009,9 @@
     // doelwitten kapot = het schild valt een paar seconden. Maar ze bewegen
     // elk op hun eigen manier, zodat de drie gevechten niet hetzelfde voelen.
     //
-    //   SERAPH      3 bollen die als jagers om je heen cirkelen
-    //   THE CORE    4 knooppunten die langs zijn romp schuiven en van plek wisselen
-    //   DEATHS HEAD 6 kernen die met het wiel meedraaien, steeds sneller
+    //   HALO      3 bollen die als jagers om je heen cirkelen
+    //   LONGSHIP    4 knooppunten die langs zijn romp schuiven en van plek wisselen
+    //   AXLE 6 kernen die met het wiel meedraaien, steeds sneller
     //
     doelStart:function(e,n,soort){
       e.doelen=[]; e.doelSoort=soort;
@@ -3030,21 +3035,21 @@
       for(let i=0;i<n;i++){ const g=e.doelen[i];
         if(!g.live) continue; leven++;
         if(e.doelSoort==='core'){
-          // THE CORE: knooppunten SCHUIVEN langs zijn lange romp, heen en weer,
+          // LONGSHIP: knooppunten SCHUIVEN langs zijn lange romp, heen en weer,
           // en wisselen af en toe van kant. Je moet meebewegen met de romp.
           const f=this.T*CORE_SNEL+g.f0;
           const langs=Math.sin(f)*Math.max(CORE_R,e.bw*0.46);
           const uit=Math.cos(f*1.7)*Math.max(CORE_R*0.4,e.bh*0.55);
           g.p.set(e.p.x+langs, e.p.y+uit, e.p.z+Math.sin(f*0.8)*10-4); }
         else if(e.doelSoort==='head'){
-          // DEATHS HEAD: kernen draaien MET het wiel mee, en steeds sneller
+          // AXLE: kernen draaien MET het wiel mee, en steeds sneller
           // naarmate er minder over zijn — de laatste is het lastigst.
           g.hk+=s*HEAD_SNEL*(1+(n-leven)*0.35);        // sneller naarmate er minder over zijn
           const r=Math.max(HEAD_R,e.bw*0.44);           // e.bw kan bij het starten nog 0 zijn
           g.p.set(e.p.x+Math.cos(g.hk)*r, e.p.y+Math.sin(g.hk)*r*0.8,
                   e.p.z+Math.sin(g.hk*2)*8); }
         else {
-          // SERAPH: elk zijn eigen baan om JOU heen
+          // HALO: elk zijn eigen baan om JOU heen
           g.hk+=((i%2)?1:-1)*SERA_SNEL*s;
           const rWil=SERA_R+i*SERA_RV*0.7+Math.sin(this.T*0.35+g.f0)*8;
           if(!g.r) g.r=rWil;                          // eerste beurt: meteen op zijn baan
@@ -4001,9 +4006,9 @@
       this.schokRing(e.p); this.schokRing(e.p);
       SND.boom(e.p.x*0.02,false); },
 
-    // ---- DE OPENING (Sjoerd): overal schild, behalve op één plek. Bij SERAPH
+    // ---- DE OPENING (Sjoerd): overal schild, behalve op één plek. Bij HALO
     // wandelt die plek langzaam rond (wisselend schild: je moet meebewegen), bij
-    // THE CORE staat hij vast bovenop (de toren). Treffers buiten de opening
+    // LONGSHIP staat hij vast bovenop (de toren). Treffers buiten de opening
     // ketsen af; het schild is niet te breken.
     openStart:function(e,hoek0,draai,maat){
       e.opening={hoek:hoek0,draai:draai,maat:maat};
@@ -4046,7 +4051,7 @@
           this.vonk(e.p.x,e.p.y,e.p.z,0x9fe4f5,8,e.bw*0.4,0.6); } }
       else if(!(e.schild>0)) this.schildAan(e,1e9); },
 
-    // ---- DEATHS HEAD: DE ZWERM. Om hem heen hangen jagers die je raketten en
+    // ---- AXLE: DE ZWERM. Om hem heen hangen jagers die je raketten en
     // kogels opvangen; zolang er ZWERM_MIN of meer leven staat zijn schild. Dun
     // de zwerm uit en hij is open; elke twaalf seconden roept hij er twaalf bij.
     zwermBaasTick:function(e,s){
@@ -5078,7 +5083,7 @@
       if(e.doelen&&this.doelTreffer(e,px||e.p.x,py||e.p.y,pz||e.p.z,dmg)) return;
       // THE WHEEL: velg op = halve schade, velg af = vol.
       if(e.velgM3){ this.velgTreffer(e,px,py,pz,dmg); if(e.velg>0) dmg*=VELG_HALF; }
-      // SERAPH / THE CORE: buiten de opening? dan ketst hij af.
+      // HALO / LONGSHIP: buiten de opening? dan ketst hij af.
       if(e.opening&&this.openTreffer(e,px,py,pz)) return;
       // HET RODE SCHILD vangt de schade op tot het breekt.
       if(e.schild>0){
@@ -5491,21 +5496,21 @@
           if(B.naam==='IRONCLAD'){ e.escVorm='ring'; this.escStart(e); e.escMaat=2.6; e.escHp=90; }
           // THE WALKER: vier kanonnen op de flanken als generatoren, ze vuren terug
           if(B.naam==='THE WALKER'){ e.escVorm='flank'; this.escStart(e); e.escMaat=2.4; e.escHp=110; }
-          // SERAPH: overal schild, één wandelende opening (wisselend)
-          if(B.naam==='SERAPH') this.doelStart(e,3,'sera');       // drie vliegende bollen
-          // THE CORE: overal schild, vaste opening bovenop (de toren)
-          if(B.naam==='THE CORE') this.doelStart(e,4,'core');     // vier schuivende knooppunten
-          // DEATHS HEAD: een zwerm om hem heen die je raketten opvangt
-          // De nieuwe plaat van DEATHS HEAD (IMG_0006) heeft een wiel. Hij
+          // HALO: overal schild, één wandelende opening (wisselend)
+          if(B.naam==='AEGIS') this.doelStart(e,3,'sera');      // drie vliegende bollen
+          // LONGSHIP: overal schild, vaste opening bovenop (de toren)
+          if(B.naam==='LONGSHIP') this.doelStart(e,4,'core');     // vier schuivende knooppunten
+          // AXLE: een zwerm om hem heen die je raketten opvangt
+          // De nieuwe plaat van AXLE (IMG_0006) heeft een wiel. Hij
           // krijgt daarom de wijde ronde van THE WHEEL — hij stond stil (nul
           // meter breedte gemeten) en rolt nu om je heen.
-          // DEATHS HEAD, HERBOUWD (v14.18). Sjoerd: "er zit veel oude config bij
+          // AXLE, HERBOUWD (v14.18). Sjoerd: "er zit veel oude config bij
           // deze baas." Hij had VIER lagen tegelijk: een zwerm die alles
           // opving, drie meedraaiende kernen, de ontwijkervlag, en een eigen
           // dans — die vochten met elkaar en hij stond stil. Nu één helder
           // mechanisme: VIER KERNEN die met hem meedraaien en die je stuk moet
           // schieten; zolang er één leeft is hij gepantserd.
-          if(B.naam==='DEATHS HEAD'){ this.doelStart(e,4,'head'); e.zwermBaas=0; }
+          if(B.naam==='AXLE'){ this.doelStart(e,4,'head'); e.zwermBaas=0; }
           if(!this.baasMat) this.baasMat={};
           if(!this.baasMat[bt.uuid]) this.baasMat[bt.uuid]=new THREE.MeshBasicMaterial(
             {map:bt,transparent:true,alphaTest:0.06,side:THREE.DoubleSide,depthWrite:false});
@@ -6543,14 +6548,14 @@
       }
       this.sigMeld(e,twee?'WEB':'LEGS','#8fd84a'); },
 
-    // ---- 10. SERAPH: het uitwaaierende salvo; fase 2 twee keer ----
+    // ---- 10. HALO: het uitwaaierende salvo; fase 2 twee keer ----
     sigSalvo:function(e,twee){
       this.salvoBarrage(e,twee?8:10);
       if(twee){ const self=this;
         this.sigNa(0.9,function(){ if(e.live) self.salvoBarrage(e,8); }); }
       this.sigMeld(e,twee?'JUDGEMENT  -  DOUBLE':'JUDGEMENT','#ffe8b0'); },
 
-    // ---- 11. THE CORE: pulserende ringen; fase 2 met een draaiende straal ----
+    // ---- 11. LONGSHIP: pulserende ringen; fase 2 met een draaiende straal ----
     sigPuls:function(e,twee){
       const n=10;
       for(let i=0;i<n;i++){
@@ -6563,7 +6568,7 @@
           {soort:4,sp:34,hp:1,dmg:6,streep:1,groot:0.7}); } }
       this.sigMeld(e,twee?'PULSE  -  BEAM':'PULSE','#66f0ff'); },
 
-    // ---- 12. DEATHS HEAD: trage onverbiddelijke zoekers ----
+    // ---- 12. AXLE: trage onverbiddelijke zoekers ----
     sigJagers:function(e,twee){
       const n=twee?6:3;
       for(let i=0;i<n;i++){
@@ -6734,7 +6739,7 @@
              splijt:5,sptijd:2.4});
           if(B) B.md=170; }
         this.sigMeld(e,'MINEFIELD','#c0c8d0'); return; }
-      if(naam==='LANCE'||naam==='SERAPH'){
+      if(naam==='LANCE'||naam==='HALO'){
         // SPEER: één zware kop met een sliert kleintjes erachteraan
         this.sigSchot(e,this.sigRicht(e,0,0.04),
           {sp:12,hp:12,dmg:14,zoek:1,draai:2.0,zwaar:1,groot:2.1,neus:1,kleur:0xffe8b0});
@@ -6743,7 +6748,7 @@
             self.sigSchot(e,self.sigRicht(e,(Math.random()-0.5)*0.3,0.03),
               {sp:30,hp:1,dmg:5,streep:1,groot:0.7,neus:0,kleur:0xcfe8ff}); });
         this.sigMeld(e,'SPEAR','#ffe8b0'); return; }
-      if(naam==='THE WHEEL'||naam==='THE CORE'){
+      if(naam==='THE WHEEL'||naam==='LONGSHIP'){
         // SPIRAAL: ze vertrekken op een cirkel die om je heen krimpt
         const n=twee?16:11;
         for(let i=0;i<n;i++){
@@ -6753,7 +6758,7 @@
               {sp:16,hp:2,dmg:6,groot:0.9,neus:2,kleur:0x40e0ff,
                draaiOm:(i%2?1:-1),hoekS:1.7,hoek0:hk,straal0:1}); }); }
         this.sigMeld(e,'SPIRAL','#40e0ff'); return; }
-      if(naam==='RAVEN'||naam==='DEATHS HEAD'){
+      if(naam==='RAVEN'||naam==='AXLE'){
         // SCHADUW: ze zwenken ver weg en komen van ACHTEREN terug
         const n=twee?8:5;
         for(let i=0;i<n;i++){
@@ -7433,7 +7438,7 @@
         if(e.hangar) this.moederTick(e,s);
         if(e.opening) this.openTick(e,s);
         if(e.baasNaam==='THE EYES') this.oogTick(e,s);
-        // de zwerm is bij DEATHS HEAD uitgezet (v14.18): hij had er ook al vier
+        // de zwerm is bij AXLE uitgezet (v14.18): hij had er ook al vier
         // kernen, en samen was het niet te volgen
         if(e.zwermBaas) this.zwermBaasTick(e,s);
         // DE SCHEERVLUCHT van grote schepen: hier, waar elk schip langskomt.
@@ -9072,7 +9077,7 @@
       let bt=1e9, be=null;
       for(let a=0;a<this.enemies.length;a++){ const e=this.enemies[a];
         if(!e.live) continue;
-        // SERAPH's bollen EERST: ze vliegen los van hem, dus de 'continue'
+        // HALO's bollen EERST: ze vliegen los van hem, dus de 'continue'
         // hieronder (die geldt voor het schip zelf) sloeg ze anders over.
         if(e.doelen){ for(let q=0;q<e.doelen.length;q++){ const g=e.doelen[q];
           if(!g.live) continue;
@@ -9993,12 +9998,12 @@
       if(dicht){ p.copy(dicht); return p; }
       // 2. THE WHEEL: de naaf is het midden — daar mikken, niet op de rand
       if(b.velg>0){ p.copy(b.p); return p; }
-      // 3. SERAPH / THE CORE: de opening in het schild
+      // 3. HALO / LONGSHIP: de opening in het schild
       if(b.opening){
         const r=b.bw*0.42, hk=b.opening.hoek;
         p.set(b.p.x+Math.cos(hk)*r, b.p.y+Math.sin(hk)*r*0.75, b.p.z);
         return p; }
-      // 4. DEATHS HEAD: eerst de zwerm dunnen
+      // 4. AXLE: eerst de zwerm dunnen
       if(b.zwermBaas&&b.schild>0){
         let z=null, zd=1e9;
         for(let i=0;i<this.enemies.length;i++){ const q=this.enemies[i];
