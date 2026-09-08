@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.17';
+  const VERSIE='v14.21';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1301,31 +1301,31 @@
   const DANS={
     // statig slagschip: ver naar achter voor de zware zet, dan traag naar voren
     'DREADNOUGHT':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:6.5,d:186,v:1.3,zw:0.16,zb:34,hb:6, aanval:'zwaar', zeg:'TARGETING'},
-      {t:5.0,d:104, v:1.1,zw:0.24,zb:26,hb:7, aanval:'sig',   zeg:''},
-      {t:4.0,d:72, v:1.8,zw:0.40,zb:14,hb:5, aanval:'kort',  zeg:'CLOSING IN'},
-      {t:4.5,d:134, v:1.6,zw:0.20,zb:32,hb:6, aanval:'niets', zeg:'FALLING BACK'} ],
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:168,hb:27,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:6.5,d:186,v:1.3,zw:0.16,zb:81,hb:10, aanval:'zwaar', zeg:'TARGETING'},
+      {t:5.0,d:104, v:1.1,zw:0.24,zb:62,hb:11, aanval:'sig',   zeg:''},
+      {t:4.0,d:72, v:1.8,zw:0.40,zb:33,hb:8, aanval:'kort',  zeg:'CLOSING IN'},
+      {t:4.5,d:134, v:1.6,zw:0.20,zb:76,hb:10, aanval:'niets', zeg:'FALLING BACK'} ],
     // beukt langzaam maar onverstoorbaar naar voren; hoe dichterbij, hoe erger
     'IRONCLAD':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:7.0,d:186,v:0.8,zw:0.10,zb:20,hb:4, aanval:'zwaar', zeg:'SIEGE MODE'},
-      {t:6.0,d:91, v:0.9,zw:0.12,zb:16,hb:4, aanval:'sig',   zeg:''},
-      {t:5.5,d:72, v:1.0,zw:0.14,zb:10,hb:3, aanval:'kort',  zeg:'BREACHING'},
-      {t:4.0,d:140,v:1.4,zw:0.10,zb:22,hb:5, aanval:'niets', zeg:''} ],
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:126,hb:27,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:7.0,d:186,v:0.8,zw:0.10,zb:36,hb:6, aanval:'zwaar', zeg:'SIEGE MODE'},
+      {t:6.0,d:91, v:0.9,zw:0.12,zb:28,hb:6, aanval:'sig',   zeg:''},
+      {t:5.5,d:72, v:1.0,zw:0.14,zb:18,hb:5, aanval:'kort',  zeg:'BREACHING'},
+      {t:4.0,d:140,v:1.4,zw:0.10,zb:39,hb:8, aanval:'niets', zeg:''} ],
     // zware knallers van ver; komt nooit echt dichtbij
     'WARDEN':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:7.5,d:186,v:1.2,zw:0.14,zb:38,hb:6, aanval:'zwaar', zeg:'HEAVY LOCK'},
-      {t:5.0,d:122, v:1.1,zw:0.22,zb:30,hb:7, aanval:'sig',   zeg:''},
-      {t:5.0,d:186,v:1.2,zw:0.18,zb:34,hb:6, aanval:'jacht', zeg:''} ],
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:168,hb:27,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:7.5,d:186,v:1.2,zw:0.14,zb:91,hb:10, aanval:'zwaar', zeg:'HEAVY LOCK'},
+      {t:5.0,d:122, v:1.1,zw:0.22,zb:72,hb:11, aanval:'sig',   zeg:''},
+      {t:5.0,d:186,v:1.2,zw:0.18,zb:81,hb:10, aanval:'jacht', zeg:''} ],
     // schiet vooruit, staat stil, vuurt één strakke streep, trekt terug
     'LANCE':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:3.0,d:72, v:2.6,zw:0.10,zb:8, hb:3, aanval:'sig',   zeg:'LANCE READY'},
-      {t:2.5,d:72, v:0.2,zw:0.05,zb:4, hb:2, aanval:'kort',  zeg:''},
-      {t:5.0,d:186,v:2.2,zw:0.24,zb:30,hb:7, aanval:'zwaar', zeg:'REPOSITIONING'},
-      {t:3.5,d:126, v:1.4,zw:0.30,zb:24,hb:6, aanval:'niets', zeg:''} ],
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:168,hb:27,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:3.0,d:72, v:2.6,zw:0.10,zb:19,hb:5, aanval:'sig',   zeg:'LANCE READY'},
+      {t:2.5,d:72, v:0.2,zw:0.05,zb:9,hb:3, aanval:'kort',  zeg:''},
+      {t:5.0,d:186,v:2.2,zw:0.24,zb:72,hb:11, aanval:'zwaar', zeg:'REPOSITIONING'},
+      {t:3.5,d:126, v:1.4,zw:0.30,zb:57,hb:10, aanval:'niets', zeg:''} ],
     // cirkelt om je heen op vaste afstand, altijd in beweging
     'THE WHEEL':[
       {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
@@ -1334,11 +1334,11 @@
       {t:4.5,d:81, v:1.5,zw:0.85,zb:34,hb:16,aanval:'kort',  zeg:''} ],
     // duikt weg naar links of rechts en valt van opzij aan
     'RAVEN':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:4.0,d:134, v:2.2,zw:0.70,zb:66,hb:12,aanval:'niets', zeg:'FLANKING'},
-      {t:3.5,d:72, v:2.4,zw:0.90,zb:52,hb:14,aanval:'kort',  zeg:''},
-      {t:6.0,d:186,v:1.8,zw:0.34,zb:44,hb:10,aanval:'zwaar', zeg:'TALON'},
-      {t:4.0,d:98, v:2.0,zw:0.75,zb:58,hb:13,aanval:'jacht', zeg:''} ],
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:168,hb:27,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:4.0,d:134, v:2.2,zw:0.70,zb:158,hb:20,aanval:'niets', zeg:'FLANKING'},
+      {t:3.5,d:72, v:2.4,zw:0.90,zb:124,hb:23,aanval:'kort',  zeg:''},
+      {t:6.0,d:186,v:1.8,zw:0.34,zb:105,hb:17,aanval:'zwaar', zeg:'TALON'},
+      {t:4.0,d:98, v:2.0,zw:0.75,zb:139,hb:22,aanval:'jacht', zeg:''} ],
     // drie ogen: trekken ver terug, draaien om elkaar heen, vuren om beurten
     // Sjoerd: "de drie ogen moeten verder uit elkaar, ze overlappen bijna. Ook
     // verder weg — wel binnen schietbereik." GEMETEN: ze stonden 39-52 m uit
@@ -1351,10 +1351,10 @@
       {t:4.0,d:150,v:1.6,zw:1.50,zb:66,hb:26,aanval:'kort',  zeg:'GAZE'} ],
     // stampt heen en weer, breed en zwaar
     'THE WALKER':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:6.0,d:145,v:1.0,zw:0.26,zb:56,hb:5, aanval:'zwaar', zeg:'HEAVY STEPS'},
-      {t:5.5,d:86, v:1.2,zw:0.34,zb:48,hb:5, aanval:'sig',   zeg:''},
-      {t:4.0,d:72, v:1.6,zw:0.44,zb:30,hb:4, aanval:'kort',  zeg:'STOMP'} ],
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:168,hb:27,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:6.0,d:145,v:1.0,zw:0.26,zb:134,hb:8, aanval:'zwaar', zeg:'HEAVY STEPS'},
+      {t:5.5,d:86, v:1.2,zw:0.34,zb:115,hb:8, aanval:'sig',   zeg:''},
+      {t:4.0,d:72, v:1.6,zw:0.44,zb:72,hb:6, aanval:'kort',  zeg:'STOMP'} ],
     // kruipt om je heen, valt uit en trekt terug
     'ARACHNID':[
       {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
@@ -1364,10 +1364,10 @@
       {t:4.0,d:104, v:1.4,zw:0.60,zb:46,hb:11,aanval:'jacht', zeg:''} ],
     // zweeft hoog, daalt neer, stijgt weer op
     'SERAPH':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:6.0,d:186,v:1.2,zw:0.30,zb:28,hb:24,aanval:'zwaar', zeg:'ASCENDING'},
-      {t:5.0,d:111, v:1.3,zw:0.40,zb:24,hb:20,aanval:'sig',   zeg:''},
-      {t:4.0,d:72, v:1.7,zw:0.50,zb:18,hb:16,aanval:'kort',  zeg:'DESCENT'} ],
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:168,hb:27,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:6.0,d:186,v:1.2,zw:0.30,zb:67,hb:40,aanval:'zwaar', zeg:'ASCENDING'},
+      {t:5.0,d:111, v:1.3,zw:0.40,zb:57,hb:34,aanval:'sig',   zeg:''},
+      {t:4.0,d:72, v:1.7,zw:0.50,zb:43,hb:27,aanval:'kort',  zeg:'DESCENT'} ],
     // hangt in het midden en pulseert; beweegt weinig, vuurt veel vormen
     // THE CORE is een lang station: hij schuift als een muur voorbij, traag maar
     // over grote breedte, in plaats van op een plek te wiebelen (was zb 10-18).
@@ -1581,7 +1581,7 @@
   const WERPERS=['ORACLE'];
   // AMBER RING als tussenbaas. De Z-route: hoe lang een poot is, hoe snel hij
   // sprint, hoe lang hij stilstaat om te vuren, en de wegsprong bij een treffer.
-  const UFO_POOT=46, UFO_HOOG=18, UFO_SNEL=78, UFO_MAXTIJD=1.6;
+  const UFO_POOT=78, UFO_HOOG=26, UFO_SNEL=78, UFO_MAXTIJD=1.9;   // v14.21: ruimere Z
   const UFO_RUST=1.1, UFO_RUSTV=0.9, UFO_RUST0=1.5, UFO_MINAF=45, UFO_MAXAF=125;
   const UFO_WEGKANS=0.22, UFO_WEGCD=7, UFO_WEGAF=60, UFO_VUURSNEL=1.4;
   // Zijn schild: 350 kracht, 5 s aan / 5 s uit, en wat eraf is blijft eraf.
@@ -1601,7 +1601,9 @@
   const SERA_HOOG=16, SERA_MAAT=3.2, SERA_OPEN=4;
   // Het gedeelde schildspel van de laatste drie bazen: kracht per doelwit, hoe
   // groot ze zijn, en hoe lang het schild valt als ze allemaal kapot zijn.
-  const DOEL_HP=190, DOEL_MAAT=4.0, DOEL_OPEN=5;   // iets zachter en groter: haalbaar
+  // Sjoerd: "die ballen zijn al kapot before you know it." Van 190 naar 760,
+  // en ze knipperen wit bij elke treffer zodat je ziet dat je ze raakt.
+  const DOEL_HP=340, DOEL_MAAT=4.0, DOEL_OPEN=5, DOEL_FLITS=0.16;
   const CORE_SNEL=0.7, CORE_R=34;   // hoe snel en hoe ver de knooppunten schuiven
   const HEAD_SNEL=0.5, HEAD_R=30;   // hoe snel en hoe wijd de kernen meedraaien
   // LANCE's escorte: hoeveel wachters, hun kracht, waar ze hangen, en hoe snel
@@ -1927,7 +1929,7 @@
   const VOORUIT=0.55;
   // Welke bazen ontwijkende raketten vuren: raak je er een, dan zwenkt hij hard
   // opzij en pakt daarna zijn koers weer op.
-  const ONTWIJKERS=['DEATHS HEAD','RAVEN','ARACHNID','TITAN PRIME'];
+  const ONTWIJKERS=['RAVEN','ARACHNID','TITAN PRIME'];   // DEATHS HEAD eruit: v14.18
   // De BAAN van elke baas: 0 heen en weer · 1 liggende acht · 2 cirkel ·
   // 3 schokken (stilhangen en dan opzij schieten) · 4 duiken · 5 wiegen met tik.
   // puls = hoeveel zijn tempo golft, zodat hij niet als een metronoom beweegt.
@@ -3018,7 +3020,7 @@
             depthWrite:false,blending:THREE.AdditiveBlending}));
         g.add(gl); g.frustumCulled=false; g.renderOrder=8; this.par.add(g);
         e.doelen.push({m:g,hp:DOEL_HP,hpM:DOEL_HP,live:true,p:new THREE.Vector3(),
-          i:i, hk:(i/n)*6.283, f0:(i/n)*6.283, r:0}); }
+          i:i, hk:(i/n)*6.283, f0:(i/n)*6.283, r:0, kl:kl, flits:0}); }
       e.doelT=0; this.schildAan(e,1e9); },
 
     doelTick:function(e,s){
@@ -3051,7 +3053,13 @@
                   this.kop.y+8+i*7+Math.sin(this.T*0.8+g.f0)*SERA_HOOG,
                   this.kop.z-Math.cos(g.hk)*g.r); }
         g.m.position.copy(g.p);
-        g.m.scale.setScalar(DOEL_MAAT*(1+Math.sin(this.T*5+i)*0.1));
+        // KNIPPEREN: even wit en groter na een treffer, daarna zijn eigen pulsje
+        if(g.flits>0){ g.flits-=s;
+          const f=g.flits/DOEL_FLITS;
+          g.m.material.color.setHex(0xffffff);
+          g.m.scale.setScalar(DOEL_MAAT*(1+f*0.55)); }
+        else { if(g.kl!==undefined) g.m.material.color.setHex(g.kl);
+          g.m.scale.setScalar(DOEL_MAAT*(1+Math.sin(this.T*5+i)*0.1)); }
         if(Math.random()<s*1.2) this.bliksemStraal(g.p,e.p,
           (e.doelSoort==='core')?0xffc040:((e.doelSoort==='head')?0xff6a4a:0x6fd8ff)); }
       // alles kapot: het schild valt een paar seconden en komt dan terug
@@ -3070,7 +3078,8 @@
       for(let i=0;i<e.doelen.length;i++){ const g=e.doelen[i];
         if(!g.live) continue;
         if(Math.hypot(px-g.p.x,py-g.p.y,pz-g.p.z)>DOEL_MAAT*2.2) continue;
-        g.hp-=dmg; this.vonk(px,py,pz,0xffffff,5,3,0.4);
+        g.hp-=dmg; g.flits=DOEL_FLITS;                  // knippert wit bij een treffer
+        this.vonk(px,py,pz,0xffffff,5,3,0.4);
         if(g.hp<=0){ g.live=false; g.m.visible=false;
           this.vonk(g.p.x,g.p.y,g.p.z,0xffffff,14,6,0.6);
           this.vonk(g.p.x,g.p.y,g.p.z,0x6fd8ff,20,9,0.9);
@@ -3964,9 +3973,20 @@
       // hoe zwakker het schild, hoe heftiger hij pulseert en hoe feller het net
       const zwak=1-e.schild/Math.max(1,e.schildM);
       const puls=Math.sin(e.schildP*(1+zwak*2.5))*(0.05+zwak*0.08);
-      e.schildM3.material.opacity=0.26+puls+zwak*0.12;
+      // HET SPOOK: hij vervaagt naar 0,06 maar zijn schild bleef op 0,31 staan —
+      // dan zie je een bol zweven zonder schip (Sjoerd: "voor dat het spookschip
+      // komt zie ik shield"). Het schild volgt nu zijn dekking.
+      // kwadratisch: als het schip half weg is, is het schild al bijna weg —
+      // anders blijft er een zichtbare bol hangen bij dekking 0,06
+      // NIET op e.onzicht kijken: die staat op 0 terwijl het spook toch vervaagt
+      // (hij regelt zijn zichtbaarheid met opacity, niet met die vlag). Het
+      // schild volgt gewoon de dekking van het schip zelf, kwadratisch — half
+      // weg schip is bijna weg schild.
+      const sp0=e.bb?Math.max(0,Math.min(1,e.bb.m.material.opacity)):1;
+      const spook=sp0*sp0;
+      e.schildM3.material.opacity=(0.26+puls+zwak*0.12)*spook;
       if(e.schildM3.__net){
-        e.schildM3.__net.material.opacity=0.4+puls*2+zwak*0.35;
+        e.schildM3.__net.material.opacity=(0.4+puls*2+zwak*0.35)*spook;
         e.schildM3.__net.rotation.y+=s*0.35;
         e.schildM3.__net.rotation.x+=s*0.18; }
       if(e.schildFlits>0){ e.schildFlits-=s;
@@ -5479,7 +5499,13 @@
           // De nieuwe plaat van DEATHS HEAD (IMG_0006) heeft een wiel. Hij
           // krijgt daarom de wijde ronde van THE WHEEL — hij stond stil (nul
           // meter breedte gemeten) en rolt nu om je heen.
-          if(B.naam==='DEATHS HEAD') this.doelStart(e,3,'head');
+          // DEATHS HEAD, HERBOUWD (v14.18). Sjoerd: "er zit veel oude config bij
+          // deze baas." Hij had VIER lagen tegelijk: een zwerm die alles
+          // opving, drie meedraaiende kernen, de ontwijkervlag, en een eigen
+          // dans — die vochten met elkaar en hij stond stil. Nu één helder
+          // mechanisme: VIER KERNEN die met hem meedraaien en die je stuk moet
+          // schieten; zolang er één leeft is hij gepantserd.
+          if(B.naam==='DEATHS HEAD'){ this.doelStart(e,4,'head'); e.zwermBaas=0; }
           if(!this.baasMat) this.baasMat={};
           if(!this.baasMat[bt.uuid]) this.baasMat[bt.uuid]=new THREE.MeshBasicMaterial(
             {map:bt,transparent:true,alphaTest:0.06,side:THREE.DoubleSide,depthWrite:false});
@@ -7407,6 +7433,8 @@
         if(e.hangar) this.moederTick(e,s);
         if(e.opening) this.openTick(e,s);
         if(e.baasNaam==='THE EYES') this.oogTick(e,s);
+        // de zwerm is bij DEATHS HEAD uitgezet (v14.18): hij had er ook al vier
+        // kernen, en samen was het niet te volgen
         if(e.zwermBaas) this.zwermBaasTick(e,s);
         // DE SCHEERVLUCHT van grote schepen: hier, waar elk schip langskomt.
         if(this.scheerTick(e,s)) return;
