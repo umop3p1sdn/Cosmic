@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.23';
+  const VERSIE='v14.25';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1592,6 +1592,10 @@
   // HET PORTAAL waar GHOST WING uit komt: hoe ver weg, hoe groot, hoe lang het
   // opent, doorlaat en sluit, en hoeveel ruimte het om zich heen wil.
   const PORT_AF=70, PORT_AFV=45, PORT_HOOG=30, PORT_TUSSEN=55, PORT_VRIJ=32;
+  // Sjoerds keuze: deze drie brengen hulp mee door blauwe portalen.
+  const PORTSCHEPEN={'FIGHTER':1,'SHRIKE':3,'HEAVY':5};   // hoeveel portalen elk
+  const PORT_NA=1.2;            // hoe snel na binnenkomst ze opengaan
+  const MIX5050=0.55;           // hoe vaak een grote groep half-om-half wordt
   const PORT_MAAT=13, PORT_OPEN=0.9, PORT_DOOR=0.7, PORT_DICHT=0.8, PORT_DRAAI=0.9;
   // WARDEN's generatoren: kracht per bol, hoe ver naast hem, hoe groot.
   const GEN_HP=180, GEN_AF=0.75, GEN_VOOR=6, GEN_MAAT=2.6, GEN_TERUG=10;
@@ -1603,7 +1607,8 @@
   // groot ze zijn, en hoe lang het schild valt als ze allemaal kapot zijn.
   // Sjoerd: "die ballen zijn al kapot before you know it." Van 190 naar 760,
   // en ze knipperen wit bij elke treffer zodat je ziet dat je ze raakt.
-  const DOEL_HP=340, DOEL_MAAT=4.0, DOEL_OPEN=5, DOEL_FLITS=0.16;
+  const DOEL_HP=340, DOEL_MAAT=4.0, DOEL_OPEN=4, DOEL_FLITS=0.16;   // v14.24: venster van 4 s
+  const AXLE_BLAUW=1000;        // het binnenschild van de eindbaas; weg is weg
   const CORE_SNEL=0.7, CORE_R=34;   // hoe snel en hoe ver de knooppunten schuiven
   const HEAD_SNEL=0.5, HEAD_R=30;   // hoe snel en hoe wijd de kernen meedraaien
   // LANCE's escorte: hoeveel wachters, hun kracht, waar ze hangen, en hoe snel
@@ -2221,10 +2226,10 @@
   const TYPE=[
     {n:'SCOUT',     pl:6, rij:0, br:6,  hp:56,  pt:60,  sp:13.0,  sal:1, cd:3.0, prof:'strafer', f1:0.70, f2:0.35},
     {n:'WASP',      pl:6, rij:5, br:4,  hp:40,  pt:55,  sp:20.3, sal:1, cd:3.2, prof:'sluiper', f1:0.80, f2:0.45},
-    {n:'FIGHTER',   pl:6, rij:1, br:12,  hp:110,  pt:150, sp:10.3,  sal:2, cd:2.6, prof:'formatie', f1:0.65, f2:0.30},
+    {n:'FIGHTER',   pl:6, rij:1, br:12,  hp:330,  pt:150, sp:10.3,  sal:2, cd:2.1, prof:'formatie', f1:0.65, f2:0.30},
     {n:'SAUCER',    pl:6, rij:4, br:17, hp:110, pt:230, sp:5.5,  sal:1, cd:3.4, prof:'cirkel', f1:0.55, f2:0.22},
     {n:'BOMBER',    pl:6, rij:2, br:16, hp:160, pt:300, sp:4.6,  sal:3, cd:4.0, prof:'kruiper', f1:0.72, f2:0.28},
-    {n:'HEAVY',     pl:6, rij:3, br:20, hp:250, pt:420, sp:3.2,  sal:2, cd:3.0, prof:'drijver', f1:0.78, f2:0.40},
+    {n:'HEAVY',     pl:6, rij:3, br:20, hp:750, pt:420, sp:3.2,  sal:2, cd:2.4, prof:'drijver', f1:0.78, f2:0.40},
     {n:'RAZOR',     pl:12,rij:0, br:5,  hp:60,  pt:80,  sp:15.9, sal:1, cd:2.6, prof:'formatie', f1:0.75, f2:0.40},
     {n:'VIPER',     pl:12,rij:6, br:8,  hp:72,  pt:75,  sp:21.8, sal:1, cd:2.4, prof:'duiker', f1:0.85, f2:0.50},
     // SPINNER is nu BLACK RAVEN: Sjoerds mooie zwarte breedvleugel in level 1.
@@ -2249,7 +2254,7 @@
     {n:'NEEDLE',    pl:13,rij:4, br:7,  hp:105,  pt:95,  sp:24.6, sal:1, cd:2.4, prof:'scissors',f1:0.84, f2:0.48},
     {n:'BASILISK',  pl:13,rij:5, br:19, hp:260, pt:380, sp:4.0,  sal:3, cd:3.2, prof:'drijver', f1:0.80, f2:0.34},
     {n:'CYCLONE',   pl:13,rij:6, br:13, hp:150, pt:250, sp:8.3,  sal:2, cd:3.0, prof:'barrel',  f1:0.60, f2:0.28},
-    {n:'SHRIKE',    pl:13,rij:7, br:14, hp:130,  pt:180, sp:16, sal:1, cd:2.0, prof:'yoyo',    snel:24, f1:0.55, f2:0.22},
+    {n:'SHRIKE',    pl:13,rij:7, br:14, hp:390,  pt:180, sp:16, sal:1, cd:1.6, prof:'yoyo',    snel:24, f1:0.55, f2:0.22},
     {n:'VENOM',     pl:13,rij:8, br:13, hp:120, pt:210, sp:14.1, sal:2, cd:2.8, prof:'scissors',f1:0.72, f2:0.38},
     {n:'ORACLE',    pl:13,rij:9, br:16, hp:520, pt:320, sp:5.5,  sal:3, cd:3.8, prof:'kruiper', zwaar:1, f1:0.48, f2:0.20},
     {n:'TITAN',     pl:13,rij:10,br:24, hp:330, pt:460, sp:3.2,  sal:2, cd:3.4, prof:'drijver', f1:0.86, f2:0.32},
@@ -2275,20 +2280,22 @@
   // Ze verdwijnen geleidelijk uit de lijst, zodat de late levels om zware schepen
   // draaien in plaats van om dezelfde jagers met meer gezelschap.
   const NIVEAU=[
+    // Sjoerd (v14.25): "mix de game wat meer voor sensatie, maar niet meteen
+    // 12 in beeld." De drie portaalschepen komen nu al vroeg langs — één in
+    // ronde 2, één in 3 en 4, twee in ronde 5 — en bouwen daarna op. IRON CROSS
+    // en de andere kolossen zijn ook naar voren gehaald, zodat je ze eerder ziet.
     [ 1, 0, 7,22, 6, 8],                        // 1  zes lichtste
-    [ 1, 0, 7,22, 6, 8, 9,19],                  // 2  + NIGHTBLADE, FALCON
-    [ 0, 7,22, 6, 8, 9,19, 2,18],               // 3  WASP weg, + FIGHTER, WRAITH
-    [ 7,22, 6, 8, 9,19, 2,18,11,12],            // 4  SCOUT weg, + LANCER, WEAVER
-    [22, 6, 8, 9,19, 2,18,11,12,10,24],         // 5  VIPER weg, + REAPER, DE KLOK
-    [ 6, 8, 9,19, 2,18,11,12,10,24, 5,25],      // 6  NEEDLE weg, + HEAVY, SHRIKE
-    [ 8, 9,19, 2,18,11,12,10,24, 5,13,16],      // 7  RAZOR weg, + BROOD, WATCHER
-    [ 9,19,18,11,12,10,24, 5,13,16,28,26],      // 8  SPINNER en FIGHTER weg, + DE HANGAR, VENOM
-    // Sjoerd: "een lelijk level eruit." Het oude 9 is weg; zijn schepen zijn
-    // verdeeld over 9 en 10, zodat de opbouw naar zwaar doorloopt.
-    [19,18,11,12,10,24, 5,13,16,28,15,21,27],   // 9  (was 10) + BULWARK, HALO, ORACLE
-    [11,12,10,24, 5,13,16,28,15,17,20,23],      // 10 (was 11) + HAULER, INFERNO, BASILISK
-    [12,10,24, 5,13,16,28,15,17,20,23,29]       // 11 (was 12) + NOVA — het zwaarste
-  ];
+    [ 1, 0, 7,22, 6, 8, 9,19, 2],               // 2  + NIGHTBLADE, FALCON, STEEL TALON (1 portaal)
+    [ 0, 7,22, 6, 8, 9,19,18,25],               // 3  + WRAITH, FOUR FLAME (3 portalen)
+    [ 7,22, 6, 8, 9,19, 2,18,11,12, 5],         // 4  + LANCER, WEAVER, DARK LANCE (5 portalen)
+    [22, 6, 8, 9,19, 2,18,11,12,10,24,25,16],   // 5  + REAPER, DE KLOK, FOUR FLAME, IRON CROSS
+    [ 6, 8, 9,19, 2,18,11,12,10,24, 5,25,13],   // 6  + HEAVY, SHRIKE, GREY HAWK
+    [ 8, 9,19, 2,18,11,12,10,24, 5,13,16,27],   // 7  + WATCHER, AMBER RING
+    [ 9,19,18,11,12,10,24, 5,13,16,28,26,20],   // 8  + DE HANGAR, VENOM, GHOST WING
+    [19,18,11,12,10,24, 5,13,16,28,15,21,27],   // 9  + BULWARK, HALO, AMBER RING
+    [11,12,10,24, 5,13,16,28,15,17,20,23],      // 10 + HAULER, INFERNO, BASILISK
+    [12,10,24, 5,13,16,28,15,17,20,23,29]       // 11 + NOVA, het zwaarste
+  ];;
   const LEVELS=NIVEAU.length;
   //          -  raket shotgun laser electro mitrailleur
   const CD=[110,  760,   360,  700,   300,      60];   // laser was 1400: gehalveerd   // laser was 1400: gehalveerd
@@ -3027,6 +3034,33 @@
         e.doelen.push({m:g,hp:DOEL_HP,hpM:DOEL_HP,live:true,p:new THREE.Vector3(),
           i:i, hk:(i/n)*6.283, f0:(i/n)*6.283, r:0, kl:kl, flits:0}); }
       e.doelT=0; this.schildAan(e,1e9); },
+
+    // het BLAUWE BINNENSCHILD van AXLE: alleen te zien als de ballen weg zijn
+    blauwTick:function(e,s){
+      if(!(e.blauwM>0)) return;
+      if(!e.blauwM3){
+        const m=new THREE.Mesh(new THREE.SphereGeometry(1,20,14),
+          new THREE.MeshBasicMaterial({color:0x2a9fd8,transparent:true,opacity:0.3,
+            depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+        const net=new THREE.Mesh(new THREE.SphereGeometry(1.02,16,10),
+          new THREE.MeshBasicMaterial({color:0x9fe4f5,wireframe:true,transparent:true,
+            opacity:0.5,depthWrite:false,blending:THREE.AdditiveBlending}));
+        net.frustumCulled=false; m.add(net); m.__net=net;
+        m.frustumCulled=false; m.renderOrder=9; this.par.add(m); e.blauwM3=m; }
+      let nog=0;
+      if(e.doelen) for(let q=0;q<e.doelen.length;q++) if(e.doelen[q].live) nog++;
+      // hij licht alleen op in het venster; met ballen eromheen blijft hij dof
+      const aan=(nog===0&&e.blauw>0);
+      e.blauwM3.visible=(e.blauw>0);
+      e.blauwM3.position.copy(e.p);
+      e.blauwM3.scale.setScalar(Math.max(e.bw,e.bh)*0.52);
+      if(e.blauwFlits>0) e.blauwFlits-=s;
+      const zwak=1-e.blauw/Math.max(1,e.blauwM);
+      const fel=(e.blauwFlits>0)?0.45:0;
+      e.blauwM3.material.opacity=(aan?0.30+zwak*0.22:0.08)+fel;
+      if(e.blauwM3.__net){
+        e.blauwM3.__net.material.opacity=(aan?0.50+zwak*0.3:0.12)+fel;
+        e.blauwM3.__net.rotation.y+=s*0.5; e.blauwM3.__net.rotation.x+=s*0.22; } },
 
     doelTick:function(e,s){
       if(!e.doelen) return;
@@ -5081,6 +5115,22 @@
       if(e.ninja&&e.hp>0&&!e.dood&&!e.dood2) this.ninjaHit(e);
       // de laatste drie bazen: eerst kijken of je een van hun doelwitten raakt
       if(e.doelen&&this.doelTreffer(e,px||e.p.x,py||e.p.y,pz||e.p.z,dmg)) return;
+      // AXLE's BLAUWE BINNENSCHILD (Sjoerd, v14.24). Zolang er nog een bal leeft
+      // komt er niets door. Zijn ze allemaal kapot, dan schiet je in dat venster
+      // op dit schild — en wat eraf is BLIJFT eraf. Pas als het op is, raak je
+      // de baas zelf.
+      if(e.blauw>0){
+        let nog=0;
+        if(e.doelen) for(let q=0;q<e.doelen.length;q++) if(e.doelen[q].live) nog++;
+        if(nog>0) return;                              // ballen leven nog
+        e.blauw-=dmg; e.blauwFlits=0.14;
+        this.vonk(px||e.p.x,py||e.p.y,pz||e.p.z,0x6fd8ff,6,4,0.45);
+        if(e.blauw<=0){ e.blauw=0;
+          this.vonk(e.p.x,e.p.y,e.p.z,0xffffff,20,e.bw*0.5,0.8);
+          this.vonk(e.p.x,e.p.y,e.p.z,0x6fd8ff,28,e.bw*0.8,1.1);
+          this.schokRing(e.p); SND.boom(e.p.x*0.02,false);
+          this.toonMelding('CORE EXPOSED','#6fd8ff'); }
+        return; }
       // THE WHEEL: velg op = halve schade, velg af = vol.
       if(e.velgM3){ this.velgTreffer(e,px,py,pz,dmg); if(e.velg>0) dmg*=VELG_HALF; }
       // HALO / LONGSHIP: buiten de opening? dan ketst hij af.
@@ -5437,6 +5487,14 @@
         // krijgen voorrang — een kolos die wegduikt leest raar.
         e.wijker=(Math.random()<this.duikKans()*((T.br<=9)?1.4:((T.br<13)?0.7:0.15)))?1:0;
         e.schild=0; e.schildFlits=0; if(e.schildM3) e.schildM3.visible=false; e.werpT=undefined;
+        // Sjoerd: "ze spawnen en zijn zo dood, je ziet ze nooit aanvallen."
+        // Deze drie vallen METEEN aan en brengen hulp mee door portalen.
+        // WISSEN VOOR INVULLEN: stond dit erna, dan veegde het de portalen weer
+        // weg die we net hadden ingesteld (valkuil 1 uit het werkblad).
+        e.portN=0; e.portOp=0; e.portT=0; e.direct=0;
+        if(T&&PORTSCHEPEN[T.basis||T.n]!==undefined){
+          e.portN=PORTSCHEPEN[T.basis||T.n];
+          e.direct=1; }                                // valt meteen aan, zie baan()
         // ongeveer één op de vijftien kleine jagers heeft flares aan boord
         e.heeftFlare=(T.br<=12&&Math.random()<FLARE_DEEL)?1:0;
         e.klokR=0; e.klokU=0; e.klokT=0; e.klokWeg=0;
@@ -5450,6 +5508,7 @@
         e.ufoT=undefined; e.ufoDoel=null; e.ufoRust=0; e.ufoWegCd=0; e.ufoZij=0;
         e.rsT=undefined; e.rsAan=0; e.rsRest=0; e.rsOp=0; e.ringHulpje=0; e.dubbel=0; e.rsHp=0;
         e.wiel=0; e.wielA=undefined; e.velgKapot=0; e.velgAan=0; e.velgRest=0;
+        e.blauw=0; e.blauwM=0; e.blauwFlits=0;
         if(e.doelen) this.doelWeg(e); e.doelT=0; e.doelSoort=null; e.klimT=0; e.klimCd=0; e.klimDuik=0; e.yoT=0; e.yoCd=0; e.flareCd=0; e.flareWeg=0; e.hangarJager=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
         e.scheer=0; e.scheerCd=undefined; e.scheerT=0;
         e.vp=null; e.vRicht=null;   // de vliegrichting opnieuw meten
@@ -5510,7 +5569,14 @@
           // dans — die vochten met elkaar en hij stond stil. Nu één helder
           // mechanisme: VIER KERNEN die met hem meedraaien en die je stuk moet
           // schieten; zolang er één leeft is hij gepantserd.
-          if(B.naam==='AXLE'){ this.doelStart(e,4,'head'); e.zwermBaas=0; }
+          // AXLE, de eindbaas (Sjoerd, v14.24). DRIE LAGEN:
+          //  1. VIJF vliegende ballen houden zijn schild in stand
+          //  2. alle vijf kapot -> vier seconden open, dan komen ze terug
+          //  3. in dat venster schiet je zijn BLAUWE binnenschild (1000) stuk,
+          //     en wat eraf is BLIJFT eraf
+          //  4. pas als het blauwe schild op is, raak je de baas zelf
+          if(B.naam==='AXLE'){ this.doelStart(e,5,'head'); e.zwermBaas=0;
+            e.blauw=AXLE_BLAUW; e.blauwM=AXLE_BLAUW; }
           if(!this.baasMat) this.baasMat={};
           if(!this.baasMat[bt.uuid]) this.baasMat[bt.uuid]=new THREE.MeshBasicMaterial(
             {map:bt,transparent:true,alphaTest:0.06,side:THREE.DoubleSide,depthWrite:false});
@@ -7426,6 +7492,7 @@
         // eindigt de intro nooit, en zie je geen krachtbalk (Sjoerd)
         if(e.wiel&&!e.intro) this.wielTick(e,s);
         if(e.doelen&&!e.intro) this.doelTick(e,s);
+        if(e.blauwM>0&&!e.intro) this.blauwTick(e,s);
         if(WERPERS.indexOf(nm2)>=0||e.dubbel){
           if(WERPERS.indexOf(nm2)>=0) this.werperTick(e,s);
           this.ringSchild(e,s);
@@ -7456,6 +7523,16 @@
         if(e.yoCd>0) e.yoCd-=s;
         if(this.yoyoTick(e,s)) return;
         if(e.flareCd>0) e.flareCd-=s;
+        // de portalen van STEEL TALON, FOUR FLAME en DARK LANCE: kort na
+        // binnenkomst gaan ze open en komt er hulp uit
+        // METEEN AANVALLEN: de spawn zet mode later terug op 'nader', dus doen
+        // we het hier — één keer, zodra hij er is.
+        if(e.direct){ e.direct=0;
+          e.mode='vuren'; e.burst=Math.max(2,(TYPE[e.tp].sal||1)); e.bT=0.3; }
+        if(e.portN>0&&!e.portOp){ e.portT=(e.portT||0)+s;
+          if(e.portT>PORT_NA){ e.portOp=1;
+            const tp2=TYPE.findIndex(function(q){ return q&&(q.basis||q.n)==='SCOUT'; });
+            for(let q=0;q<e.portN;q++) this.portaalOpen(tp2>=0?tp2:e.tp,e,q); } }
         this.flareUit(e);
         // wegtrekken na de flares, tegen de raket in
         if(e.flareWeg>0){ e.flareWeg-=s;
@@ -7622,7 +7699,10 @@
         // Sjoerd: "2x zo veel kracht betekent 2x minder vliegtuigen." De
         // lichte schepen kregen 2x tot 4x kracht; hun aantallen gaan evenredig
         // omlaag, zodat een golf niet zwaarder wordt maar wel steviger voelt.
-        let mx=(b<=7)?7:((b<=12)?5:((b<=17)?4:2));
+        // v14.25: iets ruimer, zodat een gemengde golf ook vol voelt. De
+        // hardere grens staat in aanval() ('gelijk'); dit is hoeveel er in de
+        // wachtrij komen.
+        let mx=(b<=7)?10:((b<=12)?7:((b<=17)?4:2));
         // HIER LIEP HET SPEL VAST: in deze functie heet het scheepstype 'tp',
         // niet 'a.tp'. Precies dezelfde fout als 'h' vs 'H' in de laserlus.
         if(TYPE[tp]&&(TYPE[tp].basis||TYPE[tp].n)==='WRAITH') mx=Math.min(mx,4);
@@ -7637,6 +7717,17 @@
       let vI=0;
       const zet=function(tp,n,t,form){
         plan.push({tp:tp,n:cap(tp,n),t:t,form:form||0,vorm:kiesVorm(++vI)}); };
+      // HALF-OM-HALF (Sjoerd, v14.25): "sommige komen in meer dan 4-5 rondes in
+      // grote getallen voor. Misschien 50/50 laten opkomen voor de variatie —
+      // in plaats van 6 of 8 dezelfde, mix hem met nog een andere kleine."
+      // Een grote groep van één soort wordt vanaf level 2 vaak gesplitst.
+      const zetMix=function(tp,n,t,form){
+        if(n>=5&&klein.length>1&&R(tp*7+w*3+LV)<MIX5050){
+          const helft=Math.max(2,Math.round(n/2));
+          zet(tp,helft,t,form);
+          const and=klein.filter(function(q){ return q!==tp; });
+          zet(and[Math.floor(R(tp*11+w)*and.length)%and.length],n-helft,t+0.5,form); }
+        else zet(tp,n,t,form); };
       const zwaar=1+(this.level-1)*0.16;               // latere levels: meer tegelijk
 
       // Tien golven per level, dus de opbouw moet in tien stappen rond zijn:
@@ -7647,7 +7738,7 @@
       // Sjoerd: soms mag een golf gemengd zijn — één grote als anker met een rits
       // makkelijke kills erbij. Niet altijd, wel steeds vaker en steeds zwaarder.
       // hoe vaak een golf gemengd is: level 1 bijna nooit, level 12 meestal
-      const mixKans=Math.min(0.72,0.06+(LV-1)*0.065);
+      const mixKans=Math.min(0.80,0.22+(LV-1)*0.075);   // v14.25: vaker mengen
       const mixNu=(R(w*31+LV*7)<mixKans);
       // DE SCHILDGOLF (Sjoerd): eerst de schildwerper, twee seconden later een
       // aanvalsgroep lichte jagers — die krijgen dan meteen twee schilden van
@@ -7680,11 +7771,11 @@
         // op hogere levels ook nog wat middelgrote ertussen
         if(LV>=6&&R(w*17+LV)<0.55) zet(m(o+1),2+Math.floor(LV*0.2),3.0);
       }
-      else if(w===1){ zet(k(o),9,0); zet(k(o+1),9,5); }
-      else if(w===2){ zet(k(o+2),10,0); zet(m(o),3,3.5); }
-      else if(w===3){ zet(m(o+1),6,0); zet(k(o+3),10,5); }
+      else if(w===1){ zetMix(k(o),9,0); zetMix(k(o+1),9,5); }
+      else if(w===2){ zetMix(k(o+2),10,0); zet(m(o),3,3.5); }
+      else if(w===3){ zet(m(o+1),6,0); zetMix(k(o+3),10,5); }
       else if(w===4){ zet(g(o),2,0); zet(m(o+2),5,4); }
-      else if(w===5){ for(let b=0;b<3;b++) zet(k(o+b),10,b*3.2);
+      else if(w===5){ for(let b=0;b<3;b++) zetMix(k(o+b),10,b*3.2);
                       zet(m(o+1),3,5); }
       else {
         // de laatste vijf golven zijn de zware: drie tot vijf aanvallen
@@ -7827,8 +7918,15 @@
       const b=TYPE[a.tp].br;
       // Sjoerd: de springer/splitser komt soms in te grote groepen — hij
       // verdubbelt zichzelf immers. Van hem hoogstens drie tegelijk.
-      let gelijk=Math.min(n,(b<=7)?4:((b<=12)?3:((b<=17)?3:1)));
+      // Sjoerd: "mix de game wat meer voor sensatie, maar niet meteen 12 in
+      // beeld — bv. 2 grote. Of 1 grote met 6 kleintjes." De grens per soort
+      // gaat omhoog zodat een gemengde golf ook echt vol voelt: meer kleintjes,
+      // en twee grote mogen samen.
+      let gelijk=Math.min(n,(b<=7)?7:((b<=12)?5:((b<=17)?3:2)));
       if(TYPE[a.tp]&&(TYPE[a.tp].basis||TYPE[a.tp].n)==='WRAITH') gelijk=Math.min(gelijk,3);
+      // Sjoerd: "die ufo met zijn 2 teleports komt iets te vaak voor." Hoogstens
+      // één tegelijk, zodat je hem als bijzonderheid ziet en niet als standaard.
+      if(TYPE[a.tp]&&(TYPE[a.tp].basis||TYPE[a.tp].n)==='ORACLE') gelijk=1;
       this.veldMax+=gelijk;
       this.vorm=a.vorm||'rij'; this.vormI=0; this.vormN=n;
       // elke groep krijgt zijn eigen plek aan de hemel, ver van de vorige
@@ -9994,7 +10092,7 @@
           if(!g.live) continue;
           const d=g.p.distanceTo(this.kop);
           if(d<bd){ bd=d; dicht=g.p; } } }.bind(this);
-      kies(b.genBol); kies(b.esc); kies(b.doelen);   // v14.17: de doelwitten van de laatste drie
+      kies(b.genBol); kies(b.esc); kies(b.doelen);   // ballen eerst   // v14.17: de doelwitten van de laatste drie
       if(dicht){ p.copy(dicht); return p; }
       // 2. THE WHEEL: de naaf is het midden — daar mikken, niet op de rand
       if(b.velg>0){ p.copy(b.p); return p; }
@@ -10813,11 +10911,8 @@
         try{ c.letterZet(q[0],q[1],q[2],'#2a9fc4',q[3],0.30); }catch(e){} }); };
     kl('#btnHelp',function(){ hulpToon(true); });
     kl('#btnHulpUit',function(){ hulpToon(false); });
-    kl('#btnGo',function(){ const rig=document.querySelector('#rig'),
-        C=rig&&rig.components&&rig.components.cosmic; if(!C) return;
-      if(C.klaar) naarMenu(); else C.verder(); });
-    // GIVE UP: eerst je naam invullen, dan pas terug naar het menu. Zo komt je
-    // score in de lijst te staan met wie hem heeft gehaald.
+    // de naam-hulpjes staan hier BOVEN de knoppen die ze gebruiken; met const
+    // is de volgorde bindend en klapte #btnGo er anders op stuk
     let NAAM=[0,0,0];
     const LETTERS='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ';
     const naamToon=function(){
@@ -10828,6 +10923,15 @@
       const n=document.querySelector('#naam');
       if(n) n.setAttribute('visible',!!aan);
       if(aan){ NAAM=[0,0,0]; naamToon(); } };
+    kl('#btnGo',function(){ const rig=document.querySelector('#rig'),
+        C=rig&&rig.components&&rig.components.cosmic; if(!C) return;
+      // UITGESPEELD ZONDER NAAM IN TE VOEREN — Sjoerd: "niet grappig." Deze knop
+      // ging bij klaar meteen naar het menu, dus wie het spel uitspeelde kwam
+      // NOOIT bij het naamscherm. Nu krijg je juist dan als eerste je naam.
+      if(C.klaar){ naamOpen(true); C.paneel(false); }
+      else C.verder(); });
+    // GIVE UP: eerst je naam invullen, dan pas terug naar het menu. Zo komt je
+    // score in de lijst te staan met wie hem heeft gehaald.
     const nmDraai=function(k){ return function(){
       NAAM[k]=(NAAM[k]+1)%LETTERS.length; naamToon(); SND.boom(0); }; };
     kl('#btnNm1',nmDraai(0));
