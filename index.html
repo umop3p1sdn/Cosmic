@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.26';
+  const VERSIE='v14.27';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2282,22 +2282,21 @@
   // Ze verdwijnen geleidelijk uit de lijst, zodat de late levels om zware schepen
   // draaien in plaats van om dezelfde jagers met meer gezelschap.
   const NIVEAU=[
-    // Sjoerd (v14.25): "mix de game wat meer voor sensatie, maar niet meteen
-    // 12 in beeld." De drie portaalschepen komen nu al vroeg langs — één in
-    // ronde 2, één in 3 en 4, twee in ronde 5 — en bouwen daarna op. IRON CROSS
-    // en de andere kolossen zijn ook naar voren gehaald, zodat je ze eerder ziet.
-    [ 1, 0, 7,22, 6, 8],                        // 1  zes lichtste
-    [ 1, 0, 7,22, 6, 8, 9,19, 2],               // 2  + NIGHTBLADE, FALCON, STEEL TALON (1 portaal)
-    [ 0, 7,22, 6, 8, 9,19,18,25],               // 3  + WRAITH, FOUR FLAME (3 portalen)
-    [ 7,22, 6, 8, 9,19, 2,18,11,12, 5],         // 4  + LANCER, WEAVER, DARK LANCE (5 portalen)
-    [22, 6, 8, 9,19, 2,18,11,12,10,24,25,16],   // 5  + REAPER, DE KLOK, FOUR FLAME, IRON CROSS
-    [ 6, 8, 9,19, 2,18,11,12,10,24, 5,25,13,27],// 6  + HEAVY, SHRIKE, GREY HAWK, AMBER RING
-    [ 8, 9,19, 2,18,11,12,10,24, 5,13,16],      // 7  + WATCHER (AMBER RING pas in 9)
-    [ 9,19,18,11,12,10,24, 5,13,16,28,26,20],   // 8  + DE HANGAR, VENOM, GHOST WING
-    [19,18,11,12,10,24, 5,13,16,28,15,21,27],   // 9  + BULWARK, HALO, AMBER RING
-    [11,12,10,24, 5,13,16,28,15,17,20,23],      // 10 + HAULER, INFERNO, BASILISK
-    [12,10,24, 5,13,16,28,15,17,20,23,29,27]    // 11 + NOVA, AMBER RING
-  ];;
+    // v14.27: een ECHTE mix. Elk schip komt in 2 tot 6 levels, niemand in acht
+    // achter elkaar en niemand nergens. FOUR CANNON, GREY WHALE en BLUE ARROW
+    // stonden per ongeluk in GEEN ENKEL level; die zijn terug.
+    [ 1, 6, 0,22, 7, 8],                          // 1  rustig: vijf lichte + BLACK RAVEN
+    [ 1, 6, 0,22, 7, 9, 2, 8,19],                 // 2  + VIOLET WING, STEEL TALON(1 portaal), IRON FALCON
+    [ 6, 0,22, 7, 9,19,18,25,24],                 // 3  + BLUE SPINE, FOUR FLAME(3), de klok
+    [ 6,22, 7, 9,11, 2,12, 5,26,10],              // 4  + CRIMSON CLAW, ringschip, DARK LANCE(5), GREEN DISC
+    [22, 9,19,11, 2,25,16, 4,13,18],              // 5  + IRON CROSS, GREY WHALE, GREY HAWK
+    [ 9,19,11, 2,12,10, 5,27,14,21,24],           // 6  + AMBER RING, FOUR CANNON, BLACK MANTA
+    [ 9,11, 2,12,10,13,24, 3,16,26,18],           // 7  + BLUE ARROW, DARK SAUCER, BLUE SPINE
+    [19,11,12, 5,13,24,16,20,28,14,10],           // 8  + GHOST WING, het moederschip
+    [19,11,12,10, 5,13,16,20,28,15,27,21],        // 9  + sterfort, AMBER RING, BLACK MANTA
+    [11,12,10, 5,24,20,28,15,17,23, 4,13],        // 10 + vrachtkruiser, AZURE PLATE, GREY WHALE
+    [12, 5,13,24,16,28,15,17,23,29,27, 3]         // 11 + RED TALON, AMBER RING, BLUE ARROW
+  ];;;;
   const LEVELS=NIVEAU.length;
   //          -  raket shotgun laser electro mitrailleur
   const CD=[110,  760,   360,  700,   300,      60];   // laser was 1400: gehalveerd   // laser was 1400: gehalveerd
