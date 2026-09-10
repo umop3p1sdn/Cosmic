@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.27';
+  const VERSIE='v14.28';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1597,7 +1597,10 @@
   const PORT_NA=1.2;            // hoe snel na binnenkomst ze opengaan
   const PORT_GROOT=0.3;         // kans dat er een GROOT schip uit een portaal komt
   const MIX5050=0.85;           // v14.26: bijna altijd half-om-half
+  const MIX_VERSCHIL=3;         // de gemengde jager moet minstens zoveel meter schelen
   const VELD_SAMEN=5, SAMEN_NA=2.2;   // volgende groep mag erbij als er nog hoogstens zoveel leven
+  const SAMEN_T=1.2;            // groepen binnen deze tijd komen tegelijk binnen
+  const VELD_SAMEN2=7;          // en alleen als er nog ruimte is: geen 25 tegelijk
   const PORT_MAAT=13, PORT_OPEN=0.9, PORT_DOOR=0.7, PORT_DICHT=0.8, PORT_DRAAI=0.9;
   // WARDEN's generatoren: kracht per bol, hoe ver naast hem, hoe groot.
   const GEN_HP=180, GEN_AF=0.75, GEN_VOOR=6, GEN_MAAT=2.6, GEN_TERUG=10;
@@ -7739,12 +7742,21 @@
       // grote getallen voor. Misschien 50/50 laten opkomen voor de variatie —
       // in plaats van 6 of 8 dezelfde, mix hem met nog een andere kleine."
       // Een grote groep van één soort wordt vanaf level 2 vaak gesplitst.
+      // Sjoerd: "vooral kleintjes kun je makkelijk mixen met nog een ander
+      // type, vooral als ze er anders uitzien." Dus: al vanaf twee stuks, bijna
+      // altijd, en met voorkeur voor een maatje dat DUIDELIJK verschilt — sinds
+      // v14.23 heeft elke jager een eigen breedte, dus dat zie je meteen.
       const zetMix=function(tp,n,t,form){
-        if(n>=4&&klein.length>1&&R(tp*7+w*3+LV)<MIX5050){
-          const helft=Math.max(2,Math.round(n/2));
+        if(n>=2&&klein.length>1&&R(tp*7+w*3+LV)<MIX5050){
+          const helft=Math.max(1,Math.round(n/2));
           zet(tp,helft,t,form);
-          const and=klein.filter(function(q){ return q!==tp; });
-          zet(and[Math.floor(R(tp*11+w)*and.length)%and.length],n-helft,t+0.5,form); }
+          // kies er een die minstens MIX_VERSCHIL meter scheelt: anders lijken
+          // ze in het veld alsnog op elkaar
+          const mijn=TYPE[tp].br;
+          let and=klein.filter(function(q){
+            return q!==tp&&Math.abs(TYPE[q].br-mijn)>=MIX_VERSCHIL; });
+          if(!and.length) and=klein.filter(function(q){ return q!==tp; });
+          zet(and[Math.floor(R(tp*11+w)*and.length)%and.length],n-helft,t+0.45,form); }
         else zet(tp,n,t,form); };
       const zwaar=1+(this.level-1)*0.16;               // latere levels: meer tegelijk
 
@@ -7756,7 +7768,7 @@
       // Sjoerd: soms mag een golf gemengd zijn — één grote als anker met een rits
       // makkelijke kills erbij. Niet altijd, wel steeds vaker en steeds zwaarder.
       // hoe vaak een golf gemengd is: level 1 bijna nooit, level 12 meestal
-      const mixKans=Math.min(0.80,0.22+(LV-1)*0.075);   // v14.25: vaker mengen
+      const mixKans=Math.min(0.85,0.45+(LV-1)*0.05);    // v14.28: ook in level 1 al mengen
       const mixNu=(R(w*31+LV*7)<mixKans);
       // DE SCHILDGOLF (Sjoerd): eerst de schildwerper, twee seconden later een
       // aanvalsgroep lichte jagers — die krijgen dan meteen twee schilden van
@@ -7921,7 +7933,17 @@
       if(this.gi===undefined) this.gi=0;
       if(this.gi>=this.plan.length) return (!this.rij.length&&levend===0);
       const a=this.plan[this.gi];
-      if(!a.uit){ this.aanval(a); a.uit=1; this.groepT=0; return false; }
+      if(!a.uit){ this.aanval(a); a.uit=1; this.groepT=0;
+        // SAMEN BINNEN: groepen die in het plan vrijwel dezelfde starttijd
+        // hebben horen TEGELIJK in beeld te komen. Zonder dit kwamen ze toch
+        // achter elkaar, en zag je in level 1 nooit twee soorten samen.
+        // hoogstens ÉÉN extra groep erbij, en alleen als het veld het aankan —
+        // Sjoerd wil variatie, geen 25 schepen tegelijk
+        if(this.gi+1<this.plan.length&&this.veldMax<=VELD_SAMEN2){
+          const b2=this.plan[this.gi+1];
+          if(!b2.uit&&Math.abs((b2.t||0)-(a.t||0))<=SAMEN_T){
+            this.aanval(b2); b2.uit=1; this.gi++; } }
+        return false; }
       // GEMETEN (v14.26): de volgende groep kwam pas als ALLES dood was, dus
       // zag je altijd maar één soort tegelijk — 96% van de tijd eensoortig.
       // Sjoerd: "in veel levels zie ik nog grote groepen van dezelfde jagers,
