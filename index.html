@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.25';
+  const VERSIE='v14.26';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1595,7 +1595,9 @@
   // Sjoerds keuze: deze drie brengen hulp mee door blauwe portalen.
   const PORTSCHEPEN={'FIGHTER':1,'SHRIKE':3,'HEAVY':5};   // hoeveel portalen elk
   const PORT_NA=1.2;            // hoe snel na binnenkomst ze opengaan
-  const MIX5050=0.55;           // hoe vaak een grote groep half-om-half wordt
+  const PORT_GROOT=0.3;         // kans dat er een GROOT schip uit een portaal komt
+  const MIX5050=0.85;           // v14.26: bijna altijd half-om-half
+  const VELD_SAMEN=5, SAMEN_NA=2.2;   // volgende groep mag erbij als er nog hoogstens zoveel leven
   const PORT_MAAT=13, PORT_OPEN=0.9, PORT_DOOR=0.7, PORT_DICHT=0.8, PORT_DRAAI=0.9;
   // WARDEN's generatoren: kracht per bol, hoe ver naast hem, hoe groot.
   const GEN_HP=180, GEN_AF=0.75, GEN_VOOR=6, GEN_MAAT=2.6, GEN_TERUG=10;
@@ -2229,7 +2231,7 @@
     {n:'FIGHTER',   pl:6, rij:1, br:12,  hp:330,  pt:150, sp:10.3,  sal:2, cd:2.1, prof:'formatie', f1:0.65, f2:0.30},
     {n:'SAUCER',    pl:6, rij:4, br:17, hp:110, pt:230, sp:5.5,  sal:1, cd:3.4, prof:'cirkel', f1:0.55, f2:0.22},
     {n:'BOMBER',    pl:6, rij:2, br:16, hp:160, pt:300, sp:4.6,  sal:3, cd:4.0, prof:'kruiper', f1:0.72, f2:0.28},
-    {n:'HEAVY',     pl:6, rij:3, br:20, hp:750, pt:420, sp:3.2,  sal:2, cd:2.4, prof:'drijver', f1:0.78, f2:0.40},
+    {n:'HEAVY',     pl:6, rij:3, br:20, hp:750, pt:420, sp:7.8,  sal:2, cd:2.4, prof:'cirkel', f1:0.78, f2:0.40},
     {n:'RAZOR',     pl:12,rij:0, br:5,  hp:60,  pt:80,  sp:15.9, sal:1, cd:2.6, prof:'formatie', f1:0.75, f2:0.40},
     {n:'VIPER',     pl:12,rij:6, br:8,  hp:72,  pt:75,  sp:21.8, sal:1, cd:2.4, prof:'duiker', f1:0.85, f2:0.50},
     // SPINNER is nu BLACK RAVEN: Sjoerds mooie zwarte breedvleugel in level 1.
@@ -2289,12 +2291,12 @@
     [ 0, 7,22, 6, 8, 9,19,18,25],               // 3  + WRAITH, FOUR FLAME (3 portalen)
     [ 7,22, 6, 8, 9,19, 2,18,11,12, 5],         // 4  + LANCER, WEAVER, DARK LANCE (5 portalen)
     [22, 6, 8, 9,19, 2,18,11,12,10,24,25,16],   // 5  + REAPER, DE KLOK, FOUR FLAME, IRON CROSS
-    [ 6, 8, 9,19, 2,18,11,12,10,24, 5,25,13],   // 6  + HEAVY, SHRIKE, GREY HAWK
-    [ 8, 9,19, 2,18,11,12,10,24, 5,13,16,27],   // 7  + WATCHER, AMBER RING
+    [ 6, 8, 9,19, 2,18,11,12,10,24, 5,25,13,27],// 6  + HEAVY, SHRIKE, GREY HAWK, AMBER RING
+    [ 8, 9,19, 2,18,11,12,10,24, 5,13,16],      // 7  + WATCHER (AMBER RING pas in 9)
     [ 9,19,18,11,12,10,24, 5,13,16,28,26,20],   // 8  + DE HANGAR, VENOM, GHOST WING
     [19,18,11,12,10,24, 5,13,16,28,15,21,27],   // 9  + BULWARK, HALO, AMBER RING
     [11,12,10,24, 5,13,16,28,15,17,20,23],      // 10 + HAULER, INFERNO, BASILISK
-    [12,10,24, 5,13,16,28,15,17,20,23,29]       // 11 + NOVA, het zwaarste
+    [12,10,24, 5,13,16,28,15,17,20,23,29,27]    // 11 + NOVA, AMBER RING
   ];;
   const LEVELS=NIVEAU.length;
   //          -  raket shotgun laser electro mitrailleur
@@ -3248,6 +3250,17 @@
       if(n>=RS_HULPMAX) return;
       for(let k=0;k<RS_HULPN;k++) this.portaalOpen(tp,e,k);
     },
+
+    // Welk schip komt er uit een portaal? Een willekeurige uit dit level, en
+    // met PORT_GROOT kans mag dat een grote zijn.
+    portKies:function(){
+      const lijst=NIVEAU[Math.max(0,Math.min(NIVEAU.length-1,this.level-1))]||[];
+      if(!lijst.length) return TYPE.findIndex(function(q){ return q&&q.n==='SCOUT'; });
+      const groot=Math.random()<PORT_GROOT;
+      const past=lijst.filter(function(tp){ const t=TYPE[tp];
+        return t&&t.prof!=='baas'&&(groot?t.br>=14:t.br<14); });
+      const uit=past.length?past:lijst;
+      return uit[Math.floor(Math.random()*uit.length)]; },
 
     // ---- HET PORTAAL ----
     portaalOpen:function(tp,bij,k){
@@ -7531,8 +7544,11 @@
           e.mode='vuren'; e.burst=Math.max(2,(TYPE[e.tp].sal||1)); e.bT=0.3; }
         if(e.portN>0&&!e.portOp){ e.portT=(e.portT||0)+s;
           if(e.portT>PORT_NA){ e.portOp=1;
-            const tp2=TYPE.findIndex(function(q){ return q&&(q.basis||q.n)==='SCOUT'; });
-            for(let q=0;q<e.portN;q++) this.portaalOpen(tp2>=0?tp2:e.tp,e,q); } }
+            // Sjoerd: "bij de portalen komen altijd dezelfde jagers eruit. Er
+            // mogen ook grote uit komen — mss een random portaal." Elk portaal
+            // kiest nu zelf een schip uit de levellijst van dit level, en soms
+            // is dat een grote.
+            for(let q=0;q<e.portN;q++) this.portaalOpen(this.portKies(),e,q); } }
         this.flareUit(e);
         // wegtrekken na de flares, tegen de raket in
         if(e.flareWeg>0){ e.flareWeg-=s;
@@ -7686,8 +7702,11 @@
     golfPlan:function(w){
       const S=this.levelSoorten();
       // op MAAT indelen, niet op taaiheid: de HAULER is taai noch klein maar reusachtig
-      const klein=S.filter(function(t){ return TYPE[t].br<=7; });
-      const mid  =S.filter(function(t){ return TYPE[t].br>7&&TYPE[t].br<16; });
+      // GEMETEN (v14.26): 'klein' liep tot 7 m, maar sinds v14.23 zijn de
+      // jagers 4 tot 12 m — de lijst was dus bijna leeg en er viel niets te
+      // mengen. Vandaar dat je grote groepen van dezelfde jager bleef zien.
+      const klein=S.filter(function(t){ return TYPE[t].br<=12; });
+      const mid  =S.filter(function(t){ return TYPE[t].br>12&&TYPE[t].br<16; });
       const groot=S.filter(function(t){ return TYPE[t].br>=16; });
       const k=function(i){ return klein.length?klein[i%klein.length]:S[0]; };
       const m=function(i){ return mid.length?mid[i%mid.length]:k(i); };
@@ -7722,7 +7741,7 @@
       // in plaats van 6 of 8 dezelfde, mix hem met nog een andere kleine."
       // Een grote groep van één soort wordt vanaf level 2 vaak gesplitst.
       const zetMix=function(tp,n,t,form){
-        if(n>=5&&klein.length>1&&R(tp*7+w*3+LV)<MIX5050){
+        if(n>=4&&klein.length>1&&R(tp*7+w*3+LV)<MIX5050){
           const helft=Math.max(2,Math.round(n/2));
           zet(tp,helft,t,form);
           const and=klein.filter(function(q){ return q!==tp; });
@@ -7752,12 +7771,12 @@
       if(LV>=ARENA_VANAF&&werperTp>=0&&R(w*59+LV*5)<ARENA_KANS){
         zet(werperTp,1,0,'links'); zet(werperTp,1,0.3,'rechts');
         for(let b=0;b<ARENA_GROEPEN;b++){
-          zet(k(o+2+b),5+Math.floor(LV*0.3),2.5+b*0.1);
+          zetMix(k(o+2+b),5+Math.floor(LV*0.3),2.5+b*0.1);
           if(b===ARENA_GROEPEN-1||R(w*13+b)<0.4) zet(m(o+4+b),2,3.0); }
       }
       else if(LV>=SCHILDGOLF_VANAF&&werperTp>=0&&R(w*43+LV*3)<SCHILDGOLF_KANS){
         zet(werperTp,1,0);
-        zet(k(o+2),5+Math.floor(LV*0.4),2.0);
+        zetMix(k(o+2),5+Math.floor(LV*0.4),2.0);
         if(R(w*7+LV)<0.5) zet(m(o+4),2,3.5);
       }
       else if(mixNu&&LV>=2){
@@ -7766,8 +7785,8 @@
         for(let b=0;b<nG;b++) zet(g(o+b*2),1,b*1.6);
         // en een rits lichte erbij: die zijn er om snel weg te knallen
         const nK=6+Math.floor(R(w+LV)*7)+Math.floor(LV*0.6);
-        zet(k(o+3),nK,1.2);
-        if(R(w*11+LV)<0.5) zet(k(o+5),Math.round(nK*0.7),4.0);
+        zetMix(k(o+3),nK,1.2);
+        if(R(w*11+LV)<0.5) zetMix(k(o+5),Math.round(nK*0.7),4.0);
         // op hogere levels ook nog wat middelgrote ertussen
         if(LV>=6&&R(w*17+LV)<0.55) zet(m(o+1),2+Math.floor(LV*0.2),3.0);
       }
@@ -7783,7 +7802,7 @@
         for(let a=0;a<=n;a++){
           const r=R(w*7+a);
           const t=a*(2.2+R(w+a)*3.0);
-          if(r<0.40) zet(k(o+a+Math.floor(R(a)*5)),(9+w)*zwaar,t);
+          if(r<0.40) zetMix(k(o+a+Math.floor(R(a)*5)),(9+w)*zwaar,t);
           else if(r<0.76){ const tp=m(o+a+Math.floor(R(a+3)*5));
             zet(tp,(3.5+w*0.55)*zwaar,t,TYPE[tp].prof==='formatie'?1:0); }
           else zet(g(o+a+Math.floor(R(a+5)*5)),(1+w*0.26)*zwaar,t); }
@@ -7904,7 +7923,15 @@
       if(this.gi>=this.plan.length) return (!this.rij.length&&levend===0);
       const a=this.plan[this.gi];
       if(!a.uit){ this.aanval(a); a.uit=1; this.groepT=0; return false; }
-      if(this.rij.length||levend>0){ this.groepT=0; return false; }
+      // GEMETEN (v14.26): de volgende groep kwam pas als ALLES dood was, dus
+      // zag je altijd maar één soort tegelijk — 96% van de tijd eensoortig.
+      // Sjoerd: "in veel levels zie ik nog grote groepen van dezelfde jagers,
+      // graag 50/50." Nu mag de volgende groep er al bij zodra het veld genoeg
+      // ruimte heeft, zolang het totaal onder VELD_SAMEN blijft.
+      const ruim=(levend>0&&levend<=VELD_SAMEN&&!this.rij.length&&this.gi+1<this.plan.length);
+      if(ruim){ this.groepT=(this.groepT||0)+s;
+        if(this.groepT>SAMEN_NA){ this.gi++; this.groepT=0; return false; } }
+      if(this.rij.length||levend>0){ if(!ruim) this.groepT=0; return false; }
       this.groepT=(this.groepT||0)+s;
       if(this.groepT>0.9){ this.gi++; this.groepT=0;
         if(this.gi<this.plan.length) this.toonMelding('WAVE '+this.wave+'  -  GROUP '+(this.gi+1),'#8fd8ec'); }
