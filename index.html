@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.31';
+  const VERSIE='v14.32';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -912,20 +912,48 @@
     g.fillStyle=gr; g.fillRect(0,0,128,128);
     const t=new THREE.CanvasTexture(C); t.needsUpdate=true; return t; }
 
-  function mkStreep(){                                    // langwerpige kogel: kop + staart
-    const C=document.createElement('canvas'); C.width=64; C.height=256;
+  function mkStreep(){
+    // Sjoerd: "nu heb ik een soort light gun wit projectiel — kan hier wat meer
+    // vuur en vlam in, ook met donkere kleuren, zodat het in de zon zichtbaar
+    // is?" Puur wit met additief mengen lost op tegen een lichte hemel. Dus:
+    // een WITGLOEIENDE KERN met daaromheen oranje vuur en een DONKERE rook-
+    // rand. Die donkere rand is wat hem tegen elke achtergrond laat opvallen.
+    const C=document.createElement('canvas'); C.width=96; C.height=320;
     const g=C.getContext('2d');
-    const gr=g.createLinearGradient(0,0,0,256);
-    gr.addColorStop(0,'rgba(255,255,255,0)');
-    gr.addColorStop(0.30,'rgba(255,255,255,0.85)');
-    gr.addColorStop(0.62,'#ffffff');
-    gr.addColorStop(0.80,'rgba(255,255,255,0.55)');
-    gr.addColorStop(1,'rgba(255,255,255,0)');
-    g.fillStyle=gr; g.fillRect(18,0,28,256);
-    const gz=g.createRadialGradient(32,158,0,32,158,32);
-    gz.addColorStop(0,'#ffffff'); gz.addColorStop(0.4,'rgba(255,255,255,0.6)');
-    gz.addColorStop(1,'rgba(255,255,255,0)');
-    g.fillStyle=gz; g.fillRect(0,126,64,64);
+    // 1. donkere rookmantel: de buitenste laag, breed en vaag
+    const rk=g.createLinearGradient(0,0,0,320);
+    rk.addColorStop(0,'rgba(20,8,2,0)');
+    rk.addColorStop(0.22,'rgba(40,16,4,0.55)');
+    rk.addColorStop(0.55,'rgba(60,22,6,0.75)');
+    rk.addColorStop(0.85,'rgba(30,12,3,0.35)');
+    rk.addColorStop(1,'rgba(20,8,2,0)');
+    g.fillStyle=rk; g.fillRect(8,0,80,320);
+    // 2. het vuur: diep oranje naar geel
+    const vu=g.createLinearGradient(0,0,0,320);
+    vu.addColorStop(0,'rgba(120,30,0,0)');
+    vu.addColorStop(0.25,'rgba(200,60,10,0.7)');
+    vu.addColorStop(0.52,'rgba(255,140,30,0.95)');
+    vu.addColorStop(0.70,'rgba(255,200,70,0.9)');
+    vu.addColorStop(0.88,'rgba(180,50,10,0.4)');
+    vu.addColorStop(1,'rgba(120,30,0,0)');
+    g.fillStyle=vu; g.fillRect(22,0,52,320);
+    // 3. de witgloeiende kern
+    const kn=g.createLinearGradient(0,0,0,320);
+    kn.addColorStop(0,'rgba(255,240,200,0)');
+    kn.addColorStop(0.38,'rgba(255,235,180,0.8)');
+    kn.addColorStop(0.60,'#ffffff');
+    kn.addColorStop(0.78,'rgba(255,225,150,0.7)');
+    kn.addColorStop(1,'rgba(255,200,100,0)');
+    g.fillStyle=kn; g.fillRect(38,0,20,320);
+    // 4. de kop: een felle bol met een donkere zoom eromheen
+    const kz=g.createRadialGradient(48,196,0,48,196,44);
+    kz.addColorStop(0,'#ffffff');
+    kz.addColorStop(0.22,'rgba(255,245,200,0.98)');
+    kz.addColorStop(0.44,'rgba(255,150,40,0.85)');
+    kz.addColorStop(0.68,'rgba(140,45,8,0.55)');
+    kz.addColorStop(0.86,'rgba(45,16,4,0.35)');
+    kz.addColorStop(1,'rgba(20,8,2,0)');
+    g.fillStyle=kz; g.fillRect(4,152,88,88);
     const t=new THREE.CanvasTexture(C); t.needsUpdate=true; return t; }
 
   function mkSterren(){
@@ -1531,6 +1559,10 @@
   // binnen één beurt aankomt. Schade per kogel en vuurtempo blijven gelijk,
   // dus de schade per seconde verandert niet — alleen de wachttijd verdwijnt.
   const KOGELSNEL=1400;
+  // Hoe jouw kogel eruitziet. KOGEL_GAT is de ruimte vlak voor je neus waar hij
+  // nog niet wordt getekend; tot KOGEL_SPOOR trekt hij een streep van waar hij
+  // vandaan kwam, zodat je hem ook van dichtbij ziet vertrekken.
+  const KOGEL_GAT=1.6, KOGEL_SPOOR=26, KOGEL_LANG=4.2, KOGEL_DIK=0.52;
   // Het nabranden van de laser: hoeveel schade per tik, hoe vaak, en hoeveel
   // brand een schip hoogstens kan oplopen.
   const BRAND_DMG=3, BRAND_TIK=0.25, BRAND_MAX=60;
@@ -2382,9 +2414,11 @@
         bb:null,tp:0,hp:0,hpM:0,r:1,sc:1,t:0,cd:0,fase:0,flash:0,dood:0,extra:{}});
 
       // ---- kogels ----
+      // GEWOON mengen, niet additief: bij additief telt donker als niets, en
+      // dan verdwijnt juist de rand die hem tegen een lichte hemel laat zien.
       this.bolts=[]; this.mkPool(this.bolts,120,function(){
         const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
-          new THREE.MeshBasicMaterial({map:self.STREEP,transparent:true,blending:THREE.AdditiveBlending,
+          new THREE.MeshBasicMaterial({map:self.STREEP,transparent:true,
             depthWrite:false,color:0xffffff}));
         m.renderOrder=6; return m; },{o:1,dir:1,d:0,pd:0,md:0,sz:1,tol:0,dmg:1,sp:1400});
       // 110 was te krap geworden: een zwerm van 44 plus een combinatie van drie
@@ -4637,7 +4671,7 @@
       a.needsUpdate=true; },
 
     // ---- kogel richten: staat altijd met de neus vooruit én naar de camera gekeerd ----
-    richtQuad:function(m,p,dir,len,br,keer){
+    richtQuad:function(m,p,dir,len,br,keer,vast){
       const R=this.RQ||(this.RQ={x:new THREE.Vector3(),y:new THREE.Vector3(),
         z:new THREE.Vector3(),e:new THREE.Vector3(0,1.6,0),op:new THREE.Vector3(),
         M:new THREE.Matrix4()});
@@ -4657,7 +4691,10 @@
       R.M.makeBasis(R.x,R.y,R.z);
       m.quaternion.setFromRotationMatrix(R.M);
       m.position.copy(p);
-      const L=len+(br*1.7-len)*vk;                 // van streep naar kopse kant
+      // 'vast' houdt de lengte: een kogel die recht van je wegvliegt werd anders
+      // teruggebracht tot zijn breedte, en dan zie je van dichtbij niets van het
+      // spoor waar Sjoerd om vroeg.
+      const L=vast?len:(len+(br*1.7-len)*vk);      // van streep naar kopse kant
       m.scale.set(br,L,1); },
 
     // =====================================================
@@ -8599,7 +8636,21 @@
           if(B.vlamT<=0){ B.vlamT=0.03;
             this.vonk(p.x-B.dir.x*1.5,p.y-B.dir.y*1.5,p.z-B.dir.z*1.5,
                       0x6cf0ff,1,0.9,0.16,true); } }
-        else this.richtQuad(B.m,p,B.dir,B.sz*(B.sp>200?3.0:3.4),B.sz*(B.sp>200?0.22:0.5));
+        else {
+          // Sjoerd: "hij lijkt pas zichtbaar op afstand. Direct in mijn neus
+          // hoeft niet, maar wel vanaf mij en dan een paar meter voor mij."
+          // GEMETEN: bij 1400 m/s staat hij na ÉÉN beeldje al op 19,6 m — dus
+          // tussen je hand en twintig meter zag je niets. Nu trekt hij de eerste
+          // meters een SPOOR van waar hij vandaan kwam tot waar hij nu is, met
+          // een gaatje vlak voor je neus. Daarna weer een korte kogel.
+          const rest=B.d-B.pd;
+          if(B.d<KOGEL_SPOOR&&rest>1){
+            const van=Math.max(KOGEL_GAT,B.pd);
+            const lang=Math.max(0.6,B.d-van);
+            const mid=this.KS||(this.KS=new THREE.Vector3());
+            mid.copy(B.o).addScaledVector(B.dir,van+lang*0.5);
+            this.richtQuad(B.m,mid,B.dir,lang,B.sz*KOGEL_DIK,0,1); }
+          else this.richtQuad(B.m,p,B.dir,B.sz*KOGEL_LANG,B.sz*KOGEL_DIK,0,1); }
         // Op SCHEPEN toetst hij het hele stuk dat de kogel aflegde, maar op
         // RAKETTEN alleen zijn eindpunt. Bij 185 m/s springt hij 2,6 m per beurt
         // terwijl de trefstraal 1,3 m is — dus vloog hij dwars door raketten heen,
