@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.32';
+  const VERSIE='v14.33';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1562,7 +1562,12 @@
   // Hoe jouw kogel eruitziet. KOGEL_GAT is de ruimte vlak voor je neus waar hij
   // nog niet wordt getekend; tot KOGEL_SPOOR trekt hij een streep van waar hij
   // vandaan kwam, zodat je hem ook van dichtbij ziet vertrekken.
-  const KOGEL_GAT=1.6, KOGEL_SPOOR=26, KOGEL_LANG=4.2, KOGEL_DIK=0.52;
+  // Sjoerd: "dichtbij is echt enorm groot, niet te dicht bij laten beginnen.
+  // De kogels ook bij laser graag kleiner, en beetje glow erin zoals de raket."
+  // Het spoor begint nu op zes meter en is smaller; de kogel zelf is terug naar
+  // het formaat van voor v14.32 (3,0 lang, 0,22 dik) maar met een gloed eromheen.
+  const KOGEL_GAT=6.0, KOGEL_SPOOR=22, KOGEL_LANG=3.0, KOGEL_DIK=0.24;
+  const KOGEL_GLOED=2.6;        // hoeveel groter de zachte gloed is dan de kern
   // Het nabranden van de laser: hoeveel schade per tik, hoe vaak, en hoeveel
   // brand een schip hoogstens kan oplopen.
   const BRAND_DMG=3, BRAND_TIK=0.25, BRAND_MAX=60;
@@ -1581,6 +1586,10 @@
   // De vloeiende baan die de scissors verving: hoe snel hij omzwenkt, hoe ver
   // opzij en hoe veel hij daarbij stijgt en daalt.
   const SMOOTH_DRAAI=0.30, SMOOTH_ZIJ=2.4, SMOOTH_HOOG=1.0;
+  // DARK SAUCER: rechte stukken met haakse hoeken. POOT is hoe lang een stuk is,
+  // STOP de korte pauze op de hoek die de knik zichtbaar maakt.
+  const HAAKS_POOT=26, HAAKS_SNEL=26, HAAKS_STOP=0.12, HAAKS_MIN=45, HAAKS_MAX=125;
+  const HAAKS_WIJKKANS=0.45, HAAKS_WIJKCD=5, HAAKS_WIJKT=0.85, HAAKS_WIJKV=34;
   // DE KLIMROL bij een treffer: hoe lang, hoe hoog (samen ~30 m), hoe ver opzij,
   // hoeveel zijn snelheid wisselt, en de wachttijd.
   const KLIM_TIJD=1.6, KLIM_HOOG=29, KLIM_ZIJ=17, KLIM_SNELV=0.55, KLIM_CD=6;
@@ -2420,6 +2429,13 @@
         const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
           new THREE.MeshBasicMaterial({map:self.STREEP,transparent:true,
             depthWrite:false,color:0xffffff}));
+        // DE GLOED, zoals bij de raket: een zachte halo achter de kern, additief
+        // zodat hij oplicht zonder de donkere rand van de kern weg te drukken.
+        const gl=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
+          new THREE.MeshBasicMaterial({map:self.GLOED,transparent:true,
+            blending:THREE.AdditiveBlending,depthWrite:false,
+            color:0xffb060,opacity:0.75}));
+        gl.position.z=-0.01; gl.renderOrder=5; m.add(gl); m.__gl=gl;
         m.renderOrder=6; return m; },{o:1,dir:1,d:0,pd:0,md:0,sz:1,tol:0,dmg:1,sp:1400});
       // 110 was te krap geworden: een zwerm van 44 plus een combinatie van drie
       // aanvallen loopt daar zo overheen, en dan verdwijnen er schoten.
@@ -3181,6 +3197,66 @@
     // meter, en zet af en toe de SCHEERVLUCHT in — op zesentwintig meter voor je
     // neus langs — net als de grote schepen. Zo blijft hij door het veld gaan
     // in plaats van op één plek te hangen.
+    // ---- DARK SAUCER: HET HAAKSE PATROON (Sjoerds ontwerp) ----
+    // Sjoerd: "graag een origineel vliegpatroon, allemaal haakse bewegingen.
+    // Recht omhoog en naar beneden, voor en achter, en ook echt links en
+    // rechts." Dus geen bochten maar RECHTE stukken met scherpe hoeken ertussen.
+    haaksTick:function(e,s){
+      if(!e.hkAs){ e.hkAs='x'; e.hkRest=0; e.hkTeken=1; e.hkPauze=0; }
+      if(e.hkRest<=0){
+        const assen=(e.hkAs==='x')?['y','z']:((e.hkAs==='y')?['x','z']:['x','y']);
+        e.hkAs=assen[Math.floor(Math.random()*assen.length)];
+        e.hkTeken=(Math.random()<0.5?-1:1);
+        e.hkRest=HAAKS_POOT*(0.7+Math.random()*0.7);
+        e.hkPauze=HAAKS_STOP; }
+      if(e.hkPauze>0){ e.hkPauze-=s; if(e.bb) e.bb.m.position.copy(e.p); return true; }
+      const v=HAAKS_SNEL*s, r=e.hkTeken*v;
+      if(e.hkAs==='x') e.p.x+=r;
+      else if(e.hkAs==='y') e.p.y+=r;
+      else { const naar=this.HK||(this.HK=new THREE.Vector3());
+        naar.subVectors(this.kop,e.p).normalize();
+        e.p.addScaledVector(naar,r); }
+      e.hkRest-=v;
+      const af=e.p.distanceTo(this.kop);
+      if(af<HAAKS_MIN||af>HAAKS_MAX) e.hkRest=0;
+      if(e.p.y<this.kop.y-10){ e.p.y=this.kop.y-10; e.hkRest=0; }
+      if(e.p.y>this.kop.y+40){ e.p.y=this.kop.y+40; e.hkRest=0; }
+      if(e.bb) e.bb.m.position.copy(e.p);
+      return true; },
+
+    // Bij een treffer: een U, een Z of een L — snel, maar zichtbaar.
+    haaksWijk:function(e){
+      if(e.hwT>0||e.hwCd>0) return;
+      if(Math.random()>HAAKS_WIJKKANS){ e.hwCd=1.0; return; }
+      e.hwCd=HAAKS_WIJKCD;
+      e.hwVorm=['U','Z','L'][Math.floor(Math.random()*3)];
+      e.hwT=HAAKS_WIJKT; e.hwZij=(Math.random()<0.5?-1:1);
+      this.vonk(e.p.x,e.p.y,e.p.z,0xc07dff,5,e.sc*0.4,0.35); },
+
+    haaksWijkTick:function(e,s){
+      if(!(e.hwT>0)) return false;
+      e.hwT-=s;
+      const deel=1-Math.max(0,e.hwT/HAAKS_WIJKT);
+      const naar=this.HW||(this.HW=new THREE.Vector3());
+      naar.subVectors(this.kop,e.p).normalize();
+      const t=this.HW2||(this.HW2=new THREE.Vector3());
+      t.set(-naar.z,0,naar.x).normalize();
+      const v=HAAKS_WIJKV*s, z=e.hwZij;
+      if(e.hwVorm==='U'){
+        if(deel<0.33)      e.p.y-=v;
+        else if(deel<0.66) e.p.addScaledVector(t,z*v);
+        else               e.p.y+=v; }
+      else if(e.hwVorm==='Z'){
+        if(deel<0.33)      e.p.addScaledVector(t,z*v);
+        else if(deel<0.66) e.p.y+=v*0.9;
+        else               e.p.addScaledVector(t,z*v); }
+      else {
+        if(deel<0.5)       e.p.y+=v;
+        else               e.p.addScaledVector(t,z*v); }
+      if(e.bb) e.bb.m.position.copy(e.p);
+      if(e.hwT<=0){ e.hwT=0; e.hkRest=0; }
+      return true; },
+
     wielTick:function(e,s){
       if(e.wielA===undefined){ e.wielA=Math.atan2(e.p.x-this.kop.x,-(e.p.z-this.kop.z));
         e.wielR=WIEL_R; e.wielDr=(Math.random()<0.5?-1:1); e.wielT=0; }
@@ -5164,6 +5240,8 @@
       // AMBER RING springt soms weg bij een treffer — en LANCE ook.
       if(TYPE[e.tp]&&(WERPERS.indexOf(TYPE[e.tp].basis||TYPE[e.tp].n)>=0||e.dubbel)
          &&e.hp>0&&!e.dood&&!e.dood2) this.ufoWeg(e);
+      // DARK SAUCER wijkt in een U, Z of L bij een treffer.
+      if(TYPE[e.tp]&&TYPE[e.tp].prof==='haaks'&&e.hp>0&&!e.dood&&!e.dood2) this.haaksWijk(e);
       // LANCE doet daarbij ook de BREAK TURN van BRONZE FANG, met de versnelling
       if(e.dubbel&&e.hp>0&&!e.dood&&!e.dood2&&!(e.herpakCd>0)&&!(e.herpakT>0)
          &&!(e.ufoDoel)&&Math.random()<LANCE_BRKKANS) this.herpakStart(e);
@@ -7597,6 +7675,8 @@
         if(e.ssCd>0) e.ssCd-=s;
         if(e.duikRolCd>0) e.duikRolCd-=s;
         if(e.klimCd>0) e.klimCd-=s;
+        if(e.hwCd>0) e.hwCd-=s;
+        if(!e.dood2&&this.haaksWijkTick(e,s)) return;
         if(!e.dood2&&this.klimTick(e,s)) return;
         if(e.yoCd>0) e.yoCd-=s;
         if(!e.dood2&&this.yoyoTick(e,s)) return;
@@ -7694,6 +7774,7 @@
           if(e.bT<=0){ e.bT=((TYPE[e.tp].cd||3.4)+Math.random()*1.6)*VUURTEMPO;
             this.spuw(e,TYPE[e.tp].sal||1,0.06); } } }
       else if(e.prof==='baas'){ if(!(e.dubbel&&(e.ufoDoel||e.herpakT>0))) this.baasBaan(e,s,naar,afst); }
+      else if(e.prof==='haaks'){ this.haaksTick(e,s); }
       else if(e.prof==='duiker'){ this.profiel(e,s,naar,afst,sp);
         if(e.mode==='nader'&&afst>AFST[Math.min(2,e.stap)]+e.r*1.3+1.2) this.halte(e,s,naar,afst,sp*0.4); }
       else if(e.stijl==='route'){ this.routeBaan(e,s,sp); }
@@ -8650,7 +8731,12 @@
             const mid=this.KS||(this.KS=new THREE.Vector3());
             mid.copy(B.o).addScaledVector(B.dir,van+lang*0.5);
             this.richtQuad(B.m,mid,B.dir,lang,B.sz*KOGEL_DIK,0,1); }
-          else this.richtQuad(B.m,p,B.dir,B.sz*KOGEL_LANG,B.sz*KOGEL_DIK,0,1); }
+          else this.richtQuad(B.m,p,B.dir,B.sz*KOGEL_LANG,B.sz*KOGEL_DIK,0,1);
+          // de gloed volgt de kern maar blijft rond: hij wordt in de OMGEKEERDE
+          // verhouding geschaald, anders rekt hij mee tot een lange veeg
+          if(B.m.__gl){ const sx=B.m.scale.x||1, sy=B.m.scale.y||1;
+            const r=B.sz*KOGEL_GLOED;
+            B.m.__gl.scale.set(r/sx,r/sy,1); } }
         // Op SCHEPEN toetst hij het hele stuk dat de kogel aflegde, maar op
         // RAKETTEN alleen zijn eindpunt. Bij 185 m/s springt hij 2,6 m per beurt
         // terwijl de trefstraal 1,3 m is — dus vloog hij dwars door raketten heen,
