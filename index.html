@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.29';
+  const VERSIE='v14.31';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1602,6 +1602,11 @@
   const SAMEN_T=1.2;            // groepen binnen deze tijd komen tegelijk binnen
   const VELD_SAMEN2=7;          // en alleen als er nog ruimte is: geen 25 tegelijk
   const SAMEN_VANAF=3;          // pas vanaf level 3 twee groepen tegelijk
+  const BEGIN_REM=0.78;         // level 1-2: iets minder, niet half
+  const BEGIN_MAX=14;           // en in level 1-2 nooit meer dan zoveel per golf
+  const RUST_GOLF=0.80;         // elke derde golf is iets rustiger
+  const GOLF_DAK=17;            // level 1-2: hoogstens zoveel schepen per golf
+  const GOLF_BODEM=9;           // ...en minstens zoveel: geen halve golven
   const RAVEN_VROEG=3;          // BLACK RAVEN in level 1-3: hoogstens drie
   const PORT_MAAT=13, PORT_OPEN=0.9, PORT_DOOR=0.7, PORT_DICHT=0.8, PORT_DRAAI=0.9;
   // WARDEN's generatoren: kracht per bol, hoe ver naast hem, hoe groot.
@@ -7501,6 +7506,13 @@
       e.rol=0; },
 
     baan:function(e,s){
+      // STERFT HIJ? Dan alle lopende manoeuvres meteen afbreken. Stond een
+      // manoeuvre nog aan (bij LANCE bleef herpakT op 1,1 staan), dan sloeg die
+      // de sterfroutine over en bleef hij eeuwig hangen met hp 0 — Sjoerd:
+      // "boss doesn't die and go away". De opruiming moet BUITEN het
+      // kunstjesblok staan, want dat wordt bij dood2 juist overgeslagen.
+      if(e.dood2){ e.herpakT=0; e.klimT=0; e.yoT=0; e.ssT=0; e.wijkT=0;
+        e.ufoDoel=null; e.ufoRust=0; e.springRust=0; e.scheer=0; }
       // ELKE BEURT: de kunstjes van de bijzondere schepen.
       if(!e.dood&&!e.dood2){
           if(e.springCd>0) e.springCd-=s;
@@ -7516,13 +7528,16 @@
         // niet aanviel. De beweging gebeurt hier; de rest loopt gewoon door.
         // pas NA de intro: anders trekt de ronde hem weg van zijn intro-doel,
         // eindigt de intro nooit, en zie je geen krachtbalk (Sjoerd)
-        if(e.wiel&&!e.intro) this.wielTick(e,s);
+        if(e.wiel&&!e.intro&&!e.dood2) this.wielTick(e,s);
         if(e.doelen&&!e.intro) this.doelTick(e,s);
         if(e.blauwM>0&&!e.intro) this.blauwTick(e,s);
         if(WERPERS.indexOf(nm2)>=0||e.dubbel){
           if(WERPERS.indexOf(nm2)>=0) this.werperTick(e,s);
           this.ringSchild(e,s);
-          if(!(e.herpakT>0)&&this.ufoTick(e,s)) return; }
+          // NIET tijdens het sterven: deze 'return' sloeg baasBaan over, en
+          // daar zit baasSterft. LANCE bleef daardoor eeuwig sprinten met hp 0
+          // en ging nooit weg (Sjoerd: "boss doesn't die and go away").
+          if(!e.dood2&&!(e.herpakT>0)&&this.ufoTick(e,s)) return; }
         if(e.ufoWegCd>0) e.ufoWegCd-=s;
         if(e.genBol) this.genTick(e,s);
         if(e.esc) this.escTick(e,s);
@@ -7545,9 +7560,9 @@
         if(e.ssCd>0) e.ssCd-=s;
         if(e.duikRolCd>0) e.duikRolCd-=s;
         if(e.klimCd>0) e.klimCd-=s;
-        if(this.klimTick(e,s)) return;
+        if(!e.dood2&&this.klimTick(e,s)) return;
         if(e.yoCd>0) e.yoCd-=s;
-        if(this.yoyoTick(e,s)) return;
+        if(!e.dood2&&this.yoyoTick(e,s)) return;
         if(e.flareCd>0) e.flareCd-=s;
         // de portalen van STEEL TALON, FOUR FLAME en DARK LANCE: kort na
         // binnenkomst gaan ze open en komt er hulp uit
@@ -7574,13 +7589,20 @@
         if(e.wijker){ this.mikTick(e,s); if(e.wijkT>0) return; }
         // DE SPRINGER duikt ook weg voor een RAKET die bijna inslaat.
         if(SPRINGERS.indexOf(nm2)>=0&&!(e.springCd>0)) this.raketWijk(e);
-        if(e.herpakT>0){ this.herpakTick(e,s); return; } }
+        // Bij het sterven de manoeuvre METEEN afbreken. Alleen de tick
+        // overslaan was niet genoeg: herpakT bleef op 1,1 staan en dan sloeg de
+        // regel hierboven baasSterft alsnog over — LANCE bleef eeuwig hangen.
+        if(e.dood2){ e.herpakT=0; e.klimT=0; e.yoT=0; e.ssT=0; e.ufoDoel=null; }
+        else if(e.herpakT>0){ this.herpakTick(e,s); return; } }
       // Een LOS schip tuimelt neer in plaats van uit elkaar te spatten.
       // HET NEERSTORTEN WERKTE AL: doodBaan laat een schip wegdraaien, duikelen
       // of tollen — drie manieren, willekeurig gekozen. In v13.01 zette ik daar
       // losVal bovenop voor losse schepen, en die overschreef de rotatie en de
       // val. Nu doet doodBaan het weer voor iedereen, zoals altijd.
-      if(e.dood){ this.doodBaan(e,s); return; }
+      // Een BAAS die sterft gebruikt baasSterft, niet doodBaan. Stond e.dood
+      // ook aan (dat gebeurt bij LANCE), dan greep deze regel voor en werd de
+      // sterfroutine nooit bereikt: hij bleef eeuwig hangen met hp 0.
+      if(e.dood&&!(e.dood2&&TYPE[e.tp]&&TYPE[e.tp].prof==='baas')){ this.doodBaan(e,s); return; }
       // De spiraalwerper stuurt zichzelf: hij staat stil terwijl hij vuurt en
       // sprint daarna weg. Zijn gewone vlieggedrag zou dat overschrijven.
       // een neerstortend spook laat een zwarte sliert achter
@@ -7752,7 +7774,34 @@
                   :['rij','wig','slinger','zuil','tang','ring','ring','spiraal'];
         return lijst[Math.floor(R(seed*13+7)*lijst.length)%lijst.length]; };
       let vI=0;
+      // Sjoerd: "de aantallen in de begin levels een klein beetje naar beneden —
+      // niet alle waves hoeven max alles in beeld." GEMETEN: level 1 golf 10 had
+      // ACHTENVEERTIG schepen gepland. In de eerste levels gaat er nu een rem op,
+      // en niet elke golf zit vol: de tussenliggende zijn bewust rustiger.
+      const LV0=Math.max(1,this.level||1);
+      const rem=(LV0<=2)?BEGIN_REM:((LV0<=4)?(BEGIN_REM+(1-BEGIN_REM)*0.55):1);
+      const rustig=(w%3===2)?RUST_GOLF:1;              // elke derde golf ademt
+      let golfTot=0;
+      // en een PLAFOND per golf in de eerste levels: de pieken liepen nog naar
+      // 26 schepen. Later in het spel mag het vol, daar blijft alles zoals het is.
+      // Sjoerd: "4 is wel heel weinig, alles is zo extreem up or down." Dus
+      // niet alleen een plafond maar ook een VLOER: in de eerste levels blijft
+      // een golf tussen GOLF_BODEM en GOLF_DAK. Geen sprong van 4 naar 13,
+      // wel merkbaar verschil tussen de rustige en de volle golven.
+      let planTot=0, laatste=null;
+      const dak=(LV0<=2)?GOLF_DAK:((LV0<=4)?GOLF_DAK*1.7:9999);
+      const bodem=(LV0<=2)?GOLF_BODEM:((LV0<=4)?GOLF_BODEM+2:0);
       const zet=function(tp,n,t,form){
+        n=Math.max(1,Math.round(n*rem*rustig));
+        if(planTot+n>dak) n=Math.max(0,Math.round(dak-planTot));
+        if(n<=0) return;
+        planTot+=n;
+        laatste={tp:tp,t:t,form:form};
+        // en een harde bovengrens per golf in de eerste levels: de pieken van
+        // 26 schepen in level 1 waren nog te veel
+        if(LV0<=2){ const ruimte=BEGIN_MAX-golfTot;
+          if(ruimte<=0) return; n=Math.min(n,ruimte); }
+        golfTot+=n;
         // BLACK RAVEN is 18 m breed: in level 1 t/m 3 hoogstens drie. Deze grens
         // staat HIER, in zet(), want elk plan gaat hier doorheen — cap() alleen
         // was niet genoeg (gemeten: er kwamen er nog zeven).
@@ -7882,6 +7931,11 @@
       let tot=0; for(let i=0;i<plan.length;i++) tot+=plan[i].n;
       if(tot>46){ const f=46/tot;
         for(let i=0;i<plan.length;i++) plan[i].n=Math.max(1,Math.round(plan[i].n*f)); }
+      // te dun geworden? vul aan tot de vloer met dezelfde soort, zodat een golf
+      // nooit als een halve wave aanvoelt
+      if(bodem&&planTot<bodem&&plan.length){
+        const q=plan[plan.length-1];
+        q.n+=Math.round(bodem-planTot); }
       return plan; },
 
     nieuweGolf:function(){
