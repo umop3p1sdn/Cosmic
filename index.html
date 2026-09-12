@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.35';
+  const VERSIE='v14.36';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -545,6 +545,10 @@
     // Sjoerd v14.34: nieuw schip, vervangt het ringschip. Zware jager met twee
     // motorgondels aan lange vleugels en rode lichtbanen.
     {nr:'0127', rol:'schip', schip:'WEAVER',  naam:'RED VEIN'},
+    // Sjoerd v14.36: de JAMMER. Grote romp met een schotel erop; blijft ver weg
+    // en stuurt pulsen die je beeld vertroebelen. Veel kracht en een schild —
+    // hij is vervelend, dus je MOET hem opruimen.
+    {nr:'0196', rol:'schip', schip:'JAMMER',  naam:'STATIC'},
     {nr:'9835', rol:'schip', schip:'BULWARK', naam:'sterfort'},
     {nr:'9840', rol:'schip', schip:'WATCHER', naam:'IRON CROSS',    br:26},
     {nr:'9841', rol:'schip', schip:'HAULER',  naam:'vrachtkruiser'},
@@ -924,6 +928,24 @@
     g.fillStyle=gr; g.fillRect(0,0,128,128);
     const t=new THREE.CanvasTexture(C); t.needsUpdate=true; return t; }
 
+  // De ruis die de jammer over je beeld legt: horizontale banden, lichtblauw,
+  // met open stukken ertussen zodat je kunt blijven spelen.
+  function mkRuis(){
+    const C=document.createElement('canvas'); C.width=256; C.height=256;
+    const g=C.getContext('2d');
+    g.clearRect(0,0,256,256);
+    for(let y=0;y<256;y+=4){
+      const a=(Math.random()<0.42)?(0.10+Math.random()*0.30):0.03;
+      const hh=1+Math.floor(Math.random()*3);
+      g.fillStyle='rgba(150,220,255,'+a.toFixed(2)+')';
+      g.fillRect(0,y,256,hh);
+      if(Math.random()<0.18){                       // af en toe een verschoven blok
+        g.fillStyle='rgba(200,240,255,'+(0.12+Math.random()*0.22).toFixed(2)+')';
+        g.fillRect(Math.random()*200,y,40+Math.random()*56,hh+1); } }
+    const t=new THREE.CanvasTexture(C);
+    t.wrapS=THREE.RepeatWrapping; t.wrapT=THREE.RepeatWrapping;
+    t.needsUpdate=true; return t; }
+
   function mkStreep(){
     // Sjoerd: "nu heb ik een soort light gun wit projectiel — kan hier wat meer
     // vuur en vlam in, ook met donkere kleuren, zodat het in de zon zichtbaar
@@ -1021,6 +1043,9 @@
   '      </a-entity>'+
   '      <a-text id="hudW" value="" align="center" color="#e8f6ff" width="1.6"  position="0 -0.24 -1.25"></a-text>'+
   '      <a-plane id="hurt"  position="0 0 -0.31" width="2.6" height="2.6" material="color:#ff2030;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
+  // DE STORING van de jammer: ruisbanden over je beeld. Een eigen vlak, want de
+  // hurt-overlay is rood en heeft zijn eigen leven.
+  '      <a-plane id="storing" position="0 0 -0.30" width="3.0" height="3.0" material="shader:flat;opacity:0;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-entity id="mLevel" position="0 0 -0.98"></a-entity>'+
   '      <a-plane id="doek" position="0 0 -1.05" width="11.0" height="11.0" material="color:#000000;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-plane id="flits" position="0 0 -0.32" width="2.6" height="2.6" material="color:#dfe8ff;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
@@ -1602,6 +1627,14 @@
   // STOP de korte pauze op de hoek die de knik zichtbaar maakt.
   const HAAKS_POOT=26, HAAKS_SNEL=26, HAAKS_STOP=0.12, HAAKS_MIN=45, HAAKS_MAX=125;
   const HAAKS_WIJKKANS=0.45, HAAKS_WIJKCD=5, HAAKS_WIJKT=0.85, HAAKS_WIJKV=34;
+  // STATIC, de jammer. Hij komt van rechts (JAM_START), schuift naar links en
+  // blijft tussen JAM_MIN en JAM_MAX. Elke JAM_ELK seconden een puls, die er
+  // JAM_PULSTIJD over doet om je te bereiken. De storing duurt JAM_DUUR, langer
+  // als hij dichtbij is.
+  const JAM_START=130, JAM_AF=115, JAM_HOOG=16, JAM_SNEL=9;
+  const JAM_MIN=90, JAM_MAX=140;
+  const JAM_EERST=3.5, JAM_ELK=6, JAM_ELKV=2, JAM_PULSTIJD=1.1;
+  const JAM_DUUR=3.0, JAM_DUURV=2.0, JAM_STERK=0.62, JAM_SCHILD=420;
   // DE KLIMROL bij een treffer: hoe lang, hoe hoog (samen ~30 m), hoe ver opzij,
   // hoeveel zijn snelheid wisselt, en de wachttijd.
   const KLIM_TIJD=1.6, KLIM_HOOG=29, KLIM_ZIJ=17, KLIM_SNELV=0.55, KLIM_CD=6;
@@ -2324,7 +2357,11 @@
     {n:'ORACLE',    pl:13,rij:9, br:16, hp:520, pt:320, sp:5.5,  sal:3, cd:3.8, prof:'kruiper', zwaar:1, f1:0.48, f2:0.20},
     {n:'TITAN',     pl:13,rij:10,br:24, hp:330, pt:460, sp:3.2,  sal:2, cd:3.4, prof:'drijver', f1:0.86, f2:0.32},
     {n:'NOVA',      pl:13,rij:11,br:29, hp:400, pt:600, sp:3.2,  sal:3, cd:4.0, prof:'immel',   zwaar:1, f1:0.62, f2:0.25},
-    {n:'MOTHERSHIP',pl:0, rij:0, br:60, hp:3900,pt:9000,sp:4.0,  sal:3, cd:1.9, prof:'baas', zwaar:1, f1:0.70, f2:0.32}
+    {n:'MOTHERSHIP',pl:0, rij:0, br:60, hp:3900,pt:9000,sp:4.0,  sal:3, cd:1.9, prof:'baas', zwaar:1, f1:0.70, f2:0.32},
+    // STATIC, de jammer (Sjoerd v14.36): traag, taai, blijft ver weg en schiet
+    // nauwelijks. Zijn wapen is de STORING, niet zijn kanon. ACHTERAAN in de
+    // lijst, want een type ertussen schuift alle levelverwijzingen op.
+    {n:'JAMMER',    pl:13,rij:5, br:24, hp:420, pt:600, sp:5.2,  sal:1, cd:5.0, prof:'jammer', zwaar:1, f1:0.70, f2:0.30}
   ];
   const BAAS=30;
   const BROEDSEL=1;             // WASP: het broedsel van het moederschip
@@ -2352,13 +2389,13 @@
     [ 1, 6, 0,22, 7, 9, 2, 8,19],                 // 2  + VIOLET WING, STEEL TALON(1 portaal), IRON FALCON
     [ 6, 0,22, 7, 9,19,18,25,24],                 // 3  + BLUE SPINE, FOUR FLAME(3), de klok
     [ 6,22, 7, 9,11, 2,12, 5,26,10],              // 4  + CRIMSON CLAW, ringschip, DARK LANCE(5), GREEN DISC
-    [22, 9,19,11, 2,25,16, 4,13,18],              // 5  + IRON CROSS, GREY WHALE, GREY HAWK
+    [22, 9,19,11, 2,25,16, 4,13,18,31],           // 5  + IRON CROSS, GREY WHALE, GREY HAWK, STATIC
     [ 9,19,11, 2,12,10, 5,27,14,21,24],           // 6  + AMBER RING, FOUR CANNON, BLACK MANTA
-    [ 9,11, 2,12,10,13,24, 3,16,26,18],           // 7  + BLUE ARROW, DARK SAUCER, BLUE SPINE
+    [ 9,11, 2,12,10,13,24, 3,16,26,18,31],        // 7  + BLUE ARROW, DARK SAUCER, BLUE SPINE, STATIC
     [19,11,10, 5,13,24,16,20,28,14,26],           // 8  + GHOST WING, het moederschip, DARK SAUCER
-    [19,11,12,10, 5,13,16,20,28,15,27,21],        // 9  + sterfort, AMBER RING, BLACK MANTA
+    [19,11,12,10, 5,13,16,20,28,15,27,31],        // 9  + sterfort, AMBER RING, STATIC
     [11,10, 5,24,20,28,15,17,23, 4,13,21],        // 10 + vrachtkruiser, AZURE PLATE, BLACK MANTA
-    [12, 5,13,24,16,28,15,17,23,29,27, 3]         // 11 + RED TALON, AMBER RING, BLUE ARROW
+    [12, 5,13,24,16,28,15,17,23,29,27,31]         // 11 + RED TALON, AMBER RING, STATIC
   ];;;;
   const LEVELS=NIVEAU.length;
   //          -  raket shotgun laser electro mitrailleur
@@ -2633,7 +2670,7 @@
         W.t=5; W.lvl=1; W.lvlT=this.zak.lvlT; W.mag=this.zak.mag;
         W.last=0; W.up=0; W.vorig=0; W.laz=null; }
       if(this.flares) this.flares.forEach(function(F){ F.live=false; F.m.visible=false; });
-      this.sleepWeg(); this.portaalWeg();
+      this.sleepWeg(); this.portaalWeg(); this.jamWeg();
       this.enemies.forEach(function(e){ e.live=false; e.dood=0; e.dood2=0;
         if(e.romp){ e.romp.visible=false; e.romp=null; } });
       this.bb.forEach(function(b){ b.vrij=true; b.m.visible=false; });
@@ -3213,6 +3250,97 @@
     // Sjoerd: "graag een origineel vliegpatroon, allemaal haakse bewegingen.
     // Recht omhoog en naar beneden, voor en achter, en ook echt links en
     // rechts." Dus geen bochten maar RECHTE stukken met scherpe hoeken ertussen.
+    // ---- STATIC, DE JAMMER (Sjoerds ontwerp) ----
+    // Hij komt van rechts, schuift naar links en blijft ver weg. Elke JAM_ELK
+    // seconden stuurt hij een puls: een ring die naar je toe uitdijt. Die puls
+    // kun je NIET kapotschieten — alleen de jammer zelf.
+    jamTick:function(e,s){
+      if(e.jamX===undefined){
+        e.jamX=1; e.jamT=JAM_EERST;                  // hij begint rechts
+        e.p.x=this.kop.x+JAM_START; e.p.z=this.kop.z-JAM_AF;
+        e.p.y=this.kop.y+JAM_HOOG; }
+      // schuiven van rechts naar links, en aan het eind weer terug
+      e.p.x-=JAM_SNEL*s*e.jamX;
+      if(e.p.x<this.kop.x-JAM_START) e.jamX=-1;
+      if(e.p.x>this.kop.x+JAM_START) e.jamX=1;
+      // afstand houden en zachtjes deinen
+      const af=e.p.distanceTo(this.kop);
+      const naar=this.JM||(this.JM=new THREE.Vector3());
+      naar.subVectors(this.kop,e.p).normalize();
+      if(af<JAM_MIN) e.p.addScaledVector(naar,-(JAM_MIN-af)*Math.min(1,s*2));
+      if(af>JAM_MAX) e.p.addScaledVector(naar,(af-JAM_MAX)*Math.min(1,s*2));
+      e.p.y+=Math.sin(this.T*0.5+e.i0)*4*s;
+      if(e.bb) e.bb.m.position.copy(e.p);
+      // DE PULS
+      e.jamT-=s;
+      if(e.jamT<=0){ e.jamT=JAM_ELK+Math.random()*JAM_ELKV; this.jamPuls(e); }
+      return true; },
+
+    // een ring die van de jammer naar je toe uitdijt; raakt hij je, dan gaat de
+    // storing aan. Niet kapot te schieten.
+    jamPuls:function(e){
+      if(!this.jampulsen) this.jampulsen=[];
+      const g=new THREE.Mesh(new THREE.TorusGeometry(1,0.055,10,40),
+        new THREE.MeshBasicMaterial({color:0x9fe4f5,transparent:true,opacity:0.85,
+          depthWrite:false,blending:THREE.AdditiveBlending}));
+      g.frustumCulled=false; g.renderOrder=8;
+      this.par.add(g);
+      this.jampulsen.push({m:g,van:e.p.clone(),t:0,raak:0});
+      this.vonk(e.p.x,e.p.y,e.p.z,0x9fe4f5,10,e.sc*0.5,0.5);
+      SND.alarm&&SND.alarm(e.p.x*0.02); },
+
+    jamPulsTick:function(s){
+      if(!this.jampulsen||!this.jampulsen.length) return;
+      for(let i=this.jampulsen.length-1;i>=0;i--){ const P=this.jampulsen[i];
+        P.t+=s;
+        const af=P.van.distanceTo(this.kop);
+        const deel=Math.min(1,P.t/JAM_PULSTIJD);
+        // de ring reist van de jammer naar jou toe en groeit onderweg
+        const mid=this.JP||(this.JP=new THREE.Vector3());
+        mid.lerpVectors(P.van,this.kop,deel);
+        P.m.position.copy(mid);
+        P.m.lookAt(this.kop);
+        P.m.scale.setScalar(6+deel*26);
+        P.m.material.opacity=0.85*(1-deel*0.45);
+        // aangekomen: storing aan
+        if(deel>=1&&!P.raak){ P.raak=1;
+          const dicht=1-Math.min(1,(af-JAM_MIN)/Math.max(1,JAM_MAX-JAM_MIN));
+          this.storing=Math.max(this.storing||0,JAM_DUUR+dicht*JAM_DUURV);
+          this.toonMelding('SIGNAL JAMMED','#9fe4f5'); }
+        if(deel>=1){ this.par.remove(P.m); this.jampulsen.splice(i,1); } } },
+
+    // het beeld: ruisbanden die over je scherm schuiven
+    storingTick:function(s){
+      const el=document.querySelector('#storing'); if(!el) return;
+      if(!(this.storing>0)){
+        if(this.storingAan){ this.storingAan=0; el.setAttribute('material','opacity:0;transparent:true'); }
+        return; }
+      this.storing-=s;
+      if(!this.RUIS) this.RUIS=mkRuis();
+      this.storingAan=1;
+      // de banden schuiven omlaag en de sterkte pulseert, zodat het leeft
+      this.RUIS.offset.y=(this.RUIS.offset.y+s*0.9)%1;
+      const puls=0.55+Math.sin(this.T*11)*0.2+Math.sin(this.T*3.3)*0.12;
+      const dek=Math.min(1,this.storing/0.6)*puls*JAM_STERK;
+      const m=el.getObject3D&&el.getObject3D('mesh');
+      if(m&&m.material){ if(m.material.map!==this.RUIS){ m.material.map=this.RUIS;
+          m.material.transparent=true; m.material.depthWrite=false;
+          m.material.depthTest=false; m.material.needsUpdate=true; }
+        m.material.opacity=dek; }
+      // het vizier flikkert mee
+      const r=document.querySelector('#richt');
+      if(r) r.setAttribute('visible',!(Math.sin(this.T*17)>0.45)); },
+
+    jamWeg:function(){
+      if(this.jampulsen) this.jampulsen.forEach(function(P){ this.par.remove(P.m); },this);
+      this.jampulsen=[];
+      this.storing=0;
+      const r=document.querySelector('#richt'); if(r) r.setAttribute('visible',true);
+      const el=document.querySelector('#storing');
+      if(el){ const m=el.getObject3D&&el.getObject3D('mesh');
+        if(m&&m.material) m.material.opacity=0;
+        else el.setAttribute&&el.setAttribute('material','opacity:0;transparent:true'); } },
+
     haaksTick:function(e,s){
       if(!e.hkAs){ e.hkAs='x'; e.hkRest=0; e.hkTeken=1; e.hkPauze=0; }
       if(e.hkRest<=0){
@@ -4035,7 +4163,7 @@
     // afstand zodat je ze mooi kan zien." Geeft true zolang hij scheert.
     scheerTick:function(e,s){
       const T=TYPE[e.tp];
-      if(!T||e.bw<GROOTBR||e.gedrag==='reus'||T.prof==='baas'||e.dood||e.dood2) return false;
+      if(!T||e.bw<GROOTBR||e.gedrag==='reus'||T.prof==='baas'||T.prof==='jammer'||e.dood||e.dood2) return false;
       if(e.scheerCd===undefined) e.scheerCd=SCHEER_EERST+Math.random()*10;
       else e.scheerCd-=s;
       if(e.scheerCd<=0&&!e.scheer){
@@ -5650,6 +5778,9 @@
         // WISSEN VOOR INVULLEN: stond dit erna, dan veegde het de portalen weer
         // weg die we net hadden ingesteld (valkuil 1 uit het werkblad).
         e.portN=0; e.portOp=0; e.portT=0; e.direct=0;
+        e.jamX=undefined; e.jamT=0;
+        // de jammer heeft een schild: Sjoerd wil dat je hem echt moet opruimen
+        if(T&&(T.basis||T.n)==='JAMMER') this.schildAan(e,JAM_SCHILD);
         if(T&&PORTSCHEPEN[T.basis||T.n]!==undefined){
           e.portN=PORTSCHEPEN[T.basis||T.n];
           e.direct=1; }                                // valt meteen aan, zie baan()
@@ -7786,6 +7917,7 @@
           if(e.bT<=0){ e.bT=((TYPE[e.tp].cd||3.4)+Math.random()*1.6)*VUURTEMPO;
             this.spuw(e,TYPE[e.tp].sal||1,0.06); } } }
       else if(e.prof==='baas'){ if(!(e.dubbel&&(e.ufoDoel||e.herpakT>0))) this.baasBaan(e,s,naar,afst); }
+      else if(e.prof==='jammer'){ this.jamTick(e,s); }
       else if(e.prof==='haaks'){ this.haaksTick(e,s); }
       else if(e.prof==='duiker'){ this.profiel(e,s,naar,afst,sp);
         if(e.mode==='nader'&&afst>AFST[Math.min(2,e.stap)]+e.r*1.3+1.2) this.halte(e,s,naar,afst,sp*0.4); }
@@ -9138,7 +9270,8 @@
 
       this.ringTick(s); this.sigRijTick(s); this.wijzerTickD(s);
       this.camoTick(s);
-      this.stap='effecten'; this.portaalTick(s); this.flareTick(s); this.flareLokAlles(); this.bliksTick(s); this.straalTick(s); this.bomTick(s); this.balTick(s); this.vlekTick();
+      this.stap='effecten'; this.portaalTick(s); this.flareTick(s);
+      this.jamPulsTick(s); this.storingTick(s); this.flareLokAlles(); this.bliksTick(s); this.straalTick(s); this.bomTick(s); this.balTick(s); this.vlekTick();
       // ---- rook: drijft op, dijt uit en vervaagt ----
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(!R.live) continue;
         R.life-=s/Math.max(0.3,R.leven);
