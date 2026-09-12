@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.33';
+  const VERSIE='v14.34';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -533,7 +533,9 @@
     // vlootplaat. 'schip' noemt welk scheepstype hij vervangt — dat schip houdt
     // zijn eigen gedrag en raket, maar krijgt deze tekening.
     {nr:'9922', rol:'schip', schip:'BROOD',   naam:'GREY HAWK',     br:18},   // was 9831 (zijkant)
-    {nr:'9833', rol:'schip', schip:'WEAVER',  naam:'ringschip'},
+    // Sjoerd v14.34: nieuw schip, vervangt het ringschip. Zware jager met twee
+    // motorgondels aan lange vleugels en rode lichtbanen.
+    {nr:'0127', rol:'schip', schip:'WEAVER',  naam:'RED VEIN'},
     {nr:'9835', rol:'schip', schip:'BULWARK', naam:'sterfort'},
     {nr:'9840', rol:'schip', schip:'WATCHER', naam:'IRON CROSS',    br:26},
     {nr:'9841', rol:'schip', schip:'HAULER',  naam:'vrachtkruiser'},
@@ -2343,9 +2345,9 @@
     [22, 9,19,11, 2,25,16, 4,13,18],              // 5  + IRON CROSS, GREY WHALE, GREY HAWK
     [ 9,19,11, 2,12,10, 5,27,14,21,24],           // 6  + AMBER RING, FOUR CANNON, BLACK MANTA
     [ 9,11, 2,12,10,13,24, 3,16,26,18],           // 7  + BLUE ARROW, DARK SAUCER, BLUE SPINE
-    [19,11,12, 5,13,24,16,20,28,14,10],           // 8  + GHOST WING, het moederschip
+    [19,11,10, 5,13,24,16,20,28,14,26],           // 8  + GHOST WING, het moederschip, DARK SAUCER
     [19,11,12,10, 5,13,16,20,28,15,27,21],        // 9  + sterfort, AMBER RING, BLACK MANTA
-    [11,12,10, 5,24,20,28,15,17,23, 4,13],        // 10 + vrachtkruiser, AZURE PLATE, GREY WHALE
+    [11,10, 5,24,20,28,15,17,23, 4,13,21],        // 10 + vrachtkruiser, AZURE PLATE, BLACK MANTA
     [12, 5,13,24,16,28,15,17,23,29,27, 3]         // 11 + RED TALON, AMBER RING, BLUE ARROW
   ];;;;
   const LEVELS=NIVEAU.length;
