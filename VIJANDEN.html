@@ -20,7 +20,7 @@ td,th{padding:4px 8px;border-bottom:1px solid #16202f;text-align:left}
 th{color:#6c86a8;font-weight:500;font-size:11px;letter-spacing:1px}
 td.f{font-family:ui-monospace,monospace;color:#6fd8ff}
 </style></head><body>
-<h1>COSMIC SHOOTER</h1><p class="sub">alle vijanden — v14.34</p>
+<h1>COSMIC SHOOTER</h1><p class="sub">alle vijanden — v14.35</p>
 <div id="uitleg">Geen plaatjes? Open eerst het spel (index.html) en kom dan terug.</div>
 <h2>BAZEN</h2>
 <div class="k b"><div class="im"><img data-nr="9544" alt="" loading="lazy"></div><div><div class="lvl">LEVEL 1</div><div class="nm">DREADNOUGHT</div><div class="fn">IMG_9544.png</div><div class="kn">hangt ver weg — alleen raketten komen erbij</div></div></div>
@@ -72,6 +72,9 @@ td.f{font-family:ui-monospace,monospace;color:#6fd8ff}
 <tr><td class="f">IMG_9533.png</td><td>aarde groot</td></tr>
 <tr><td class="f">IMG_9534.png</td><td>maan</td></tr>
 </table>
+<h2>ACHTERGRONDEN</h2>
+<p class="sub">Het spel herkent deze aan hun vorm (breed en vol beeld), niet aan hun naam. Deze lijst komt uit het spel zelf &mdash; open eerst index.html.</p>
+<table id="sky"><tr><th>bestand</th></tr></table>
 <h2>ALLE BESTANDEN OP EEN RIJ</h2>
 <p class="sub">Alles wat het spel gebruikt. Staat een bestand hier NIET bij, dan kan het weg.</p>
 <table><tr><th>bestand</th><th>wat</th></tr>
@@ -145,5 +148,24 @@ td.f{font-family:ui-monospace,monospace;color:#6fd8ff}
       im.src=kans[i++]; };
     im.onerror(); });
   if(!gevonden) document.getElementById("uitleg").style.display="block";
+  // de achtergronden: het spel bewaart na het laden welke platen het als hemel
+  // heeft gebruikt, want die herkent het aan de VORM en niet aan een naam
+  try{
+    var kt=JSON.parse(localStorage.getItem("cosmic_kaart")||"null");
+    var tb=document.getElementById("sky");
+    if(kt&&kt.hemels&&kt.hemels.length&&tb){
+      kt.hemels.sort().forEach(function(nm){
+        var r=tb.insertRow(-1);
+        r.insertCell(0).outerHTML='<td class="f">'+nm+'</td>'; });
+      // ook aan de grote lijst toevoegen
+      var al=document.querySelectorAll("table")[document.querySelectorAll("table").length-1];
+      if(al) kt.hemels.forEach(function(nm){
+        var r=al.insertRow(-1);
+        r.insertCell(0).outerHTML='<td class="f">'+nm+'</td>';
+        r.insertCell(1).textContent='achtergrond'; });
+    } else if(tb){
+      var r=tb.insertRow(-1);
+      r.insertCell(0).textContent='(open eerst het spel, dan verschijnen ze hier)'; }
+  }catch(e){}
 })();
 </script></body></html>

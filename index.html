@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.34';
+  const VERSIE='v14.35';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -484,6 +484,15 @@
   // staat, welk nummer hij heeft en hoe licht hij is. Genoeg om de volgorde te
   // bepalen en hem later terug te halen uit de browsercache.
   const KAART={hemels:[], bazen:[]};
+  // De achtergronden worden herkend aan hun VORM (breed en vol beeld), niet aan
+  // een lijst met namen — dus kan niemand vooraf weten welke het zijn. Daarom
+  // bewaart het spel na het laden welke platen het als hemel heeft gebruikt.
+  // De vijandenlijst leest dat uit, zodat Sjoerd weet welke bestanden in gebruik
+  // zijn en welke hij kan opruimen.
+  const kaartBewaar=function(){
+    try{ localStorage.setItem('cosmic_kaart',JSON.stringify({
+      hemels:KAART.hemels.map(function(q){ return q.naam; }),
+      bazen:KAART.bazen.map(function(q){ return q.naam; })})); }catch(e){} };
 
   function artLaad(url,cb){ try{
     const L=new THREE.TextureLoader(); L.setCrossOrigin('anonymous');
@@ -649,7 +658,8 @@
         // met een return overheen en bleef 'alles binnen' op onwaar staan — en
         // dan weigeren LAUNCH, DEMO en TEST allemaal.
         if(klaar>=n){ window.ART.af=true;
-          window.ART.vondst=window.ART.panos.length+' sky '+window.ART.objs.length+' obj'; }
+          window.ART.vondst=window.ART.panos.length+' sky '+window.ART.objs.length+' obj';
+          kaartBewaar(); }                               // nu pas: alle platen zijn ingedeeld
         if(t&&t.image&&t.image.width){
           t.__naam=nm;                                       // naam bewaren voor de volgorde
           t.__url=url;                                       // en waar hij vandaan komt
