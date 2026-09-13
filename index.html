@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.50';
+  const VERSIE='v14.51';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2430,6 +2430,7 @@
   const LES_TWEEDE=5.5;         // hoe lang het tweede lesscherm blijft staan
   const LES_FADE=1.0;           // in één seconde naar volledig zwart en terug
   const MIK_R=3.4;              // hoe groot de doelring om een lesdoos is
+  const LES_TRAAG=0.004;        // tijdens de uitleg loopt de wereld bijna stil
   //          -  raket shotgun laser electro mitrailleur
   const CD=[110,  760,   360,  700,   300,      60];   // laser was 1400: gehalveerd   // laser was 1400: gehalveerd
 
@@ -5054,8 +5055,7 @@
       // Tijdens de UITLEG mag je wél schieten: Sjoerd wil dat je in de pauze
       // rondkijkt, de doos zoekt en hem raakt — dat is juist de manier om verder
       // te gaan. Zonder deze uitzondering kun je de les nooit afmaken.
-      if(window.PHASE!=='game') return;
-      if(window.PAUSED&&this.lesFase!==1) return;
+      if(window.PHASE!=='game'||window.PAUSED) return;
       const W=this.wp(h), now=performance.now();
       const snel=((W.t===5||W.t===0)?(1/(1+0.12*this.kr(W))):1);
       // De laser vuurt een reeks flitsen af. Begon je opnieuw terwijl die nog
@@ -8712,13 +8712,19 @@
       // De lesdoos blijft er wel doorheen te zien — die wordt na het doek
       // getekend, zodat je hem nog kunt zoeken en raken.
       this.doekDoel=1; this.doekNu=this.doekNu||0;
-      window.PAUSED=true; this.lesT=(fase===1)?0:LES_TWEEDE; },
+      // Sjoerd v14.51: "het raakt in soort pauze-verwardheid — misschien moet
+      // het geen pauze zijn maar een state." Klopt: window.PAUSED is al van het
+      // pauzemenu, en die twee vochten om dezelfde vlag. De les heeft nu zijn
+      // eigen toestand: LES. Die zet de wereld stil maar laat je kijken en
+      // schieten, en raakt niet in de knoop met het menu.
+      window.LES=1; this.lesT=(fase===1)?0:LES_TWEEDE; },
 
     lesWeg:function(){
       const e=document.querySelector('#lesTxt');
       if(e){ e.setAttribute('value',''); e.setAttribute('visible',false); }
+      window.LES=0;
       this.doekDoel=0;
-      window.PAUSED=false; this.lesK=0; this.lesFase=0; this.lesT=0; },
+      this.lesK=0; this.lesFase=0; this.lesT=0; },
 
     // Sjoerd v14.50: "in pauze zwart moet het raak schieten het spel weer
     // voortzetten." Raak je de LESDOOS, dan komt fase 2 (zie grab). Raak je iets
@@ -8730,6 +8736,9 @@
 
     // de tweede helft loopt vanzelf af; de eerste wacht tot je schiet
     lesTick:function(s){
+      // op de ECHTE klok, niet op de vertraagde: anders duurt 5,5 s ruim twintig
+      // minuten (gemeten — de les bleef eeuwig staan)
+      s=this.lesEcht||s;
       // het doek in- en uitdoven, ook als de les al voorbij is
       if(this.doekDoel!==undefined){
         const stap=s/LES_FADE;
@@ -8784,7 +8793,11 @@
     //  TICK
     // =====================================================
     tick:function(t,dt){ if(this.dead) return; try{
-      const s=Math.min(0.08,(dt||16)/1000);
+      const sEcht=Math.min(0.08,(dt||16)/1000);
+      // DE UITLEG zet de wereld bijna stil, maar de les zelf loopt op sEcht.
+      // 's' was een const — die overschrijven gaf 'Assignment to constant
+      // variable' en dan strandde de hele beurt (gemeten).
+      const s=window.LES?Math.min(sEcht,LES_TRAAG):sEcht;
       // ---- DE ZWARTE DOOS ----
       // Elke beurt een regel: waar we zijn, hoe druk het is, en HOE LANG de
       // vorige beurt duurde. Loopt het spel vast, dan zie je de aanloop.
@@ -8830,7 +8843,15 @@
       this.musTick(s);                      // ook tijdens het spelen blijven proberen
       // de lesklok van de uitleg loopt WEL door tijdens de pauze — anders blijft
       // het tweede scherm eeuwig staan, want de les pauzeert het spel zelf
-      if(window.PAUSED){ this.lesTick(s); this.overTick(s); wijzerTick(); return; }
+      if(window.PAUSED){ this.overTick(s); wijzerTick(); return; }
+      // DE UITLEG: de beurt draait gewoon door — je kunt rondkijken, mikken en
+      // schieten — maar de vijanden en de klok staan stil. Zo raakt hij niet in
+      // de knoop met het pauzemenu, dat zijn eigen window.PAUSED houdt.
+      // DE UITLEG loopt op de ECHTE klok en staat VOORAAN, zodat hij altijd
+      // afloopt — ook als de rest van de beurt verderop iets overslaat. De
+      // wereld gaat daarna op de trage klok.
+      this.lesEcht=sEcht;
+      this.lesTick(sEcht);
       // hervat: de aanwijzer hoort niet in je vizier te blijven hangen
       if(this.wijzerAan){ this.wijzerAan=false;
         const wp=document.querySelector('#wijzer');
@@ -9506,7 +9527,6 @@
       if(this.level===1&&!this.lesFase){
         for(let q=0;q<this.dozen.length;q++){ const D=this.dozen[q];
           if(D.live&&D.uitleg&&D.p.z>-70){ this.lesToon(D.k,1); break; } } }
-      this.lesTick(s);              // het doek trekt ook NA de les nog op
       this.doosT-=s;
       // Sjoerd v14.44: wapens 1,2x zo vaak. Een doos kwam elke 26-36 s; nu
       // elke 22-30 s. De inhoud en de kansen erin blijven ongewijzigd.
