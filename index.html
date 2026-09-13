@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.52';
+  const VERSIE='v14.53';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1060,8 +1060,11 @@
   '      <a-plane id="flits" position="0 0 -0.32" width="2.6" height="2.6" material="color:#dfe8ff;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-entity id="touchHand" rotation="45 0 0"></a-entity>'+
   '      <a-entity id="touchHand2" rotation="45 0 0"></a-entity>'+
-  '      <a-ring id="richt" radius-inner="0.006" radius-outer="0.010" position="0 0 -1"'+
-  '              material="color:#35e8ff;shader:flat;opacity:0.8;transparent:true;depthWrite:false;depthTest:false"></a-ring>'+
+  // Sjoerd v14.53: de stip in het midden van je beeld is weg — die hoort niet
+  // in VR, je richt met je handen. Het element blijft bestaan (de code zet hem
+  // op zichtbaar/onzichtbaar) maar is onzichtbaar gemaakt.
+  '      <a-ring id="richt" radius-inner="0.006" radius-outer="0.010" position="0 0 -1" visible="false"'+
+  '              material="color:#35e8ff;shader:flat;opacity:0;transparent:true;depthWrite:false;depthTest:false"></a-ring>'+
   '    </a-camera>'+
   '    <a-entity id="leftHand" class="hand" meta-touch-controls="hand: left" oculus-touch-controls="hand: left">'+
   '      <a-entity class="menu-laser" rotation="-45 0 0" line="start: 0 0 0; end: 0 0 -40; color: #35e8ff; opacity: 1"></a-entity>'+
@@ -1357,6 +1360,17 @@
   // oppakken welke joystickrichting je ervoor gebruikt.
   const WKLEUR=['','ORANGE','CREAM','BLUE','PURPLE','YELLOW'];
   const WRICHT=['','UP','RIGHT','DOWN','LEFT','A / X'];
+  // ---- DE TUTORIAL (Sjoerd v14.53) ----
+  // Vijf stappen vóór level 1. Elke stap: een doos komt, je schiet hem, kiest
+  // het wapen met de joystick, en ruimt er passende vijanden mee op. Daarna
+  // komt de volgende vanzelf. Na afloop ben je geladen en begint level 1.
+  const TUT=[
+    {k:1, les:'USE ROCKETS TO CONTROL THE SPACE', vij:'RAZOR',  n:6, spreid:1},
+    {k:2, les:'SHOTGUN FOR STRONGER, BIGGER',     vij:'BOMBER', n:1, dicht:1},
+    {k:3, les:'LASER FOR STRONGER, BIGGER',       vij:'WATCHER',n:1, ver:1},
+    {k:4, les:'USE ELECTRO FOR GROUPS',           vij:'WASP',   n:5, klont:1},
+    {k:0, les:'USE YOUR ULT',                     vij:'SCOUT',  n:8, spreid:1, ult:1}
+  ];
   const ROMPKL=[0x35e8ff,0xffe45c,0x6ce2a0,0xff3d81,0xffb03a,0xff6a3d,0x35e8ff,0x6ce2a0,
                 0xffb03a,0xb06cff,0xff5a3c,0xff3d81,0xffa060,0xff4040,0x4aa8ff,0x9aa8b4,
                 0x2fd8b0,0x8fd84a,
@@ -2434,6 +2448,10 @@
   const LES_TWEEDE=5.5;         // hoe lang het tweede lesscherm blijft staan
   const LES_FADE=1.0;           // in één seconde naar volledig zwart en terug
   const MIK_R=3.4;              // hoe groot de doelring om een lesdoos is
+  // DE TUTORIAL: hoe ver de doos begint, hoe snel hij komt, hoe zwart het
+  // scherm staat, en hoe lang de rust tussen de stappen is.
+  const TUT_DOOSAF=26, TUT_DOOSSNEL=0, TUT_DOEK=0.55;
+  const TUT_MINTIJD=1.0, TUT_NA=1.6, TUT_NAAR1=2.2, TUT_RUST=2.5, TUT_AMMO=30;
   const LES_TRAAG=0.004;        // tijdens de uitleg loopt de wereld bijna stil
   //          -  raket shotgun laser electro mitrailleur
   const CD=[110,  760,   360,  700,   300,      60];   // laser was 1400: gehalveerd   // laser was 1400: gehalveerd
@@ -3366,13 +3384,13 @@
         m.material.opacity=dek; }
       // het vizier flikkert mee
       const r=document.querySelector('#richt');
-      if(r) r.setAttribute('visible',!(Math.sin(this.T*17)>0.45)); },
+      // de stip is weg (v14.53) — niets meer te flikkeren
+    },
 
     jamWeg:function(){
       if(this.jampulsen) this.jampulsen.forEach(function(P){ this.par.remove(P.m); },this);
       this.jampulsen=[];
       this.storing=0;
-      const r=document.querySelector('#richt'); if(r) r.setAttribute('visible',true);
       const el=document.querySelector('#storing');
       if(el){ const m=el.getObject3D&&el.getObject3D('mesh');
         if(m&&m.material) m.material.opacity=0;
@@ -5012,7 +5030,8 @@
         this.toonMelding('NO '+(WNAAM[w]||'WEAPON'),'#ff8aa6');
         SND.hit(0,0.4); return; }
       W.vorig=W.t; W.t=w; W.lvl=this.kr(W); W.laz=null;
-      this.toonWissel(W); },
+      this.toonWissel(W);
+      if(window.TUT) this.tutKies(w); },
 
     wissel:function(h){
       if(window.PHASE!=='game'||window.PAUSED) return;
@@ -5034,6 +5053,7 @@
         // DE UITLEG: deze doos hoorde bij de les, dus nu de tweede helft
         const lesNu=(D.uitleg&&this.lesFase===1&&this.lesK===D.k);
         if(lesNu) this.lesToon(D.k,2);
+        if(window.TUT&&D.uitleg) this.tutPak(D.k);
         if(D.ult){ this.ults++; SND.zeg('Extra ult'); this.toonMelding('EXTRA ULT','#ffe45c'); return true; }
         if(!W.lvlT) W.lvlT={};
         if(D.ammo){                                               // ammo-doos: puur bijvullen, nooit wisselen
@@ -8733,6 +8753,140 @@
       this.doekDoel=0;
       this.lesK=0; this.lesFase=0; this.lesT=0; },
 
+    // =====================================================
+    //  DE TUTORIAL (Sjoerd v14.53)
+    // =====================================================
+    // Vijf stappen. Elke stap heeft vier fasen:
+    //   1 'doos'  - de doos komt, tekst: SHOOT ORANGE BOX
+    //   2 'kies'  - doos geraakt, tekst: PRESS UP ON JOYSTICK
+    //   3 'vuur'  - wapen gekozen, de vijanden komen
+    //   4 'klaar' - alles opgeruimd, meteen door naar de volgende
+    tutStart:function(){
+      window.TUT=1; this.tutI=0; this.tutFase=0; this.tutT=0;
+      this.level=1; this.state='niets'; this.golfT=1e9;
+      this.tutStap(); },
+
+    tutStop:function(){
+      window.TUT=0; this.tutFase=0; this.tutI=0;
+      this.lesWeg();
+      this.dozen.forEach(function(D){ D.live=false; D.g.visible=false; });
+      this.enemies.forEach(function(e){ if(e.live){ e.live=false;
+        if(e.bb){ this.bbVrij(e.bb); e.bb=null; } } },this); },
+
+    // een nieuwe stap beginnen: de doos neerzetten
+    tutStap:function(){
+      const S2=TUT[this.tutI]; if(!S2){ this.tutKlaar(); return; }
+      // de vorige stap helemaal opruimen: neerstortende schepen bleven anders
+      // meetellen in de volgende (gemeten: 7 BOMBERs terwijl er 1 hoort)
+      for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
+        if(e.live&&e.tutV){ e.live=false; e.tutV=0;
+          if(e.bb){ this.bbVrij(e.bb); e.bb=null; } } }
+      this.tutFase=1; this.tutT=0;
+      // de doos: bij de ult-stap geen doos maar meteen de vijanden
+      if(S2.ult){ this.tutFase=3; this.tutVijanden(S2);
+        this.tutTekst(S2.les); return; }
+      this.tutDoos(S2.k);
+      this.tutTekst('SHOOT '+(WKLEUR[S2.k]||'')+' BOX\n'+(WNAAM[S2.k]||'')); },
+
+    tutDoos:function(k){
+      for(let i=0;i<this.dozen.length;i++){ const D=this.dozen[i]; if(D.live) continue;
+        D.ult=0; D.ammo=0; D.k=k; D.uitleg=1; D.t=0;
+        const col=WCOL[k];
+        D.kern.material.color.setHex(col); D.ring.material.color.setHex(col);
+        D.gloed.material.color.setHex(col);
+        // vóór het zwart tekenen, met een doelring eromheen
+        D.kern.renderOrder=60; D.ring.renderOrder=60; D.gloed.renderOrder=59;
+        D.kern.material.depthTest=false; D.ring.material.depthTest=false;
+        D.gloed.material.depthTest=false;
+        if(!D.mik){
+          const r=new THREE.Mesh(new THREE.TorusGeometry(1,0.055,8,44),
+            new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,
+              opacity:0.95,depthWrite:false,depthTest:false}));
+          r.renderOrder=61; r.frustumCulled=false; D.g.add(r); D.mik=r; }
+        D.mik.visible=true;
+        // meteen op schietafstand neerzetten: de dozenlus draait niet tijdens
+        // de tutorial (state is 'niets'), dus hij zou anders stil blijven hangen
+        D.p.set((Math.random()-0.5)*9,this.kop.y+2+Math.random()*3,-TUT_DOOSAF);
+        D.g.position.copy(D.p); D.g.visible=true; D.live=true;
+        D.sp=0; return D; }
+      return null; },
+
+    tutTekst:function(txt){
+      const e=document.querySelector('#lesTxt');
+      if(e){ e.setAttribute('value',txt); e.setAttribute('color','#ffe45c');
+        e.setAttribute('visible',true); }
+      this.doekDoel=TUT_DOEK; },
+
+    // de vijanden van deze stap neerzetten
+    tutVijanden:function(S2){
+      const tp=TYPE.findIndex(function(q){ return q&&q.n===S2.vij; });
+      if(tp<0) return;
+      for(let i=0;i<S2.n;i++){
+        let x,y,z;
+        if(S2.klont){ x=(i-2)*3.5; y=this.kop.y+6; z=-58; }        // dicht op elkaar
+        else if(S2.dicht){ x=0; y=this.kop.y+5; z=-52; }           // één, dichtbij
+        else if(S2.ver){ x=0; y=this.kop.y+9; z=-105; }            // één, ver weg
+        else { x=(Math.random()-0.5)*46; y=this.kop.y+3+Math.random()*11;
+               z=-62-Math.random()*30; }                           // verspreid
+        const e=this.spawn(tp,{x:x,y:y,z:z,stijl:'halte'});
+        if(e){ e.tutV=1; e.cd=TUT_RUST; e.bT=TUT_RUST; } } },
+
+    tutTick:function(s){
+      if(!window.TUT) return;
+      this.tutT+=s;
+      // de doos draait en zijn doelring pulseert — de gewone dozenlus draait
+      // hier niet, want state staat op 'niets'
+      for(let i=0;i<this.dozen.length;i++){ const D=this.dozen[i];
+        if(!D.live||!D.uitleg) continue;
+        D.t+=s;
+        D.kern.rotation.y+=s*1.6; D.kern.rotation.x+=s*0.9;
+        D.ring.rotation.x=D.t*1.2; D.ring.rotation.y=D.t*0.7;
+        D.gloed.lookAt(this.kop);
+        D.gloed.material.opacity=0.55+Math.sin(D.t*4)*0.2;
+        if(D.mik){ D.mik.lookAt(this.kop);
+          D.mik.scale.setScalar(MIK_R*(1+Math.sin(D.t*3.4)*0.12));
+          D.mik.material.opacity=0.75+Math.sin(D.t*3.4)*0.22; } }
+      const S2=TUT[this.tutI]; if(!S2){ this.tutKlaar(); return; }
+      // fase 3: wachten tot alles opgeruimd is
+      if(this.tutFase===3){
+        let leeft=0;
+        // NIET op .live kijken: een neerstortend schip blijft 'live' tot zijn
+        // val klaar is. Op .dood kijken, anders komt de volgende stap nooit.
+        for(let i=0;i<this.enemies.length;i++){ const e2=this.enemies[i];
+          if(e2.live&&e2.tutV&&!e2.dood&&!e2.dood2) leeft++; }
+        if(!leeft&&this.tutT>TUT_MINTIJD){
+          this.tutFase=4; this.tutT=0;
+          this.tutTekst(S2.ult?'NICE':'GOOD'); }
+        return; }
+      // fase 4: kort feliciteren, dan door
+      if(this.tutFase===4&&this.tutT>TUT_NA){
+        this.tutI++; this.tutStap(); return; } },
+
+    // de doos is geraakt: nu het wapen kiezen
+    tutPak:function(k){
+      const S2=TUT[this.tutI]; if(!S2||S2.k!==k) return;
+      this.tutFase=2; this.tutT=0;
+      this.tutTekst('PRESS '+(WRICHT[k]||'')+' ON JOYSTICK\nL OR R HAND'); },
+
+    // het wapen is gekozen: de vijanden komen
+    tutKies:function(k){
+      const S2=TUT[this.tutI];
+      if(!S2||this.tutFase!==2||S2.k!==k) return;
+      this.tutFase=3; this.tutT=0;
+      this.tutTekst(S2.les);
+      this.tutVijanden(S2); },
+
+    tutKlaar:function(){
+      window.TUT=0; this.tutFase=0;
+      this.lesWeg();
+      this.toonMelding('TUTORIAL COMPLETE','#6cf08a');
+      // alle wapens geladen aan level 1 beginnen
+      for(const id in this.wep){ const W=this.wep[id];
+        for(let k=1;k<=4;k++){ W.mag[k]=(W.mag[k]||0)+TUT_AMMO;
+          if(!W.lvlT) W.lvlT={}; W.lvlT[k]=Math.max(1,W.lvlT[k]||1); } }
+      this.ults=Math.max(this.ults||0,1);
+      this.level=1; this.state='wacht'; this.golfT=TUT_NAAR1; },
+
     // Sjoerd v14.50: "in pauze zwart moet het raak schieten het spel weer
     // voortzetten." Raak je de LESDOOS, dan komt fase 2 (zie grab). Raak je iets
     // ANDERS, dan zou je vast blijven zitten in het zwart — dus eindigt de les
@@ -8757,6 +8911,9 @@
           m2.renderOrder=70; m2.material.needsUpdate=true; } }
       // het doek in- en uitdoven, ook als de les al voorbij is
       if(this.doekDoel!==undefined){
+        // doekNu kan nog niet bestaan bij de allereerste beurt — dan gooide
+        // toFixed() een fout en strandde de HELE beurt op stap 'start'
+        if(this.doekNu===undefined) this.doekNu=0;
         const stap=s/LES_FADE;
         if(this.doekNu<this.doekDoel) this.doekNu=Math.min(this.doekDoel,this.doekNu+stap);
         else if(this.doekNu>this.doekDoel) this.doekNu=Math.max(this.doekDoel,this.doekNu-stap);
@@ -8779,11 +8936,9 @@
         D.gloed.material.color.setHex(col);
         D.uitleg=0;
         // LEVEL 1: de eerste doos van elke soort krijgt uitleg
-        // per SPEL onthouden, niet per golf: anders krijg je dezelfde uitleg
-        // steeds opnieuw (gemeten).
-        if(this.level===1&&!D.ult&&!D.ammo&&D.k>=1&&D.k<=5){
-          if(!window.LESGEHAD) window.LESGEHAD={};
-          if(!window.LESGEHAD[D.k]){ window.LESGEHAD[D.k]=1; D.uitleg=1; } }
+        // De uitleg-in-level-1 uit v14.45 is vervallen: die zit nu in de
+        // TUTORIAL, waar je alle vier de richtingen gegarandeerd een keer
+        // gebruikt. In het spel zelf dus geen lesdozen meer.
         // een LESDOOS wordt NA het zwarte doek getekend, zodat hij zichtbaar
         // blijft tegen de volledig zwarte achtergrond
         const bov=D.uitleg?1:0;
@@ -8813,7 +8968,10 @@
       // DE UITLEG zet de wereld bijna stil, maar de les zelf loopt op sEcht.
       // 's' was een const — die overschrijven gaf 'Assignment to constant
       // variable' en dan strandde de hele beurt (gemeten).
-      const s=window.LES?Math.min(sEcht,LES_TRAAG):sEcht;
+      const s=(window.LES&&!window.TUT)?Math.min(sEcht,LES_TRAAG):sEcht;
+      // DE TUTORIAL tikt VOORAAN, vóór alle returns verderop — anders loopt hij
+      // vast zodra de beurt ergens eerder afslaat (gemeten: tutT bleef op 0).
+      if(window.TUT&&window.PHASE==='game') this.tutTick(sEcht);
       // ---- DE ZWARTE DOOS ----
       // Elke beurt een regel: waar we zijn, hoe druk het is, en HOE LANG de
       // vorige beurt duurde. Loopt het spel vast, dan zie je de aanloop.
@@ -9539,10 +9697,6 @@
           F.m.visible=false; } }
 
       // ---- dozen ----
-      // DE UITLEG: staat er een lesdoos in beeld en loopt er nog geen les?
-      if(this.level===1&&!this.lesFase){
-        for(let q=0;q<this.dozen.length;q++){ const D=this.dozen[q];
-          if(D.live&&D.uitleg&&D.p.z>-70){ this.lesToon(D.k,1); break; } } }
       this.doosT-=s;
       // Sjoerd v14.44: wapens 1,2x zo vaak. Een doos kwam elke 26-36 s; nu
       // elke 22-30 s. De inhoud en de kansen erin blijven ongewijzigd.
@@ -11303,7 +11457,6 @@
     ['#tech','#hulp','#naam'].forEach(function(id){
       const e=document.querySelector(id); if(e) e.setAttribute('visible',false); });
     laserAan(false);
-    const r=document.querySelector('#richt'); if(r) r.setAttribute('visible',true);
     const rig=document.querySelector('#rig'), C=rig&&rig.components&&rig.components.cosmic;
     window.PAUSED=false; window.PHASE='game';
     if(C){ C.reset();
@@ -11314,6 +11467,14 @@
         if(vanaf.w){ C.wave=vanaf.w;                 // halverwege of pal voor de baas
           for(let q=1;q<=vanaf.w;q++) C.golfPlan(q); }   // zaadje meelopen zodat het klopt
         C.toonMelding('LEVEL '+C.level+(vanaf.w?('  WAVE '+(vanaf.w+1)):''),'#8fd84a'); }
+      else if(!demo&&!window.TUTGEHAD){
+        // DE TUTORIAL (Sjoerd v14.53): bij een gewone start eerst de vijf
+        // oefenstappen. Daarna begint level 1 met alle wapens geladen. Niet in
+        // de demo, en maar één keer per sessie.
+        window.TUTGEHAD=1;
+        C.rondeLaden(1,function(){});
+        C.hemelZet(); C.objZet();
+        C.tutStart(); }
       else {
         C.rondeLaden(C.level,function(){});         // gewone start: alleen level 1
         // Dezelfde opening als tussen twee levels: zwart met LEVEL in beeld, dan
@@ -11343,7 +11504,6 @@
       try{ C.hemelZet(); C.objZet(); }catch(e){} }
     window.DEMO=false; window.AIM=null;
     const m=document.querySelector('#menu'); if(m) m.setAttribute('visible',true);
-    const r=document.querySelector('#richt'); if(r) r.setAttribute('visible',true);
     ['#hudL','#hudR','#hudC','#hudW'].forEach(function(id){
       const e=document.querySelector(id); if(e) e.setAttribute('value',''); });
     // ALLE PANELEN DICHT bij terugkeer naar het menu. Het testpaneel, het
