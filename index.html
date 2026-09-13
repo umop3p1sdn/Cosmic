@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.53';
+  const VERSIE='v14.54';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1054,7 +1054,7 @@
   // Sjoerd v14.52: "het is niet te lezen." Stond op breedte 2,2 op 0,95 m —
   // dat is klein EN te dichtbij om scherp te stellen in de bril. Nu breder en
   // verder weg, op leesafstand.
-  '      <a-text id="lesTxt" value="" align="center" width="3.4" position="0 0.22 -1.9" color="#ffe45c" opacity="1" visible="false" baseline="center"></a-text>'+
+  '      <a-text id="lesTxt" value="" align="center" width="2.4" position="0 0.22 -1.9" color="#ffe45c" opacity="1" visible="false" baseline="center"></a-text>'+
   '      <a-entity id="mLevel" position="0 0 -0.98"></a-entity>'+
   '      <a-plane id="doek" position="0 0 -1.05" width="11.0" height="11.0" material="color:#000000;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-plane id="flits" position="0 0 -0.32" width="2.6" height="2.6" material="color:#dfe8ff;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
@@ -1364,12 +1364,13 @@
   // Vijf stappen vóór level 1. Elke stap: een doos komt, je schiet hem, kiest
   // het wapen met de joystick, en ruimt er passende vijanden mee op. Daarna
   // komt de volgende vanzelf. Na afloop ben je geladen en begint level 1.
+  // Sjoerd v14.54: niet te breed schrijven — de lange teksten over twee regels.
   const TUT=[
-    {k:1, les:'USE ROCKETS TO CONTROL THE SPACE', vij:'RAZOR',  n:6, spreid:1},
-    {k:2, les:'SHOTGUN FOR STRONGER, BIGGER',     vij:'BOMBER', n:1, dicht:1},
-    {k:3, les:'LASER FOR STRONGER, BIGGER',       vij:'WATCHER',n:1, ver:1},
-    {k:4, les:'USE ELECTRO FOR GROUPS',           vij:'WASP',   n:5, klont:1},
-    {k:0, les:'USE YOUR ULT',                     vij:'SCOUT',  n:8, spreid:1, ult:1}
+    {k:1, les:'USE ROCKETS\nTO CONTROL THE SPACE', vij:'RAZOR',  n:6, spreid:1},
+    {k:2, les:'SHOTGUN\nFOR STRONGER, BIGGER',     vij:'BOMBER', n:1, dicht:1},
+    {k:3, les:'LASER\nFOR STRONGER, BIGGER',       vij:'WATCHER',n:1, ver:1},
+    {k:4, les:'USE ELECTRO\nFOR GROUPS',           vij:'WASP',   n:5, klont:1},
+    {k:0, les:'USE YOUR ULT',                      vij:'SCOUT',  n:8, spreid:1, ult:1}
   ];
   const ROMPKL=[0x35e8ff,0xffe45c,0x6ce2a0,0xff3d81,0xffb03a,0xff6a3d,0x35e8ff,0x6ce2a0,
                 0xffb03a,0xb06cff,0xff5a3c,0xff3d81,0xffa060,0xff4040,0x4aa8ff,0x9aa8b4,
@@ -2450,8 +2451,13 @@
   const MIK_R=3.4;              // hoe groot de doelring om een lesdoos is
   // DE TUTORIAL: hoe ver de doos begint, hoe snel hij komt, hoe zwart het
   // scherm staat, en hoe lang de rust tussen de stappen is.
-  const TUT_DOOSAF=26, TUT_DOOSSNEL=0, TUT_DOEK=0.55;
-  const TUT_MINTIJD=1.0, TUT_NA=1.6, TUT_NAAR1=2.2, TUT_RUST=2.5, TUT_AMMO=30;
+  const TUT_DOOSAF=26, TUT_DOOSSNEL=0, TUT_DOEK=1.0;   // v14.54: volledig zwart
+  // TUT_LESMIN: hoe lang de les MINSTENS blijft staan voordat GOOD komt.
+  // Sjoerd: "de tekst is te kort in beeld en gaat te snel over in Good."
+  // TUT_LESMIN: hoe lang de les minstens staat voordat GOOD komt.
+  // TUT_NA: en hoe lang GOOD staat voordat de volgende doos verschijnt.
+  // Sjoerd: "de volgende doos met wapen komt te snel."
+  const TUT_LESMIN=4.5, TUT_NA=4.0, TUT_NAAR1=2.2, TUT_RUST=2.5, TUT_AMMO=30;
   const LES_TRAAG=0.004;        // tijdens de uitleg loopt de wereld bijna stil
   //          -  raket shotgun laser electro mitrailleur
   const CD=[110,  760,   360,  700,   300,      60];   // laser was 1400: gehalveerd   // laser was 1400: gehalveerd
@@ -8818,10 +8824,11 @@
       this.doekDoel=TUT_DOEK; },
 
     // de vijanden van deze stap neerzetten
-    tutVijanden:function(S2){
+    tutVijanden:function(S2,hoev){
       const tp=TYPE.findIndex(function(q){ return q&&q.n===S2.vij; });
       if(tp<0) return;
-      for(let i=0;i<S2.n;i++){
+      const aantal=(hoev===undefined)?S2.n:Math.max(0,hoev);
+      for(let i=0;i<aantal;i++){
         let x,y,z;
         if(S2.klont){ x=(i-2)*3.5; y=this.kop.y+6; z=-58; }        // dicht op elkaar
         else if(S2.dicht){ x=0; y=this.kop.y+5; z=-52; }           // één, dichtbij
@@ -8829,7 +8836,11 @@
         else { x=(Math.random()-0.5)*46; y=this.kop.y+3+Math.random()*11;
                z=-62-Math.random()*30; }                           // verspreid
         const e=this.spawn(tp,{x:x,y:y,z:z,stijl:'halte'});
-        if(e){ e.tutV=1; e.cd=TUT_RUST; e.bT=TUT_RUST; } } },
+        if(e){ e.tutV=1; e.cd=TUT_RUST; e.bT=TUT_RUST;
+          // vóór het zwarte doek tekenen: Sjoerd wil "achter zwart, items
+          // opgelicht" — dus staan alleen de vijanden en de doos in beeld
+          if(e.bb&&e.bb.m){ e.bb.m.renderOrder=58;
+            e.bb.m.material.depthTest=false; } } } },
 
     tutTick:function(s){
       if(!window.TUT) return;
@@ -8854,7 +8865,7 @@
         // val klaar is. Op .dood kijken, anders komt de volgende stap nooit.
         for(let i=0;i<this.enemies.length;i++){ const e2=this.enemies[i];
           if(e2.live&&e2.tutV&&!e2.dood&&!e2.dood2) leeft++; }
-        if(!leeft&&this.tutT>TUT_MINTIJD){
+        if(!leeft&&this.tutT>TUT_LESMIN){
           this.tutFase=4; this.tutT=0;
           this.tutTekst(S2.ult?'NICE':'GOOD'); }
         return; }
