@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.49';
+  const VERSIE='v14.50';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1048,7 +1048,10 @@
   '      <a-plane id="storing" position="0 0 -0.30" width="3.0" height="3.0" material="shader:flat;opacity:0;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
   // DE UITLEG: eigen tekst VOOR het zwarte doek. Het gewone meldingsvlak #hudC
   // staat op z=-1,3 en het doek op z=-1,05, dus dat werd zwart-op-zwart.
-  '      <a-text id="lesTxt" value="" align="center" color="#ffe45c" width="2.2" position="0 0.30 -0.95" material="shader:flat;depthTest:false" visible="false"></a-text>'+
+  // De losse material= overschreef color= en dan tekent A-Frame de letters
+  // zwart. De kleur hoort IN het materiaal, en de shader moet 'msdf' blijven —
+  // dat is de lettershader; met shader:flat verdwijnen de letters helemaal.
+  '      <a-text id="lesTxt" value="" align="center" width="2.2" position="0 0.30 -0.95" color="#ffe45c" opacity="1" visible="false"></a-text>'+
   '      <a-entity id="mLevel" position="0 0 -0.98"></a-entity>'+
   '      <a-plane id="doek" position="0 0 -1.05" width="11.0" height="11.0" material="color:#000000;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-plane id="flits" position="0 0 -0.32" width="2.6" height="2.6" material="color:#dfe8ff;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
@@ -5451,6 +5454,7 @@
       // AMBER RING springt soms weg bij een treffer — en LANCE ook.
       if(TYPE[e.tp]&&(WERPERS.indexOf(TYPE[e.tp].basis||TYPE[e.tp].n)>=0||e.dubbel)
          &&e.hp>0&&!e.dood&&!e.dood2) this.ufoWeg(e);
+      if(this.lesFase===1) this.lesSchot();            // raak = de les is klaar
       // DARK SAUCER wijkt in een U, Z of L bij een treffer.
       if(TYPE[e.tp]&&TYPE[e.tp].prof==='haaks'&&e.hp>0&&!e.dood&&!e.dood2) this.haaksWijk(e);
       // LANCE doet daarbij ook de BREAK TURN van BRONZE FANG, met de versnelling
@@ -8698,7 +8702,12 @@
       if(fase===1) txt='SHOOT '+kleur+' BOX\n'+naam;
       else txt='PRESS '+(WRICHT[k]||'')+' ON JOYSTICK\nL OR R HAND\n\nA / X TO RETURN TO GUN';
       const e=document.querySelector('#lesTxt');
-      if(e){ e.setAttribute('value',txt); e.setAttribute('visible',true); }
+      if(e){ e.setAttribute('value',txt); e.setAttribute('color','#ffe45c');
+        e.setAttribute('visible',true);
+        // pas NA het tekenen bestaat de mesh: dan pas depthTest uitzetten, zodat
+        // de letters door het zwarte doek heen komen
+        const m=e.getObject3D&&e.getObject3D('mesh');
+        if(m&&m.material){ m.material.depthTest=false; m.renderOrder=70; } }
       // Sjoerd v14.47: de achtergrond dooft in één seconde naar VOLLEDIG zwart.
       // De lesdoos blijft er wel doorheen te zien — die wordt na het doek
       // getekend, zodat je hem nog kunt zoeken en raken.
@@ -8710,6 +8719,14 @@
       if(e){ e.setAttribute('value',''); e.setAttribute('visible',false); }
       this.doekDoel=0;
       window.PAUSED=false; this.lesK=0; this.lesFase=0; this.lesT=0; },
+
+    // Sjoerd v14.50: "in pauze zwart moet het raak schieten het spel weer
+    // voortzetten." Raak je de LESDOOS, dan komt fase 2 (zie grab). Raak je iets
+    // ANDERS, dan zou je vast blijven zitten in het zwart — dus eindigt de les
+    // dan gewoon en speel je door.
+    lesSchot:function(){
+      if(this.lesFase!==1) return;
+      this.lesWeg(); },
 
     // de tweede helft loopt vanzelf af; de eerste wacht tot je schiet
     lesTick:function(s){
