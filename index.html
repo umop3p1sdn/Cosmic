@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.75';
+  const VERSIE='v14.76';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1074,6 +1074,9 @@
   // shooters dit doen: een RING die leegloopt (zoveel tijd heb je nog voor de
   // volgende kill), een CIJFER dat opspringt bij elke verhoging, en kleuren die
   // meelopen met hoe goed je bezig bent.
+  '      <a-entity id="ceGroep" position="0.60 -0.155 -1.30" visible="false">'+
+  '        <a-entity id="ceTxt" position="0 0 0"></a-entity>'+
+  '      </a-entity>'+
   '      <a-entity id="vwGroep" position="0 0.10 -1.8" visible="false">'+
   '        <a-entity id="vwTxt" position="0 0.07 0"></a-entity>'+
   '        <a-entity id="vwTxt2" position="0 -0.06 0"></a-entity>'+
@@ -2074,10 +2077,16 @@
   const ROOK_DEK=0.55;          // v14.69: de rook was onzichtbaar door additief mengen
   // HET VUURWERK na een combo van 50 of meer: twee seconden, snel en kleurrijk.
   const VW_TIJD=2.0, VW_ELK=0.10, VW_VONK=22;
+  // DE EINDSTAND van een combo: even dik in beeld, dan naar je puntenteller.
+  const CE_TIJD=1.8, CE_STAAN=0.45, PUNT_FLITS=0.6;
+  const CE_VANX=0.60, CE_VANY=-0.155, CE_NAARX=0.545, CE_NAARY=-0.640;   // naar #mScore
+  const CE_VAN='0.60 -0.155 -1.30';
   const VW_KLEUR=[0xff3d55,0xffe45c,0x6cf08a,0x66f0ff,0xc07dff,0xff8a3d,0xffffff];
   const COMBO_FLITSS=3.2;              // hoe snel de kreet inzakt en de streep uitschiet
   const ULT_FLITS=0.9;          // hoe lang de ult-teller opgloeit
   const VAL_BONUS=0.35;         // een neerstortend schip levert nog eens 35% op
+  const ULT_DEEL=0.5;           // v14.76: punten tellen half mee voor je volgende ult
+  const LAZ_DIK=0.30, LAZ_RAAK=1.6, LAZ_EXTRA=0.9;   // de laserbalk: dikte en trefbreedte
   const ULT_RAK=25;             // v14.59: een ult is 25 raketten (was 50)
   const ULT_PUNT=12500;         // ...en je verdient er 2x zo snel een (was 25000)
   const ULT_DOOF=700;           // milliseconden tussen twee ults
@@ -2337,27 +2346,38 @@
   // om te berekenen?" GEMETEN: trap 8 maakte 36 flitsen x 3 stralen = 108 kogels
   // in een kwart seconde, elk met een eigen clone() van de richting. Nu ongeveer
   // de HELFT aan kogels, met meer schade per stuk — even sterk, half zo zwaar.
+  // Sjoerd v14.76: "laser iets verzinnen van 2 punten met een lijn verbinden,
+  // dat is de laser. Voorkant doet hetzelfde dmg als zo'n hele rits. Of als iets
+  // die lijn raakt, er doorheen vliegt."
+  //
+  // Precies dat: de laser is nu ÉÉN LIJN van je hand tot LASBEREIK, die een paar
+  // tiende seconde blijft staan. Alles wat die lijn raakt of er doorheen vliegt
+  // krijgt schade. Geen rits kogels meer — dat scheelde 57 objecten per schot.
   const LASTRAP=[
-    {n:12,tel:1,dmg:3, sz:0.95,brand:0},  // trap 1: één korte streep
-    {n:15,tel:1,dmg:4, sz:0.95,brand:0},  // trap 2: langer volhouden
-    {n:18,tel:1,dmg:4, sz:1.02,brand:0},  // trap 3
-    {n:16,tel:2,dmg:4, sz:1.02,brand:0},  // trap 4: twee stralen
-    {n:18,tel:2,dmg:6, sz:1.10,brand:0},  // trap 5
-    {n:17,tel:2,dmg:6, sz:1.16,brand:9},  // trap 6: hij zet in BRAND
-    {n:18,tel:2,dmg:8, sz:1.22,brand:14}, // trap 7: zwaarder i.p.v. een derde straal
-    {n:19,tel:3,dmg:8, sz:1.35,brand:20}  // trap 8: en de zwaarste brand
+    {tel:1,dmg:40,  sz:0.95,brand:0,  duur:0.22},  // trap 1
+    {tel:1,dmg:60,  sz:0.95,brand:0,  duur:0.24},  // trap 2
+    {tel:1,dmg:75,  sz:1.02,brand:0,  duur:0.26},  // trap 3
+    {tel:2,dmg:65,  sz:1.02,brand:0,  duur:0.26},  // trap 4: twee stralen
+    {tel:2,dmg:95,  sz:1.10,brand:0,  duur:0.28},  // trap 5
+    {tel:2,dmg:105, sz:1.16,brand:9,  duur:0.30},  // trap 6: hij zet in BRAND
+    {tel:2,dmg:145, sz:1.22,brand:14, duur:0.32},  // trap 7
+    {tel:3,dmg:155, sz:1.35,brand:20, duur:0.34}   // trap 8
   ];
   // De shotgun blijft hagel: recht vooruit, geen zoeken, geen explosies. Hij
   // groeit door meer en zwaardere korrels, en door een strakkere kegel.
+  // Sjoerd v14.76: "shotgun, hoe krijg je die lag-free?" GEMETEN: trap 8 maakte
+  // 38 korrels per schot, elk met een eigen clone() — en met twee handen tegelijk
+  // dus 76. Nu ongeveer de helft, met zwaardere korrels: dezelfde klap, half zo
+  // veel werk. Hagel blijft hagel: recht vooruit, geen zoeken.
   const SHOTTRAP=[
-    {n:12,dmg:1, spreid:0.14,sz:0.9},   // trap 1
-    {n:16,dmg:1, spreid:0.14,sz:0.9},   // trap 2
-    {n:22,dmg:1, spreid:0.13,sz:1.0},   // trap 3
-    {n:22,dmg:2, spreid:0.12,sz:1.2},   // trap 4: zwaardere korrels
-    {n:26,dmg:3, spreid:0.11,sz:1.3},   // trap 5
-    {n:30,dmg:4, spreid:0.10,sz:1.5, raket:1},   // trap 6: ze ogen als raketjes
-    {n:34,dmg:5, spreid:0.09,sz:1.7, raket:1},   // trap 7
-    {n:38,dmg:6, spreid:0.08,sz:1.9, raket:1}    // trap 8: strak en zwaar
+    {n:7, dmg:2, spreid:0.14,sz:1.1},   // trap 1
+    {n:9, dmg:2, spreid:0.14,sz:1.1},   // trap 2
+    {n:11,dmg:2, spreid:0.13,sz:1.2},   // trap 3
+    {n:12,dmg:4, spreid:0.12,sz:1.4},   // trap 4: zwaardere korrels
+    {n:14,dmg:6, spreid:0.11,sz:1.5},   // trap 5
+    {n:15,dmg:8, spreid:0.10,sz:1.7, raket:1},   // trap 6: ze ogen als raketjes
+    {n:17,dmg:10,spreid:0.09,sz:1.9, raket:1},   // trap 7
+    {n:19,dmg:12,spreid:0.08,sz:2.1, raket:1}    // trap 8: strak en zwaar
   ];
   const ZAPTRAP=[
     {n:3, dmg:3,  vuur:0, blast:0},    // trap 1: drie schakels
@@ -4935,6 +4955,62 @@
         m.material.color.setHex(kl); }
       L.m.visible=true; L.t=WERP_DUUR; },
 
+    // ---- DE LASERLIJN (Sjoerd v14.76) ----
+    // Eén balk van je hand tot LASBEREIK. Alles wat er binnen LAZ_DIK meter
+    // langs zit krijgt schade — één keer per schot, zodat een lange straal niet
+    // per beurt opnieuw treft.
+    lazLijn:function(hid,ori,dir,L,s){
+      if(!this.lazM) this.lazM={};
+      let M=this.lazM[hid];
+      if(!M){
+        const g=new THREE.CylinderGeometry(1,1,1,8,1,true);
+        g.translate(0,0.5,0); g.rotateX(Math.PI/2);   // punt op de oorsprong, +Z vooruit
+        M=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:WCOL[3],
+          transparent:true,opacity:0.9,blending:THREE.AdditiveBlending,
+          depthWrite:false,side:THREE.DoubleSide}));
+        M.frustumCulled=false; this.par.add(M); this.lazM[hid]=M; }
+      // de balk neerleggen: van je hand tot waar hij eindigt
+      const f=Math.max(0,1-L.t/L.duur);
+      M.visible=true;
+      M.position.copy(ori);
+      M.lookAt(this.tmp.copy(ori).addScaledVector(dir,10));
+      const dik=LAZ_DIK*L.sz*(0.55+f*0.75);
+      M.scale.set(dik,dik,LASBEREIK);
+      M.material.opacity=0.35+f*0.6;
+      M.material.color.setHex(f>0.6?0xffffff:WCOL[3]);
+      // WIE RAAKT HIJ? afstand van elk schip tot de lijn
+      const raakDik=LAZ_RAAK*L.sz+(L.tel-1)*LAZ_EXTRA;
+      for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
+        if(!e.live||e.dood||e.dood2) continue;
+        const rel=this.tmp.copy(e.p).sub(ori);
+        const langs=rel.dot(dir);
+        if(langs<1||langs>LASBEREIK) continue;        // achter je of te ver
+        const af=Math.sqrt(Math.max(0,rel.lengthSq()-langs*langs));
+        if(af>raakDik+e.r*0.85) continue;
+        // één treffer per schip per schot
+        const sl=e.__id||(e.__id=(this.lazId=(this.lazId||0)+1));
+        if(L.geraakt[sl]) continue;
+        L.geraakt[sl]=1;
+        this.raak(e,(L.up?1.5:1)*L.dmg,e.p.x,e.p.y,e.p.z);
+        if(L.brand&&e.live) e.brand=Math.max(e.brand||0,L.brand);
+        this.vonk(e.p.x,e.p.y,e.p.z,WCOL[3],7,7,0.4); }
+      // en vijandelijk vuur dat de lijn kruist gaat er ook aan
+      for(let i=0;i<this.vij.length;i++){ const B=this.vij[i];
+        if(!B.live) continue;
+        const q=this.tmp2||(this.tmp2=new THREE.Vector3());
+        q.copy(B.o).addScaledVector(B.dir,B.d);
+        const rel=q.sub(ori);
+        const langs=rel.dot(dir);
+        if(langs<1||langs>LASBEREIK) continue;
+        const af=Math.sqrt(Math.max(0,rel.lengthSq()-langs*langs));
+        if(af>raakDik*1.4) continue;
+        B.live=false; if(B.m) B.m.visible=false;
+        this.raketPunt(!!B.zwaar); } },
+
+    lazUit:function(hid){
+      const M=this.lazM&&this.lazM[hid];
+      if(M) M.visible=false; },
+
     bliksTick:function(s){
       if(!this.bliks) return;
       for(let i=0;i<this.bliks.length;i++){ const L=this.bliks[i]; if(L.t<=0) continue;
@@ -5291,7 +5367,10 @@
         // niet door slimmer te worden.
         const T=null, korrels=ST.n;
         for(let k=0;k<korrels;k++){
-          let dd=this.dir.clone();
+          // GEEN clone() per korrel: bij twee handen zijn dat er 76 per salvo.
+          // Eén vaste hulpvector, hergebruikt.
+          const dd=this.SHD||(this.SHD=new THREE.Vector3());
+          dd.copy(this.dir);
           dd.x+=(Math.random()-0.5)*ST.spreid; dd.y+=(Math.random()-0.5)*ST.spreid;
           dd.z+=(Math.random()-0.5)*0.03;
           dd.normalize();
@@ -5312,7 +5391,7 @@
         // en op het eind zetten zijn treffers het doel in BRAND — schade die
         // doorloopt nadat de straal al weg is.
         const LT=LASTRAP[Math.min(LASTRAP.length-1,Math.max(0,lv-1))];
-        W.laz={n:LT.n, k:0, t:0, tel:LT.tel, up:W.up?1:0,
+        W.laz={t:0, duur:LT.duur, tel:LT.tel, up:W.up?1:0, aan:0, geraakt:{},
                dmg:LT.dmg, brand:LT.brand, sz:LT.sz};
         SND.boom(this.dir.x*0.3); }
 
@@ -5916,7 +5995,11 @@
       const bonus=T.pt*(maal-1);                      // x1 bij de eerste, x2 bij de tweede...
       this.comboTot=(this.comboTot||0)+T.pt*maal;
       this.comboToon(maal,T.pt*maal);
-      this.punten+=T.pt+bonus; this.ultPt+=T.pt+bonus;
+      this.punten+=T.pt+bonus;
+      // Sjoerd v14.76: "iets te veel ults, halveer de ult in score, want die
+      // gaat erg hard." Je punten blijven dus gelijk; alleen de teller die naar
+      // je volgende ult loopt telt half mee.
+      this.ultPt+=(T.pt+bonus)*ULT_DEEL;
       // Sjoerd v14.61: "elke ult geeft hij duidelijk aan, met een soort ping.
       // Krijg je er meer uit je combo, dan één geluid maar het aantal in beeld."
       let nieuw=0;
@@ -6046,7 +6129,7 @@
       const pt=zwaar?RAK_PT_ZW:RAK_PT;
       const maal=Math.min(COMBO_MAX,Math.max(1,this.combo));
       const win=pt*maal;
-      this.punten+=win; this.ultPt+=win;
+      this.punten+=win; this.ultPt+=win*ULT_DEEL;
       this.comboTot=(this.comboTot||0)+win;
       this.comboKlok=COMBO_TIJD;                      // de klok gaat weer vol
       this.comboPt=win; this.comboPop=0.6;
@@ -6085,6 +6168,41 @@
       if(e&&e.setAttribute){
         const f=Math.max(0,this.ultFlits/ULT_FLITS);
         e.setAttribute('scale',(1+f*0.4)+' '+(1+f*0.4)+' 1'); } },
+
+    // ---- DE EINDSTAND VAN EEN COMBO, die naar je score vliegt ----
+    // Hij komt dik in beeld te staan waar de meter stond, en zuigt dan naar de
+    // puntenteller toe terwijl hij krimpt.
+    comboEind:function(maal,tot){
+      try{ this.letterZet('#ceTxt',maal+' X   '+tot,this.comboKleur(maal),
+        this.comboKleur(maal),0.085,0.32,'actie'); }catch(e){}
+      const g=document.querySelector('#ceGroep');
+      if(!g) return;
+      g.setAttribute('visible',true);
+      this.ceT=CE_TIJD; this.ceMaal=maal; this.ceTot=tot;
+      SND.pling&&SND.pling(0.7); },
+
+    comboEindTick:function(s){
+      if(!(this.ceT>0)) return;
+      this.ceT-=s;
+      const g=document.querySelector('#ceGroep'); if(!g) return;
+      const f=1-this.ceT/CE_TIJD;                    // 0 -> 1
+      if(f<CE_STAAN){
+        // eerst even dik blijven staan
+        const p=f/CE_STAAN;
+        const gr=(p<0.15)?(1.6-p*4):1.0;
+        g.setAttribute('scale',gr+' '+gr+' 1');
+        g.setAttribute('position',CE_VAN); }
+      else {
+        // ...en dan naar je puntenteller zuigen terwijl hij krimpt
+        const p=(f-CE_STAAN)/(1-CE_STAAN);
+        const e=p*p*(3-2*p);                          // zacht op gang, zacht uit
+        const x=CE_VANX+(CE_NAARX-CE_VANX)*e;
+        const y=CE_VANY+(CE_NAARY-CE_VANY)*e;
+        const gr=Math.max(0.12,1-e*0.92);
+        g.setAttribute('position',x.toFixed(3)+' '+y.toFixed(3)+' -1.30');
+        g.setAttribute('scale',gr+' '+gr+' 1'); }
+      if(this.ceT<=0){ g.setAttribute('visible',false);
+        this.puntFlits=PUNT_FLITS; } },
 
     // ---- HET VUURWERK na een grote combo ----
     // Twee seconden, snel en veelkleurig, met de eindstand erbij. Gebruikt de
@@ -6213,6 +6331,8 @@
 
     comboTick:function(s){
       this.ultFlitsTick(s);
+      this.comboEindTick(s);
+      if(this.puntFlits>0) this.puntFlits=Math.max(0,this.puntFlits-s);
       // de combometer onder de baasbalk houden
       if(!this.comboOrde){ this.comboOrde=1;
         ['#comboVuur2','#comboVuur','#comboRand','#comboBaan','#comboRing',
@@ -6225,7 +6345,10 @@
       if(this.comboKlok>0){ this.comboKlok-=s;
         if(this.comboKlok<=0){ this.comboKlok=0;
           // Sjoerd v14.70: "na 50+ combo, als hij stopt, soort vuurwerk plus de
-          // score. X-combo (score) met snel veel kleuren vuurwerk, kort van 2 s."
+          // score." En v14.76: "ik mis als de combo niet binnen de 4 is, dat hij
+          // de combo nog even laat zien met de punten. Kun je hem laten vliegen
+          // naar je punten? Dat hij opgezogen wordt naar je scorebord."
+          if(this.combo>=2) this.comboEind(this.combo,this.comboTot||0);
           if(this.combo>=COMBO_INF) this.vuurwerk(this.combo,this.comboTot||0);
           this.combo=0; this.comboPt=0; this.comboTot=0; } }
       this.vuurwerkTick(s);
@@ -6414,7 +6537,16 @@
         const LOS=(window.ART&&window.ART.losse)?window.ART.losse[T.n]:null;
         e.plaat=P; e.rij=T.rij;
         if(T.prof==='baas'&&this.bazen&&this.bazen.length){
-          const B=(opt&&opt.baas)||this.bazen[(Math.max(1,this.level)-1)%this.bazen.length];
+          // Sjoerd v14.76: "laatste baas klopt niet, dat moet AXLE zijn."
+          // De oude regel pakte bazen[(level-1) % lengte] en ging er dus vanuit
+          // dat de lijst precies elf lang is en op volgorde staat. Een onbekende
+          // baasplaat in Art/ krijgt beurt 99 en schoof alles op. Nu zoeken we
+          // op de BEURT zelf, en vallen alleen terug op de plek als die ontbreekt.
+          const lvB=Math.max(1,this.level);
+          let B=(opt&&opt.baas);
+          if(!B){ for(let q=0;q<this.bazen.length;q++)
+                    if(this.bazen[q].beurt===lvB){ B=this.bazen[q]; break; } }
+          if(!B) B=this.bazen[(lvB-1)%this.bazen.length];
           const bt=B.tex;
           e.baasNaam=B.naam; e.gedrag=B.gedrag||'schip'; e.vuur=B.vuur||'duo';
           if(B.naam==='WARDEN') this.genStart(e);
@@ -9733,31 +9865,19 @@
       // ---- laserstreep: twintig tot dertig flitsen in een kwart seconde ----
       for(const hid in this.wep){ const W=this.wep[hid]; if(!W.laz) continue;
         const H=this.hands[hid]; if(!H||!H.object3D){ W.laz=null; continue; }
-        const L=W.laz, dt=0.25/L.n;
-        L.t-=s;
-        while(L.t<=0&&L.k<L.n){
-          L.t+=dt; L.k++;
-          H.object3D.getWorldPosition(this.ori); H.object3D.getWorldQuaternion(this.q);
-          this.dir.set(0,-0.7071,-0.7071).applyQuaternion(this.q).normalize();
-          // HIER LIEP HET SPEL VAST. In deze lus heet de hand H, niet h — mijn
-          // twee-handen-code kwam er blind in terecht en zocht naar een naam die
-          // hier niet bestaat. Eén laserflits en het hele spel stond stil.
-          { const mk=(H&&H.id&&window.AIM2&&window.AIM2[H.id])||window.AIM;
-            if(mk) this.dir.copy(mk).normalize(); }
-          for(let b=0;b<L.tel;b++){
-            // GEEN clone() per kogel: dat maakt er honderd per seconde en is
-            // precies waar de haperingen vandaan komen. Eén vaste hulpvector.
-            const dd=this.LZD||(this.LZD=new THREE.Vector3());
-            dd.copy(this.dir);
-            // de stralen waaieren netjes uit om de middenlijn
-            const zij=(L.tel>1)?((b-(L.tel-1)/2)*0.026):0;
-            dd.x+=zij+(Math.random()-0.5)*0.004;
-            dd.y+=(Math.random()-0.5)*0.004; dd.normalize();
-            const B=this.bolt(this.ori,dd,WCOL[3],170,L.sz,0.9,
-              (L.up?1.5:1)*L.dmg,300);
-            // een brandende straal steekt aan wat hij raakt
-            if(L.brand&&B) B.brand=L.brand; }
-          SND.laz(this.dir.x*0.5,L.k,L.n); }
+        // DE LASER IS ÉÉN LIJN (Sjoerd v14.76). Hij blijft L.duur seconden staan
+        // en treft alles wat hem kruist — ook wat er tijdens die tijd doorheen
+        // vliegt. Dat scheelt 57 kogelobjecten per schot.
+        const L=W.laz;
+        L.t+=s;
+        H.object3D.getWorldPosition(this.ori); H.object3D.getWorldQuaternion(this.q);
+        this.dir.set(0,-0.7071,-0.7071).applyQuaternion(this.q).normalize();
+        { const mk=(H&&H.id&&window.AIM2&&window.AIM2[H.id])||window.AIM;
+          if(mk) this.dir.copy(mk).normalize(); }
+        if(!L.aan){ L.aan=1; SND.laz(this.dir.x*0.5,1,4); }
+        // de balk tekenen en wie hem raakt schade geven
+        this.lazLijn(hid,this.ori,this.dir,L,s);
+        if(L.t>=L.duur){ this.lazUit(hid); W.laz=null; }
         if(L.k>=L.n) W.laz=null; }
 
       this.objTick(s); this.sleepTick(s);
@@ -10737,7 +10857,10 @@
       // ---- onderregel ----
       this.hudTekst('#mLv','LV '+this.level+'/'+LEVELS,GRZ,0.032,0.26,'hLv');
       this.hudTekst('#mWave','WAVE '+Math.max(1,this.wave)+'/'+GOLVEN,GRZ,0.032,0.26,'hWave');
-      this.hudTekst('#mScore',this.punten.toLocaleString('nl-NL'),GRZ,0.034,0.20,'hScore');
+      // de puntenteller flitst op als er een combo bij komt vliegen
+      const sKl=(this.puntFlits>0)?'#ffe45c':GRZ;
+      const sGr=0.034+((this.puntFlits>0)?(this.puntFlits/PUNT_FLITS)*0.030:0);
+      this.hudTekst('#mScore',this.punten.toLocaleString('nl-NL'),sKl,sGr,0.20,'hScore',sKl);
       // Meetregel: hoeveel vijandelijk vuur leeft er, hoeveel heeft een echt
       // lichaam, en hoeveel staan er zichtbaar. Aan te zetten met de TEST-knop.
       this.mobKnop();
