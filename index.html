@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.77';
+  const VERSIE='v14.78';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2038,6 +2038,17 @@
   // Trager dan gewoon vuur — je moet ze zien aankomen — maar met een strakke
   // bocht, net als jouw eigen salvo.
   const SALVO_SNEL=19, SALVO_DRAAI=4.2;
+  // STERFORT gaat bij zijn dood uiteen in vijf zoekende sterren.
+  const STER_N=5, STER_SP=17, STER_DMG=9, STER_DRAAI=3.2, STER_WACHT=0.55, STER_TOL=7.0;
+  // IRON CROSS stuurt BLUE ARROWS in een treintje (Sjoerd v14.78): zes in beeld,
+  // achter elkaar, kronkelend als een slang door de ruimte. Bochten van 40 tot
+  // 70 m wijd. Valt er een uit, dan sluit er een nieuwe aan bij het moederschip.
+  const KRUIS_N=6;              // zoveel arrows in beeld
+  const KRUIS_GAT=9;            // meters tussen twee arrows in het treintje
+  const KRUIS_SP=26;            // hoe snel ze de slang volgen
+  const KRUIS_WIJD=55, KRUIS_WIJD2=13;   // hoe wijd de bochten zijn (zij / hoogte)
+  const KRUIS_HP=90;            // eigen kracht: veel lager dan een los BLUE ARROW
+  const KRUIS_TRAAG=0.115;      // hoe snel de slang zelf voortkronkelt
   // Welke baas welke handtekening heeft, en hoe vaak hij hem afvuurt.
   const SIG={
     'DREADNOUGHT':{fn:'sigWaaier', cd:1.9},
@@ -5895,6 +5906,14 @@
       // hoger; er zijn genoeg sprites (90) om ze allemaal te laten vallen.
       let bezig=0;
       for(let i=0;i<this.enemies.length;i++) if(this.enemies[i].live&&this.enemies[i].dood) bezig++;
+      // IRON CROSS neemt zijn hele treintje mee. Dit moet VOOR de knalDood-
+      // afslag hieronder: bij veel neerstortende schepen springt hij daar weg
+      // en kwam mijn regel nooit aan de beurt (gemeten: 6 arrows bleven vliegen).
+      if(e.kruis&&e.kruis.length){
+        const rij=e.kruis.slice(); e.kruis.length=0;
+        for(let q=0;q<rij.length;q++){ const a=rij[q];
+          if(a&&a.live&&!a.dood&&!a.dood2){ a.kruisVan=null;
+            this.raak(a,99999,a.p.x,a.p.y,a.p.z); } } }
       if(bezig>=STORTMAX||!e.bb){ this.knalDood(e); return; }
       e.dood=1; e.doodT=0;
       e.fase=1;                                        // meteen naar het beschadigde plaatje
@@ -5979,6 +5998,8 @@
                       true,e.sc*0.5,2.2); }
           this.knal(e.p,e.sc*1.6); this.schokRing(e.p);
           SND.boom(e.p.x*0.02,e.bw>=13); }
+        // STERFORT GAAT UITEEN in vijf zoekende sterren (Sjoerd v14.78).
+        if(TYPE[e.tp]&&(TYPE[e.tp].basis||TYPE[e.tp].n)==='BULWARK') this.sterUiteen(e);
         // Sjoerd v14.60: "een neerstortend vliegtuig is ook extra punten." Wie
         // hem in de val nog raakt of gewoon ziet neerkomen, krijgt een bonus.
         if(!e.dood2&&TYPE[e.tp]&&TYPE[e.tp].prof!=='baas'){
@@ -7300,6 +7321,11 @@
         B.sp=o.sp||20; B.md=o.md||420;
         B.hp=o.hp||3; B.zwaar=o.zwaar?1:0; B.dmg=o.dmg||5;
         B.zoek=o.zoek?1:0; B.draai=o.draai||SALVO_DRAAI;
+        // laatZoek bestond al: eerst rechtuit, daarna alsnog zoeken. Precies wat
+        // de sterren van STERFORT nodig hebben — hergebruiken dus, geen tweede
+        // mechaniek ernaast. tol = hoe snel hij om zijn as draait.
+        if(o.zoekNa){ B.zoek=0; B.laatZoek=o.zoekNa; B.leef=0; }
+        B.tol=o.tol||0; B.tolHk=0;
         B.streep=o.streep?1:0; B.boog=o.boog||0; B.wieg=0;
         B.waaier=o.waaier||0; B.wh=o.wh||0;
         // De kop MOET hier gezet worden. Zonder dit hield een hergebruikt
@@ -7671,6 +7697,126 @@
       this.sigMeld(e,twee?'PULSE  -  BEAM':'PULSE','#66f0ff'); },
 
     // ---- 12. AXLE: trage onverbiddelijke zoekers ----
+    // ---- STERFORT: ontploft in VIJF STERREN (Sjoerd v14.78) ----
+    // "Ster ontploft in 5 kleine sterren die als homing raketten verspreiden
+    // vanuit het center en draaiend op mij af komen." Dit gebeurt bij zijn DOOD,
+    // niet als aanval — hij gaat letterlijk uiteen.
+    sterUiteen:function(e){
+      // NIET via sigSchot: die weigert te vuren zodra het schip dood is — en
+      // dood zijn is hier juist de aanleiding (gemeten: nul sterren). Dus de
+      // projectielen hier zelf uit de pool halen.
+      const p=e.p;
+      for(let i=0;i<STER_N;i++){
+        const hk=(i/STER_N)*6.283+Math.random()*0.4;
+        for(let q=0;q<this.vij.length;q++){ const B=this.vij[q];
+          if(B.live) continue;
+          B.live=true; B.buis=null; B.m.visible=true;
+          B.o.copy(p); B.d=0;
+          B.dir.set(Math.cos(hk),Math.sin(hk)*0.7,0.22).normalize();
+          B.sp=STER_SP; B.md=420;
+          B.hp=3; B.zwaar=0; B.dmg=STER_DMG;
+          // eerst uitwaaieren, dan pas zoeken
+          B.zoek=0; B.laatZoek=STER_WACHT; B.leef=0; B.draai=STER_DRAAI;
+          B.streep=0; B.boog=0; B.wieg=0;
+          B.tol=STER_TOL; B.tolHk=Math.random()*6.283;
+          B.brand=0; B.splT=0; B.wijk=0;
+          if(B.m&&B.m.material&&B.m.material.color) B.m.material.color.setHex(0xffe45c);
+          if(B.m) B.m.scale.setScalar(1.15);
+          B.m.position.copy(p);
+          break; } }
+      SND.boom(p.x*0.02,true);
+      this.knal(p,e.sc*1.5); },
+
+    // ---- IRON CROSS: het kronkelende treintje (Sjoerd v14.78) ----
+    // "Hij stuurt BLUE ARROWS die in een treintje achter elkaar vliegen en
+    // bommen op mij gooien. Ze vliegen langs en dan weer langs het moederschip.
+    // Er zijn er altijd 6 in beeld. Ze kronkelen als een slang door de ruimte
+    // naar mij toe, grote bochten links rechts omhoog en omlaag, 40-70 m wijd."
+    //
+    // De slang is één BAAN waar alle arrows overheen schuiven, elk met een eigen
+    // afstand erop. Zo blijven ze netjes achter elkaar zonder overlap.
+    kruisBaan:function(e,u){
+      // u loopt van 0 (bij het moederschip) tot 1 (langs jou) en terug.
+      // Grote sinusbochten in twee richtingen, met verschillende perioden —
+      // dat geeft de onregelmatige kronkel van een slang.
+      const B=this.tmpK||(this.tmpK=new THREE.Vector3());
+      const heen=this.tmpK2||(this.tmpK2=new THREE.Vector3());
+      // de lijn van het moederschip naar een punt vlak langs je hoofd
+      heen.copy(this.kop).sub(e.p);
+      const lang=heen.length(); heen.normalize();
+      // een vaste zijwaartse en verticale as om de bochten op te zetten
+      const zij=this.tmpK3||(this.tmpK3=new THREE.Vector3());
+      zij.set(-heen.z,0,heen.x).normalize();
+      // het pad loopt heen (0..1) en terug (1..2)
+      const t=(u<=1)?u:(2-u);
+      const af=lang*(0.10+t*1.05);
+      const g1=Math.sin(u*6.283*1.35)*KRUIS_WIJD;
+      const g2=Math.sin(u*6.283*0.85+1.1)*KRUIS_WIJD2;
+      const g3=Math.cos(u*6.283*1.05+0.4)*KRUIS_WIJD*0.55;
+      B.copy(e.p).addScaledVector(heen,af)
+        .addScaledVector(zij,g1+((u>1)?-26:26))
+        .add(this.tmpK4||(this.tmpK4=new THREE.Vector3()));
+      // ook flink op en neer: de slang kronkelt in ALLE richtingen
+      B.y=e.p.y+g2*2.4+g3*0.9;
+      return B; },
+
+    kruisTick:function(e,s){
+      if(!e.kruis){ e.kruis=[]; e.kruisU=0; }
+      e.kruisU=(e.kruisU+s*KRUIS_TRAAG)%2;
+      // de rij aanvullen: alleen als de kop van het treintje langs het
+      // moederschip komt, zodat er geen arrows uit het niets verschijnen
+      const bijna=(e.kruisU<0.06)||(e.kruisU>1.94);
+      // NIET op .live tellen: een neergeschoten arrow blijft 'live' tot zijn val
+      // klaar is, en dan vult het treintje zich nooit meer aan (gemeten: hij
+      // bleef op 3 van de 6 staan).
+      let leeft=0;
+      for(let i=0;i<e.kruis.length;i++){ const a=e.kruis[i];
+        if(a&&a.live&&!a.dood&&!a.dood2) leeft++; }
+      if(leeft<KRUIS_N&&bijna&&!e.dood&&!e.dood2&&e.live){
+        const tp=TYPE.findIndex(function(q){ return q&&(q.basis||q.n)==='SAUCER'; });
+        if(tp>=0){
+          const a=this.spawn(tp,{x:e.p.x,y:e.p.y,z:e.p.z,stijl:'halte'});
+          if(a){
+            a.kruisVan=e; a.kruisU=e.kruisU;        // hij start waar de slang nu is
+            a.kruisI=e.kruisTel=((e.kruisTel||0)+1)%KRUIS_N;
+            a.hp=a.hpM=KRUIS_HP;                    // eigen, veel lagere kracht
+            a.cd=1.4; a.bT=1.4+Math.random();
+            e.kruis.push(a); } } }
+      // opruimen wat er niet meer is
+      for(let i=e.kruis.length-1;i>=0;i--){ const a=e.kruis[i];
+        if(!a||!a.live||a.dood||a.dood2) e.kruis.splice(i,1); }
+      // valt het moederschip, dan storten al zijn arrows mee neer. Dit MOET
+      // hier: een arrow die al neerstort wordt in de beurt overgeslagen, dus
+      // kruisVolg draait dan niet meer voor hem (gemeten: ze bleven vliegen).
+      if(e.dood||e.dood2||!e.live){
+        for(let i=0;i<e.kruis.length;i++){ const a=e.kruis[i];
+          if(a&&a.live&&!a.dood&&!a.dood2) this.raak(a,99999,a.p.x,a.p.y,a.p.z); }
+        e.kruis.length=0; }
+    },
+
+    // een arrow die aan een kruis hangt volgt de slang
+    kruisVolg:function(a,s){
+      const e=a.kruisVan;
+      // valt het moederschip, dan storten zijn arrows mee neer. kruisTick draait
+      // dan niet meer, dus dat moet HIER gebeuren (gemeten: ze bleven vliegen).
+      if(!e||!e.live||e.dood||e.dood2){
+        a.kruisVan=null;
+        if(!a.dood&&!a.dood2){ this.raak(a,99999,a.p.x,a.p.y,a.p.z); }
+        return false; }
+      // elke arrow zit een vaste afstand achter de kop
+      a.kruisU=(a.kruisU+s*KRUIS_TRAAG)%2;
+      const u=(a.kruisU-(a.kruisI*KRUIS_GAT/260)+2)%2;
+      const doel=this.kruisBaan(e,u);
+      // er naartoe schuiven in plaats van springen: dat vliegt vloeiend
+      const naar=this.tmp.copy(doel).sub(a.p);
+      const d=naar.length();
+      if(d>0.01){ naar.multiplyScalar(1/d);
+        a.p.addScaledVector(naar,Math.min(d,KRUIS_SP*s)); }
+      if(a.bb&&a.bb.m) a.bb.m.position.copy(a.p);
+      // hij kijkt de kant op waar hij heen gaat
+      if(a.bb&&a.bb.m&&d>0.3) a.bb.m.rotation.z=Math.atan2(naar.x,-naar.z)*0.4;
+      return true; },
+
     sigJagers:function(e,twee){
       const n=twee?6:3;
       for(let i=0;i<n;i++){
@@ -9906,6 +10052,11 @@
         // Het spook telt NIET mee voor het einde van een golf. Deed hij dat wel,
         // dan bleef de ronde hangen zolang je hem niet vond — en hij is met opzet
         // moeilijk te vinden.
+        // IRON CROSS stuurt zijn treintje; wie eraan hangt volgt de slang en
+        // slaat zijn gewone baan over
+        const bnK=TYPE[e.tp]&&(TYPE[e.tp].basis||TYPE[e.tp].n);
+        if(bnK==='WATCHER') this.kruisTick(e,s);
+        if(e.kruisVan){ if(this.kruisVolg(e,s)) continue; }
         this.baan(e,s);
         // Het spook hoort bij zijn golf: de golf is pas af als hij ook dood is.
         if(!e.dood&&!e.dood2&&e.prof!=='baas') levend++;
