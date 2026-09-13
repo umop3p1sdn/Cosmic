@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.38';
+  const VERSIE='v14.39';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1605,6 +1605,10 @@
   // het formaat van voor v14.32 (3,0 lang, 0,22 dik) maar met een gloed eromheen.
   const KOGEL_GAT=6.0, KOGEL_SPOOR=22, KOGEL_LANG=3.0, KOGEL_DIK=0.24;
   const KOGEL_GLOED=2.6;        // hoeveel groter de zachte gloed is dan de kern
+  // Van dichtbij dunner: bij KOGEL_NORM meter is hij op ware breedte, daarvoor
+  // schaalt hij mee omlaag tot KOGEL_DUNST. Anders vult het spoor je halve beeld.
+  const KOGEL_NORM=34, KOGEL_DUNST=0.22;
+  const KOGEL_TOL=5.0;          // hoe snel de kogel om zijn eigen as draait
   // Het nabranden van de laser: hoeveel schade per tik, hoe vaak, en hoeveel
   // brand een schip hoogstens kan oplopen.
   const BRAND_DMG=3, BRAND_TIK=0.25, BRAND_MAX=60;
@@ -4894,7 +4898,7 @@
       a.needsUpdate=true; },
 
     // ---- kogel richten: staat altijd met de neus vooruit én naar de camera gekeerd ----
-    richtQuad:function(m,p,dir,len,br,keer,vast){
+    richtQuad:function(m,p,dir,len,br,keer,vast,tol){
       const R=this.RQ||(this.RQ={x:new THREE.Vector3(),y:new THREE.Vector3(),
         z:new THREE.Vector3(),e:new THREE.Vector3(0,1.6,0),op:new THREE.Vector3(),
         M:new THREE.Matrix4()});
@@ -4918,7 +4922,11 @@
       // teruggebracht tot zijn breedte, en dan zie je van dichtbij niets van het
       // spoor waar Sjoerd om vroeg.
       const L=vast?len:(len+(br*1.7-len)*vk);      // van streep naar kopse kant
-      m.scale.set(br,L,1); },
+      m.scale.set(br,L,1);
+      // TOLLEN: Sjoerd zag de verticale lijn in de kogel en vroeg of die kon
+      // draaien — "random laten draaien is denk ik het mooist". De kogel draait
+      // om zijn eigen vliegrichting, elk met zijn eigen snelheid en kant.
+      if(tol) m.rotateOnAxis(R.y,tol); },
 
     // =====================================================
     //  WAPENS
@@ -5109,6 +5117,9 @@
     bolt:function(o,d,col,md,sz,tol,dmg,snel){
       for(let i=0;i<this.bolts.length;i++){ const B=this.bolts[i]; if(B.live) continue;
         B.o.copy(o); B.dir.copy(d); B.d=0; B.pd=0; B.md=md; B.sz=sz; B.tol=tol; B.dmg=dmg||1;
+        // elke kogel tolt met zijn eigen snelheid en kant: dat leest als leven
+        B.tolS=(Math.random()<0.5?-1:1)*KOGEL_TOL*(0.6+Math.random()*0.9);
+        B.tolH=0;
         B.brand=0; B.hagelKop=0; B.vlamT=0;
         B.sp=snel||KOGELSNEL;
         B.live=true; B.m.material.color.setHex(col); B.m.visible=true;   // JOUW kogel: altijd zichtbaar
@@ -8899,6 +8910,7 @@
       // ---- eigen kogels ----
       for(let i=0;i<this.bolts.length;i++){ const B=this.bolts[i]; if(!B.live) continue;
         B.pd=B.d; B.d+=(B.sp||185)*s;
+        B.tolH=(B.tolH||0)+(B.tolS||0)*s;
         const p=kp.copy(B.o).addScaledVector(B.dir,B.d);
         // Een hagelraketje is langer en dikker dan een kogel, en laat een
         // gloeiend spoortje achter — puur beeld, hij doet niets extra's.
@@ -8921,8 +8933,13 @@
             const lang=Math.max(0.6,B.d-van);
             const mid=this.KS||(this.KS=new THREE.Vector3());
             mid.copy(B.o).addScaledVector(B.dir,van+lang*0.5);
-            this.richtQuad(B.m,mid,B.dir,lang,B.sz*KOGEL_DIK,0,1); }
-          else this.richtQuad(B.m,p,B.dir,B.sz*KOGEL_LANG,B.sz*KOGEL_DIK,0,1);
+            // DUNNER VAN DICHTBIJ (Sjoerd: "mijn kogels zijn zo big van dichtbij").
+            // GEMETEN: het eerste beeldje besloeg 2,2 graden van je blikveld, de
+            // beeldjes erna maar 0,4 — vijf keer zo groot dus. De breedte loopt
+            // nu mee met de afstand, zodat hij er overal even dik uitziet.
+            const dun=Math.min(1,Math.max(KOGEL_DUNST,van/KOGEL_NORM));
+            this.richtQuad(B.m,mid,B.dir,lang,B.sz*KOGEL_DIK*dun,0,1); }
+          else this.richtQuad(B.m,p,B.dir,B.sz*KOGEL_LANG,B.sz*KOGEL_DIK,0,1,B.tolH);
           // de gloed volgt de kern maar blijft rond: hij wordt in de OMGEKEERDE
           // verhouding geschaald, anders rekt hij mee tot een lange veeg
           if(B.m.__gl){ const sx=B.m.scale.x||1, sy=B.m.scale.y||1;
