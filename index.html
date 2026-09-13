@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.51';
+  const VERSIE='v14.52';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1051,7 +1051,10 @@
   // De losse material= overschreef color= en dan tekent A-Frame de letters
   // zwart. De kleur hoort IN het materiaal, en de shader moet 'msdf' blijven —
   // dat is de lettershader; met shader:flat verdwijnen de letters helemaal.
-  '      <a-text id="lesTxt" value="" align="center" width="2.2" position="0 0.30 -0.95" color="#ffe45c" opacity="1" visible="false"></a-text>'+
+  // Sjoerd v14.52: "het is niet te lezen." Stond op breedte 2,2 op 0,95 m —
+  // dat is klein EN te dichtbij om scherp te stellen in de bril. Nu breder en
+  // verder weg, op leesafstand.
+  '      <a-text id="lesTxt" value="" align="center" width="3.4" position="0 0.22 -1.9" color="#ffe45c" opacity="1" visible="false" baseline="center"></a-text>'+
   '      <a-entity id="mLevel" position="0 0 -0.98"></a-entity>'+
   '      <a-plane id="doek" position="0 0 -1.05" width="11.0" height="11.0" material="color:#000000;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-plane id="flits" position="0 0 -0.32" width="2.6" height="2.6" material="color:#dfe8ff;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
@@ -1116,8 +1119,9 @@
   '        <a-entity id="hR6" position="0 0.23 -2.49"></a-entity>'+
   '        <a-entity id="hR7" position="0 0.08 -2.49"></a-entity>'+
   '        <a-entity id="hR8" position="0 -0.06 -2.49"></a-entity>'+
-  '        <a-plane id="btnHulpUit" class="menu-btn" position="0 -0.22 -2.49" width="0.50" height="0.20" material="color:#12283a;shader:flat"></a-plane>'+
-  '        <a-entity id="mHulpUit" position="0 -0.22 -2.48"></a-entity>'+
+  '        <a-entity id="hR9" position="0 -0.19 -2.49"></a-entity>'+
+  '        <a-plane id="btnHulpUit" class="menu-btn" position="0 -0.36 -2.49" width="0.50" height="0.20" material="color:#12283a;shader:flat"></a-plane>'+
+  '        <a-entity id="mHulpUit" position="0 -0.36 -2.48"></a-entity>'+
   '      </a-entity>'+
   '      <a-text id="verTxt" position="0 0.060 -2.57" value="v11.69" align="center" color="#37586b" width="1.1"></a-text>'+
   '      <a-text id="artTxt" value="" align="center" color="#37586b" width="1.0" position="-0.62 0.060 -2.57"></a-text>'+
@@ -4988,8 +4992,11 @@
       const naam=(W.t===5?'MACHINE GUN':WNAAM[W.t]||'BLASTER');
       e.setAttribute('value',naam+'  LV'+this.kr(W)+(W.t>=1&&W.t<=4?'  ['+(W.mag[W.t]||0)+']':''));
       e.setAttribute('color','#35e8ff'); this.melding=2.0; },
+    // Welke joystickrichting hoort bij dit wapen? Sinds v14.45 kiest ELKE hand
+    // zelf, dus de oude tekst "PRESS TOP BUTTON" klopte niet meer.
     toonZak:function(k,W){ const e=document.querySelector('#hudW'); if(!e) return;
-      e.setAttribute('value',WNAAM[k]+' LV'+((W.lvlT&&W.lvlT[k])||1)+'  ['+(W.mag[k]||0)+']\nIN POCKET - PRESS TOP BUTTON');
+      e.setAttribute('value',WNAAM[k]+' LV'+((W.lvlT&&W.lvlT[k])||1)+'  ['+(W.mag[k]||0)+']'+
+        '\nPRESS '+(WRICHT[k]||'')+' ON JOYSTICK');
       e.setAttribute('color','#ffb03a'); this.melding=2.6; },
 
     // Rechtstreeks een wapen kiezen. Heb je het niet, dan verandert er niets.
@@ -8739,6 +8746,15 @@
       // op de ECHTE klok, niet op de vertraagde: anders duurt 5,5 s ruim twintig
       // minuten (gemeten — de les bleef eeuwig staan)
       s=this.lesEcht||s;
+      // ELKE BEURT de tekst vóór het zwart houden. A-Frame bouwt de tekst-mesh
+      // opnieuw op zodra de waarde verandert, en dan is depthTest weer aan —
+      // met het doek op z=-1,05 en de tekst op z=-1,9 wint het doek dan.
+      if(this.lesFase){
+        const e2=document.querySelector('#lesTxt');
+        const m2=e2&&e2.getObject3D&&e2.getObject3D('mesh');
+        if(m2&&m2.material&&m2.material.depthTest!==false){
+          m2.material.depthTest=false; m2.material.depthWrite=false;
+          m2.renderOrder=70; m2.material.needsUpdate=true; } }
       // het doek in- en uitdoven, ook als de les al voorbij is
       if(this.doekDoel!==undefined){
         const stap=s/LES_FADE;
@@ -11548,16 +11564,19 @@
       const rg=document.querySelector('#rig');
       const c=rg&&rg.components&&rg.components.cosmic;
       if(!c) return;
+      // Engels, net als de rest van het spel. En sinds v14.45 kiest ELKE hand
+      // zijn eigen wapen, dus dat staat er nu bij.
       const rij=[
         ['#hTitel','CONTROLS','#ffb03a',0.115],
-        ['#hR1','TRIGGER   -   schieten','#eafcff',0.082],
-        ['#hR2','GRIP   -   ultimate','#eafcff',0.082],
-        ['#hR3','JOYSTICK OMHOOG   -   raketten','#eafcff',0.078],
-        ['#hR4','JOYSTICK RECHTS   -   shotgun','#eafcff',0.078],
-        ['#hR5','JOYSTICK OMLAAG   -   laser','#eafcff',0.078],
-        ['#hR6','JOYSTICK LINKS   -   electro','#eafcff',0.078],
-        ['#hR7','A B X Y   -   terug naar mitrailleur','#8fd8ec',0.072],
-        ['#hR8','JOYSTICK INDRUKKEN   -   pauze','#8fd8ec',0.072],
+        ['#hR1','TRIGGER   -   FIRE','#eafcff',0.082],
+        ['#hR2','GRIP   -   ULTIMATE','#eafcff',0.082],
+        ['#hR3','JOYSTICK UP   -   ROCKET','#eafcff',0.078],
+        ['#hR4','JOYSTICK RIGHT   -   SHOTGUN','#eafcff',0.078],
+        ['#hR5','JOYSTICK DOWN   -   LASER','#eafcff',0.078],
+        ['#hR6','JOYSTICK LEFT   -   ELECTRO','#eafcff',0.078],
+        ['#hR7','A / X   -   BACK TO MACHINE GUN','#8fd8ec',0.072],
+        ['#hR8','EACH HAND PICKS ITS OWN WEAPON','#ffe45c',0.070],
+        ['#hR9','CLICK JOYSTICK   -   PAUSE','#8fd8ec',0.072],
         ['#mHulpUit','BACK','#eafcff',0.120]
       ];
       rij.forEach(function(q){
