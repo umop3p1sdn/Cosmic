@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.39';
+  const VERSIE='v14.41';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1608,7 +1608,7 @@
   // Van dichtbij dunner: bij KOGEL_NORM meter is hij op ware breedte, daarvoor
   // schaalt hij mee omlaag tot KOGEL_DUNST. Anders vult het spoor je halve beeld.
   const KOGEL_NORM=34, KOGEL_DUNST=0.22;
-  const KOGEL_TOL=5.0;          // hoe snel de kogel om zijn eigen as draait
+  const KOGEL_TOL=26;           // Sjoerd: "echt veeeel harder draaien" — was 5,0
   // Het nabranden van de laser: hoeveel schade per tik, hoe vaak, en hoeveel
   // brand een schip hoogstens kan oplopen.
   const BRAND_DMG=3, BRAND_TIK=0.25, BRAND_MAX=60;
@@ -2187,15 +2187,18 @@
   // De laser raakt ALLES in zijn streep, dus zijn getallen moeten laag blijven:
   // hij vuurt tientallen flitsen achter elkaar. Zijn kracht zit in het volhouden
   // en in het nabranden, niet in de klap per flits.
+  // Sjoerd v14.41: "laser mag ook ietsje kleiner." Hij was 1,5 tot 2,1 keer zo
+  // dik als een kogel; nu 0,95 tot 1,35 — nog altijd zwaarder ogend dan een
+  // kogel, maar niet meer overheersend. De trappen lopen onderling gelijk op.
   const LASTRAP=[
-    {n:20,tel:1,dmg:2, sz:1.5,brand:0},   // trap 1: één korte streep
-    {n:26,tel:1,dmg:2, sz:1.5,brand:0},   // trap 2: langer volhouden
-    {n:32,tel:1,dmg:2, sz:1.6,brand:0},   // trap 3
-    {n:30,tel:2,dmg:2, sz:1.6,brand:0},   // trap 4: twee stralen
-    {n:34,tel:2,dmg:3, sz:1.7,brand:0},   // trap 5
-    {n:32,tel:2,dmg:3, sz:1.8,brand:9},   // trap 6: hij zet in BRAND
-    {n:34,tel:3,dmg:3, sz:1.9,brand:14},  // trap 7: drie stralen
-    {n:36,tel:3,dmg:4, sz:2.1,brand:20}   // trap 8: en de zwaarste brand
+    {n:20,tel:1,dmg:2, sz:0.95,brand:0},  // trap 1: één korte streep
+    {n:26,tel:1,dmg:2, sz:0.95,brand:0},  // trap 2: langer volhouden
+    {n:32,tel:1,dmg:2, sz:1.02,brand:0},  // trap 3
+    {n:30,tel:2,dmg:2, sz:1.02,brand:0},  // trap 4: twee stralen
+    {n:34,tel:2,dmg:3, sz:1.10,brand:0},  // trap 5
+    {n:32,tel:2,dmg:3, sz:1.16,brand:9},  // trap 6: hij zet in BRAND
+    {n:34,tel:3,dmg:3, sz:1.22,brand:14}, // trap 7: drie stralen
+    {n:36,tel:3,dmg:4, sz:1.35,brand:20}  // trap 8: en de zwaarste brand
   ];
   // De shotgun blijft hagel: recht vooruit, geen zoeken, geen explosies. Hij
   // groeit door meer en zwaardere korrels, en door een strakkere kegel.
