@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.62';
+  const VERSIE='v14.64';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1043,7 +1043,12 @@
   // shooters dit doen: een RING die leegloopt (zoveel tijd heb je nog voor de
   // volgende kill), een CIJFER dat opspringt bij elke verhoging, en kleuren die
   // meelopen met hoe goed je bezig bent.
-  '      <a-text id="comboTxt" value="" align="center" color="#ffb03a" width="2.0" position="0 0.18 -1.4" visible="false"></a-text>'+
+  '      <a-entity id="comboKreet" position="0 0.18 -1.4" visible="false">'+
+  '        <a-plane id="comboStreep" width="1.6" height="0.012" position="0 -0.045 -0.002"'+
+  '                 material="color:#ffe45c;shader:flat;transparent:true;opacity:0;depthWrite:false;depthTest:false"></a-plane>'+
+  '        <a-text id="comboTxtS" value="" align="center" color="#000000" width="2.0" position="0.008 -0.008 -0.001"></a-text>'+
+  '        <a-text id="comboTxt" value="" align="center" color="#ffb03a" width="2.0" position="0 0 0"></a-text>'+
+  '      </a-entity>'+
   '      <a-entity id="mLv" position="-0.20 -0.640 -1.25"></a-entity>'+
   '      <a-entity id="mWave" position="0.06 -0.640 -1.25"></a-entity>'+
   '      <a-entity id="mScore" position="0.545 -0.640 -1.25"></a-entity>'+
@@ -1053,12 +1058,23 @@
   // DE COMBOMETER staat BUITEN het HUD-blok: daarbinnen nam hij de krachtbalk
   // en de baasbalk mee als hij zichzelf verborg (Sjoerd: "baas krachtbalk en
   // die van mij waren even weg").
+  // DE COMBOMETER, in Capcom-stijl: laagjes achter elkaar (gloed, baan, ring),
+  // een donkere schaduw achter de letters, en vuur dat heter wordt naarmate je
+  // combo oploopt. Zie 4.361 in het logboek.
   '      <a-entity id="comboHoek" position="-0.62 -0.30 -1.4" visible="false">'+
+  '        <a-ring id="comboVuur2" radius-inner="0.070" radius-outer="0.150" position="0 0 -0.003"'+
+  '                material="color:#ff3000;shader:flat;transparent:true;opacity:0;depthWrite:false;depthTest:false;side:double"></a-ring>'+
+  '        <a-ring id="comboVuur" radius-inner="0.080" radius-outer="0.126" position="0 0 -0.002"'+
+  '                material="color:#ff8a3d;shader:flat;transparent:true;opacity:0;depthWrite:false;depthTest:false;side:double"></a-ring>'+
+  '        <a-ring id="comboRand" radius-inner="0.104" radius-outer="0.112" position="0 0 -0.001"'+
+  '                material="color:#0a1520;shader:flat;transparent:true;opacity:0.85;depthWrite:false;depthTest:false;side:double"></a-ring>'+
   '        <a-ring id="comboBaan" radius-inner="0.088" radius-outer="0.105"'+
-  '                material="color:#1d2a3d;shader:flat;transparent:true;opacity:0.5;depthWrite:false;depthTest:false;side:double"></a-ring>'+
+  '                material="color:#16202f;shader:flat;transparent:true;opacity:0.75;depthWrite:false;depthTest:false;side:double"></a-ring>'+
   '        <a-ring id="comboRing" radius-inner="0.088" radius-outer="0.105" theta-length="360" position="0 0 0.001"'+
-  '                material="color:#ffb03a;shader:flat;transparent:true;opacity:0.9;depthWrite:false;depthTest:false;side:double"></a-ring>'+
+  '                material="color:#ffb03a;shader:flat;transparent:true;opacity:0.95;depthWrite:false;depthTest:false;side:double"></a-ring>'+
+  '        <a-text id="comboNumS" value="" align="center" color="#000000" width="1.1" position="0.006 -0.018 0.0015"></a-text>'+
   '        <a-text id="comboNum" value="" align="center" color="#ffb03a" width="1.1" position="0 -0.012 0.002"></a-text>'+
+  '        <a-text id="comboRang" value="" align="center" color="#ffe45c" width="0.62" position="0 0.062 0.002"></a-text>'+
   '        <a-text id="comboLab" value="COMBO" align="center" color="#6c86a8" width="0.5" position="0 -0.145 0.002"></a-text>'+
   '      </a-entity>'+
   '      <a-plane id="hurt"  position="0 0 -0.31" width="2.6" height="2.6" material="color:#ff2030;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
@@ -1996,8 +2012,12 @@
   const KOP_ELK=0.05, KOP_MAAT=2.6;
   // DE COMBO (Sjoerd v14.60): binnen COMBO_TIJD de volgende kill en je teller
   // loopt door. Je punten gaan MAAL die teller, tot COMBO_MAX.
-  const COMBO_TIJD=4.0, COMBO_MAX=20, COMBO_TOON=1.8, COMBO_POPS=4.0;
+  // Sjoerd v14.63: "de combiteller gaat niet hoger dan 20." Dat was mijn grens,
+  // niet de zijne. Nu geen plafond meer — hoe langer je het volhoudt, hoe meer.
+  const COMBO_TIJD=4.0, COMBO_MAX=999, COMBO_TOON=1.8, COMBO_POPS=4.0;
   const RAK_PT=15, RAK_PT_ZW=40;   // punten voor een neergeschoten vijandelijke raket
+  const COMBO_VUUR=5, COMBO_HEET=18;   // vanaf welke combo het vuur komt, en hoe snel het heet wordt
+  const COMBO_FLITSS=3.2;              // hoe snel de kreet inzakt en de streep uitschiet
   const ULT_FLITS=0.9;          // hoe lang de ult-teller opgloeit
   const VAL_BONUS=0.35;         // een neerstortend schip levert nog eens 35% op
   const ULT_RAK=25;             // v14.59: een ult is 25 raketten (was 50)
@@ -5933,12 +5953,17 @@
         // Bij hoge combo's een kreet erbij en grotere letters.
         const kreet=(maal>=20)?'UNSTOPPABLE':((maal>=15)?'RAMPAGE':
                     ((maal>=10)?'BLAZING':((maal>=6)?'ON FIRE':'')));
+        const txt=(kreet?kreet+'\n':'')+maal+' X  '+pt;
+        const br=(2.0+Math.min(1.2,maal*0.06)).toFixed(2);
+        const kl=this.comboKleur(maal);
+        const g=document.querySelector('#comboKreet');
         const e=document.querySelector('#comboTxt');
-        if(e){ e.setAttribute('value',(kreet?kreet+'\n':'')+maal+' X  '+pt);
-          e.setAttribute('color',this.comboKleur(maal));
-          e.setAttribute('width',(2.0+Math.min(1.2,maal*0.06)).toFixed(2));
-          e.setAttribute('visible',true); }
-        this.comboT=COMBO_TOON;
+        const eS=document.querySelector('#comboTxtS');
+        if(e){ e.setAttribute('value',txt); e.setAttribute('color',kl);
+          e.setAttribute('width',br); }
+        if(eS){ eS.setAttribute('value',txt); eS.setAttribute('width',br); }
+        if(g) g.setAttribute('visible',true);
+        this.comboT=COMBO_TOON; this.comboFlits=1;    // de streep schiet uit
         // oplopende ping: elke stap een halve toon hoger, tot een octaaf
         if(SND.pling) SND.pling(Math.min(1,(maal-2)/10));
         else if(SND.hit) SND.hit(0,0.5+Math.min(0.5,maal*0.04)); } },
@@ -5965,7 +5990,8 @@
       const aan=(this.combo>=2);
       if(hoek) hoek.setAttribute('visible',aan);
       if(aan){
-        const maal=Math.min(COMBO_MAX,this.combo);
+        const maal=this.combo;
+        const kl=this.comboKleur(maal);
         // DE RING loopt leeg: zoveel tijd heb je nog voor de volgende kill
         if(ring) ring.setAttribute('theta-length',
           Math.max(0,Math.min(1,rest/COMBO_TIJD))*360);
@@ -5974,15 +6000,59 @@
         const gr=1+this.comboPop*0.55;
         if(num){ num.setAttribute('value',String(maal));
           num.setAttribute('width',(1.1*gr).toFixed(2));
-          num.setAttribute('color',this.comboKleur(maal)); }
-        if(ring) ring.setAttribute('material','color:'+this.comboKleur(maal)+
-          ';shader:flat;transparent:true;opacity:'+(0.7+this.comboPop*0.3).toFixed(2)+
+          num.setAttribute('color',kl); }
+        // DE SCHADUW eronder, iets verschoven — dat geeft de letters diepte
+        const numS=document.querySelector('#comboNumS');
+        if(numS){ numS.setAttribute('value',String(maal));
+          numS.setAttribute('width',(1.1*gr).toFixed(2)); }
+        if(ring) ring.setAttribute('material','color:'+kl+
+          ';shader:flat;transparent:true;opacity:'+(0.75+this.comboPop*0.25).toFixed(2)+
           ';depthWrite:false;depthTest:false;side:double');
-        if(lab) lab.setAttribute('value',this.comboPt?('+'+this.comboPt):'COMBO'); }
+        if(lab) lab.setAttribute('value',this.comboPt?('+'+this.comboPt):'COMBO');
+        // DE RANG erboven, in Capcom-stijl
+        const rang=document.querySelector('#comboRang');
+        if(rang){ rang.setAttribute('value',this.comboRang(maal));
+          rang.setAttribute('color',kl); }
+        // HET VUUR: hoe hoger de combo, hoe heter. Twee ringen die pulseren,
+        // de buitenste dieper rood, de binnenste feller — samen leest dat als vlam.
+        const hitte=Math.max(0,Math.min(1,(maal-COMBO_VUUR)/COMBO_HEET));
+        const puls=0.5+Math.sin(this.comboFase=(this.comboFase||0)+s*9)*0.5;
+        const puls2=0.5+Math.sin(this.comboFase*1.37+1.1)*0.5;
+        const v1=document.querySelector('#comboVuur');
+        const v2=document.querySelector('#comboVuur2');
+        if(v1) v1.setAttribute('material','color:'+(hitte>0.7?'#fff2c0':'#ff8a3d')+
+          ';shader:flat;transparent:true;opacity:'+(hitte*(0.35+puls*0.35)).toFixed(2)+
+          ';depthWrite:false;depthTest:false;side:double');
+        if(v2) v2.setAttribute('material','color:'+(hitte>0.7?'#ff8a3d':'#ff3000')+
+          ';shader:flat;transparent:true;opacity:'+(hitte*(0.20+puls2*0.30)).toFixed(2)+
+          ';depthWrite:false;depthTest:false;side:double');
+        if(v1) v1.setAttribute('scale',(1+hitte*0.10+puls*0.05)+' '+(1+hitte*0.10+puls*0.05)+' 1');
+        if(v2) v2.setAttribute('scale',(1+hitte*0.14+puls2*0.08)+' '+(1+hitte*0.14+puls2*0.08)+' 1'); }
       if(!(this.comboT>0)) return;
       this.comboT-=s;
-      if(this.comboT<=0){ const e=document.querySelector('#comboTxt');
-        if(e) e.setAttribute('visible',false); } },
+      // DE KREET stampt in: hij komt groot binnen en zakt naar zijn maat, en er
+      // schiet een lichtstreep onderdoor. Zo doen de Capcom-spellen dat ook.
+      if(this.comboFlits>0) this.comboFlits=Math.max(0,this.comboFlits-s*COMBO_FLITSS);
+      const f=this.comboFlits;
+      const g=document.querySelector('#comboKreet');
+      if(g){ const gr=1+f*0.45;
+        g.setAttribute('scale',gr+' '+gr+' 1'); }
+      const st2=document.querySelector('#comboStreep');
+      if(st2){ st2.setAttribute('scale',(0.15+(1-f)*1.6)+' 1 1');
+        st2.setAttribute('material','color:#ffffff;shader:flat;transparent:true;opacity:'+
+          (f*0.9).toFixed(2)+';depthWrite:false;depthTest:false'); }
+      if(this.comboT<=0){ const gg=document.querySelector('#comboKreet');
+        if(gg) gg.setAttribute('visible',false); } },
+
+    // de rang, zoals Capcom dat doet: een korte kreet die meegroeit
+    comboRang:function(maal){
+      if(maal>=30) return 'SSS';
+      if(maal>=20) return 'SS';
+      if(maal>=15) return 'S';
+      if(maal>=10) return 'A';
+      if(maal>=6)  return 'B';
+      if(maal>=4)  return 'C';
+      return 'D'; },
 
     // de kleur loopt mee: oranje, geel, groen, cyaan, paars
     comboKleur:function(maal){
@@ -9121,9 +9191,12 @@
           m2.material.depthTest=false; m2.material.depthWrite=false;
           m2.renderOrder=70; m2.material.needsUpdate=true; } }
       // het doek in- en uitdoven, ook als de les al voorbij is
-      if(this.doekDoel!==undefined){
-        // doekNu kan nog niet bestaan bij de allereerste beurt — dan gooide
-        // toFixed() een fout en strandde de HELE beurt op stap 'start'
+      // DE LEVELWISSEL gebruikt hetzelfde #doek. Deze regelaar schreef er ELKE
+      // beurt overheen zodra doekDoel bestond, waardoor het zwart na een level
+      // op 1,00 bleef hangen en nooit meer optrok (Sjoerd: "fade to black en
+      // weer terug werkt niet"). De tutorial dimt sinds v14.55 de HEMEL en heeft
+      // dit doek niet meer nodig — dus staat hij helemaal uit.
+      if(false){
         if(this.doekNu===undefined) this.doekNu=0;
         const stap=s/LES_FADE;
         if(this.doekNu<this.doekDoel) this.doekNu=Math.min(this.doekDoel,this.doekNu+stap);
