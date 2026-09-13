@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.41';
+  const VERSIE='v14.47';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1342,6 +1342,11 @@
   // =========================================================
   const WCOL=[0x9fe4f5,0xff8a3d,0xfff2c0,0x66f0ff,0xc07dff,0xffe45c];   // 0 basis 1 raket 2 hagel 3 kanon 4 electro 5 mg
   const WNAAM=['','ROCKET','SHOTGUN','LASER','ELECTRO','MACHINE GUN'];
+  // Sjoerd v14.45: in level 1 krijg je bij de EERSTE doos van elke soort uitleg.
+  // Het spel pauzeert, vertelt welke kleur bij welk wapen hoort, en na het
+  // oppakken welke joystickrichting je ervoor gebruikt.
+  const WKLEUR=['','ORANGE','CREAM','BLUE','PURPLE','YELLOW'];
+  const WRICHT=['','UP','RIGHT','DOWN','LEFT','A / X'];
   const ROMPKL=[0x35e8ff,0xffe45c,0x6ce2a0,0xff3d81,0xffb03a,0xff6a3d,0x35e8ff,0x6ce2a0,
                 0xffb03a,0xb06cff,0xff5a3c,0xff3d81,0xffa060,0xff4040,0x4aa8ff,0x9aa8b4,
                 0x2fd8b0,0x8fd84a,
@@ -1703,7 +1708,6 @@
   // voor 'zwaar'; zulke schepen komen hoogstens BIJZ_GOLVEN golven per level.
   const BUDGET_START=620, BUDGET_STAP=420;
   const BIJZ_VANAF=300, BIJZ_GOLVEN=3;
-  const TAAI_VANAF=4, TAAI_STAP=0.16;   // vanaf level 5: elk level 16% taaier
   const RAVEN_VROEG=3;          // BLACK RAVEN in level 1-3: hoogstens drie
   const PORT_MAAT=13, PORT_OPEN=0.9, PORT_DOOR=0.7, PORT_DICHT=0.8, PORT_DRAAI=0.9;
   // WARDEN's generatoren: kracht per bol, hoe ver naast hem, hoe groot.
@@ -1748,6 +1752,7 @@
   const HALO_DRAAI=0.5;       // hoe snel HALO's opening rondwandelt (rad/s)
   const ZWB_MIN=6, ZWB_MAX=18, ZWB_ELK=12;   // AXLE's zwerm
   const WERP_ELK=2.5, WERP_BEREIK=60, WERP_MAXBR=12, WERP_SEG=14, WERP_DUUR=0.35;
+  const WERP_DIK=0.42;          // v14.42: een dikke straal i.p.v. een haarlijn
   const SCHILDGOLF_VANAF=3, SCHILDGOLF_KANS=0.3;   // Sjoerd: vanaf level 3
   // De schildarena: twee werpers en drie groepen na elkaar, vanaf level 6.
   const ARENA_VANAF=6, ARENA_KANS=0.18, ARENA_GROEPEN=3;
@@ -2368,7 +2373,7 @@
     {n:'CYCLONE',   pl:13,rij:6, br:13, hp:150, pt:250, sp:8.3,  sal:2, cd:3.0, prof:'barrel',  f1:0.60, f2:0.28},
     {n:'SHRIKE',    pl:13,rij:7, br:14, hp:390,  pt:180, sp:16, sal:1, cd:1.6, prof:'yoyo',    snel:24, f1:0.55, f2:0.22},
     {n:'VENOM',     pl:13,rij:8, br:13, hp:120, pt:210, sp:14.1, sal:2, cd:2.8, prof:'scissors',f1:0.72, f2:0.38},
-    {n:'ORACLE',    pl:13,rij:9, br:16, hp:520, pt:320, sp:5.5,  sal:3, cd:3.8, prof:'kruiper', zwaar:1, f1:0.48, f2:0.20},
+    {n:'ORACLE',    pl:13,rij:9, br:16, hp:260, pt:320, sp:5.5,  sal:3, cd:3.8, prof:'kruiper', zwaar:1, f1:0.48, f2:0.20},
     {n:'TITAN',     pl:13,rij:10,br:24, hp:330, pt:460, sp:3.2,  sal:2, cd:3.4, prof:'drijver', f1:0.86, f2:0.32},
     {n:'NOVA',      pl:13,rij:11,br:29, hp:400, pt:600, sp:3.2,  sal:3, cd:4.0, prof:'immel',   zwaar:1, f1:0.62, f2:0.25},
     {n:'MOTHERSHIP',pl:0, rij:0, br:60, hp:3900,pt:9000,sp:4.0,  sal:3, cd:1.9, prof:'baas', zwaar:1, f1:0.70, f2:0.32},
@@ -2412,6 +2417,9 @@
     [12, 5,13,24,16,28,15,17,23,29,27,31]         // 11 + RED TALON, AMBER RING, STATIC
   ];;;;
   const LEVELS=NIVEAU.length;
+  const DOOS_VAKER=1.2;         // v14.44: wapendozen 1,2x zo vaak
+  const LES_TWEEDE=5.5;         // hoe lang het tweede lesscherm blijft staan
+  const LES_FADE=1.0;           // in één seconde naar volledig zwart en terug
   //          -  raket shotgun laser electro mitrailleur
   const CD=[110,  760,   360,  700,   300,      60];   // laser was 1400: gehalveerd   // laser was 1400: gehalveerd
 
@@ -4688,27 +4696,52 @@
 
     // Een kartelige rode bliksem van A naar B, kort zichtbaar. Eigen voorraad,
     // los van de electro van de speler.
+    // Sjoerd v14.42: "zijn rode laser om andere shield te geven graag dikker
+    // maken, zodat je ziet dat hij het doet." Dit was een THREE.Line — een
+    // HAARLIJN van één pixel, die in de bril nauwelijks te zien is. Nu een
+    // ketting van korte balkjes met een gloed eromheen. Niet drukker: hetzelfde
+    // aantal stralen, dezelfde tussenpozen, alleen dikker.
     bliksemStraal:function(a,b,kl){
       if(!this.bliks){ this.bliks=[];
         for(let i=0;i<4;i++){
-          const g=new THREE.BufferGeometry();
-          g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(3*WERP_SEG),3));
-          const m=new THREE.Line(g,new THREE.LineBasicMaterial({color:kl,transparent:true,opacity:0.95,depthWrite:false}));
-          m.frustumCulled=false; m.visible=false; this.par.add(m);
-          this.bliks.push({m:m,t:0}); } }
+          const grp=new THREE.Group(); grp.visible=false;
+          const stuk=[];
+          for(let q=0;q<WERP_SEG-1;q++){
+            const m=new THREE.Mesh(new THREE.CylinderGeometry(1,1,1,6),
+              new THREE.MeshBasicMaterial({color:kl,transparent:true,opacity:0.95,
+                depthWrite:false,blending:THREE.AdditiveBlending}));
+            m.frustumCulled=false; grp.add(m); stuk.push(m); }
+          grp.frustumCulled=false; this.par.add(grp);
+          this.bliks.push({m:grp,stuk:stuk,t:0}); } }
       const L=this.bliks.find(q=>q.t<=0)||this.bliks[0];
-      const P=L.m.geometry.attributes.position;
+      // de knikpunten van de straal
+      const pt=[];
       for(let i=0;i<WERP_SEG;i++){ const k=i/(WERP_SEG-1);
-        const j=(i===0||i===WERP_SEG-1)?0:(Math.random()-0.5)*3.2;
+        const j =(i===0||i===WERP_SEG-1)?0:(Math.random()-0.5)*3.2;
         const j2=(i===0||i===WERP_SEG-1)?0:(Math.random()-0.5)*3.2;
-        P.setXYZ(i,a.x+(b.x-a.x)*k+j,a.y+(b.y-a.y)*k+j2,a.z+(b.z-a.z)*k); }
-      P.needsUpdate=true; L.m.material.color.setHex(kl);
+        pt.push(new THREE.Vector3(a.x+(b.x-a.x)*k+j, a.y+(b.y-a.y)*k+j2,
+                                  a.z+(b.z-a.z)*k)); }
+      // elk balkje tussen twee knikpunten spannen
+      const mid=this.BM||(this.BM=new THREE.Vector3());
+      const ri =this.BR||(this.BR=new THREE.Vector3());
+      const op =this.BO||(this.BO=new THREE.Vector3(0,1,0));
+      for(let q=0;q<L.stuk.length;q++){ const m=L.stuk[q];
+        const p1=pt[q], p2=pt[q+1];
+        mid.addVectors(p1,p2).multiplyScalar(0.5);
+        ri.subVectors(p2,p1);
+        const len=ri.length()||0.01;
+        m.position.copy(mid);
+        m.quaternion.setFromUnitVectors(op,ri.normalize());
+        m.scale.set(WERP_DIK,len,WERP_DIK);
+        m.material.color.setHex(kl); }
       L.m.visible=true; L.t=WERP_DUUR; },
 
     bliksTick:function(s){
       if(!this.bliks) return;
       for(let i=0;i<this.bliks.length;i++){ const L=this.bliks[i]; if(L.t<=0) continue;
-        L.t-=s; L.m.material.opacity=Math.max(0,L.t/WERP_DUUR);
+        L.t-=s;
+        const dek=Math.max(0,L.t/WERP_DUUR);
+        for(let q=0;q<L.stuk.length;q++) L.stuk[q].material.opacity=dek;
         if(L.t<=0) L.m.visible=false; } },
 
     // Een los schip stort TUIMELEND neer: hij kantelt om zijn as en valt omlaag,
@@ -4951,7 +4984,11 @@
     // Rechtstreeks een wapen kiezen. Heb je het niet, dan verandert er niets.
     kiesWapen:function(h,w){
       if(window.PHASE!=='game'||window.PAUSED) return;
-      if(this.isPrim(h)) return;                         // hoofdhand houdt zijn mitrailleur
+      // Sjoerd v14.45: "beide handen werken hetzelfde, en dan krijg je dat
+      // wapen wat je kiest." De hoofdhand zat vast op de mitrailleur; nu kiest
+      // elke hand los, met dezelfde joystickrichtingen. Kies je in beide handen
+      // hetzelfde wapen, dan schiet je dubbel — uit DEZELFDE voorraad, want
+      // W.mag is gedeeld (this.zak.mag).
       const W=this.wp(h); if(!W||w===W.t) return;
       if(w!==5&&!(W.mag&&W.mag[w]>0)){
         this.toonMelding('NO '+(WNAAM[w]||'WEAPON'),'#ff8aa6');
@@ -4962,7 +4999,6 @@
     wissel:function(h){
       if(window.PHASE!=='game'||window.PAUSED) return;
       const nu=Date.now(); if(nu-(this.wisDeb||0)<300) return; this.wisDeb=nu;
-      if(this.isPrim(h)) return;                                  // hoofdhand houdt de mitrailleur
       if(window.LOG) window.LOG('wapenwissel');
       const W=this.wp(h), volg=[1,2,3,4,5];
       let i=volg.indexOf(W.t); if(i<0) i=volg.length-1;
@@ -4977,6 +5013,9 @@
         const q=v.addScaledVector(d,-t).length();
         if(q>2.4) continue;
         D.live=false; D.g.visible=false;
+        // DE UITLEG: deze doos hoorde bij de les, dus nu de tweede helft
+        const lesNu=(D.uitleg&&this.lesFase===1&&this.lesK===D.k);
+        if(lesNu) this.lesToon(D.k,2);
         if(D.ult){ this.ults++; SND.zeg('Extra ult'); this.toonMelding('EXTRA ULT','#ffe45c'); return true; }
         if(!W.lvlT) W.lvlT={};
         if(D.ammo){                                               // ammo-doos: puur bijvullen, nooit wisselen
@@ -5002,7 +5041,11 @@
       return false; },
 
     fire:function(h){
-      if(window.PHASE!=='game'||window.PAUSED) return;
+      // Tijdens de UITLEG mag je wél schieten: Sjoerd wil dat je in de pauze
+      // rondkijkt, de doos zoekt en hem raakt — dat is juist de manier om verder
+      // te gaan. Zonder deze uitzondering kun je de les nooit afmaken.
+      if(window.PHASE!=='game') return;
+      if(window.PAUSED&&this.lesFase!==1) return;
       const W=this.wp(h), now=performance.now();
       const snel=((W.t===5||W.t===0)?(1/(1+0.12*this.kr(W))):1);
       // De laser vuurt een reeks flitsen af. Begon je opnieuw terwijl die nog
@@ -5918,16 +5961,11 @@
         // voelen als een kolos. Klein spul blijft ongemoeid.
         const maatHP=(T.prof==='baas')?1:
           (T.br>=16?GROOTHP:(T.br>=11?(1+(GROOTHP-1)*0.45):1));
-        // ZWAARDER NAARMATE HET SPEL VORDERT (Sjoerd v14.38: "een soort opbouw
-        // in hoe sterk ze zijn, van begin spel naar steeds zwaarder"). GEMETEN:
-        // de kracht per level liep op tot level 5 en bleef daarna hangen op 27k
-        // — het einde was dus alleen drukker, niet zwaarder. Vanaf TAAI_VANAF
-        // krijgt elk schip er per level TAAI_STAP bij.
-        // NIET voor bazen: die hebben hun eigen schaling (BAAS_TAAI) en werden
-        // hierdoor onverslaanbaar — de demo haalde AXLE nog maar tot 38%.
-        const taai=(T.prof==='baas')?1:
-          (1+Math.max(0,(this.level||1)-TAAI_VANAF)*TAAI_STAP);
-        e.hp=e.hpM=Math.max(1,Math.round(T.hp*taai*((opt&&opt.hp)||1)*
+        // Sjoerd v14.43: "ik wil eigenlijk niet dat vijanden taaier worden.
+        // Gewoon de vijanden zijn vijanden." De taaiheidsopslag uit v14.38 is
+        // eruit: elk schip heeft overal dezelfde kracht. De opbouw zit nu in
+        // WELKE schepen je tegenkomt en met hoeveel, niet in opgeblazen cijfers.
+        e.hp=e.hpM=Math.max(1,Math.round(T.hp*((opt&&opt.hp)||1)*
           (T.prof==='baas'?BAAS_TAAI:VIJHP)*maatHP));
         e.sc=T.br*((opt&&opt.sc)||1);
         if(T.prof==='baas'&&e.gedrag==='reus'){ e.sc=134;
@@ -8631,6 +8669,45 @@
       e.setAttribute('value',txt); e.setAttribute('color',kl||'#ffb03a');
       this.meldC=txt?9:0; },
 
+    // ---- DE UITLEG IN LEVEL 1 (Sjoerd v14.45) ----
+    // Het spel pauzeert en legt uit welke kleur welk wapen is. Schiet je de doos
+    // kapot, dan komt de tweede helft: welke joystickrichting je ervoor gebruikt.
+    lesToon:function(k,fase){
+      this.lesK=k; this.lesFase=fase;
+      const naam=WNAAM[k]||'WEAPON', kleur=WKLEUR[k]||'';
+      let txt;
+      // Sjoerd v14.46: Engels, en zo beknopt mogelijk.
+      if(fase===1) txt='SHOOT '+kleur+' BOX\n'+naam;
+      else txt='PRESS '+(WRICHT[k]||'')+' ON JOYSTICK\nL OR R HAND\n\nA / X TO RETURN TO GUN';
+      const e=document.querySelector('#hudC');
+      if(e){ e.setAttribute('value',txt); e.setAttribute('color','#ffe45c'); }
+      this.meldC=99;                                  // blijft staan zolang de les loopt
+      // Sjoerd v14.47: de achtergrond dooft in één seconde naar VOLLEDIG zwart.
+      // De lesdoos blijft er wel doorheen te zien — die wordt na het doek
+      // getekend, zodat je hem nog kunt zoeken en raken.
+      this.doekDoel=1; this.doekNu=this.doekNu||0;
+      window.PAUSED=true; this.lesT=(fase===1)?0:LES_TWEEDE; },
+
+    lesWeg:function(){
+      const e=document.querySelector('#hudC');
+      if(e) e.setAttribute('value','');
+      this.meldC=0;
+      this.doekDoel=0;
+      window.PAUSED=false; this.lesK=0; this.lesFase=0; this.lesT=0; },
+
+    // de tweede helft loopt vanzelf af; de eerste wacht tot je schiet
+    lesTick:function(s){
+      // het doek in- en uitdoven, ook als de les al voorbij is
+      if(this.doekDoel!==undefined){
+        const stap=s/LES_FADE;
+        if(this.doekNu<this.doekDoel) this.doekNu=Math.min(this.doekDoel,this.doekNu+stap);
+        else if(this.doekNu>this.doekDoel) this.doekNu=Math.max(this.doekDoel,this.doekNu-stap);
+        const D=document.querySelector('#doek');
+        if(D) D.setAttribute('material','color:#000000;opacity:'+this.doekNu.toFixed(3)+
+          ';transparent:true;shader:flat;depthWrite:false;depthTest:false'); }
+      if(!this.lesFase) return;
+      if(this.lesFase===2){ this.lesT-=s; if(this.lesT<=0) this.lesWeg(); } },
+
     // =====================================================
     //  DOZEN
     // =====================================================
@@ -8642,6 +8719,20 @@
         const col=D.ult?0xffe45c:(D.ammo?0x6ce2a0:WCOL[D.k]);
         D.kern.material.color.setHex(col); D.ring.material.color.setHex(col);
         D.gloed.material.color.setHex(col);
+        D.uitleg=0;
+        // LEVEL 1: de eerste doos van elke soort krijgt uitleg
+        // per SPEL onthouden, niet per golf: anders krijg je dezelfde uitleg
+        // steeds opnieuw (gemeten).
+        if(this.level===1&&!D.ult&&!D.ammo&&D.k>=1&&D.k<=5){
+          if(!window.LESGEHAD) window.LESGEHAD={};
+          if(!window.LESGEHAD[D.k]){ window.LESGEHAD[D.k]=1; D.uitleg=1; } }
+        // een LESDOOS wordt NA het zwarte doek getekend, zodat hij zichtbaar
+        // blijft tegen de volledig zwarte achtergrond
+        const bov=D.uitleg?1:0;
+        D.kern.renderOrder=bov?60:8; D.ring.renderOrder=bov?60:8;
+        D.gloed.renderOrder=bov?59:1;
+        D.kern.material.depthTest=!bov; D.ring.material.depthTest=!bov;
+        D.gloed.material.depthTest=!bov;
         D.live=true; D.t=0; D.g.visible=true;
         D.p.set((Math.random()-0.5)*34,1.6+(Math.random()*9-3),-62);
         D.g.position.copy(D.p); return; } },
@@ -8694,7 +8785,9 @@
       // Ook op het paneel wil je zien waar je op mikt: bij pauze, bij GAME OVER
       // en in het continue-scherm.
       this.musTick(s);                      // ook tijdens het spelen blijven proberen
-      if(window.PAUSED){ this.overTick(s); wijzerTick(); return; }
+      // de lesklok van de uitleg loopt WEL door tijdens de pauze — anders blijft
+      // het tweede scherm eeuwig staan, want de les pauzeert het spel zelf
+      if(window.PAUSED){ this.lesTick(s); this.overTick(s); wijzerTick(); return; }
       // hervat: de aanwijzer hoort niet in je vizier te blijven hangen
       if(this.wijzerAan){ this.wijzerAan=false;
         const wp=document.querySelector('#wijzer');
@@ -9366,8 +9459,15 @@
           F.m.visible=false; } }
 
       // ---- dozen ----
+      // DE UITLEG: staat er een lesdoos in beeld en loopt er nog geen les?
+      if(this.level===1&&!this.lesFase){
+        for(let q=0;q<this.dozen.length;q++){ const D=this.dozen[q];
+          if(D.live&&D.uitleg&&D.p.z>-70){ this.lesToon(D.k,1); break; } } }
+      this.lesTick(s);              // het doek trekt ook NA de les nog op
       this.doosT-=s;
-      if(this.doosT<=0){ this.doosT=(26+Math.random()*10)/M().doos; this.doosSpawn(); }
+      // Sjoerd v14.44: wapens 1,2x zo vaak. Een doos kwam elke 26-36 s; nu
+      // elke 22-30 s. De inhoud en de kansen erin blijven ongewijzigd.
+      if(this.doosT<=0){ this.doosT=(26+Math.random()*10)/(M().doos*DOOS_VAKER); this.doosSpawn(); }
       for(let i=0;i<this.dozen.length;i++){ const D=this.dozen[i]; if(!D.live) continue;
         D.t+=s; D.p.z+=D.sp*s;
         D.g.position.copy(D.p);
