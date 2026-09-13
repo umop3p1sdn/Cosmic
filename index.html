@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.65';
+  const VERSIE='v14.66';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2018,6 +2018,7 @@
   const RAK_PT=15, RAK_PT_ZW=40;   // punten voor een neergeschoten vijandelijke raket
   const COMBO_VUUR=5, COMBO_HEET=18;   // vanaf welke combo het vuur komt, en hoe snel het heet wordt
   const BALK_ORDE=120, COMBO_ORDE=40;  // de baasbalk tekent BOVEN de combometer
+  const VLAM_N=26, VLAM_ELK=0.045, VLAM_LEEF=0.75, VLAM_R=0.098;   // het vuur om de meter
   const COMBO_FLITSS=3.2;              // hoe snel de kreet inzakt en de streep uitschiet
   const ULT_FLITS=0.9;          // hoe lang de ult-teller opgloeit
   const VAL_BONUS=0.35;         // een neerstortend schip levert nog eens 35% op
@@ -5978,6 +5979,66 @@
         const f=Math.max(0,this.ultFlits/ULT_FLITS);
         e.setAttribute('scale',(1+f*0.4)+' '+(1+f*0.4)+' 1'); } },
 
+    // ---- ECHT VUUR OM DE METER ----
+    // Sjoerd v14.66: "het vuur op de counter mag wel echt vuur zijn met rook,
+    // net als de vliegtuigen maar iets afwijkend in kleur, omdat het geen
+    // vliegtuig is." De rook van de schepen staat in de WERELD; deze meter hangt
+    // aan je camera. Dus eigen deeltjes, kind van de meter zelf — ze bewegen mee
+    // met je hoofd. Kleur naar violet-oranje, zodat het niet op een brandend
+    // schip lijkt.
+    vuurDeel:function(){
+      if(this.vlamP) return;
+      const hoek=document.querySelector('#comboHoek');
+      const g=hoek&&hoek.object3D; if(!g) return;
+      this.vlamP=[];
+      for(let i=0;i<VLAM_N;i++){
+        const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
+          new THREE.MeshBasicMaterial({map:this.GLOED,transparent:true,
+            blending:THREE.AdditiveBlending,depthWrite:false,depthTest:false,
+            color:0xff8a3d,opacity:0}));
+        m.renderOrder=COMBO_ORDE-2; m.frustumCulled=false;
+        g.add(m);
+        this.vlamP.push({m:m,live:0,t:0,x:0,y:0,vx:0,vy:0,sz:1,rook:0}); } },
+
+    vuurTick:function(s,hitte){
+      if(!this.vlamP) this.vuurDeel();
+      if(!this.vlamP) return;
+      // nieuwe vlammen langs de rand van de ring
+      this.vlamT=(this.vlamT||0)-s;
+      if(hitte>0.02&&this.vlamT<=0){
+        this.vlamT=VLAM_ELK/(0.4+hitte*1.8);
+        for(let q=0;q<this.vlamP.length;q++){ const P=this.vlamP[q];
+          if(P.live) continue;
+          const hk=Math.random()*6.283;
+          P.live=1; P.t=0; P.leef=VLAM_LEEF*(0.7+Math.random()*0.6);
+          P.x=Math.cos(hk)*VLAM_R; P.y=Math.sin(hk)*VLAM_R;
+          P.vx=Math.cos(hk)*0.006+(Math.random()-0.5)*0.010;
+          P.vy=0.055+Math.random()*0.045;          // vlammen slaan omhoog
+          P.sz=(0.030+Math.random()*0.028)*(0.6+hitte*0.9);
+          P.rook=(Math.random()<0.35)?1:0;         // een deel wordt rook
+          break; } }
+      // en ze laten leven
+      for(let q=0;q<this.vlamP.length;q++){ const P=this.vlamP[q];
+        if(!P.live) continue;
+        P.t+=s;
+        const f=P.t/P.leef;
+        if(f>=1){ P.live=0; P.m.material.opacity=0; continue; }
+        P.x+=P.vx*s*60*0.016; P.y+=P.vy*s*60*0.016;
+        P.vy*=0.985;                                // hij verliest vaart
+        P.m.position.set(P.x,P.y,-0.004);
+        if(P.rook){
+          // ROOK: grijs-violet, zwelt op en vervaagt
+          P.m.scale.setScalar(P.sz*(1+f*2.6));
+          P.m.material.color.setHex(0x6a5a7a);
+          P.m.material.opacity=Math.max(0,(1-f)*0.30*hitte); }
+        else {
+          // VLAM: van wit-geel via oranje naar violet — dat laatste maakt hem
+          // anders dan een brandend vliegtuig
+          const kl=(f<0.25)?0xfff2c0:((f<0.55)?0xff8a3d:((f<0.8)?0xff3d55:0xc07dff));
+          P.m.material.color.setHex(kl);
+          P.m.scale.setScalar(P.sz*(1+f*1.3));
+          P.m.material.opacity=Math.max(0,(1-f)*0.85*hitte); } } },
+
     comboTick:function(s){
       this.ultFlitsTick(s);
       // de combometer onder de baasbalk houden
@@ -5998,6 +6059,9 @@
       const lab=document.querySelector('#comboLab');
       const aan=(this.combo>=2);
       if(hoek) hoek.setAttribute('visible',aan);
+      if(!aan&&this.vlamP){                           // de vlammen doven mee
+        for(let q=0;q<this.vlamP.length;q++){ const P=this.vlamP[q];
+          if(P.live){ P.live=0; P.m.material.opacity=0; } } }
       if(aan){
         const maal=this.combo;
         const kl=this.comboKleur(maal);
@@ -6025,15 +6089,17 @@
         // HET VUUR: hoe hoger de combo, hoe heter. Twee ringen die pulseren,
         // de buitenste dieper rood, de binnenste feller — samen leest dat als vlam.
         const hitte=Math.max(0,Math.min(1,(maal-COMBO_VUUR)/COMBO_HEET));
+        this.vuurTick(s,hitte);                       // echte vlammen en rook
         const puls=0.5+Math.sin(this.comboFase=(this.comboFase||0)+s*9)*0.5;
         const puls2=0.5+Math.sin(this.comboFase*1.37+1.1)*0.5;
         const v1=document.querySelector('#comboVuur');
         const v2=document.querySelector('#comboVuur2');
-        if(v1) v1.setAttribute('material','color:'+(hitte>0.7?'#fff2c0':'#ff8a3d')+
-          ';shader:flat;transparent:true;opacity:'+(hitte*(0.35+puls*0.35)).toFixed(2)+
+        // de ringen zijn nu alleen nog een zachte gloed ONDER de vlammen
+        if(v1) v1.setAttribute('material','color:'+(hitte>0.7?'#ffb060':'#ff6a3d')+
+          ';shader:flat;transparent:true;opacity:'+(hitte*(0.14+puls*0.14)).toFixed(2)+
           ';depthWrite:false;depthTest:false;side:double');
-        if(v2) v2.setAttribute('material','color:'+(hitte>0.7?'#ff8a3d':'#ff3000')+
-          ';shader:flat;transparent:true;opacity:'+(hitte*(0.20+puls2*0.30)).toFixed(2)+
+        if(v2) v2.setAttribute('material','color:'+(hitte>0.7?'#c07dff':'#ff3000')+
+          ';shader:flat;transparent:true;opacity:'+(hitte*(0.10+puls2*0.14)).toFixed(2)+
           ';depthWrite:false;depthTest:false;side:double');
         if(v1) v1.setAttribute('scale',(1+hitte*0.10+puls*0.05)+' '+(1+hitte*0.10+puls*0.05)+' 1');
         if(v2) v2.setAttribute('scale',(1+hitte*0.14+puls2*0.08)+' '+(1+hitte*0.14+puls2*0.08)+' 1'); }
