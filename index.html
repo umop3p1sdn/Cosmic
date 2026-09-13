@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.54';
+  const VERSIE='v14.55';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2451,7 +2451,8 @@
   const MIK_R=3.4;              // hoe groot de doelring om een lesdoos is
   // DE TUTORIAL: hoe ver de doos begint, hoe snel hij komt, hoe zwart het
   // scherm staat, en hoe lang de rust tussen de stappen is.
-  const TUT_DOOSAF=26, TUT_DOOSSNEL=0, TUT_DOEK=1.0;   // v14.54: volledig zwart
+  const TUT_DOOSAF=40, TUT_DOOSSNEL=3.5;   // de doos komt rustig aanvliegen
+  const TUT_HEMEL=0.12, TUT_FADE=1.2;      // hoe ver de hemel dimt, en hoe snel
   // TUT_LESMIN: hoe lang de les MINSTENS blijft staan voordat GOOD komt.
   // Sjoerd: "de tekst is te kort in beeld en gaat te snel over in Good."
   // TUT_LESMIN: hoe lang de les minstens staat voordat GOOD komt.
@@ -5452,7 +5453,11 @@
       if(this.straalT<=0&&this.straal){
         this.straal.visible=false; this.straalK.visible=false; } },
 
-    toonMelding:function(txt,kl){ const e=document.querySelector('#hudC'); if(!e) return;
+    toonMelding:function(txt,kl){
+      // tijdens de tutorial houdt de les het meldingsvlak bezet — anders
+      // overschrijft 'LEVEL 1  WAVE 1' meteen je uitleg (gemeten)
+      if(window.TUT&&this.tutFase) return;
+      const e=document.querySelector('#hudC'); if(!e) return;
       e.setAttribute('value',txt); e.setAttribute('color',kl||'#ffb03a'); this.meldC=1.6; },
 
     // =====================================================
@@ -8768,13 +8773,19 @@
     //   3 'vuur'  - wapen gekozen, de vijanden komen
     //   4 'klaar' - alles opgeruimd, meteen door naar de volgende
     tutStart:function(){
-      window.TUT=1; this.tutI=0; this.tutFase=0; this.tutT=0;
-      this.level=1; this.state='niets'; this.golfT=1e9;
+      window.TUT=1; window.LES=0; this.doekDoel=0;   // geen zwart doek
+      this.tutI=0; this.tutFase=0; this.tutT=0;
+      // 'vechten' zodat de hele beurt draait: vijanden vliegen, dozen bewegen,
+      // kogels raken. De golfklok staat uit, want de golven komen van ons.
+      this.level=1; this.state='vechten'; this.golfT=1e9;
+      this.plan=[]; this.gi=0; this.rij=[]; this.veldMax=99;
       this.tutStap(); },
 
     tutStop:function(){
       window.TUT=0; this.tutFase=0; this.tutI=0;
-      this.lesWeg();
+      const e=document.querySelector('#hudC');
+      if(e) e.setAttribute('value','');
+      this.meldC=0;
       this.dozen.forEach(function(D){ D.live=false; D.g.visible=false; });
       this.enemies.forEach(function(e){ if(e.live){ e.live=false;
         if(e.bb){ this.bbVrij(e.bb); e.bb=null; } } },this); },
@@ -8800,28 +8811,51 @@
         const col=WCOL[k];
         D.kern.material.color.setHex(col); D.ring.material.color.setHex(col);
         D.gloed.material.color.setHex(col);
-        // vóór het zwart tekenen, met een doelring eromheen
-        D.kern.renderOrder=60; D.ring.renderOrder=60; D.gloed.renderOrder=59;
-        D.kern.material.depthTest=false; D.ring.material.depthTest=false;
-        D.gloed.material.depthTest=false;
+        // gewoon tekenen: er hangt geen doek meer voor
         if(!D.mik){
           const r=new THREE.Mesh(new THREE.TorusGeometry(1,0.055,8,44),
             new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,
               opacity:0.95,depthWrite:false,depthTest:false}));
           r.renderOrder=61; r.frustumCulled=false; D.g.add(r); D.mik=r; }
         D.mik.visible=true;
-        // meteen op schietafstand neerzetten: de dozenlus draait niet tijdens
-        // de tutorial (state is 'niets'), dus hij zou anders stil blijven hangen
         D.p.set((Math.random()-0.5)*9,this.kop.y+2+Math.random()*3,-TUT_DOOSAF);
         D.g.position.copy(D.p); D.g.visible=true; D.live=true;
-        D.sp=0; return D; }
+        D.sp=TUT_DOOSSNEL; return D; }
       return null; },
 
+    // Sjoerd v14.55: "letters kun je niet lezen, en ik wil vijanden kunnen
+    // schieten met de wapens die ik test."
+    //
+    // De fout zat in de OPZET: ik bouwde de tutorial op het zwarte doek en de
+    // LES-toestand. Dat doek bedekt alles, dus moest ik per element een
+    // uitzondering maken — tekst, doos, vijanden — en er viel er steeds een
+    // buiten. En de LES-toestand zette de wereld bijna stil, waardoor schieten
+    // dood aanvoelde.
+    //
+    // Nu: GEEN doek, GEEN vertraging. De tutorial is een gewoon gevecht met
+    // vaste golven en tekst erbij. Alles werkt dan vanzelf — vijanden vliegen
+    // normaal, je kogels raken normaal, en de tekst staat in #hudC, hetzelfde
+    // vlak als alle andere meldingen die wél leesbaar zijn.
+    // De hemel dimmen: geen doek, gewoon de achtergrond die er al is. Sjoerd:
+    // "zwarte achtergrond is gewoon geen achtergrond — geen doek, dat verzin je
+    // zelf. Gewoon iets uitfaden wat er al is."
+    tutHemel:function(naar,s){
+      if(!this.hemel||!this.hemel.material) return;
+      const m=this.hemel.material;
+      m.transparent=true;
+      const nu=(m.opacity===undefined)?1:m.opacity;
+      const stap=s/TUT_FADE;
+      m.opacity=(nu<naar)?Math.min(naar,nu+stap):Math.max(naar,nu-stap);
+      if(this.skyObjs) for(let i=0;i<this.skyObjs.length;i++){
+        const o=this.skyObjs[i];
+        if(o&&o.material){ o.material.transparent=true; o.material.opacity=m.opacity; } }
+      // helemaal terug op 1? dan zijn we klaar met bijstellen
+      if(naar>=1&&m.opacity>=0.999) this.tutHemelOp=0; },
+
     tutTekst:function(txt){
-      const e=document.querySelector('#lesTxt');
-      if(e){ e.setAttribute('value',txt); e.setAttribute('color','#ffe45c');
-        e.setAttribute('visible',true); }
-      this.doekDoel=TUT_DOEK; },
+      const e=document.querySelector('#hudC');
+      if(e){ e.setAttribute('value',txt); e.setAttribute('color','#ffe45c'); }
+      this.meldC=99; },                               // blijft staan
 
     // de vijanden van deze stap neerzetten
     tutVijanden:function(S2,hoev){
@@ -8836,13 +8870,12 @@
         else { x=(Math.random()-0.5)*46; y=this.kop.y+3+Math.random()*11;
                z=-62-Math.random()*30; }                           // verspreid
         const e=this.spawn(tp,{x:x,y:y,z:z,stijl:'halte'});
-        if(e){ e.tutV=1; e.cd=TUT_RUST; e.bT=TUT_RUST;
-          // vóór het zwarte doek tekenen: Sjoerd wil "achter zwart, items
-          // opgelicht" — dus staan alleen de vijanden en de doos in beeld
-          if(e.bb&&e.bb.m){ e.bb.m.renderOrder=58;
-            e.bb.m.material.depthTest=false; } } } },
+        if(e){ e.tutV=1;
+          // even wachten voor ze schieten: je moet eerst kunnen kijken en mikken
+          e.cd=TUT_RUST; e.bT=TUT_RUST; } } },
 
     tutTick:function(s){
+      this.tutHemel(window.TUT?TUT_HEMEL:1,s);
       if(!window.TUT) return;
       this.tutT+=s;
       // de doos draait en zijn doelring pulseert — de gewone dozenlus draait
@@ -8888,8 +8921,10 @@
       this.tutVijanden(S2); },
 
     tutKlaar:function(){
-      window.TUT=0; this.tutFase=0;
-      this.lesWeg();
+      window.TUT=0; this.tutFase=0; this.tutHemelOp=1;   // de hemel weer opzetten
+      const e=document.querySelector('#hudC');
+      if(e) e.setAttribute('value','');
+      this.meldC=0;
       this.toonMelding('TUTORIAL COMPLETE','#6cf08a');
       // alle wapens geladen aan level 1 beginnen
       for(const id in this.wep){ const W=this.wep[id];
@@ -8979,10 +9014,10 @@
       // DE UITLEG zet de wereld bijna stil, maar de les zelf loopt op sEcht.
       // 's' was een const — die overschrijven gaf 'Assignment to constant
       // variable' en dan strandde de hele beurt (gemeten).
-      const s=(window.LES&&!window.TUT)?Math.min(sEcht,LES_TRAAG):sEcht;
+      const s=(window.LES&&!window.TUT)?Math.min(sEcht,LES_TRAAG):sEcht;   // de tutorial loopt op volle snelheid
       // DE TUTORIAL tikt VOORAAN, vóór alle returns verderop — anders loopt hij
       // vast zodra de beurt ergens eerder afslaat (gemeten: tutT bleef op 0).
-      if(window.TUT&&window.PHASE==='game') this.tutTick(sEcht);
+      if(window.PHASE==='game'&&(window.TUT||this.tutHemelOp)) this.tutTick(sEcht);
       // ---- DE ZWARTE DOOS ----
       // Elke beurt een regel: waar we zijn, hoe druk het is, en HOE LANG de
       // vorige beurt duurde. Loopt het spel vast, dan zie je de aanloop.
