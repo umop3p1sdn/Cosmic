@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.61';
+  const VERSIE='v14.62';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1997,6 +1997,7 @@
   // DE COMBO (Sjoerd v14.60): binnen COMBO_TIJD de volgende kill en je teller
   // loopt door. Je punten gaan MAAL die teller, tot COMBO_MAX.
   const COMBO_TIJD=4.0, COMBO_MAX=20, COMBO_TOON=1.8, COMBO_POPS=4.0;
+  const RAK_PT=15, RAK_PT_ZW=40;   // punten voor een neergeschoten vijandelijke raket
   const ULT_FLITS=0.9;          // hoe lang de ult-teller opgloeit
   const VAL_BONUS=0.35;         // een neerstortend schip levert nog eens 35% op
   const ULT_RAK=25;             // v14.59: een ult is 25 raketten (was 50)
@@ -2750,6 +2751,7 @@
       this.baas=null; this.baasTrio=null; this.baasWeg=false; this.zwermBeurt=0; this.baasBalkUit();
       this.melding=0; this.meldC=0; this.wave=0; this.golfT=0; this.state='wacht';
       this.ults=M().ult; this.ultPt=0; this.combo=0; this.laatst=-9; this.beste=0;
+      this.comboKlok=0; this.comboPt=0; this.comboPop=0;
       this.baas=null; this.rood=0; this.hurtCd=0; this.melding=0; this.contN=0;
       this.gedood=0; this.schoten=0;
       const prim=(window.PRIMHAND==='right')?'rightHand':'leftHand';
@@ -5778,10 +5780,12 @@
     punt:function(e){
       const T=TYPE[e.tp];
       // DE COMBO (Sjoerd v14.60): elke kill binnen COMBO_TIJD seconden na de
-      // vorige telt door. Je punten worden MAAL je comboteller — dus een hele
-      // groep snel opruimen levert veel meer op dan ze een voor een pakken.
-      if(this.T-(this.laatst||-99)>COMBO_TIJD) this.combo=0;
-      this.gedood++; this.combo++; this.laatst=this.T;
+      // vorige telt door. Je punten worden MAAL je comboteller.
+      //
+      // EIGEN KLOK (v14.62): this.T loopt pas verderop in de beurt op, ná de
+      // combotick — daardoor brak de combo al na 2 s en bleef de ring hangen
+      // (gemeten). comboKlok telt zelf af en is niet van T afhankelijk.
+      this.gedood++; this.combo++; this.comboKlok=COMBO_TIJD;
       if(this.combo>this.beste) this.beste=this.combo;
       const maal=Math.min(COMBO_MAX,this.combo);
       const bonus=T.pt*(maal-1);                      // x1 bij de eerste, x2 bij de tweede...
@@ -5911,12 +5915,28 @@
     // Bij elke kill: het cijfer springt op, de ring vult zich weer, en de kleur
     // loopt mee met hoe hoog je zit. Een oplopende ping erbij — hoe hoger de
     // combo, hoe hoger de toon.
+    // een neergeschoten raket: weinig punten, maar hij verlengt je combo
+    raketPunt:function(zwaar){
+      const pt=zwaar?RAK_PT_ZW:RAK_PT;
+      const maal=Math.min(COMBO_MAX,Math.max(1,this.combo));
+      const win=pt*maal;
+      this.punten+=win; this.ultPt+=win;
+      this.comboKlok=COMBO_TIJD;                      // de klok gaat weer vol
+      this.comboPt=win; this.comboPop=0.6;
+      if(SND.hit) SND.hit(0,0.35); },
+
     comboToon:function(maal,pt){
       this.comboPop=1;                                // laat het cijfer opspringen
       this.comboPt=pt;
       if(maal>=2){
+        // Sjoerd v14.62: "bonus teller en score mogen wel wat sensationeler."
+        // Bij hoge combo's een kreet erbij en grotere letters.
+        const kreet=(maal>=20)?'UNSTOPPABLE':((maal>=15)?'RAMPAGE':
+                    ((maal>=10)?'BLAZING':((maal>=6)?'ON FIRE':'')));
         const e=document.querySelector('#comboTxt');
-        if(e){ e.setAttribute('value','COMBO '+maal+' X '+pt);
+        if(e){ e.setAttribute('value',(kreet?kreet+'\n':'')+maal+' X  '+pt);
+          e.setAttribute('color',this.comboKleur(maal));
+          e.setAttribute('width',(2.0+Math.min(1.2,maal*0.06)).toFixed(2));
           e.setAttribute('visible',true); }
         this.comboT=COMBO_TOON;
         // oplopende ping: elke stap een halve toon hoger, tot een octaaf
@@ -5934,9 +5954,10 @@
 
     comboTick:function(s){
       this.ultFlitsTick(s);
-      // de teller vervalt vanzelf als je te lang wacht
-      const rest=COMBO_TIJD-(this.T-(this.laatst||-99));
-      if(this.combo>0&&rest<=0){ this.combo=0; this.comboPt=0; }
+      // de eigen klok telt af; op nul breekt de combo
+      if(this.comboKlok>0){ this.comboKlok-=s;
+        if(this.comboKlok<=0){ this.comboKlok=0; this.combo=0; this.comboPt=0; } }
+      const rest=this.comboKlok||0;
       const hoek=document.querySelector('#comboHoek');
       const num=document.querySelector('#comboNum');
       const ring=document.querySelector('#comboRing');
@@ -9258,7 +9279,8 @@
         const hv=document.querySelector('#hurt');
         if(hv) hv.setAttribute('material','color:#ff2030;opacity:'+this.rood.toFixed(3)+
           ';transparent:true;shader:flat;depthWrite:false;depthTest:false'); }
-      if(this.combo&&this.T-this.laatst>2.0) this.combo=0;
+      // (de oude 2-seconden-regel is weg: comboTick houdt de klok nu bij, en
+      //  deze regel brak de combo al na 2 s terwijl er 4 hoort te staan)
       if(this.blastT>0){ this.blastT-=s;
         const k=Math.max(0,this.blastT/0.45);
         this.blast.scale.setScalar((this.blastS||8)*(0.35+(1-k)*1.5));
@@ -10144,6 +10166,12 @@
         // Sjoerd: hij verdween gewoon. Nu een echte klap: brokstukken, vuur,
         // rook, een schokring en schade in een straal om hem heen.
         const zw=!!B.zwaar, gr=zw?1.9:1.0;
+        // RAKETTEN TELLEN MEE IN DE COMBO (Sjoerd v14.62): "schiet je een raket,
+        // reset de timer zodat je meer tijd hebt om weer een vliegtuig te killen.
+        // Zo kun je grote vijanden meenemen in de timer — die gaan niet kapot in
+        // 4 sec, maar wel als je steeds raketten kapot schiet binnen de tijd."
+        // Een raket geeft weinig punten maar HOUDT je combo levend.
+        this.raketPunt(zw);
         this.vijVrij2(B);
         SND.kill(q.x*0.02,0.5);
         SND.boom(q.x*0.02,zw);
