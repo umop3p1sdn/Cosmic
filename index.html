@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.71';
+  const VERSIE='v14.73';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -931,17 +931,44 @@
   // De ruis die de jammer over je beeld legt: horizontale banden, lichtblauw,
   // met open stukken ertussen zodat je kunt blijven spelen.
   function mkRuis(){
+    // Sjoerd v14.72: "maak de storingsbalken veel duidelijker, zodat ze echt
+    // storen — meer ruis mag ook." GEMETEN: de banden waren 1 tot 3 pixels hoog
+    // en kwamen niet boven dekking 0,40. Nu echte BALKEN van 3 tot 14 pixels,
+    // met korrelruis ertussen en verschoven blokken die er dwars doorheen gaan.
     const C=document.createElement('canvas'); C.width=256; C.height=256;
     const g=C.getContext('2d');
     g.clearRect(0,0,256,256);
-    for(let y=0;y<256;y+=4){
-      const a=(Math.random()<0.42)?(0.10+Math.random()*0.30):0.03;
-      const hh=1+Math.floor(Math.random()*3);
-      g.fillStyle='rgba(150,220,255,'+a.toFixed(2)+')';
-      g.fillRect(0,y,256,hh);
-      if(Math.random()<0.18){                       // af en toe een verschoven blok
-        g.fillStyle='rgba(200,240,255,'+(0.12+Math.random()*0.22).toFixed(2)+')';
-        g.fillRect(Math.random()*200,y,40+Math.random()*56,hh+1); } }
+    // 1. korrel over het hele vlak: dat is de ruis die altijd aanstaat
+    const im=g.createImageData(256,256);
+    for(let i=0;i<im.data.length;i+=4){
+      const v=Math.random();
+      const aan=(v<0.30)?1:0;
+      im.data[i]=150+Math.random()*105;
+      im.data[i+1]=200+Math.random()*55;
+      im.data[i+2]=255;
+      im.data[i+3]=aan?(40+Math.random()*90):0; }
+    g.putImageData(im,0,0);
+    // 2. DE BALKEN: breed, fel, en ze bedekken het hele scherm
+    for(let y=0;y<256;){
+      const hh=3+Math.floor(Math.random()*11);        // 3 tot 14 pixels hoog
+      const r=Math.random();
+      if(r<0.34){                                     // felle balk
+        g.fillStyle='rgba(190,235,255,'+(0.45+Math.random()*0.45).toFixed(2)+')';
+        g.fillRect(0,y,256,hh); }
+      else if(r<0.52){                                // donkere balk: die knipt beeld weg
+        g.fillStyle='rgba(4,10,20,'+(0.40+Math.random()*0.40).toFixed(2)+')';
+        g.fillRect(0,y,256,hh); }
+      else if(r<0.64){                                // zachte band
+        g.fillStyle='rgba(120,200,255,'+(0.14+Math.random()*0.16).toFixed(2)+')';
+        g.fillRect(0,y,256,hh); }
+      // 3. verschoven blokken: het beeld 'scheurt' zijwaarts
+      if(Math.random()<0.34){
+        g.fillStyle='rgba(230,250,255,'+(0.35+Math.random()*0.45).toFixed(2)+')';
+        g.fillRect(Math.random()*180,y,50+Math.random()*100,hh+2); }
+      if(Math.random()<0.16){                         // een stuk puur wit
+        g.fillStyle='rgba(255,255,255,'+(0.55+Math.random()*0.35).toFixed(2)+')';
+        g.fillRect(Math.random()*200,y,20+Math.random()*70,Math.max(2,hh-2)); }
+      y+=hh+Math.floor(Math.random()*4); }
     const t=new THREE.CanvasTexture(C);
     t.wrapS=THREE.RepeatWrapping; t.wrapT=THREE.RepeatWrapping;
     t.needsUpdate=true; return t; }
@@ -1716,7 +1743,11 @@
   const JAM_START=130, JAM_AF=115, JAM_HOOG=16, JAM_SNEL=9;
   const JAM_MIN=90, JAM_MAX=140;
   const JAM_EERST=3.5, JAM_ELK=6, JAM_ELKV=2, JAM_PULSTIJD=1.1;
-  const JAM_DUUR=3.0, JAM_DUURV=2.0, JAM_STERK=0.82, JAM_SCHILD=420;   // v14.68: harder jammen
+  const JAM_DUUR=3.0, JAM_DUURV=2.0, JAM_STERK=1.0, JAM_SCHILD=420;   // v14.72: vol
+  const RUIS_NIEUW=0.10;        // hoe vaak de ruis opnieuw getekend wordt
+  const RUIS_HERH=2.2;          // hoe vaak de balken over je beeld herhalen
+  const RAVEN_EERST=0.5;        // BLACK RAVEN vuurt vrijwel meteen
+  const RAVEN_AF=62;            // ...en hij begint op hoogstens zoveel meter
   // DE KLIMROL bij een treffer: hoe lang, hoe hoog (samen ~30 m), hoe ver opzij,
   // hoeveel zijn snelheid wisselt, en de wachttijd.
   const KLIM_TIJD=1.6, KLIM_HOOG=29, KLIM_ZIJ=17, KLIM_SNELV=0.55, KLIM_CD=6;
@@ -1753,7 +1784,7 @@
   const UFO_RUST=1.1, UFO_RUSTV=0.9, UFO_RUST0=1.5, UFO_MINAF=45, UFO_MAXAF=125;
   const UFO_WEGKANS=0.22, UFO_WEGCD=7, UFO_WEGAF=60, UFO_VUURSNEL=1.4;
   // Zijn schild: 350 kracht, 5 s aan / 5 s uit, en wat eraf is blijft eraf.
-  const RS_HP=350, RS_AAN=5, RS_UIT=3, RS_HULPKANS=0.35, RS_HULPN=2, RS_HULPMAX=4;   // Sjoerd: 5 s aan, 3 s af
+  const RS_HP=175, RS_AAN=5, RS_UIT=3, RS_HULPKANS=0.35, RS_HULPN=2, RS_HULPMAX=4;   // Sjoerd: 5 s aan, 3 s af
   // LANCE als dubbelprofiel-baas: een zwaarder schild, en hoe vaak een treffer
   // zijn break turn uitlokt.
   const LANCE_SCHILD=900, LANCE_BRKKANS=0.5;
@@ -2478,7 +2509,7 @@
     {n:'CYCLONE',   pl:13,rij:6, br:13, hp:150, pt:250, sp:8.3,  sal:2, cd:3.0, prof:'barrel',  f1:0.60, f2:0.28},
     {n:'SHRIKE',    pl:13,rij:7, br:14, hp:390,  pt:180, sp:16, sal:1, cd:1.6, prof:'yoyo',    snel:24, f1:0.55, f2:0.22},
     {n:'VENOM',     pl:13,rij:8, br:13, hp:120, pt:210, sp:14.1, sal:2, cd:2.8, prof:'scissors',f1:0.72, f2:0.38},
-    {n:'ORACLE',    pl:13,rij:9, br:16, hp:260, pt:320, sp:5.5,  sal:3, cd:3.8, prof:'kruiper', zwaar:1, f1:0.48, f2:0.20},
+    {n:'ORACLE',    pl:13,rij:9, br:16, hp:130, pt:320, sp:5.5,  sal:3, cd:3.8, prof:'kruiper', zwaar:1, f1:0.48, f2:0.20},
     {n:'TITAN',     pl:13,rij:10,br:24, hp:330, pt:460, sp:3.2,  sal:2, cd:3.4, prof:'drijver', f1:0.86, f2:0.32},
     {n:'NOVA',      pl:13,rij:11,br:29, hp:400, pt:600, sp:3.2,  sal:3, cd:4.0, prof:'immel',   zwaar:1, f1:0.62, f2:0.25},
     {n:'MOTHERSHIP',pl:0, rij:0, br:60, hp:3900,pt:9000,sp:4.0,  sal:3, cd:1.9, prof:'baas', zwaar:1, f1:0.70, f2:0.32},
@@ -3471,8 +3502,17 @@
           if(HA) HA.setAttribute('rotation','0 0 0'); }
         return; }
       this.storing-=s;
-      if(!this.RUIS) this.RUIS=mkRuis();
+      if(!this.RUIS){ this.RUIS=mkRuis();
+        this.RUIS.repeat.set(1,RUIS_HERH); }
       this.storingAan=1;
+      // de ruis ELKE paar beurten opnieuw tekenen: dan flikkert het echt in
+      // plaats van dat er een vaste plaat over je beeld schuift
+      this.ruisT=(this.ruisT||0)-s;
+      if(this.ruisT<=0){ this.ruisT=RUIS_NIEUW;
+        const oud=this.RUIS; this.RUIS=mkRuis();
+        const m2=el.getObject3D&&el.getObject3D('mesh');
+        if(m2&&m2.material){ m2.material.map=this.RUIS; m2.material.needsUpdate=true; }
+        if(oud&&oud.dispose) oud.dispose(); }
       // Sjoerd v14.68: "als hij jamt, s.v.p. echt hardcore jammen — maak mijn
       // beeld maar golvend en misvormd." Dus: de banden schuiven sneller, het
       // vlak GOLFT (schaal en stand wiegen), en het schuift horizontaal weg
@@ -6314,6 +6354,10 @@
         // WISSEN VOOR INVULLEN: stond dit erna, dan veegde het de portalen weer
         // weg die we net hadden ingesteld (valkuil 1 uit het werkblad).
         e.portN=0; e.portOp=0; e.portT=0; e.direct=0;
+        // BLACK RAVEN vuurt METEEN: zo kun je zijn raketten pakken en je combo
+        // vasthouden. Hij schoot pas na 8,8 s (gemeten) — dan is je combo al twee
+        // keer verlopen.
+        if(T&&(T.basis||T.n)==='SPINNER'){ e.cd=RAVEN_EERST; e.bT=RAVEN_EERST; }
         e.jamX=undefined; e.jamT=0;
         // de jammer heeft een schild: Sjoerd wil dat je hem echt moet opruimen
         if(T&&(T.basis||T.n)==='JAMMER') this.schildAan(e,JAM_SCHILD);
@@ -6737,8 +6781,13 @@
       // De dans wilde tot 195 m; kogels halen 150, de laser 170. Nu hoogstens
       // BAAS_MAXAF, zodat elk wapen bij hem komt.
       let doel=reus?REUSAFSTAND:(Math.min(e.dubbel?UFO_MAXAF*0.75:BAAS_MAXAF,F.d)+e.r*0.32);
-      if(!reus&&e.bw>=GROOTBR)
+      // BLACK RAVEN is 18 m en viel dus onder 'groot', maar hij HOORT dichtbij:
+      // Sjoerd wil zijn raketten kunnen raken om zijn combo vast te houden.
+      // (Gemeten: hij bleef op 126-131 m hangen, ver buiten bereik.)
+      const ravNaby=(TYPE[e.tp]&&(TYPE[e.tp].basis||TYPE[e.tp].n)==='SPINNER');
+      if(!reus&&e.bw>=GROOTBR&&!ravNaby)
         doel=Math.max(doel,(e.bw>=REUSBR)?MINAF_REUS:MINAF_GROOT);
+      if(ravNaby) doel=Math.min(doel,RAVEN_AF);
 
       // De klok blijft ver weg: hij bestookt je van afstand, hij valt niet aan.
       if(KLOKKEN.indexOf(TYPE[e.tp]&&(TYPE[e.tp].basis||TYPE[e.tp].n))>=0) doel=Math.max(doel,KLOK_AF);
@@ -8969,8 +9018,12 @@
       // een kolos die vlak voor je neus opduikt is niet leuk maar overrompelend.
       // Hoe breder het schip, hoe verder hij begint en hoe meer opzij.
       const BR=(TYPE[tp]&&TYPE[tp].br)||6;
-      const ver=(BR>=GROOTBR)?(BR>=REUSBR?VER_REUS:VER_GROOT):0;
-      const zijMin=(BR>=GROOTBR)?ZIJ_GROOT:0;
+      // Sjoerd v14.73: "BLACK RAVEN niet te ver weg spawnen." Hij is 18 m en
+      // viel dus onder 'groot', maar hij hóórt dichtbij: hij is snel en zijn
+      // raketten moet je kunnen raken voor je combo.
+      const dichtbij=(TYPE[tp]&&(TYPE[tp].basis||TYPE[tp].n)==='SPINNER');
+      const ver=dichtbij?0:((BR>=GROOTBR)?(BR>=REUSBR?VER_REUS:VER_GROOT):0);
+      const zijMin=(dichtbij||BR<GROOTBR)?0:ZIJ_GROOT;
       const mid=(n-1)/2, sp=(i-mid);
       let o={};
       if(V==='wig'){                                    // punt vooraan, vleugels erachter
@@ -9016,6 +9069,16 @@
       // vanzelf naar het midden. Dat leest als een aanval, niet als een verrassing.
       if(Math.abs(o.x||0)<ZIJ_MIN)
         o.x=(Math.random()<0.5?-1:1)*(ZIJ_MIN+Math.random()*14);
+      // BLACK RAVEN dichterbij: de vormen zetten hem standaard op 106-120 m,
+      // en dan is hij buiten bereik voor zijn raketten (Sjoerd v14.73).
+      // BLACK RAVEN dichterbij. Sommige vormen zetten hem op een RING of een
+      // boog, en dan is z niet de afstand — dus de hele vector inkorten in
+      // plaats van alleen z (gemeten: 'bogen' zette hem nog op 139 m).
+      if(dichtbij&&o){
+        const dx=o.x||0, dy=(o.y||1.6)-1.6, dz=o.z||0;
+        const af=Math.sqrt(dx*dx+dy*dy+dz*dz);
+        if(af>RAVEN_AF){ const f=(RAVEN_AF-Math.random()*8)/af;
+          o.x=dx*f; o.y=1.6+dy*f; o.z=dz*f; } }
       const e=this.spawn(tp,o);
       if(e&&V==='ring'){ e.ring={a:o.ring,r:34+Math.random()*8,
         dr:(Math.random()<0.5?-1:1)*(0.16+Math.random()*0.14)}; }
