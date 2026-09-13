@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.73';
+  const VERSIE='v14.74';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1747,7 +1747,11 @@
   const RUIS_NIEUW=0.10;        // hoe vaak de ruis opnieuw getekend wordt
   const RUIS_HERH=2.2;          // hoe vaak de balken over je beeld herhalen
   const RAVEN_EERST=0.5;        // BLACK RAVEN vuurt vrijwel meteen
-  const RAVEN_AF=62;            // ...en hij begint op hoogstens zoveel meter
+  // Sjoerd v14.74: "BLACK RAVEN misschien wel op afstand — nu zit hij in mijn
+  // face. Hij spawnde buiten schietrange, ik kon zijn raket niet raken. Net in
+  // range dat ik zijn raket kan raken is prima." Je kogel haalt 150 m, dus 100
+  // is ruim binnen bereik terwijl hij wel op afstand blijft.
+  const RAVEN_AF=100;
   // DE KLIMROL bij een treffer: hoe lang, hoe hoog (samen ~30 m), hoe ver opzij,
   // hoeveel zijn snelheid wisselt, en de wachttijd.
   const KLIM_TIJD=1.6, KLIM_HOOG=29, KLIM_ZIJ=17, KLIM_SNELV=0.55, KLIM_CD=6;
@@ -4374,7 +4378,11 @@
     // afstand zodat je ze mooi kan zien." Geeft true zolang hij scheert.
     scheerTick:function(e,s){
       const T=TYPE[e.tp];
+      // BLACK RAVEN scheert NIET meer langs je heen: die vlucht trok hem tot op
+      // 22 m, en Sjoerd wil hem juist op afstand ("nu zit hij in mijn face").
+      // Hij hoort op honderd meter te hangen en van daaraf te vuren.
       if(!T||e.bw<GROOTBR||e.gedrag==='reus'||T.prof==='baas'||T.prof==='jammer'||e.dood||e.dood2) return false;
+      if((T.basis||T.n)==='SPINNER') return false;
       if(e.scheerCd===undefined) e.scheerCd=SCHEER_EERST+Math.random()*10;
       else e.scheerCd-=s;
       if(e.scheerCd<=0&&!e.scheer){
@@ -6711,7 +6719,13 @@
       const T=TYPE[e.tp];
       const ruim=e.r*1.3;                            // grote schepen houden meer afstand
       if(e.mode==='nader'){
-        const doel=AFST[Math.min(2,e.stap)]+ruim;
+        // Deze stand heeft zijn EIGEN doelafstand uit AFST, los van de baan
+        // verderop — daar liep mijn RAVEN_AF dus langs. BLACK RAVEN stopt hier
+        // al op honderd meter (Sjoerd v14.74: "net in range dat ik zijn raket
+        // kan raken is prima").
+        let doel=AFST[Math.min(2,e.stap)]+ruim;
+        if(TYPE[e.tp]&&(TYPE[e.tp].basis||TYPE[e.tp].n)==='SPINNER')
+          doel=Math.max(doel,RAVEN_AF);
         // GEMETEN: NEEDLE haalde hier 88 m/s bij het binnenvliegen. Deze factor
         // van 3,4 staat helemaal los van de snelheidsrem, dus bleef het
         // aanvliegen even hard hoe laag ik die rem ook zette. Nu loopt hij mee
@@ -6787,7 +6801,10 @@
       const ravNaby=(TYPE[e.tp]&&(TYPE[e.tp].basis||TYPE[e.tp].n)==='SPINNER');
       if(!reus&&e.bw>=GROOTBR&&!ravNaby)
         doel=Math.max(doel,(e.bw>=REUSBR)?MINAF_REUS:MINAF_GROOT);
-      if(ravNaby) doel=Math.min(doel,RAVEN_AF);
+      // OP AFSTAND HOUDEN, niet naar voren trekken. Sjoerd: "nu zit hij in mijn
+      // face." Min(doel, RAVEN_AF) haalde hem juist dichterbij; het moet een
+      // ONDERGRENS zijn, zodat hij netjes op honderd meter blijft hangen.
+      if(ravNaby) doel=Math.max(doel,RAVEN_AF);
 
       // De klok blijft ver weg: hij bestookt je van afstand, hij valt niet aan.
       if(KLOKKEN.indexOf(TYPE[e.tp]&&(TYPE[e.tp].basis||TYPE[e.tp].n))>=0) doel=Math.max(doel,KLOK_AF);
