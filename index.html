@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.74';
+  const VERSIE='v14.75';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1816,6 +1816,8 @@
   // voor 'zwaar'; zulke schepen komen hoogstens BIJZ_GOLVEN golven per level.
   const BUDGET_START=620, BUDGET_STAP=420;
   const BIJZ_VANAF=300, BIJZ_GOLVEN=3;
+  const PORT_MAXG=6;            // hoogstens zoveel portalen samen in één golf
+  const PLAN_DUN=6;             // een golf onder dit aantal wordt aangevuld
   // Sjoerd v14.48: "level 1 is 1 prima, zie er vaak zelfs 3." In level 1 nog
   // maar ÉÉN tegelijk; vanaf level 2 mogen er drie.
   const RAVEN_VROEG=3;          // BLACK RAVEN in level 2-3: hoogstens drie
@@ -8682,6 +8684,11 @@
       // en een bijzonder schip komt hoogstens in een paar golven per level voor,
       // zodat AMBER RING niet in acht van de tien golven staat (gemeten)
       if(!this.bijzGolf||this.bijzGolfL!==LV0){ this.bijzGolf={}; this.bijzGolfL=LV0; }
+      // PORTAALSCHEPEN EN JAMMERS ZUINIG (Sjoerd v14.75). GEMETEN: elf golven
+      // hadden meerdere portaalschepen, en level 3 golf 6 kwam op VIJFTIEN
+      // portalen tegelijk. Dat is geen golf meer maar een lawine. Per golf
+      // hoogstens PORT_MAXG portalen in totaal, en hoogstens één jammer.
+      let portTot=0, jamTot=0;
       const zet=function(tp,n,t,form){
         n=Math.max(1,Math.round(n*rem*rustig));
         if(planTot+n>dak) n=Math.max(0,Math.round(dak-planTot));
@@ -8717,6 +8724,19 @@
         let n3=cap(tp,n);
         if(TYPE[tp]&&(TYPE[tp].basis||TYPE[tp].n)==='SPINNER'&&self.level<=3)
           n3=Math.min(n3,(self.level<=1)?RAVEN_LVL1:RAVEN_VROEG);
+        // PORTALEN EN JAMMERS: NA cap(), want die zet n weer omhoog naar het
+        // maximum voor dat scheepstype. Daar liep mijn eerste grens langs — er
+        // stonden negen SHRIKE's in één groep, samen 27 portalen (gemeten).
+        const bn2=TYPE[tp]&&(TYPE[tp].basis||TYPE[tp].n);
+        const perStuk=(PORTSCHEPEN[bn2]!==undefined)?PORTSCHEPEN[bn2]:
+                      ((bn2==='ORACLE')?2:0);
+        if(perStuk){
+          const ruimte=Math.max(0,PORT_MAXG-portTot);
+          if(ruimte<=0) return;                       // de golf zit vol portalen
+          n3=Math.min(n3,Math.floor(ruimte/perStuk));
+          if(n3<=0) return;
+          portTot+=n3*perStuk; }
+        if(bn2==='JAMMER'){ if(jamTot>=1) return; n3=1; jamTot=1; }
         plan.push({tp:tp,n:n3,t:t,form:form||0,vorm:kiesVorm(++vI)}); };
       // HALF-OM-HALF (Sjoerd, v14.25): "sommige komen in meer dan 4-5 rondes in
       // grote getallen voor. Misschien 50/50 laten opkomen voor de variatie —
@@ -8845,6 +8865,36 @@
       if(bodem&&planTot<bodem&&plan.length){
         const q=plan[plan.length-1];
         q.n+=Math.round(bodem-planTot); }
+
+      // ---- LAATSTE ZEEF: portalen en jammers (Sjoerd v14.75) ----
+      // Deze staat HELEMAAL aan het eind, want het plan wordt na zet() nog
+      // twee keer aangeraakt: de variatiewissel kan een gewoon schip alsnog in
+      // een SHRIKE veranderen, en de schaalstap verandert alle aantallen.
+      // Daar liep elke eerdere grens langs — gemeten: negen SHRIKE's in één
+      // groep, samen 27 portalen.
+      {
+        let pTot=0, jGehad=0;
+        for(let i=0;i<plan.length;i++){
+          const q=plan[i], T3=TYPE[q.tp]; if(!T3) continue;
+          const bn3=T3.basis||T3.n;
+          if(bn3==='JAMMER'){                         // hoogstens ÉÉN jammer
+            if(jGehad){ q.n=0; continue; }
+            q.n=1; jGehad=1; continue; }
+          const per=(PORTSCHEPEN[bn3]!==undefined)?PORTSCHEPEN[bn3]:
+                    ((bn3==='ORACLE')?2:0);
+          if(!per) continue;
+          const ruimte=Math.max(0,PORT_MAXG-pTot);
+          q.n=Math.min(q.n,Math.floor(ruimte/per));
+          pTot+=q.n*per; }
+        // lege groepen eruit
+        for(let i=plan.length-1;i>=0;i--) if(plan[i].n<=0) plan.splice(i,1);
+        // ...en als de golf daardoor te dun werd, de geschrapte plekken opvullen
+        // met een gewoon schip in plaats van met portaaldragers
+        let na=0; for(let i=0;i<plan.length;i++) na+=plan[i].n;
+        if(na<PLAN_DUN&&klein.length){
+          const kies=klein[Math.floor(R(w*17+LV*3)*klein.length)%klein.length];
+          plan.push({tp:kies,n:PLAN_DUN-na,t:1.4,form:0,vorm:kiesVorm(++vI)}); }
+      }
       return plan; },
 
     nieuweGolf:function(){
