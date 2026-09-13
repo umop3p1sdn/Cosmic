@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.55';
+  const VERSIE='v14.57';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1036,6 +1036,9 @@
   '      <a-plane id="magA" position="0.395 -0.530 -1.25" width="0.001" height="0.001" material="color:#000000;shader:flat;opacity:0;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-plane id="magB" position="0.245 -0.530 -1.245" width="0.30" height="0.012" material="color:#6cf08a;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-text id="hudC" value="" align="center" color="#6cf08a" width="2.6" position="0 0.34 -1.3"></a-text>'+
+  // De TUTORIAL-tekst hangt LAGER dan de gewone melding: Sjoerd moest omhoog
+  // kijken om hem te lezen. Nu recht voor je, net onder de horizon.
+  '      <a-text id="tutTxt" value="" align="center" color="#ffe45c" width="2.4" position="0 -0.10 -1.5" visible="false"></a-text>'+
   '      <a-entity id="mLv" position="-0.20 -0.640 -1.25"></a-entity>'+
   '      <a-entity id="mWave" position="0.06 -0.640 -1.25"></a-entity>'+
   '      <a-entity id="mScore" position="0.545 -0.640 -1.25"></a-entity>'+
@@ -2453,6 +2456,7 @@
   // scherm staat, en hoe lang de rust tussen de stappen is.
   const TUT_DOOSAF=40, TUT_DOOSSNEL=3.5;   // de doos komt rustig aanvliegen
   const TUT_HEMEL=0.12, TUT_FADE=1.2;      // hoe ver de hemel dimt, en hoe snel
+  const TUT_LEESTIJD=6.0;   // zo lang mag je rustig lezen en mikken voor ze terugvuren
   // TUT_LESMIN: hoe lang de les MINSTENS blijft staan voordat GOOD komt.
   // Sjoerd: "de tekst is te kort in beeld en gaat te snel over in Good."
   // TUT_LESMIN: hoe lang de les minstens staat voordat GOOD komt.
@@ -6087,6 +6091,7 @@
       return n; },
 
     spuw:function(e,n,spr){
+      if(e.geenVuur) return;                 // tutorialvijanden schieten niet terug
       // Een groot schip doet om de paar schoten zijn EIGEN zet in plaats van
       // gewoon vuur: wespenzwerm, mokerslag of drietand.
       // DE ROLAANVAL is een eigenschap van een paar SOORTEN, niet van elk klein
@@ -8775,17 +8780,25 @@
     tutStart:function(){
       window.TUT=1; window.LES=0; this.doekDoel=0;   // geen zwart doek
       this.tutI=0; this.tutFase=0; this.tutT=0;
-      // 'vechten' zodat de hele beurt draait: vijanden vliegen, dozen bewegen,
-      // kogels raken. De golfklok staat uit, want de golven komen van ons.
-      this.level=1; this.state='vechten'; this.golfT=1e9;
+      // Sjoerd v14.56: "heel raar dat de tutorial in een level is waar druk
+      // wordt geschoten, en voor ik het weet ben ik dood." Klopte: met
+      // state='vechten' liep de gewone golfmotor mee en kwamen er vijanden uit
+      // level 1 bij. Nu een EIGEN stand: de beurt draait (vijanden vliegen,
+      // kogels raken) maar er komt niets anders dan wat de tutorial zelf zet.
+      // LEVEL 0 (Sjoerd v14.57): "je zou een level maken voor level 1, soort 0."
+      // Zo is de tutorial een eigen level in plaats van een parasiet op level 1
+      // — daardoor begon Sjoerd na de tutorial in LEVEL 2, want de golventelling
+      // van level 1 liep gewoon door.
+      this.level=0; this.wave=0; this.state='tut'; this.golfT=1e9;
+      this.plan=null; this.rij=[]; this.gi=0;
+      this.plan=null; this.rij=[]; this.gi=0;
       this.plan=[]; this.gi=0; this.rij=[]; this.veldMax=99;
       this.tutStap(); },
 
     tutStop:function(){
       window.TUT=0; this.tutFase=0; this.tutI=0;
-      const e=document.querySelector('#hudC');
-      if(e) e.setAttribute('value','');
-      this.meldC=0;
+      const e=document.querySelector('#tutTxt');
+      if(e){ e.setAttribute('value',''); e.setAttribute('visible',false); }
       this.dozen.forEach(function(D){ D.live=false; D.g.visible=false; });
       this.enemies.forEach(function(e){ if(e.live){ e.live=false;
         if(e.bb){ this.bbVrij(e.bb); e.bb=null; } } },this); },
@@ -8794,14 +8807,18 @@
     tutStap:function(){
       const S2=TUT[this.tutI]; if(!S2){ this.tutKlaar(); return; }
       // de vorige stap helemaal opruimen: neerstortende schepen bleven anders
-      // meetellen in de volgende (gemeten: 7 BOMBERs terwijl er 1 hoort)
+      // meetellen in de volgende (gemeten: 7 BOMBERs terwijl er 1 hoort), en
+      // hun schoten hingen nog in de lucht bij de volgende uitleg
+      this.tutVrij=0;
+      for(let i=0;i<this.vij.length;i++){ const b=this.vij[i];
+        if(b.live){ b.live=false; if(b.m) b.m.visible=false; } }
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
         if(e.live&&e.tutV){ e.live=false; e.tutV=0;
           if(e.bb){ this.bbVrij(e.bb); e.bb=null; } } }
       this.tutFase=1; this.tutT=0;
       // de doos: bij de ult-stap geen doos maar meteen de vijanden
-      if(S2.ult){ this.tutFase=3; this.tutVijanden(S2);
-        this.tutTekst(S2.les); return; }
+      if(S2.ult){ this.tutFase=3; this.tutT=0; this.tutVrij=0;
+        this.tutVijanden(S2); this.tutTekst(S2.les); return; }
       this.tutDoos(S2.k);
       this.tutTekst('SHOOT '+(WKLEUR[S2.k]||'')+' BOX\n'+(WNAAM[S2.k]||'')); },
 
@@ -8853,9 +8870,8 @@
       if(naar>=1&&m.opacity>=0.999) this.tutHemelOp=0; },
 
     tutTekst:function(txt){
-      const e=document.querySelector('#hudC');
-      if(e){ e.setAttribute('value',txt); e.setAttribute('color','#ffe45c'); }
-      this.meldC=99; },                               // blijft staan
+      const e=document.querySelector('#tutTxt');
+      if(e){ e.setAttribute('value',txt); e.setAttribute('visible',true); } },
 
     // de vijanden van deze stap neerzetten
     tutVijanden:function(S2,hoev){
@@ -8871,8 +8887,17 @@
                z=-62-Math.random()*30; }                           // verspreid
         const e=this.spawn(tp,{x:x,y:y,z:z,stijl:'halte'});
         if(e){ e.tutV=1;
-          // even wachten voor ze schieten: je moet eerst kunnen kijken en mikken
-          e.cd=TUT_RUST; e.bT=TUT_RUST; } } },
+          // Sjoerd v14.56: "ze mogen best terugschieten, maar tijdens het lezen
+          // moet er tijd zijn om te lezen en uit te voeren." Dus: eerst stil,
+          // en pas schieten als je klaar bent met lezen (zie tutVuurVrij).
+          e.cd=1e9; e.bT=1e9; e.geenVuur=1; } } },
+
+    // de vijanden mogen gaan schieten: je hebt gelezen en je wapen gekozen
+    tutVuurVrij:function(){
+      for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
+        if(e.live&&e.tutV&&e.geenVuur){ e.geenVuur=0;
+          const T2=TYPE[e.tp];
+          e.cd=TUT_RUST; e.bT=TUT_RUST+Math.random()*1.5; } } },
 
     tutTick:function(s){
       this.tutHemel(window.TUT?TUT_HEMEL:1,s);
@@ -8891,8 +8916,9 @@
           D.mik.scale.setScalar(MIK_R*(1+Math.sin(D.t*3.4)*0.12));
           D.mik.material.opacity=0.75+Math.sin(D.t*3.4)*0.22; } }
       const S2=TUT[this.tutI]; if(!S2){ this.tutKlaar(); return; }
-      // fase 3: wachten tot alles opgeruimd is
+      // fase 3: eerst mag je rustig lezen en mikken, DAARNA mogen ze terugvuren
       if(this.tutFase===3){
+        if(!this.tutVrij&&this.tutT>TUT_LEESTIJD){ this.tutVrij=1; this.tutVuurVrij(); }
         let leeft=0;
         // NIET op .live kijken: een neerstortend schip blijft 'live' tot zijn
         // val klaar is. Op .dood kijken, anders komt de volgende stap nooit.
@@ -8916,22 +8942,23 @@
     tutKies:function(k){
       const S2=TUT[this.tutI];
       if(!S2||this.tutFase!==2||S2.k!==k) return;
-      this.tutFase=3; this.tutT=0;
+      this.tutFase=3; this.tutT=0; this.tutVrij=0;
       this.tutTekst(S2.les);
       this.tutVijanden(S2); },
 
     tutKlaar:function(){
       window.TUT=0; this.tutFase=0; this.tutHemelOp=1;   // de hemel weer opzetten
-      const e=document.querySelector('#hudC');
-      if(e) e.setAttribute('value','');
-      this.meldC=0;
+      const e=document.querySelector('#tutTxt');
+      if(e){ e.setAttribute('value',''); e.setAttribute('visible',false); }
       this.toonMelding('TUTORIAL COMPLETE','#6cf08a');
       // alle wapens geladen aan level 1 beginnen
       for(const id in this.wep){ const W=this.wep[id];
         for(let k=1;k<=4;k++){ W.mag[k]=(W.mag[k]||0)+TUT_AMMO;
           if(!W.lvlT) W.lvlT={}; W.lvlT[k]=Math.max(1,W.lvlT[k]||1); } }
       this.ults=Math.max(this.ults||0,1);
-      this.level=1; this.state='wacht'; this.golfT=TUT_NAAR1; },
+      // en dan netjes level 1 wave 1, alsof je er vers instapt
+      this.level=1; this.wave=0; this.plan=null; this.rij=[]; this.gi=0;
+      this.state='wacht'; this.golfT=TUT_NAAR1; },
 
     // Sjoerd v14.50: "in pauze zwart moet het raak schieten het spel weer
     // voortzetten." Raak je de LESDOOS, dan komt fase 2 (zie grab). Raak je iets
@@ -9818,6 +9845,7 @@
         else if(this.baas&&this.baas.live) leeft=1;
         if(!leeft){ this.baas=null; this.baasTrio=null;
           this.baasBalkUit(); this.levelKlaar(); } }
+      else if(this.state==='tut'){ }          // de TUTORIAL zet zijn eigen vijanden
       else if(this.state==='wacht'){ this.golfT-=s; if(this.golfT<=0) this.nieuweGolf(); }
       else if(this.state==='vechten'){
         const klaar=this.planTick(s,levend);
