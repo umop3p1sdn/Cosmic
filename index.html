@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.66';
+  const VERSIE='v14.67';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2018,7 +2018,14 @@
   const RAK_PT=15, RAK_PT_ZW=40;   // punten voor een neergeschoten vijandelijke raket
   const COMBO_VUUR=5, COMBO_HEET=18;   // vanaf welke combo het vuur komt, en hoe snel het heet wordt
   const BALK_ORDE=120, COMBO_ORDE=40;  // de baasbalk tekent BOVEN de combometer
-  const VLAM_N=26, VLAM_ELK=0.045, VLAM_LEEF=0.75, VLAM_R=0.098;   // het vuur om de meter
+  // Vanaf COMBO_INF staat de hele meter in brand: meer vlammen, uit het hele
+  // vlak, groter en witgloeiend. Sjoerd: "vanaf 50 dat hele ding in de fik!"
+  // Sjoerd v14.67: "misschien niet meer, maar groter — ivm dat het spel gaat
+  // vertragen." Dus een HARDE grens van 26 deeltjes, ook in het inferno. Die
+  // worden daar alleen fors groter en leven iets langer; dat leest als een
+  // vuurzee zonder extra werk voor de bril.
+  const VLAM_N=26, VLAM_ELK=0.045, VLAM_LEEF=0.75, VLAM_R=0.098;
+  const COMBO_INF=50, INF_TEMPO=1.35, INF_GROOT=2.9;   // groter, niet méér
   const COMBO_FLITSS=3.2;              // hoe snel de kreet inzakt en de streep uitschiet
   const ULT_FLITS=0.9;          // hoe lang de ult-teller opgloeit
   const VAL_BONUS=0.35;         // een neerstortend schip levert nog eens 35% op
@@ -5953,8 +5960,9 @@
       if(maal>=2){
         // Sjoerd v14.62: "bonus teller en score mogen wel wat sensationeler."
         // Bij hoge combo's een kreet erbij en grotere letters.
-        const kreet=(maal>=20)?'UNSTOPPABLE':((maal>=15)?'RAMPAGE':
-                    ((maal>=10)?'BLAZING':((maal>=6)?'ON FIRE':'')));
+        const kreet=(maal>=COMBO_INF)?'INFERNO':((maal>=20)?'UNSTOPPABLE':
+                    ((maal>=15)?'RAMPAGE':((maal>=10)?'BLAZING':
+                    ((maal>=6)?'ON FIRE':''))));
         const txt=(kreet?kreet+'\n':'')+maal+' X  '+pt;
         const br=(2.0+Math.min(1.2,maal*0.06)).toFixed(2);
         const kl=this.comboKleur(maal);
@@ -6003,20 +6011,28 @@
     vuurTick:function(s,hitte){
       if(!this.vlamP) this.vuurDeel();
       if(!this.vlamP) return;
-      // nieuwe vlammen langs de rand van de ring
+      // INFERNO vanaf combo 50 (Sjoerd v14.67: "vanaf 50 dat hele ding in de
+      // fik!"): niet meer alleen langs de rand maar OVER de hele meter, met
+      // dubbele uitstoot, grotere vlammen en een witte gloeikern.
+      const inf=(this.combo>=COMBO_INF);
       this.vlamT=(this.vlamT||0)-s;
       if(hitte>0.02&&this.vlamT<=0){
-        this.vlamT=VLAM_ELK/(0.4+hitte*1.8);
+        this.vlamT=VLAM_ELK/(0.4+hitte*1.8)/(inf?INF_TEMPO:1);
+        const hoev=inf?3:1;                        // in de fik: meer tegelijk
+        for(let n=0;n<hoev;n++){
         for(let q=0;q<this.vlamP.length;q++){ const P=this.vlamP[q];
           if(P.live) continue;
           const hk=Math.random()*6.283;
-          P.live=1; P.t=0; P.leef=VLAM_LEEF*(0.7+Math.random()*0.6);
-          P.x=Math.cos(hk)*VLAM_R; P.y=Math.sin(hk)*VLAM_R;
-          P.vx=Math.cos(hk)*0.006+(Math.random()-0.5)*0.010;
-          P.vy=0.055+Math.random()*0.045;          // vlammen slaan omhoog
-          P.sz=(0.030+Math.random()*0.028)*(0.6+hitte*0.9);
-          P.rook=(Math.random()<0.35)?1:0;         // een deel wordt rook
-          break; } }
+          // in de fik komen ze uit het HELE vlak, niet alleen van de rand
+          const af=inf?(Math.random()*VLAM_R*1.15):VLAM_R;
+          P.live=1; P.t=0; P.leef=VLAM_LEEF*(0.7+Math.random()*0.6)*(inf?1.35:1);
+          P.x=Math.cos(hk)*af; P.y=Math.sin(hk)*af;
+          P.vx=Math.cos(hk)*0.006+(Math.random()-0.5)*(inf?0.020:0.010);
+          P.vy=(inf?0.075:0.055)+Math.random()*0.045;
+          P.sz=(0.030+Math.random()*0.028)*(0.6+hitte*0.9)*(inf?INF_GROOT:1);
+          P.rook=(Math.random()<(inf?0.30:0.35))?1:0;
+          P.inf=inf?1:0;
+          break; } } }
       // en ze laten leven
       for(let q=0;q<this.vlamP.length;q++){ const P=this.vlamP[q];
         if(!P.live) continue;
@@ -6034,10 +6050,13 @@
         else {
           // VLAM: van wit-geel via oranje naar violet — dat laatste maakt hem
           // anders dan een brandend vliegtuig
-          const kl=(f<0.25)?0xfff2c0:((f<0.55)?0xff8a3d:((f<0.8)?0xff3d55:0xc07dff));
+          // in de fik: een witgloeiende kern die pas later oranje wordt
+          const kl=P.inf
+            ? ((f<0.30)?0xffffff:((f<0.55)?0xfff2c0:((f<0.78)?0xff8a3d:0xff3d55)))
+            : ((f<0.25)?0xfff2c0:((f<0.55)?0xff8a3d:((f<0.8)?0xff3d55:0xc07dff)));
           P.m.material.color.setHex(kl);
-          P.m.scale.setScalar(P.sz*(1+f*1.3));
-          P.m.material.opacity=Math.max(0,(1-f)*0.85*hitte); } } },
+          P.m.scale.setScalar(P.sz*(1+f*(P.inf?1.7:1.3)));
+          P.m.material.opacity=Math.max(0,(1-f)*(P.inf?1.0:0.85)*hitte); } } },
 
     comboTick:function(s){
       this.ultFlitsTick(s);
@@ -6121,6 +6140,7 @@
 
     // de rang, zoals Capcom dat doet: een korte kreet die meegroeit
     comboRang:function(maal){
+      if(maal>=COMBO_INF) return 'INFERNO';
       if(maal>=30) return 'SSS';
       if(maal>=20) return 'SS';
       if(maal>=15) return 'S';
@@ -6131,6 +6151,7 @@
 
     // de kleur loopt mee: oranje, geel, groen, cyaan, paars
     comboKleur:function(maal){
+      if(maal>=COMBO_INF) return '#ffffff';         // wit-heet
       if(maal>=15) return '#c07dff';
       if(maal>=10) return '#66f0ff';
       if(maal>=6)  return '#6cf08a';
