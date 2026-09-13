@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.64';
+  const VERSIE='v14.65';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2017,6 +2017,7 @@
   const COMBO_TIJD=4.0, COMBO_MAX=999, COMBO_TOON=1.8, COMBO_POPS=4.0;
   const RAK_PT=15, RAK_PT_ZW=40;   // punten voor een neergeschoten vijandelijke raket
   const COMBO_VUUR=5, COMBO_HEET=18;   // vanaf welke combo het vuur komt, en hoe snel het heet wordt
+  const BALK_ORDE=120, COMBO_ORDE=40;  // de baasbalk tekent BOVEN de combometer
   const COMBO_FLITSS=3.2;              // hoe snel de kreet inzakt en de streep uitschiet
   const ULT_FLITS=0.9;          // hoe lang de ult-teller opgloeit
   const VAL_BONUS=0.35;         // een neerstortend schip levert nog eens 35% op
@@ -5979,6 +5980,14 @@
 
     comboTick:function(s){
       this.ultFlitsTick(s);
+      // de combometer onder de baasbalk houden
+      if(!this.comboOrde){ this.comboOrde=1;
+        ['#comboVuur2','#comboVuur','#comboRand','#comboBaan','#comboRing',
+         '#comboNumS','#comboNum','#comboRang','#comboLab',
+         '#comboStreep','#comboTxtS','#comboTxt'].forEach(function(id,i){
+          const q=document.querySelector(id);
+          const m=q&&q.getObject3D&&q.getObject3D('mesh');
+          if(m) m.renderOrder=COMBO_ORDE+i; }); }
       // de eigen klok telt af; op nul breekt de combo
       if(this.comboKlok>0){ this.comboKlok-=s;
         if(this.comboKlok<=0){ this.comboKlok=0; this.combo=0; this.comboPt=0; } }
@@ -7663,6 +7672,15 @@
     baasBalk:function(e){
       if(e.intro) return;
       if(e.geenBalk) return;                 // een schaduw van de ninja: geen balk
+      // VOORRANG. Alles met depthTest:false wordt in HTML-volgorde getekend, en
+      // de combometer staat verderop in het document — dus tekende die OVER de
+      // baasbalk heen (Sjoerd: "ik miste nog steeds de krachtbalk van de baas").
+      // Een hoge renderOrder zet hem weer bovenaan.
+      if(!this.balkOrde){ this.balkOrde=1;
+        ['#baasBalkA','#baasBalkB','#baasBalkS','#baasRand'].forEach(function(id){
+          const q=document.querySelector(id);
+          const m=q&&q.getObject3D&&q.getObject3D('mesh');
+          if(m) m.renderOrder=BALK_ORDE; }); }
       const A=document.querySelector('#baasBalkA'), B=document.querySelector('#baasBalkB');
       const R=document.querySelector('#baasRand');
       if(!A||!B) return;
