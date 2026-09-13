@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.47';
+  const VERSIE='v14.49';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1046,6 +1046,9 @@
   // DE STORING van de jammer: ruisbanden over je beeld. Een eigen vlak, want de
   // hurt-overlay is rood en heeft zijn eigen leven.
   '      <a-plane id="storing" position="0 0 -0.30" width="3.0" height="3.0" material="shader:flat;opacity:0;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
+  // DE UITLEG: eigen tekst VOOR het zwarte doek. Het gewone meldingsvlak #hudC
+  // staat op z=-1,3 en het doek op z=-1,05, dus dat werd zwart-op-zwart.
+  '      <a-text id="lesTxt" value="" align="center" color="#ffe45c" width="2.2" position="0 0.30 -0.95" material="shader:flat;depthTest:false" visible="false"></a-text>'+
   '      <a-entity id="mLevel" position="0 0 -0.98"></a-entity>'+
   '      <a-plane id="doek" position="0 0 -1.05" width="11.0" height="11.0" material="color:#000000;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-plane id="flits" position="0 0 -0.32" width="2.6" height="2.6" material="color:#dfe8ff;opacity:0;transparent:true;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
@@ -1708,7 +1711,10 @@
   // voor 'zwaar'; zulke schepen komen hoogstens BIJZ_GOLVEN golven per level.
   const BUDGET_START=620, BUDGET_STAP=420;
   const BIJZ_VANAF=300, BIJZ_GOLVEN=3;
-  const RAVEN_VROEG=3;          // BLACK RAVEN in level 1-3: hoogstens drie
+  // Sjoerd v14.48: "level 1 is 1 prima, zie er vaak zelfs 3." In level 1 nog
+  // maar ÉÉN tegelijk; vanaf level 2 mogen er drie.
+  const RAVEN_VROEG=3;          // BLACK RAVEN in level 2-3: hoogstens drie
+  const RAVEN_LVL1=1;           // ...en in level 1 maar één
   const PORT_MAAT=13, PORT_OPEN=0.9, PORT_DOOR=0.7, PORT_DICHT=0.8, PORT_DRAAI=0.9;
   // WARDEN's generatoren: kracht per bol, hoe ver naast hem, hoe groot.
   const GEN_HP=180, GEN_AF=0.75, GEN_VOOR=6, GEN_MAAT=2.6, GEN_TERUG=10;
@@ -2420,6 +2426,7 @@
   const DOOS_VAKER=1.2;         // v14.44: wapendozen 1,2x zo vaak
   const LES_TWEEDE=5.5;         // hoe lang het tweede lesscherm blijft staan
   const LES_FADE=1.0;           // in één seconde naar volledig zwart en terug
+  const MIK_R=3.4;              // hoe groot de doelring om een lesdoos is
   //          -  raket shotgun laser electro mitrailleur
   const CD=[110,  760,   360,  700,   300,      60];   // laser was 1400: gehalveerd   // laser was 1400: gehalveerd
 
@@ -5821,8 +5828,11 @@
       if(this.level<=3&&(T.basis||T.n)==='SPINNER'&&!(opt&&opt.baas)){
         let n=0;
         for(let q=0;q<this.enemies.length;q++){ const e2=this.enemies[q];
-          if(e2.live&&!e2.dood&&TYPE[e2.tp]&&(TYPE[e2.tp].basis||TYPE[e2.tp].n)==='SPINNER') n++; }
-        if(n>=RAVEN_VROEG) return null; }
+          // OOK de stervende meetellen: een RAVEN die neerstort is nog groot in
+          // beeld, en zonder dit kwam er alvast een nieuwe bij (gemeten: 2 in
+          // level 1 terwijl de grens op 1 stond).
+          if(e2.live&&TYPE[e2.tp]&&(TYPE[e2.tp].basis||TYPE[e2.tp].n)==='SPINNER') n++; }
+        if(n>=((this.level<=1)?RAVEN_LVL1:RAVEN_VROEG)) return null; }
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i]; if(e.live) continue;
         const bb=this.bbPak(0); if(!bb) return null;
         e.live=true; e.tp=tp; e.cel=tp; e.bb=bb; e.fase=0; e.flash=0;
@@ -8168,7 +8178,7 @@
         // was niet genoeg (gemeten: er kwamen er nog zeven).
         let n3=cap(tp,n);
         if(TYPE[tp]&&(TYPE[tp].basis||TYPE[tp].n)==='SPINNER'&&self.level<=3)
-          n3=Math.min(n3,RAVEN_VROEG);
+          n3=Math.min(n3,(self.level<=1)?RAVEN_LVL1:RAVEN_VROEG);
         plan.push({tp:tp,n:n3,t:t,form:form||0,vorm:kiesVorm(++vI)}); };
       // HALF-OM-HALF (Sjoerd, v14.25): "sommige komen in meer dan 4-5 rondes in
       // grote getallen voor. Misschien 50/50 laten opkomen voor de variatie —
@@ -8406,7 +8416,7 @@
       // er zeven neer (gemeten).
       let n2=n;
       if(TYPE[a.tp]&&(TYPE[a.tp].basis||TYPE[a.tp].n)==='SPINNER'&&this.level<=3)
-        n2=Math.min(n2,RAVEN_VROEG);
+        n2=Math.min(n2,(this.level<=1)?RAVEN_LVL1:RAVEN_VROEG);
       if(a.form&&a.form!=='links'&&a.form!=='rechts'){ this.formatie(a.tp,n2); this.veldMax+=Math.min(n2,6); return; }
       const b=TYPE[a.tp].br;
       // Sjoerd: de springer/splitser komt soms in te grote groepen — hij
@@ -8424,7 +8434,7 @@
       // GEMETEN: er stonden er ZEVEN tegelijk, en hij is 18 m breed. In de
       // eerste levels hoogstens drie.
       if(TYPE[a.tp]&&(TYPE[a.tp].basis||TYPE[a.tp].n)==='SPINNER'&&this.level<=3)
-        gelijk=Math.min(gelijk,RAVEN_VROEG);
+        gelijk=Math.min(gelijk,(this.level<=1)?RAVEN_LVL1:RAVEN_VROEG);
       this.veldMax+=gelijk;
       this.vorm=a.vorm||'rij'; this.vormI=0; this.vormN=n;
       // elke groep krijgt zijn eigen plek aan de hemel, ver van de vorige
@@ -8447,8 +8457,16 @@
       this.vormR=rl[Math.floor(Math.random()*rl.length)];
       this.vormRs=0.85+Math.random()*0.4;              // de een vliegt een ruimere baan dan de ander
       this.vormRm=(Math.random()<0.5)?-1:1;            // en soms gespiegeld
-      for(let i=0;i<gelijk;i++) this.spawnVorm(a.tp);
-      for(let i=gelijk;i<n;i++) this.rij.push(a.tp); },   // de rest wacht op een lege plek
+      // BLACK RAVEN: de formatie zette er twee in hetzelfde beeldje neer, dus
+      // vóór de grens in spawn() kon bijtellen. Daarom hier ook begrenzen.
+      let gl=gelijk;
+      if(TYPE[a.tp]&&(TYPE[a.tp].basis||TYPE[a.tp].n)==='SPINNER'&&this.level<=3){
+        let al=0;
+        for(let q=0;q<this.enemies.length;q++){ const e2=this.enemies[q];
+          if(e2.live&&TYPE[e2.tp]&&(TYPE[e2.tp].basis||TYPE[e2.tp].n)==='SPINNER') al++; }
+        gl=Math.max(0,Math.min(gl,((this.level<=1)?RAVEN_LVL1:RAVEN_VROEG)-al)); }
+      for(let i=0;i<gl;i++) this.spawnVorm(a.tp);
+      for(let i=gl;i<n;i++) this.rij.push(a.tp); },      // de rest wacht op een lege plek
 
     // Zet een schip opzij tot het niet meer boven op een ander zit.
     ontklont:function(e){
@@ -8679,9 +8697,8 @@
       // Sjoerd v14.46: Engels, en zo beknopt mogelijk.
       if(fase===1) txt='SHOOT '+kleur+' BOX\n'+naam;
       else txt='PRESS '+(WRICHT[k]||'')+' ON JOYSTICK\nL OR R HAND\n\nA / X TO RETURN TO GUN';
-      const e=document.querySelector('#hudC');
-      if(e){ e.setAttribute('value',txt); e.setAttribute('color','#ffe45c'); }
-      this.meldC=99;                                  // blijft staan zolang de les loopt
+      const e=document.querySelector('#lesTxt');
+      if(e){ e.setAttribute('value',txt); e.setAttribute('visible',true); }
       // Sjoerd v14.47: de achtergrond dooft in één seconde naar VOLLEDIG zwart.
       // De lesdoos blijft er wel doorheen te zien — die wordt na het doek
       // getekend, zodat je hem nog kunt zoeken en raken.
@@ -8689,9 +8706,8 @@
       window.PAUSED=true; this.lesT=(fase===1)?0:LES_TWEEDE; },
 
     lesWeg:function(){
-      const e=document.querySelector('#hudC');
-      if(e) e.setAttribute('value','');
-      this.meldC=0;
+      const e=document.querySelector('#lesTxt');
+      if(e){ e.setAttribute('value',''); e.setAttribute('visible',false); }
       this.doekDoel=0;
       window.PAUSED=false; this.lesK=0; this.lesFase=0; this.lesT=0; },
 
@@ -8733,6 +8749,16 @@
         D.gloed.renderOrder=bov?59:1;
         D.kern.material.depthTest=!bov; D.ring.material.depthTest=!bov;
         D.gloed.material.depthTest=!bov;
+        // Sjoerd v14.49: "ook graag een cirkel om de te schieten doos, ik zie
+        // alleen de glow en niet de doos." Een duidelijke witte doelring die
+        // pulseert, zodat je precies weet waar je op moet mikken.
+        if(bov&&!D.mik){
+          const r=new THREE.Mesh(new THREE.TorusGeometry(1,0.055,8,44),
+            new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,
+              opacity:0.95,depthWrite:false,depthTest:false}));
+          r.renderOrder=61; r.frustumCulled=false;
+          D.g.add(r); D.mik=r; }
+        if(D.mik) D.mik.visible=!!bov;
         D.live=true; D.t=0; D.g.visible=true;
         D.p.set((Math.random()-0.5)*34,1.6+(Math.random()*9-3),-62);
         D.g.position.copy(D.p); return; } },
@@ -9473,6 +9499,10 @@
         D.g.position.copy(D.p);
         D.kern.rotation.y+=s*1.6; D.kern.rotation.x+=s*0.9;
         D.ring.rotation.x=D.t*1.2; D.ring.rotation.y=D.t*0.7;
+        if(D.mik&&D.mik.visible){                      // de doelring om een lesdoos
+          D.mik.lookAt(eye);
+          D.mik.scale.setScalar(MIK_R*(1+Math.sin(D.t*3.4)*0.12));
+          D.mik.material.opacity=0.75+Math.sin(D.t*3.4)*0.22; }
         D.gloed.lookAt(eye);
         D.gloed.material.opacity=0.55+Math.sin(D.t*4)*0.2;
         if(D.p.z>14){ D.live=false; D.g.visible=false; } }
