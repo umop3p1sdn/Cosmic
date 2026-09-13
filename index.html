@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.37';
+  const VERSIE='v14.38';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1693,6 +1693,13 @@
   const RUST_GOLF=0.80;         // elke derde golf is iets rustiger
   const GOLF_DAK=17;            // level 1-2: hoogstens zoveel schepen per golf
   const GOLF_BODEM=9;           // ...en minstens zoveel: geen halve golven
+  // DE OPBOUW (Sjoerd v14.38). Elk level heeft een krachtbudget per golf dat
+  // oploopt; daarbinnen mag ELK schip voorkomen, ook een zware in een vroeg
+  // level — maar dan één, en dat is juist de variatie. BIJZ_VANAF is de grens
+  // voor 'zwaar'; zulke schepen komen hoogstens BIJZ_GOLVEN golven per level.
+  const BUDGET_START=620, BUDGET_STAP=420;
+  const BIJZ_VANAF=300, BIJZ_GOLVEN=3;
+  const TAAI_VANAF=4, TAAI_STAP=0.16;   // vanaf level 5: elk level 16% taaier
   const RAVEN_VROEG=3;          // BLACK RAVEN in level 1-3: hoogstens drie
   const PORT_MAAT=13, PORT_OPEN=0.9, PORT_DOOR=0.7, PORT_DICHT=0.8, PORT_DRAAI=0.9;
   // WARDEN's generatoren: kracht per bol, hoe ver naast hem, hoe groot.
@@ -5897,7 +5904,16 @@
         // voelen als een kolos. Klein spul blijft ongemoeid.
         const maatHP=(T.prof==='baas')?1:
           (T.br>=16?GROOTHP:(T.br>=11?(1+(GROOTHP-1)*0.45):1));
-        e.hp=e.hpM=Math.max(1,Math.round(T.hp*((opt&&opt.hp)||1)*
+        // ZWAARDER NAARMATE HET SPEL VORDERT (Sjoerd v14.38: "een soort opbouw
+        // in hoe sterk ze zijn, van begin spel naar steeds zwaarder"). GEMETEN:
+        // de kracht per level liep op tot level 5 en bleef daarna hangen op 27k
+        // — het einde was dus alleen drukker, niet zwaarder. Vanaf TAAI_VANAF
+        // krijgt elk schip er per level TAAI_STAP bij.
+        // NIET voor bazen: die hebben hun eigen schaling (BAAS_TAAI) en werden
+        // hierdoor onverslaanbaar — de demo haalde AXLE nog maar tot 38%.
+        const taai=(T.prof==='baas')?1:
+          (1+Math.max(0,(this.level||1)-TAAI_VANAF)*TAAI_STAP);
+        e.hp=e.hpM=Math.max(1,Math.round(T.hp*taai*((opt&&opt.hp)||1)*
           (T.prof==='baas'?BAAS_TAAI:VIJHP)*maatHP));
         e.sc=T.br*((opt&&opt.sc)||1);
         if(T.prof==='baas'&&e.gedrag==='reus'){ e.sc=134;
@@ -8053,10 +8069,41 @@
       let planTot=0, laatste=null;
       const dak=(LV0<=2)?GOLF_DAK:((LV0<=4)?GOLF_DAK*1.7:9999);
       const bodem=(LV0<=2)?GOLF_BODEM:((LV0<=4)?GOLF_BODEM+2:0);
+      // Sjoerd: "vooral een soort opbouw in hoe sterk ze zijn, van begin spel
+      // naar steeds zwaarder. Er mag variatie komen door al in eerdere levels
+      // ook vijanden van later erin te mixen — maak een soort gemiddelde."
+      //
+      // Dus niet: harde lijsten per level. Wel: elk level heeft een KRACHT-
+      // BUDGET dat oploopt, en daarbinnen mag alles voorkomen. Een zwaar schip
+      // in level 2 mag, maar dan wel ÉÉN — en dat is precies de variatie die
+      // Sjoerd wil. Hoe hoger het level, hoe meer zware schepen passen.
+      const budget=BUDGET_START+(LV0-1)*BUDGET_STAP;
+      let besteed=0;
+      // en een bijzonder schip komt hoogstens in een paar golven per level voor,
+      // zodat AMBER RING niet in acht van de tien golven staat (gemeten)
+      if(!this.bijzGolf||this.bijzGolfL!==LV0){ this.bijzGolf={}; this.bijzGolfL=LV0; }
       const zet=function(tp,n,t,form){
         n=Math.max(1,Math.round(n*rem*rustig));
         if(planTot+n>dak) n=Math.max(0,Math.round(dak-planTot));
         if(n<=0) return;
+        // BIJZONDERE SCHEPEN: hoogstens BIJZ_GOLVEN golven per level. Gemeten:
+        // AMBER RING stond in acht van de tien golven van level 6.
+        const T2=TYPE[tp], bn=T2&&(T2.basis||T2.n);
+        if(T2&&T2.hp>=BIJZ_VANAF){
+          const k=self.bijzGolf[bn]||{golven:{},n:0};
+          self.bijzGolf[bn]=k;
+          if(!k.golven[w]){
+            if(Object.keys(k.golven).length>=BIJZ_GOLVEN) return;
+            k.golven[w]=1; } }
+        // KRACHTBUDGET: een zwaar schip kost meer. Is het budget op, dan komt er
+        // niets zwaars meer bij — maar lichte schepen mogen door.
+        if(T2){ const kost=n*T2.hp;
+          if(besteed+kost>budget){
+            if(T2.hp>=BIJZ_VANAF) return;                 // zwaar: helemaal niet
+            n=Math.max(1,Math.floor((budget-besteed)/Math.max(1,T2.hp)));
+            if(n<=0) return; }
+          besteed+=n*T2.hp; }
+
         planTot+=n;
         laatste={tp:tp,t:t,form:form};
         // en een harde bovengrens per golf in de eerste levels: de pieken van
