@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.68';
+  const VERSIE='v14.70';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1043,11 +1043,15 @@
   // shooters dit doen: een RING die leegloopt (zoveel tijd heb je nog voor de
   // volgende kill), een CIJFER dat opspringt bij elke verhoging, en kleuren die
   // meelopen met hoe goed je bezig bent.
+  '      <a-entity id="vwGroep" position="0 0.10 -1.8" visible="false">'+
+  '        <a-entity id="vwTxt" position="0 0.07 0"></a-entity>'+
+  '        <a-entity id="vwTxt2" position="0 -0.06 0"></a-entity>'+
+  '      </a-entity>'+
   '      <a-entity id="comboKreet" position="0 0.18 -1.4" visible="false">'+
   '        <a-plane id="comboStreep" width="1.6" height="0.012" position="0 -0.045 -0.002"'+
   '                 material="color:#ffe45c;shader:flat;transparent:true;opacity:0;depthWrite:false;depthTest:false"></a-plane>'+
-  '        <a-text id="comboTxtS" value="" align="center" color="#000000" width="2.0" position="0.008 -0.008 -0.001"></a-text>'+
-  '        <a-text id="comboTxt" value="" align="center" color="#ffb03a" width="2.0" position="0 0 0"></a-text>'+
+  '        <a-entity id="comboTxt" position="0 0.035 0"></a-entity>'+
+  '        <a-entity id="comboTxt2" position="0 -0.048 0"></a-entity>'+
   '      </a-entity>'+
   '      <a-entity id="mLv" position="-0.20 -0.640 -1.25"></a-entity>'+
   '      <a-entity id="mWave" position="0.06 -0.640 -1.25"></a-entity>'+
@@ -2026,6 +2030,10 @@
   // vuurzee zonder extra werk voor de bril.
   const VLAM_N=26, VLAM_ELK=0.045, VLAM_LEEF=0.75, VLAM_R=0.098;
   const COMBO_INF=50, INF_TEMPO=1.35, INF_GROOT=2.9;   // groter, niet méér
+  const ROOK_DEK=0.55;          // v14.69: de rook was onzichtbaar door additief mengen
+  // HET VUURWERK na een combo van 50 of meer: twee seconden, snel en kleurrijk.
+  const VW_TIJD=2.0, VW_ELK=0.10, VW_VONK=22;
+  const VW_KLEUR=[0xff3d55,0xffe45c,0x6cf08a,0x66f0ff,0xc07dff,0xff8a3d,0xffffff];
   const COMBO_FLITSS=3.2;              // hoe snel de kreet inzakt en de streep uitschiet
   const ULT_FLITS=0.9;          // hoe lang de ult-teller opgloeit
   const VAL_BONUS=0.35;         // een neerstortend schip levert nog eens 35% op
@@ -2873,11 +2881,17 @@
     // dun, hoekig en zonder gloed. Hier tekenen we de tekst zelf op een doekje —
     // Trebuchet, ruime letterafstand en een echte gloed eromheen — en hangen dat
     // in de scene. Zo ziet het menu eruit als het openingsscherm.
-    letterDoek:function(tekst,kl,gloed,px,sp){
+    letterDoek:function(tekst,kl,gloed,px,sp,stijl){
       const H=128, marge=Math.round(H*0.55);
       const c=document.createElement('canvas');
       const g0=c.getContext('2d');
-      const font='500 '+px+'px "Trebuchet MS", sans-serif';   // dikker: dun las slecht in de bril
+      // Sjoerd v14.70: "kun je speciale letters gebruiken voor de combo?" In de
+      // bril zijn alleen systeemfonts beschikbaar, maar je kunt er wél veel mee:
+      // SCHUIN geeft snelheid, ZWAAR geeft massa, en wijde spatiëring maakt het
+      // monumentaal. 'stijl' zet dat aan voor de combokreten.
+      const gew=(stijl==='actie')?'900':'500';
+      const schuin=(stijl==='actie')?'italic ':'';
+      const font=schuin+gew+' '+px+'px "Trebuchet MS", sans-serif';
       c.width=16; c.height=16; g0.font=font;
       const sperr=sp*px;
       const letters=String(tekst).split('');
@@ -2909,10 +2923,10 @@
       return {tex:t, ar:c.width/c.height}; },
 
     // Zet zo'n doekje op een vlak in de scene, op de plek van een a-text.
-    letterZet:function(id,tekst,kl,gloed,hoog,sp){
+    letterZet:function(id,tekst,kl,gloed,hoog,sp,stijl){
       const el=document.querySelector(id); if(!el) return;
       let m=el.getObject3D('mesh');
-      const D=this.letterDoek(tekst,kl,gloed,64,sp===undefined?0.42:sp);
+      const D=this.letterDoek(tekst,kl,gloed,64,sp===undefined?0.42:sp,stijl);
       if(!m){
         m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
           new THREE.MeshBasicMaterial({transparent:true,depthWrite:false,depthTest:false}));
@@ -5846,6 +5860,7 @@
       if(this.combo>this.beste) this.beste=this.combo;
       const maal=Math.min(COMBO_MAX,this.combo);
       const bonus=T.pt*(maal-1);                      // x1 bij de eerste, x2 bij de tweede...
+      this.comboTot=(this.comboTot||0)+T.pt*maal;
       this.comboToon(maal,T.pt*maal);
       this.punten+=T.pt+bonus; this.ultPt+=T.pt+bonus;
       // Sjoerd v14.61: "elke ult geeft hij duidelijk aan, met een soort ping.
@@ -5978,6 +5993,7 @@
       const maal=Math.min(COMBO_MAX,Math.max(1,this.combo));
       const win=pt*maal;
       this.punten+=win; this.ultPt+=win;
+      this.comboTot=(this.comboTot||0)+win;
       this.comboKlok=COMBO_TIJD;                      // de klok gaat weer vol
       this.comboPt=win; this.comboPop=0.6;
       if(SND.hit) SND.hit(0,0.35); },
@@ -5991,15 +6007,16 @@
         const kreet=(maal>=COMBO_INF)?'INFERNO':((maal>=20)?'UNSTOPPABLE':
                     ((maal>=15)?'RAMPAGE':((maal>=10)?'BLAZING':
                     ((maal>=6)?'ON FIRE':''))));
-        const txt=(kreet?kreet+'\n':'')+maal+' X  '+pt;
-        const br=(2.0+Math.min(1.2,maal*0.06)).toFixed(2);
         const kl=this.comboKleur(maal);
         const g=document.querySelector('#comboKreet');
-        const e=document.querySelector('#comboTxt');
-        const eS=document.querySelector('#comboTxtS');
-        if(e){ e.setAttribute('value',txt); e.setAttribute('color',kl);
-          e.setAttribute('width',br); }
-        if(eS){ eS.setAttribute('value',txt); eS.setAttribute('width',br); }
+        // ACTIE-LETTERS: schuin en zwaar, met gloed en een donkere rand. Dat
+        // leest als een vechtspel in plaats van als een mededeling.
+        try{
+          this.letterZet('#comboTxt',(kreet||(maal+' X')),kl,kl,
+            0.075+Math.min(0.05,maal*0.0022),0.30,'actie');
+          this.letterZet('#comboTxt2',maal+' X   '+pt,'#ffffff',kl,
+            0.048,0.34,'actie');
+        }catch(err){}
         if(g) g.setAttribute('visible',true);
         this.comboT=COMBO_TOON; this.comboFlits=1;    // de streep schiet uit
         // oplopende ping: elke stap een halve toon hoger, tot een octaaf
@@ -6015,6 +6032,45 @@
         const f=Math.max(0,this.ultFlits/ULT_FLITS);
         e.setAttribute('scale',(1+f*0.4)+' '+(1+f*0.4)+' 1'); } },
 
+    // ---- HET VUURWERK na een grote combo ----
+    // Twee seconden, snel en veelkleurig, met de eindstand erbij. Gebruikt de
+    // vonken die er al zijn: die staan in de wereld, dus schieten ze echt langs
+    // je heen.
+    vuurwerk:function(maal,tot){
+      this.vwT=VW_TIJD; this.vwN=0; this.vwMaal=maal;
+      try{ this.letterZet('#vwTxt',maal+' X  COMBO','#ffffff','#ffe45c',0.11,0.34,'actie');
+        this.letterZet('#vwTxt2',String(tot)+' PTS','#ffe45c','#ff8a3d',0.075,0.36,'actie'); }catch(e){}
+      const g=document.querySelector('#vwGroep');
+      if(g) g.setAttribute('visible',true);
+      SND.zeg&&SND.zeg('Combo'); SND.boom&&SND.boom(0); },
+
+    vuurwerkTick:function(s){
+      if(!(this.vwT>0)) return;
+      this.vwT-=s;
+      const f=1-this.vwT/VW_TIJD;
+      // snel achter elkaar knallen, verspreid om je heen
+      this.vwEl=(this.vwEl||0)-s;
+      if(this.vwEl<=0&&this.vwT>0.25){
+        this.vwEl=VW_ELK;
+        const hk=Math.random()*6.283, hg=0.5+Math.random()*0.9;
+        const af=14+Math.random()*18;
+        const x=this.kop.x+Math.cos(hk)*af;
+        const y=this.kop.y+2+hg*14;
+        const z=this.kop.z-8-Math.random()*26;
+        const kl=VW_KLEUR[Math.floor(Math.random()*VW_KLEUR.length)];
+        this.vonk(x,y,z,0xffffff,6,2.5,0.35);
+        this.vonk(x,y,z,kl,VW_VONK,9+Math.random()*7,0.95);
+        this.knal&&this.knal(this.tmp.set(x,y,z),2.2);
+        SND.boom&&SND.boom(Math.cos(hk)*0.5,false); }
+      // de tekst stampt in en zakt weg
+      const g=document.querySelector('#vwGroep');
+      if(g){ const gr=(f<0.12)?(1.5-f*4):(1+Math.sin(f*3.14)*0.06);
+        g.setAttribute('scale',gr+' '+gr+' 1'); }
+      // opruimen als de tijd op is — dit stond BINNEN de if(g) en werd daardoor
+      // overgeslagen zodra het scherm even niet gevonden werd
+      if(this.vwT<=0){ this.vwT=0;
+        if(g) g.setAttribute('visible',false); } },
+
     // ---- ECHT VUUR OM DE METER ----
     // Sjoerd v14.66: "het vuur op de counter mag wel echt vuur zijn met rook,
     // net als de vliegtuigen maar iets afwijkend in kleur, omdat het geen
@@ -6028,13 +6084,23 @@
       const g=hoek&&hoek.object3D; if(!g) return;
       this.vlamP=[];
       for(let i=0;i<VLAM_N;i++){
+        // VLAM: additief, dus hij gloeit op.
         const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
           new THREE.MeshBasicMaterial({map:this.GLOED,transparent:true,
             blending:THREE.AdditiveBlending,depthWrite:false,depthTest:false,
             color:0xff8a3d,opacity:0}));
-        m.renderOrder=COMBO_ORDE-2; m.frustumCulled=false;
-        g.add(m);
-        this.vlamP.push({m:m,live:0,t:0,x:0,y:0,vx:0,vy:0,sz:1,rook:0}); } },
+        // Sjoerd v14.69: "ik zie geen rook." Klopte: de rook deelde het additieve
+        // materiaal van de vlam, en dan telt donkergrijs als bijna NIETS. Rook
+        // heeft dus een EIGEN materiaal met gewoon mengen.
+        const r=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
+          new THREE.MeshBasicMaterial({map:this.GLOED,transparent:true,
+            depthWrite:false,depthTest:false,color:0x8a7a96,opacity:0}));
+        // VUUR BOVENOP (Sjoerd): hoger dan de cijfers, zodat het er echt overheen ligt
+        m.renderOrder=COMBO_ORDE+24; r.renderOrder=COMBO_ORDE+22;
+        m.frustumCulled=false; r.frustumCulled=false;
+        m.visible=false; r.visible=false;
+        g.add(m); g.add(r);
+        this.vlamP.push({m:m,r:r,live:0,t:0,x:0,y:0,vx:0,vy:0,sz:1,rook:0}); } },
 
     vuurTick:function(s,hitte){
       if(!this.vlamP) this.vuurDeel();
@@ -6059,32 +6125,37 @@
           P.vy=(inf?0.075:0.055)+Math.random()*0.045;
           P.sz=(0.030+Math.random()*0.028)*(0.6+hitte*0.9)*(inf?INF_GROOT:1);
           P.rook=(Math.random()<(inf?0.30:0.35))?1:0;
-          P.inf=inf?1:0;
+          P.inf=inf?1:0; P.hk=hk;
           break; } } }
       // en ze laten leven
       for(let q=0;q<this.vlamP.length;q++){ const P=this.vlamP[q];
         if(!P.live) continue;
         P.t+=s;
         const f=P.t/P.leef;
-        if(f>=1){ P.live=0; P.m.material.opacity=0; continue; }
+        if(f>=1){ P.live=0; P.m.visible=false; P.r.visible=false; continue; }
         P.x+=P.vx*s*60*0.016; P.y+=P.vy*s*60*0.016;
         P.vy*=0.985;                                // hij verliest vaart
-        P.m.position.set(P.x,P.y,-0.004);
+        const M=P.rook?P.r:P.m;
+        M.position.set(P.x,P.y,P.rook?-0.006:0.004);
+        M.visible=true;
         if(P.rook){
-          // ROOK: grijs-violet, zwelt op en vervaagt
-          P.m.scale.setScalar(P.sz*(1+f*2.6));
-          P.m.material.color.setHex(0x6a5a7a);
-          P.m.material.opacity=Math.max(0,(1-f)*0.30*hitte); }
+          // ROEK: grijs-violet, zwelt flink op en vervaagt langzaam
+          M.scale.setScalar(P.sz*(1.2+f*3.4));
+          M.material.color.setHex(0x9a8aa8);
+          M.material.opacity=Math.max(0,(1-f)*ROOK_DEK*hitte);
+          M.rotation.z=(P.hk||0)+f*1.2; }
         else {
           // VLAM: van wit-geel via oranje naar violet — dat laatste maakt hem
           // anders dan een brandend vliegtuig
           // in de fik: een witgloeiende kern die pas later oranje wordt
+          // FELLER WIT (Sjoerd v14.69): de kern begint nu bij elke vlam wit,
+          // niet alleen in het inferno.
           const kl=P.inf
-            ? ((f<0.30)?0xffffff:((f<0.55)?0xfff2c0:((f<0.78)?0xff8a3d:0xff3d55)))
-            : ((f<0.25)?0xfff2c0:((f<0.55)?0xff8a3d:((f<0.8)?0xff3d55:0xc07dff)));
-          P.m.material.color.setHex(kl);
-          P.m.scale.setScalar(P.sz*(1+f*(P.inf?1.7:1.3)));
-          P.m.material.opacity=Math.max(0,(1-f)*(P.inf?1.0:0.85)*hitte); } } },
+            ? ((f<0.40)?0xffffff:((f<0.62)?0xfff2c0:((f<0.82)?0xff8a3d:0xff3d55)))
+            : ((f<0.22)?0xffffff:((f<0.45)?0xfff2c0:((f<0.70)?0xff8a3d:0xc07dff)));
+          M.material.color.setHex(kl);
+          M.scale.setScalar(P.sz*(1+f*(P.inf?1.7:1.3)));
+          M.material.opacity=Math.max(0,(1-f)*(P.inf?1.0:0.85)*hitte); } } },
 
     comboTick:function(s){
       this.ultFlitsTick(s);
@@ -6092,13 +6163,18 @@
       if(!this.comboOrde){ this.comboOrde=1;
         ['#comboVuur2','#comboVuur','#comboRand','#comboBaan','#comboRing',
          '#comboNumS','#comboNum','#comboRang','#comboLab',
-         '#comboStreep','#comboTxtS','#comboTxt'].forEach(function(id,i){
+         '#comboStreep','#comboTxt','#comboTxt2'].forEach(function(id,i){
           const q=document.querySelector(id);
           const m=q&&q.getObject3D&&q.getObject3D('mesh');
           if(m) m.renderOrder=COMBO_ORDE+i; }); }
       // de eigen klok telt af; op nul breekt de combo
       if(this.comboKlok>0){ this.comboKlok-=s;
-        if(this.comboKlok<=0){ this.comboKlok=0; this.combo=0; this.comboPt=0; } }
+        if(this.comboKlok<=0){ this.comboKlok=0;
+          // Sjoerd v14.70: "na 50+ combo, als hij stopt, soort vuurwerk plus de
+          // score. X-combo (score) met snel veel kleuren vuurwerk, kort van 2 s."
+          if(this.combo>=COMBO_INF) this.vuurwerk(this.combo,this.comboTot||0);
+          this.combo=0; this.comboPt=0; this.comboTot=0; } }
+      this.vuurwerkTick(s);
       const rest=this.comboKlok||0;
       const hoek=document.querySelector('#comboHoek');
       const num=document.querySelector('#comboNum');
@@ -6108,7 +6184,7 @@
       if(hoek) hoek.setAttribute('visible',aan);
       if(!aan&&this.vlamP){                           // de vlammen doven mee
         for(let q=0;q<this.vlamP.length;q++){ const P=this.vlamP[q];
-          if(P.live){ P.live=0; P.m.material.opacity=0; } } }
+          if(P.live){ P.live=0; P.m.visible=false; if(P.r) P.r.visible=false; } } }
       if(aan){
         const maal=this.combo;
         const kl=this.comboKleur(maal);
