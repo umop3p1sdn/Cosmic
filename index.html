@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.83';
+  const VERSIE='v14.84';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1074,7 +1074,10 @@
   // shooters dit doen: een RING die leegloopt (zoveel tijd heb je nog voor de
   // volgende kill), een CIJFER dat opspringt bij elke verhoging, en kleuren die
   // meelopen met hoe goed je bezig bent.
-  '      <a-entity id="ceGroep" position="0.60 -0.155 -1.30" visible="false">'+
+  // Sjoerd v14.84: "rechts mis ik soms wat mijn combo was, mid boven kan niet
+  // missen." De baasnaam staat op 0,640 en zijn balk op 0,575 — dus zit 0,44
+  // midden in beeld, net eronder, en nog steeds op ooghoogte.
+  '      <a-entity id="ceGroep" position="0 0.44 -1.30" visible="false">'+
   '        <a-entity id="ceKreet" position="0 0.095 0"></a-entity>'+
   '        <a-entity id="ceTxt" position="0 0 0"></a-entity>'+
   '      </a-entity>'+
@@ -2119,8 +2122,8 @@
   // DE EINDSTAND van een combo: even dik in beeld, dan naar je puntenteller.
   const CE_TIJD=2.6, CE_STAAN=0.55, PUNT_FLITS=0.6;
   const CE_GROOT=100, SCORE_VUUR=6.0;   // boven de 100 staat je score in brand
-  const CE_VANX=0.60, CE_VANY=-0.155, CE_NAARX=0.545, CE_NAARY=-0.640;   // naar #mScore
-  const CE_VAN='0.60 -0.155 -1.30';
+  const CE_VANX=0.00, CE_VANY=0.44, CE_NAARX=0.545, CE_NAARY=-0.640;   // midden boven -> #mScore
+  const CE_VAN='0 0.44 -1.30';
   const VW_KLEUR=[0xff3d55,0xffe45c,0x6cf08a,0x66f0ff,0xc07dff,0xff8a3d,0xffffff];
   const COMBO_FLITSS=3.2;              // hoe snel de kreet inzakt en de streep uitschiet
   const ULT_FLITS=0.9;          // hoe lang de ult-teller opgloeit
