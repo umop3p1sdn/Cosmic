@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Art Gallery</title>
+<style>
+    * { box-sizing: border-box; }
+    body { margin:0; background:#111; color:white; font-family:Arial, sans-serif; }
+    header { position:sticky; top:0; z-index:10; background:#181818;
+             padding:15px; text-align:center; border-bottom:1px solid #333; }
+    h1 { margin:0 0 10px; font-size:22px; }
+    #count { color:#aaa; font-size:14px; }
+    .gallery { padding:15px; display:grid;
+               grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:15px; }
+    .item { background:#1d1d1d; border-radius:10px; padding:8px;
+            cursor:pointer; transition:transform .15s; }
+    .item:hover { transform:scale(1.03); }
+    .item img { width:100%; height:180px; object-fit:contain; display:block;
+                background:repeating-conic-gradient(#333 0% 25%, #222 0% 50%) 50% / 20px 20px;
+                border-radius:6px; }
+    .name { padding:8px 3px 3px; font-size:13px; color:#ccc;
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #viewer { display:none; position:fixed; inset:0; z-index:100;
+              background:rgba(0,0,0,.92); align-items:center; justify-content:center;
+              flex-direction:column; padding:20px; }
+    #viewer img { max-width:95vw; max-height:80vh; object-fit:contain; }
+    #viewerName { margin-top:12px; color:#ccc; text-align:center; }
+    button { position:absolute; border:none; background:rgba(255,255,255,.15);
+             color:white; font-size:35px; width:55px; height:55px;
+             border-radius:50%; cursor:pointer; }
+    #close { top:15px; right:15px; }
+    #prev { left:15px; top:50%; }
+    #next { right:15px; top:50%; }
+    #loading { text-align:center; padding:40px; color:#aaa; }
+</style>
+</head>
+<body>
+<header>
+    <h1>&#127912; Art Gallery</h1>
+    <div id="count">Afbeeldingen laden...</div>
+</header>
+<div id="loading">Even laden...</div>
+<div class="gallery" id="gallery"></div>
+<div id="viewer">
+    <button id="close">&times;</button>
+    <button id="prev">&lsaquo;</button>
+    <img id="viewerImg" src="" alt="">
+    <button id="next">&rsaquo;</button>
+    <div id="viewerName"></div>
+</div>
+<script>
+const OWNER = "umop3p1sdn";
+const REPO  = "Cosmic";
+// GitHub is hoofdlettergevoelig. Het spel laadt uit 'Art/', dus die eerst
+// proberen; lukt dat niet, dan 'art' als reserve.
+const PADEN = ["Art", "art", "ART"];
+let images = [], current = 0;
+
+async function loadImages() {
+    let files = null, gebruikt = "";
+    for (const p of PADEN) {
+        try {
+            const r = await fetch(
+                "https://api.github.com/repos/" + OWNER + "/" + REPO +
+                "/contents/" + p);
+            if (r.ok) { files = await r.json(); gebruikt = p; break; }
+        } catch (e) { /* volgende proberen */ }
+    }
+    if (!files) {
+        document.getElementById("loading").textContent =
+            "\u274c Map niet gevonden (geprobeerd: " + PADEN.join(", ") + ")";
+        return;
+    }
+    images = files
+        .filter(f => f.type === "file" && /\.(png|jpg|jpeg|webp)$/i.test(f.name))
+        .sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric:true}));
+
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("count").textContent =
+        images.length + " afbeeldingen  \u2014  /" + gebruikt;
+
+    const gallery = document.getElementById("gallery");
+    images.forEach((file, index) => {
+        const item = document.createElement("div");
+        item.className = "item";
+        const img = document.createElement("img");
+        img.src = file.download_url; img.loading = "lazy"; img.alt = file.name;
+        const nm = document.createElement("div");
+        nm.className = "name"; nm.textContent = file.name;
+        item.appendChild(img); item.appendChild(nm);
+        item.onclick = () => openViewer(index);
+        gallery.appendChild(item);
+    });
+}
+function openViewer(i){ current=i;
+    document.getElementById("viewer").style.display="flex"; updateViewer(); }
+function updateViewer(){ const f=images[current];
+    document.getElementById("viewerImg").src=f.download_url;
+    document.getElementById("viewerName").textContent=
+        (current+1)+" / "+images.length+" \u2014 "+f.name; }
+function closeViewer(){ document.getElementById("viewer").style.display="none"; }
+function previous(){ current=(current-1+images.length)%images.length; updateViewer(); }
+function next(){ current=(current+1)%images.length; updateViewer(); }
+
+document.getElementById("close").onclick = closeViewer;
+document.getElementById("prev").onclick  = previous;
+document.getElementById("next").onclick  = next;
+document.getElementById("viewer").onclick = function(e){
+    if (e.target === this) closeViewer(); };
+document.addEventListener("keydown", function(e){
+    if (document.getElementById("viewer").style.display !== "flex") return;
+    if (e.key === "Escape")     closeViewer();
+    if (e.key === "ArrowLeft")  previous();
+    if (e.key === "ArrowRight") next(); });
+let tx = 0;
+document.getElementById("viewer").addEventListener("touchstart",
+    e => { tx = e.changedTouches[0].screenX; });
+document.getElementById("viewer").addEventListener("touchend", e => {
+    const d = e.changedTouches[0].screenX - tx;
+    if (Math.abs(d) > 50) { d > 0 ? previous() : next(); } });
+
+loadImages();
+</script>
+</body>
+</html>
