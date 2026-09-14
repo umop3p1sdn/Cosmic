@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.80';
+  const VERSIE='v14.82';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1075,6 +1075,7 @@
   // volgende kill), een CIJFER dat opspringt bij elke verhoging, en kleuren die
   // meelopen met hoe goed je bezig bent.
   '      <a-entity id="ceGroep" position="0.60 -0.155 -1.30" visible="false">'+
+  '        <a-entity id="ceKreet" position="0 0.095 0"></a-entity>'+
   '        <a-entity id="ceTxt" position="0 0 0"></a-entity>'+
   '      </a-entity>'+
   '      <a-entity id="vwGroep" position="0 0.10 -1.8" visible="false">'+
@@ -2044,7 +2045,7 @@
   // achter elkaar, kronkelend als een slang door de ruimte. Bochten van 40 tot
   // 70 m wijd. Valt er een uit, dan sluit er een nieuwe aan bij het moederschip.
   const KRUIS_N=6;              // zoveel arrows in beeld
-  const KRUIS_GAT=9;            // meters tussen twee arrows in het treintje
+  const KRUIS_ACHTER=0.085;     // hoeveel elke arrow achterloopt op de kop
   const KRUIS_SP=26;            // hoe snel ze de slang volgen
   const KRUIS_WIJD=55, KRUIS_WIJD2=13;   // hoe wijd de bochten zijn (zij / hoogte)
   const KRUIS_HP=90;            // eigen kracht: veel lager dan een los BLUE ARROW
@@ -2061,6 +2062,10 @@
   const PLAAT_VOOR=0.42, PLAAT_ZIJ=0.63, PLAAT_HOOG=0.87;
   // FOUR CANNON: vier lopen die kort na elkaar rondgaan.
   const CAN_RUST=3.2, CAN_TUSSEN=0.22, CAN_SPREID=0.62, CAN_SP=24, CAN_DMG=8;
+  // HAULER: vangt 4 schepen binnen 80 m, trekt ze vlot naar zijn hoeken en geeft
+  // ze DRIE KEER zoveel vuurkracht zolang de draad staat.
+  const HAUL_AF=80, HAUL_MAAL=3, HAUL_TREK=34, HAUL_MAXBR=20;
+  const HAUL_HOEK=17, HAUL_HOEKY=12, HAUL_DRAAD=0.22;
   // BLACK MANTA: trage diepe golfslag met zijwaartse drift.
   const MANTA_TEMPO=0.85, MANTA_OP=11, MANTA_ZIJ=16, MANTA_KANTEL=0.42;
   // Welke baas welke handtekening heeft, en hoe vaak hij hem afvuurt.
@@ -2109,7 +2114,8 @@
   // HET VUURWERK na een combo van 50 of meer: twee seconden, snel en kleurrijk.
   const VW_TIJD=2.0, VW_ELK=0.10, VW_VONK=22;
   // DE EINDSTAND van een combo: even dik in beeld, dan naar je puntenteller.
-  const CE_TIJD=1.8, CE_STAAN=0.45, PUNT_FLITS=0.6;
+  const CE_TIJD=2.6, CE_STAAN=0.55, PUNT_FLITS=0.6;
+  const CE_GROOT=100, SCORE_VUUR=6.0;   // boven de 100 staat je score in brand
   const CE_VANX=0.60, CE_VANY=-0.155, CE_NAARX=0.545, CE_NAARY=-0.640;   // naar #mScore
   const CE_VAN='0.60 -0.155 -1.30';
   const VW_KLEUR=[0xff3d55,0xffe45c,0x6cf08a,0x66f0ff,0xc07dff,0xff8a3d,0xffffff];
@@ -5035,7 +5041,9 @@
         if(langs<1||langs>LASBEREIK) continue;
         const af=Math.sqrt(Math.max(0,rel.lengthSq()-langs*langs));
         if(af>raakDik*1.4) continue;
-        B.live=false; if(B.m) B.m.visible=false;
+        // NETJES opruimen via vijVrij2: alleen live=false zetten liet zijn
+        // sprite in de lucht hangen — dat was het 'bevriezen' dat Sjoerd zag.
+        this.vijVrij2(B);
         this.raketPunt(!!B.zwaar); } },
 
     lazUit:function(hid){
@@ -5920,6 +5928,13 @@
       // hoger; er zijn genoeg sprites (90) om ze allemaal te laten vallen.
       let bezig=0;
       for(let i=0;i<this.enemies.length;i++) if(this.enemies[i].live&&this.enemies[i].dood) bezig++;
+      // HAULER laat zijn vier schepen los: de draden vallen weg en ze schieten
+      // weer op hun eigen tempo (Sjoerd v14.81).
+      if(e.haul){ for(let q=0;q<4;q++) this.haulLos(e.haul[q]);
+        e.haul=null;
+        if(e.kooi) e.kooi.visible=false;
+        if(this.haulL) for(let q=0;q<this.haulL.length;q++)
+          if(this.haulL[q]) this.haulL[q].visible=false; }
       // IRON CROSS neemt zijn hele treintje mee. Dit moet VOOR de knalDood-
       // afslag hieronder: bij veel neerstortende schepen springt hij daar weg
       // en kwam mijn regel nooit aan de beurt (gemeten: 6 arrows bleven vliegen).
@@ -6051,6 +6066,19 @@
         this.ultFlits=ULT_FLITS; } },
 
     knalDood:function(e){
+      // ook HIER de HAULER en het IRON CROSS-treintje loslaten: een schip dat in
+      // één klap verdampt gaat via deze route en niet via de val, dus bleef zijn
+      // versterking hangen (gemeten: haulMaal stond nog bij 4 schepen).
+      if(e.haul){ for(let q=0;q<4;q++) this.haulLos(e.haul[q]);
+        e.haul=null;
+        if(e.kooi) e.kooi.visible=false;
+        if(this.haulL) for(let q=0;q<this.haulL.length;q++)
+          if(this.haulL[q]) this.haulL[q].visible=false; }
+      if(e.kruis&&e.kruis.length){
+        const rij=e.kruis.slice(); e.kruis.length=0;
+        for(let q=0;q<rij.length;q++){ const a=rij[q];
+          if(a&&a.live&&!a.dood&&!a.dood2){ a.kruisVan=null;
+            this.raak(a,99999,a.p.x,a.p.y,a.p.z); } } }
       e.live=false; e.dood=0; e.hp=0;
       if(e.romp){ e.romp.visible=false; e.romp=null; }
       SND.kill(e.p.x*0.02,e.sc/7); SND.boom(e.p.x*0.02,e.bw>=16);
@@ -6214,8 +6242,19 @@
     // Hij komt dik in beeld te staan waar de meter stond, en zuigt dan naar de
     // puntenteller toe terwijl hij krimpt.
     comboEind:function(maal,tot){
-      try{ this.letterZet('#ceTxt',maal+' X   '+tot,this.comboKleur(maal),
-        this.comboKleur(maal),0.085,0.32,'actie'); }catch(e){}
+      // Sjoerd v14.82: "de score met aantal doden, die klein bovenin staat,
+      // graag even GROOT in beeld als de combo stopt. Ook een speciale benaming
+      // boven de 100, en dan staat de score ook in brand."
+      const kl=this.comboKleur(maal);
+      const gr=(maal>=CE_GROOT)?0.155:((maal>=20)?0.125:0.100);
+      const kreet=(maal>=100)?'LEGENDARY':((maal>=50)?'UNSTOPPABLE':
+                  ((maal>=30)?'RAMPAGE':((maal>=15)?'BLAZING':'')));
+      try{
+        this.letterZet('#ceKreet',kreet,'#ffffff',kl,
+          (maal>=CE_GROOT)?0.115:0.075,0.34,'actie');
+        this.letterZet('#ceTxt',maal+' X   '+tot,kl,kl,gr,0.32,'actie'); }catch(e){}
+      // boven de 100 vat de puntenteller vlam
+      if(maal>=CE_GROOT) this.scoreVuur=SCORE_VUUR;
       const g=document.querySelector('#ceGroep');
       if(!g) return;
       g.setAttribute('visible',true);
@@ -6374,6 +6413,7 @@
       this.ultFlitsTick(s);
       this.comboEindTick(s);
       if(this.puntFlits>0) this.puntFlits=Math.max(0,this.puntFlits-s);
+      if(this.scoreVuur>0) this.scoreVuur=Math.max(0,this.scoreVuur-s);
       // de combometer onder de baasbalk houden
       if(!this.comboOrde){ this.comboOrde=1;
         ['#comboVuur2','#comboVuur','#comboRand','#comboBaan','#comboRing',
@@ -6921,17 +6961,18 @@
         else { e.mode='wacht'; e.wacht=5.0; } }              // eerst 5 seconden stilhangen
       else if(e.mode==='wacht'){
         e.wacht-=s;
-        if(e.wacht<=0){ e.mode='vuren'; e.burst=T.sal||1; e.bT=0.5; } }
+        if(e.wacht<=0){ e.mode='vuren';
+          e.burst=Math.round((T.sal||1)*(e.haulMaal||1)); e.bT=0.5; } }
       else if(e.mode==='vuren'){
         e.bT-=s;
-        if(e.bT<=0){ e.bT=0.85; e.burst--; this.spuw(e,1,0.05);
+        if(e.bT<=0){ e.bT=0.85/(e.haulMaal||1); e.burst--; this.spuw(e,1,0.05);
           if(e.burst<=0){ if(e.stap<2){ e.stap++; e.mode='nader'; }
-                          else { e.mode='houden'; e.bT=((T.cd||3.4)+Math.random()*1.6)*VUURTEMPO; } } } }
+                          else { e.mode='houden'; e.bT=((T.cd||3.4)+Math.random()*1.6)*VUURTEMPO/(e.haulMaal||1); } } } }
       else { const doel=AFST[2]+ruim;
         if(afst>doel+1.2) e.p.addScaledVector(naar,sp*0.5*s);
         else if(afst<doel-3) e.p.addScaledVector(naar,-sp*0.5*s);
         e.bT-=s;
-        if(e.bT<=0){ e.bT=((T.cd||3.4)+Math.random()*1.6)*VUURTEMPO; this.spuw(e,T.sal||1,0.07); } } },
+        if(e.bT<=0){ e.bT=((T.cd||3.4)+Math.random()*1.6)*VUURTEMPO/(e.haulMaal||1); this.spuw(e,T.sal||1,0.07); } } },
 
     // =====================================================
     //  DE BAAS
@@ -7765,6 +7806,115 @@
           zoek:1,draai:WING_DRAAI,wieg:1,wiegW:WING_WIJD,wiegF:WING_TEMPO,
           groot:1.15,neus:1,kleur:0x9fd8ff}); } },
 
+    // ---- HAULER: de krachtbron (Sjoerd v14.81) ----
+    // "Hauler geeft met een elektrische lading schepen x zoveel firepower. Die
+    // krijgen een speciaal knipperende kooi om zich heen en schieten dan extra
+    // veel. Hij kan 4 schepen bekrachtigen en houdt contact met een stroomkoord.
+    // Zodra ze aan een wire zitten blijven ze in de buurt en hangen op elke hoek
+    // bij hem. Dus geen shield, maar FIRE POWER."
+    haulTick:function(e,s){
+      if(!e.haul){ e.haul=[null,null,null,null]; e.haulF=0; }
+      e.haulF+=s;
+      // 1. lege hoeken vullen: het dichtstbijzijnde vrije schip binnen HAUL_AF
+      for(let hk=0;hk<4;hk++){
+        const a=e.haul[hk];
+        if(a&&a.live&&!a.dood&&!a.dood2) continue;
+        if(a){ this.haulLos(a); e.haul[hk]=null; }
+        let best=null, bd=HAUL_AF;
+        for(let i=0;i<this.enemies.length;i++){ const q=this.enemies[i];
+          if(!q.live||q.dood||q.dood2||q===e||q.haulVan) continue;
+          if(TYPE[q.tp]&&TYPE[q.tp].prof==='baas') continue;
+          if(q.br>=HAUL_MAXBR) continue;              // hij vangt geen kolossen
+          const d=q.p.distanceTo(e.p);
+          if(d<bd){ bd=d; best=q; } }
+        if(best){ best.haulVan=e; best.haulHk=hk;
+          // DRIE KEER zoveel vuurkracht: zijn vuurpauzes worden gedeeld
+          // NIET e.cd aanpassen: dat is een aftellende klok, geen instelling
+          // (gemeten: hij liep naar -2,16). De vuurpauze komt uit het TYPE, dus
+          // met een eigen factor werken die daar overheen gaat.
+          best.haulMaal=HAUL_MAAL;
+          if(best.bT>0.6) best.bT=0.6;
+          e.haul[hk]=best;
+          SND.zap&&SND.zap(e.p.x*0.02); } }
+      // 2. de aangesloten schepen naar hun hoek trekken
+      const naar=this.tmp.copy(this.kop).sub(e.p); naar.y=0;
+      const d2=naar.length(); if(d2>0.01) naar.multiplyScalar(1/d2);
+      const dwars=this.tmp2||(this.tmp2=new THREE.Vector3());
+      dwars.set(-naar.z,0,naar.x);
+      for(let hk=0;hk<4;hk++){ const a=e.haul[hk];
+        if(!a||!a.live||a.dood||a.dood2) continue;
+        const zij=(hk===0||hk===2)?-1:1;              // 0,2 links  1,3 rechts
+        const op =(hk<2)?1:-1;                        // 0,1 boven  2,3 onder
+        const doel=this.tmpK||(this.tmpK=new THREE.Vector3());
+        doel.copy(e.p).addScaledVector(dwars,zij*HAUL_HOEK);
+        doel.y=e.p.y+op*HAUL_HOEKY;
+        const w=this.tmpK2||(this.tmpK2=new THREE.Vector3());
+        w.copy(doel).sub(a.p);
+        const dd=w.length();
+        if(dd>0.4){ w.multiplyScalar(1/dd);
+          a.p.addScaledVector(w,Math.min(dd,HAUL_TREK*s));
+          if(a.bb&&a.bb.m) a.bb.m.position.copy(a.p); } }
+      // 3. de draden en de kooien tekenen
+      this.haulDraad(e); },
+
+    // het schip weer loslaten: zijn gewone vuurtempo terug
+    haulLos:function(a){
+      if(!a) return;
+      if(a.kooiM){ a.kooiM.opacity=0; }
+      a.haulMaal=0; a.haulVan=null; a.haulHk=undefined;
+      if(a.kooi){ a.kooi.visible=false; } },
+
+    haulDraad:function(e){
+      if(!this.haulL) this.haulL=[];
+      // de kooi om de HAULER zelf
+      this.haulKooi(e,0x9fe4f5);
+      let n=0;
+      for(let hk=0;hk<4;hk++){ const a=e.haul[hk];
+        if(!a||!a.live||a.dood||a.dood2) continue;
+        this.haulKooi(a,0xffe45c);
+        // het stroomkoord: een dunne balk van hem naar het schip
+        let L=this.haulL[n];
+        if(!L){ const g=new THREE.CylinderGeometry(1,1,1,5,1,true);
+          g.translate(0,0.5,0); g.rotateX(Math.PI/2);
+          L=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0x9fe4f5,
+            transparent:true,opacity:0.8,blending:THREE.AdditiveBlending,
+            depthWrite:false}));
+          L.frustumCulled=false; this.par.add(L); this.haulL[n]=L; }
+        L.visible=true;
+        L.position.copy(e.p);
+        L.lookAt(a.p);
+        const len=e.p.distanceTo(a.p);
+        // hij knippert: een stroomdraad staat nooit stil
+        const kn=0.45+Math.abs(Math.sin(e.haulF*14+hk))*0.55;
+        const dik=HAUL_DRAAD*(0.7+kn*0.6);
+        L.scale.set(dik,dik,len);
+        L.material.opacity=0.35+kn*0.55;
+        L.material.color.setHex(kn>0.8?0xffffff:0x9fe4f5);
+        n++; }
+      for(let i=n;i<this.haulL.length;i++) if(this.haulL[i]) this.haulL[i].visible=false; },
+
+    // de knipperende kooi om een bekrachtigd schip
+    haulKooi:function(a,kl){
+      if(!a.kooi){
+        const g=new THREE.Group();
+        const m=new THREE.MeshBasicMaterial({color:kl,transparent:true,opacity:0.6,
+          blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide});
+        // drie ringen in drie vlakken: dat leest als een kooi om hem heen
+        for(let i=0;i<3;i++){
+          const r=new THREE.Mesh(new THREE.TorusGeometry(1,0.035,6,26),m);
+          if(i===1) r.rotation.x=Math.PI/2;
+          if(i===2) r.rotation.y=Math.PI/2;
+          g.add(r); }
+        g.frustumCulled=false; this.par.add(g); a.kooi=g; a.kooiM=m; }
+      a.kooi.visible=true;
+      a.kooi.position.copy(a.p);
+      const sc=a.r*1.35;
+      a.kooi.scale.setScalar(sc);
+      a.kooi.rotation.y+=0.03; a.kooi.rotation.z+=0.02;
+      const kn=0.4+Math.abs(Math.sin((this.T||0)*11+a.p.x))*0.6;
+      a.kooiM.opacity=0.25+kn*0.5;
+      a.kooiM.color.setHex(kn>0.85?0xffffff:kl); },
+
     // ---- FOUR CANNON: vier lopen die om de beurt blaffen (v14.80) ----
     // Vier kanonnen, dus vier vuurpunten op de hoeken van zijn romp. Ze gaan
     // niet tegelijk af maar kort na elkaar rond — dat leest als een draaiend
@@ -7944,9 +8094,12 @@
         a.kruisVan=null;
         if(!a.dood&&!a.dood2){ this.raak(a,99999,a.p.x,a.p.y,a.p.z); }
         return false; }
-      // elke arrow zit een vaste afstand achter de kop
-      a.kruisU=(a.kruisU+s*KRUIS_TRAAG)%2;
-      const u=(a.kruisU-(a.kruisI*KRUIS_GAT/260)+2)%2;
+      // Sjoerd v14.82: "die slang van vliegtuigen is 1 grote vijand geworden,
+      // graag een rits van LOSSE vliegtuigen." Elke arrow had zijn EIGEN klok
+      // die apart opliep, dus schoven ze als één blok mee. Nu lezen ze allemaal
+      // de klok van het moederschip en zit ieder op zijn eigen vaste achterstand
+      // — dat maakt er een echte rits van.
+      const u=(e.kruisU-(a.kruisI*KRUIS_ACHTER)+4)%2;
       const doel=this.kruisBaan(e,u);
       // er naartoe schuiven in plaats van springen: dat vliegt vloeiend
       const naar=this.tmp.copy(doel).sub(a.p);
@@ -9298,13 +9451,19 @@
       // Daar liep elke eerdere grens langs — gemeten: negen SHRIKE's in één
       // groep, samen 27 portalen.
       {
-        let pTot=0, jGehad=0;
+        let pTot=0, jGehad=0, wGehad=0;
         for(let i=0;i<plan.length;i++){
           const q=plan[i], T3=TYPE[q.tp]; if(!T3) continue;
           const bn3=T3.basis||T3.n;
           if(bn3==='JAMMER'){                         // hoogstens ÉÉN jammer
             if(jGehad){ q.n=0; continue; }
             q.n=1; jGehad=1; continue; }
+          // IRON CROSS: hoogstens ÉÉN. Zeven stuks betekent zeven treintjes van
+          // zes = 42 arrows tegelijk, en dan leest het als één massa in plaats
+          // van een rits (Sjoerd v14.82: "per 2 rijen").
+          if(bn3==='WATCHER'){
+            if(wGehad){ q.n=0; continue; }
+            q.n=1; wGehad=1; continue; }
           const per=(PORTSCHEPEN[bn3]!==undefined)?PORTSCHEPEN[bn3]:
                     ((bn3==='ORACLE')?2:0);
           if(!per) continue;
@@ -10203,6 +10362,8 @@
         if(bnK==='SENTINEL'&&!e.dood&&!e.dood2) this.cannonVuur(e,s);
         // BLACK MANTA golft als een rog (bovenop zijn gewone baan)
         if(bnK==='HALO'&&!e.dood&&!e.dood2) this.mantaGolf(e,s);
+        // HAULER vangt schepen en geeft ze vuurkracht (v14.81)
+        if(bnK==='HAULER'&&!e.dood&&!e.dood2) this.haulTick(e,s);
         // AZURE PLATE zwiert met jagerssnelheid heen en weer; die slaat zijn
         // gewone baan over
         if(bnK==='BASILISK'&&!e.dood&&!e.dood2){ this.plaatZwier(e,s); continue; }
@@ -11187,9 +11348,14 @@
       // ---- onderregel ----
       this.hudTekst('#mLv','LV '+this.level+'/'+LEVELS,GRZ,0.032,0.26,'hLv');
       this.hudTekst('#mWave','WAVE '+Math.max(1,this.wave)+'/'+GOLVEN,GRZ,0.032,0.26,'hWave');
-      // de puntenteller flitst op als er een combo bij komt vliegen
-      const sKl=(this.puntFlits>0)?'#ffe45c':GRZ;
-      const sGr=0.034+((this.puntFlits>0)?(this.puntFlits/PUNT_FLITS)*0.030:0);
+      // de puntenteller flitst op als er een combo bij komt vliegen, en STAAT IN
+      // BRAND na een combo van 100+ (Sjoerd v14.82)
+      let sKl=(this.puntFlits>0)?'#ffe45c':GRZ, sGr=0.034;
+      if(this.puntFlits>0) sGr+=(this.puntFlits/PUNT_FLITS)*0.030;
+      if(this.scoreVuur>0){
+        const p=Math.abs(Math.sin((this.T||0)*9));
+        sKl=(p>0.66)?'#ffffff':((p>0.33)?'#ffe45c':'#ff8a3d');
+        sGr=0.044+p*0.012; }
       this.hudTekst('#mScore',this.punten.toLocaleString('nl-NL'),sKl,sGr,0.20,'hScore',sKl);
       // Meetregel: hoeveel vijandelijk vuur leeft er, hoeveel heeft een echt
       // lichaam, en hoeveel staan er zichtbaar. Aan te zetten met de TEST-knop.
