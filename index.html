@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.78';
+  const VERSIE='v14.80';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2049,6 +2049,20 @@
   const KRUIS_WIJD=55, KRUIS_WIJD2=13;   // hoe wijd de bochten zijn (zij / hoogte)
   const KRUIS_HP=90;            // eigen kracht: veel lager dan een los BLUE ARROW
   const KRUIS_TRAAG=0.115;      // hoe snel de slang zelf voortkronkelt
+  // GHOST WING: slingerende zoekraketten, ruime bochten van 30 m.
+  // 3 raketten per salvo was te veel: er hingen er 32 tegelijk (gemeten). Nu 2.
+  const WING_N=2, WING_SP=21, WING_DMG=11, WING_DRAAI=0.8, WING_WIJD=30, WING_TEMPO=1.25;
+  const WIEG_KRACHT=1.0;        // hoe hard de slinger van de koers afduwt
+  // GREY WHALE: drie salvo's van drie, elk 60 graden verder om zich heen.
+  const WHALE_N=3, WHALE_SALVO=3, WHALE_ELK=8.0, WHALE_PAUZE=0.55;
+  const WHALE_STAP=1.047, WHALE_SPREID=0.30, WHALE_SP=19, WHALE_DMG=9, WHALE_DRAAI=2.0;
+  // AZURE PLATE: schommelt diep op en neer terwijl hij heen en weer scheert.
+  const PLAAT_AF=55, PLAAT_DIEP=50, PLAAT_BREED=42, PLAAT_OP=26, PLAAT_Y=6;
+  const PLAAT_VOOR=0.42, PLAAT_ZIJ=0.63, PLAAT_HOOG=0.87;
+  // FOUR CANNON: vier lopen die kort na elkaar rondgaan.
+  const CAN_RUST=3.2, CAN_TUSSEN=0.22, CAN_SPREID=0.62, CAN_SP=24, CAN_DMG=8;
+  // BLACK MANTA: trage diepe golfslag met zijwaartse drift.
+  const MANTA_TEMPO=0.85, MANTA_OP=11, MANTA_ZIJ=16, MANTA_KANTEL=0.42;
   // Welke baas welke handtekening heeft, en hoe vaak hij hem afvuurt.
   const SIG={
     'DREADNOUGHT':{fn:'sigWaaier', cd:1.9},
@@ -2545,10 +2559,10 @@
     // scissors, yo-yo en de barrel roll.
     {n:'WRAITH',    pl:13,rij:0, br:16,  hp:120,  pt:130, sp:15.5, sal:1, cd:2.6, prof:'splitser',  f1:0.70, f2:0.30},
     {n:'FALCON',    pl:13,rij:1, br:10,  hp:100,  pt:120, sp:21.8, sal:1, cd:2.2, prof:'immel',   f1:0.78, f2:0.42},
-    {n:'INFERNO',   pl:13,rij:2, br:17, hp:210, pt:330, sp:4.6,  sal:3, cd:3.6, prof:'kruiper', f1:0.66, f2:0.26},
+    {n:'INFERNO',   pl:13,rij:2, br:17, hp:160, pt:330, sp:4.6,  sal:3, cd:1.9, prof:'kruiper', f1:0.66, f2:0.26},
     {n:'HALO',      pl:13,rij:3, br:14, hp:170, pt:280, sp:6.4,  sal:2, cd:3.4, prof:'cirkel',  zwaar:1, f1:0.52, f2:0.24},
     {n:'NEEDLE',    pl:13,rij:4, br:7,  hp:105,  pt:95,  sp:24.6, sal:1, cd:2.4, prof:'scissors',f1:0.84, f2:0.48},
-    {n:'BASILISK',  pl:13,rij:5, br:19, hp:260, pt:380, sp:4.0,  sal:3, cd:3.2, prof:'drijver', f1:0.80, f2:0.34},
+    {n:'BASILISK',  pl:13,rij:5, br:19, hp:260, pt:380, sp:20.0,  sal:3, cd:3.2, prof:'drijver', f1:0.80, f2:0.34},
     {n:'CYCLONE',   pl:13,rij:6, br:13, hp:150, pt:250, sp:8.3,  sal:2, cd:3.0, prof:'barrel',  f1:0.60, f2:0.28},
     {n:'SHRIKE',    pl:13,rij:7, br:14, hp:390,  pt:180, sp:16, sal:1, cd:1.6, prof:'yoyo',    snel:24, f1:0.55, f2:0.22},
     {n:'VENOM',     pl:13,rij:8, br:13, hp:120, pt:210, sp:14.1, sal:2, cd:2.8, prof:'scissors',f1:0.72, f2:0.38},
@@ -6483,6 +6497,14 @@
       // not done." Grenzen in het plan en in aanval() bleken allebei te omzeilen
       // (formaties gingen erlangs), dus staat de grens HIER — bij het neerzetten
       // zelf. Dan kan er geen route omheen.
+      // Sjoerd v14.79: "schepen die verbonden zijn aan grote schepen, graag
+      // laten opkomen MET hun grote schip. Misschien niet meer zomaar alleen."
+      // BLUE ARROW hoort bij IRON CROSS: los komt hij niet meer op.
+      if((T.basis||T.n)==='SAUCER'&&!(opt&&opt.kruis)&&!(opt&&opt.baas)){
+        let kruis=0;
+        for(let q=0;q<this.enemies.length;q++){ const e2=this.enemies[q];
+          if(e2.live&&TYPE[e2.tp]&&(TYPE[e2.tp].basis||TYPE[e2.tp].n)==='WATCHER') kruis=1; }
+        if(!kruis) return null; }
       // hoogstens ÉÉN jammer in het veld
       if((T.basis||T.n)==='JAMMER'&&!(opt&&opt.baas)){
         for(let q=0;q<this.enemies.length;q++){ const e2=this.enemies[q];
@@ -6721,6 +6743,9 @@
 
     spuw:function(e,n,spr){
       if(e.geenVuur) return;                 // tutorialvijanden schieten niet terug
+      // GHOST WING vuurt slingerende zoekraketten in plaats van gewoon vuur
+      { const bn=TYPE[e.tp]&&(TYPE[e.tp].basis||TYPE[e.tp].n);
+        if(bn==='INFERNO'){ this.wingSlinger(e); return; } }
       // Een groot schip doet om de paar schoten zijn EIGEN zet in plaats van
       // gewoon vuur: wespenzwerm, mokerslag of drietand.
       // DE ROLAANVAL is een eigenschap van een paar SOORTEN, niet van elk klein
@@ -7326,7 +7351,8 @@
         // mechaniek ernaast. tol = hoe snel hij om zijn as draait.
         if(o.zoekNa){ B.zoek=0; B.laatZoek=o.zoekNa; B.leef=0; }
         B.tol=o.tol||0; B.tolHk=0;
-        B.streep=o.streep?1:0; B.boog=o.boog||0; B.wieg=0;
+        B.streep=o.streep?1:0; B.boog=o.boog||0;
+        B.wieg=o.wieg?1:0; B.wiegW=o.wiegW||0; B.wiegF=o.wiegF||0; B.wf=Math.random()*6.283;
         B.waaier=o.waaier||0; B.wh=o.wh||0;
         // De kop MOET hier gezet worden. Zonder dit hield een hergebruikt
         // projectiel de kop van zijn vorige leven, en leek alles hetzelfde.
@@ -7727,6 +7753,121 @@
       SND.boom(p.x*0.02,true);
       this.knal(p,e.sc*1.5); },
 
+    // ---- GHOST WING: slingerende zoekraketten (Sjoerd v14.79) ----
+    // "Mooie homing raketten die slingeren op mij afkomen. Grote slingerende
+    // beweging, ruime bochten van 30 meter."
+    wingSlinger:function(e){
+      const n=WING_N;
+      for(let i=0;i<n;i++){
+        const zij=((i-(n-1)/2))*0.22;
+        const dd=this.sigRicht(e,zij,0.04);
+        this.sigSchot(e,dd,{soort:4,sp:WING_SP,hp:3,dmg:WING_DMG,
+          zoek:1,draai:WING_DRAAI,wieg:1,wiegW:WING_WIJD,wiegF:WING_TEMPO,
+          groot:1.15,neus:1,kleur:0x9fd8ff}); } },
+
+    // ---- FOUR CANNON: vier lopen die om de beurt blaffen (v14.80) ----
+    // Vier kanonnen, dus vier vuurpunten op de hoeken van zijn romp. Ze gaan
+    // niet tegelijk af maar kort na elkaar rond — dat leest als een draaiend
+    // geschutstorentje en je ziet uit welke hoek de volgende komt.
+    cannonVuur:function(e,s){
+      if(e.cnT===undefined){ e.cnT=CAN_RUST*Math.random(); e.cnK=0; e.cnB=0; }
+      e.cnT-=s;
+      if(e.cnT>0) return;
+      const hk=(e.cnK%4)*1.5708+0.785;                  // vier hoeken
+      const br=e.r*CAN_SPREID;
+      const van=this.tmp.copy(e.p);
+      van.x+=Math.cos(hk)*br; van.y+=Math.sin(hk)*br;
+      const dd=this.sigRicht(e,0,0.02);
+      this.sigSchot(e,dd,{van:van,soort:4,sp:CAN_SP,hp:3,dmg:CAN_DMG,
+        zoek:1,draai:1.3,groot:1.1,neus:1,kleur:0xffc45c});
+      this.vonk(van.x,van.y,van.z,0xffc45c,5,4,0.3);
+      e.cnK++; e.cnB++;
+      // vier kort na elkaar, dan even rust
+      if(e.cnB>=4){ e.cnB=0; e.cnT=CAN_RUST; }
+      else e.cnT=CAN_TUSSEN;
+      SND.gun(e.p.x*0.02,1); },
+
+    // ---- BLACK MANTA: glijdt als een rog (v14.80) ----
+    // Een rog zwemt niet rechtdoor: hij golft met zijn vleugels en glijdt
+    // daarbij schuin weg. Grote trage golfslag op en neer, met een zijwaartse
+    // drift die telkens omkeert.
+    mantaGolf:function(e,s){
+      if(e.mgT===undefined){ e.mgT=Math.random()*6.283; e.mgZ=(Math.random()<0.5?-1:1); }
+      // De golf gaat OM zijn baan heen, niet ervandaan: we onthouden zijn
+      // 'rustpunt' en zetten hem daar met een uitslag omheen. Optellen bij y
+      // liet hem 84 m wegdrijven (gemeten) — dat is wegzwemmen, geen golfslag.
+      const vorigG=e.mgG||0;
+      e.mgT+=s;
+      const golf=Math.sin(e.mgT*MANTA_TEMPO);
+      e.mgG=golf*MANTA_OP;
+      e.p.y+=(e.mgG-vorigG);                          // alleen het VERSCHIL
+      // zijwaarts meedrijven met de slag, en omkeren als hij te ver komt
+      const vorigZ=e.mgZs||0;
+      const zijG=Math.sin(e.mgT*MANTA_TEMPO*0.63+1.1)*MANTA_ZIJ;
+      e.mgZs=zijG;
+      const naar=this.tmp.copy(this.kop).sub(e.p); naar.y=0;
+      const d=naar.length();
+      if(d>0.01){ naar.multiplyScalar(1/d);
+        const dwars=this.tmp2||(this.tmp2=new THREE.Vector3());
+        dwars.set(-naar.z,0,naar.x);
+        e.p.addScaledVector(dwars,(zijG-vorigZ)); }
+      if(e.bb&&e.bb.m){ e.bb.m.position.copy(e.p);
+        // hij kantelt met zijn golfslag mee, als vleugels
+        e.bb.m.rotation.z=golf*MANTA_KANTEL; } },
+
+    // ---- GREY WHALE: drie salvo's van drie, om zich heen (Sjoerd v14.79) ----
+    // "3 in een wijde 3-hoek, en daar 3 salvo's van. Om de 8 seconden. Ze
+    // spreiden van het schip om de 60 graden vuurt hij die af om zich heen."
+    whaleSalvo:function(e,s){
+      if(e.whT===undefined){ e.whT=WHALE_ELK*Math.random(); e.whK=0; e.whS=0; }
+      e.whT-=s;
+      if(e.whT>0) return;
+      // drie salvo's kort na elkaar, elk 60 graden verder om hem heen gedraaid
+      e.whT=(e.whS<WHALE_SALVO-1)?WHALE_PAUZE:WHALE_ELK;
+      const hoek=e.whK*WHALE_STAP;
+      for(let i=0;i<WHALE_N;i++){
+        // een wijde driehoek: drie punten op 120 graden uit elkaar
+        const a2=hoek+(i/WHALE_N)*6.283;
+        const dd=this.sigRicht(e,Math.cos(a2)*WHALE_SPREID,Math.sin(a2)*WHALE_SPREID*0.7);
+        this.sigSchot(e,dd,{soort:4,sp:WHALE_SP,hp:4,dmg:WHALE_DMG,
+          zoek:1,draai:WHALE_DRAAI,groot:1.25,neus:1,kleur:0xc8d4dc}); }
+      e.whK++; e.whS++;
+      if(e.whS>=WHALE_SALVO){ e.whS=0; }
+      SND.boom(e.p.x*0.02,false); },
+
+    // ---- AZURE PLATE: schommelt diep op en neer (Sjoerd v14.79) ----
+    // "Komt heel snel naar voren en scheert voor mij langs, duikt dan weer 100 m
+    // naar achter, en maakt diepe en hoge op-en-neerbewegingen terwijl hij van
+    // voor naar achter en van links naar rechts blijft gaan."
+    plaatZwier:function(e,s){
+      if(e.pzT===undefined){ e.pzT=Math.random()*6.283; e.pzY=e.p.y; }
+      e.pzT+=s;
+      // drie bewegingen tegelijk, elk met een eigen tempo — dat geeft de
+      // onvoorspelbare zwier in plaats van een nette cirkel
+      const voor=Math.sin(e.pzT*PLAAT_VOOR);          // naar voren en terug
+      const zij=Math.sin(e.pzT*PLAAT_ZIJ+1.3);        // links en rechts
+      const hoog=Math.sin(e.pzT*PLAAT_HOOG+0.7);      // op en neer
+      const naar=this.tmp.copy(this.kop).sub(e.p); naar.y=0;
+      const d=naar.length(); if(d<0.01) return;
+      naar.multiplyScalar(1/d);
+      const dwars=this.tmp2||(this.tmp2=new THREE.Vector3());
+      dwars.set(-naar.z,0,naar.x);
+      // het doelpunt waar hij nu heen zwiert
+      const doel=this.tmpK||(this.tmpK=new THREE.Vector3());
+      doel.copy(this.kop)
+        .addScaledVector(naar,-(PLAAT_AF+voor*PLAAT_DIEP))
+        .addScaledVector(dwars,zij*PLAAT_BREED);
+      doel.y=this.kop.y+PLAAT_Y+hoog*PLAAT_OP;
+      // er met jagerssnelheid naartoe
+      const w=this.tmpK2||(this.tmpK2=new THREE.Vector3());
+      w.copy(doel).sub(e.p);
+      const dd=w.length();
+      if(dd>0.01){ w.multiplyScalar(1/dd);
+        e.p.addScaledVector(w,Math.min(dd,(TYPE[e.tp].sp||20)*s)); }
+      if(e.bb&&e.bb.m){ e.bb.m.position.copy(e.p);
+        // hij kantelt mee met zijn zwier
+        e.bb.m.rotation.z=-zij*0.5; } },
+
     // ---- IRON CROSS: het kronkelende treintje (Sjoerd v14.78) ----
     // "Hij stuurt BLUE ARROWS die in een treintje achter elkaar vliegen en
     // bommen op mij gooien. Ze vliegen langs en dan weer langs het moederschip.
@@ -7775,7 +7916,7 @@
       if(leeft<KRUIS_N&&bijna&&!e.dood&&!e.dood2&&e.live){
         const tp=TYPE.findIndex(function(q){ return q&&(q.basis||q.n)==='SAUCER'; });
         if(tp>=0){
-          const a=this.spawn(tp,{x:e.p.x,y:e.p.y,z:e.p.z,stijl:'halte'});
+          const a=this.spawn(tp,{x:e.p.x,y:e.p.y,z:e.p.z,stijl:'halte',kruis:1});
           if(a){
             a.kruisVan=e; a.kruisU=e.kruisU;        // hij start waar de slang nu is
             a.kruisI=e.kruisTel=((e.kruisTel||0)+1)%KRUIS_N;
@@ -10056,6 +10197,15 @@
         // slaat zijn gewone baan over
         const bnK=TYPE[e.tp]&&(TYPE[e.tp].basis||TYPE[e.tp].n);
         if(bnK==='WATCHER') this.kruisTick(e,s);
+        // GREY WHALE vuurt zijn drie salvo's om zich heen
+        if(bnK==='BOMBER'&&!e.dood&&!e.dood2) this.whaleSalvo(e,s);
+        // FOUR CANNON laat zijn vier lopen rondgaan
+        if(bnK==='SENTINEL'&&!e.dood&&!e.dood2) this.cannonVuur(e,s);
+        // BLACK MANTA golft als een rog (bovenop zijn gewone baan)
+        if(bnK==='HALO'&&!e.dood&&!e.dood2) this.mantaGolf(e,s);
+        // AZURE PLATE zwiert met jagerssnelheid heen en weer; die slaat zijn
+        // gewone baan over
+        if(bnK==='BASILISK'&&!e.dood&&!e.dood2){ this.plaatZwier(e,s); continue; }
         if(e.kruisVan){ if(this.kruisVolg(e,s)) continue; }
         this.baan(e,s);
         // Het spook hoort bij zijn golf: de golf is pas af als hij ook dood is.
@@ -10440,9 +10590,32 @@
             // in een boog terugkomen, niet rechtdoor de ruimte in vliegen.
             B.dir.lerp(naarMij,Math.min(1,(B.draai||ZOEKDRAAI)*s)).normalize();
             B.o.copy(q); B.d=0; } }
-        else if(B.wieg){
+        else if(B.wieg&&!B.wiegW){
           B.wf=(B.wf||Math.random()*6)+s*3.2;
           B.dir.x+=Math.sin(B.wf)*0.9*s; B.dir.normalize(); }
+        // DE SLINGER van GHOST WING (v14.79): ruime bochten van 30 m OM zijn
+        // koers heen, en hij blijft ondertussen gewoon zoeken. Daarom staat dit
+        // los van de oude 'wieg', die alleen werkte als hij NIET zocht.
+        // DE SLINGER van GHOST WING (v14.79). Deze staat NA het zoeken, want dat
+        // doet B.o.copy(q) en wist elke beurt zijn oorsprong — mijn slinger werd
+        // daardoor telkens uitgepoetst (gemeten: 9 m in plaats van 30).
+        if(B.wiegW){
+          B.wf=(B.wf||Math.random()*6.283)+s*(B.wiegF||1.1);
+          const zw=this.tmpW||(this.tmpW=new THREE.Vector3());
+          zw.set(-B.dir.z,0,B.dir.x);
+          const l=zw.length();
+          if(l>0.01){ zw.multiplyScalar(1/l);
+            // vlakbij trekt hij recht, anders raakt hij je nooit
+            const eye2=this.EYE||(this.EYE=new THREE.Vector3(0,1.6,0));
+            const q2=this.tmpW2||(this.tmpW2=new THREE.Vector3());
+            q2.copy(B.o).addScaledVector(B.dir,B.d);
+            const bij=q2.distanceTo(eye2);
+            const dof=Math.min(1,Math.max(0,(bij-14)/30));
+            const k=Math.sin(B.wf)*WIEG_KRACHT*dof;
+            const k2=Math.cos(B.wf*0.73)*WIEG_KRACHT*0.7*dof;
+            B.dir.addScaledVector(zw,k*s);
+            B.dir.y+=k2*s;
+            B.dir.normalize(); } }
         // Wijd mag, maar daarna moet hij komen: na zijn vrije vlucht wordt elk
         // baasschot alsnog zoekend.
         // Geen uitzonderingen: elk schot dat nog niet zoekt, gaat het alsnog doen.
