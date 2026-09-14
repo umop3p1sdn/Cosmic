@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.82';
+  const VERSIE='v14.83';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1827,6 +1827,9 @@
   const BUDGET_START=620, BUDGET_STAP=420;
   const BIJZ_VANAF=300, BIJZ_GOLVEN=3;
   const PORT_MAXG=6;            // hoogstens zoveel portalen samen in één golf
+  // ZWARE SCHEPEN: hoogstens twee per golf samen, en van één soort ook twee.
+  const ZWAARLIJST=['TITAN','HAULER','WATCHER','NOVA','HEAVY','BASILISK','BULWARK','ORACLE'];
+  const ZWAAR_MAXG=2, ZWAAR_SOORT=2;
   const PLAN_DUN=6;             // een golf onder dit aantal wordt aangevuld
   // Sjoerd v14.48: "level 1 is 1 prima, zie er vaak zelfs 3." In level 1 nog
   // maar ÉÉN tegelijk; vanaf level 2 mogen er drie.
@@ -5310,6 +5313,10 @@
       if(w!==5&&!(W.mag&&W.mag[w]>0)){
         this.toonMelding('NO '+(WNAAM[w]||'WEAPON'),'#ff8aa6');
         SND.hit(0,0.4); return; }
+      // Sjoerd v14.83: "laser gun motion freeze als je wapens wisselt." De
+      // laz-toestand werd gewist maar de BALK bleef staan, want lazUit werd
+      // nooit aangeroepen — die hing dan voorgoed in de lucht.
+      if(W.laz) this.lazUit(h&&h.id?h.id:'');
       W.vorig=W.t; W.t=w; W.lvl=this.kr(W); W.laz=null;
       this.toonWissel(W);
       if(window.TUT) this.tutKies(w); },
@@ -5928,6 +5935,10 @@
       // hoger; er zijn genoeg sprites (90) om ze allemaal te laten vallen.
       let bezig=0;
       for(let i=0;i<this.enemies.length;i++) if(this.enemies[i].live&&this.enemies[i].dood) bezig++;
+      // STERFORT gaat uiteen in vijf zoekende sterren. Dit stond in het blok
+      // waar de VAL KLAAR is — en daar kwam hij nooit, want een neerstortend
+      // schip verdwijnt via een andere weg (gemeten: 0 sterren).
+      if(TYPE[e.tp]&&(TYPE[e.tp].basis||TYPE[e.tp].n)==='BULWARK') this.sterUiteen(e);
       // HAULER laat zijn vier schepen los: de draden vallen weg en ze schieten
       // weer op hun eigen tempo (Sjoerd v14.81).
       if(e.haul){ for(let q=0;q<4;q++) this.haulLos(e.haul[q]);
@@ -6028,7 +6039,6 @@
           this.knal(e.p,e.sc*1.6); this.schokRing(e.p);
           SND.boom(e.p.x*0.02,e.bw>=13); }
         // STERFORT GAAT UITEEN in vijf zoekende sterren (Sjoerd v14.78).
-        if(TYPE[e.tp]&&(TYPE[e.tp].basis||TYPE[e.tp].n)==='BULWARK') this.sterUiteen(e);
         // Sjoerd v14.60: "een neerstortend vliegtuig is ook extra punten." Wie
         // hem in de val nog raakt of gewoon ziet neerkomen, krijgt een bonus.
         if(!e.dood2&&TYPE[e.tp]&&TYPE[e.tp].prof!=='baas'){
@@ -6079,6 +6089,7 @@
         for(let q=0;q<rij.length;q++){ const a=rij[q];
           if(a&&a.live&&!a.dood&&!a.dood2){ a.kruisVan=null;
             this.raak(a,99999,a.p.x,a.p.y,a.p.z); } } }
+      if(TYPE[e.tp]&&(TYPE[e.tp].basis||TYPE[e.tp].n)==='BULWARK') this.sterUiteen(e);
       e.live=false; e.dood=0; e.hp=0;
       if(e.romp){ e.romp.visible=false; e.romp=null; }
       SND.kill(e.p.x*0.02,e.sc/7); SND.boom(e.p.x*0.02,e.bw>=16);
@@ -9451,7 +9462,7 @@
       // Daar liep elke eerdere grens langs — gemeten: negen SHRIKE's in één
       // groep, samen 27 portalen.
       {
-        let pTot=0, jGehad=0, wGehad=0;
+        let pTot=0, jGehad=0, wGehad=0, zTot=0;
         for(let i=0;i<plan.length;i++){
           const q=plan[i], T3=TYPE[q.tp]; if(!T3) continue;
           const bn3=T3.basis||T3.n;
@@ -9464,6 +9475,15 @@
           if(bn3==='WATCHER'){
             if(wGehad){ q.n=0; continue; }
             q.n=1; wGehad=1; continue; }
+          // ZWARE SCHEPEN: hoogstens twee per golf, en van dezelfde soort ook
+          // hoogstens twee. Sjoerd v14.83: "level 11 te chaotisch met veel het
+          // moederschip, liever 1 of 2 en na elkaar, i.v.m. lag." GEMETEN: golf 7
+          // had VIER moederschepen en VIER AZURE PLATES tegelijk.
+          if(ZWAARLIJST.indexOf(bn3)>=0){
+            const ruimteZ=Math.max(0,ZWAAR_MAXG-zTot);
+            if(ruimteZ<=0){ q.n=0; continue; }
+            q.n=Math.min(q.n,ruimteZ,ZWAAR_SOORT);
+            zTot+=q.n; }
           const per=(PORTSCHEPEN[bn3]!==undefined)?PORTSCHEPEN[bn3]:
                     ((bn3==='ORACLE')?2:0);
           if(!per) continue;
