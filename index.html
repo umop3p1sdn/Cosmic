@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.84';
+  const VERSIE='v14.85';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -12502,7 +12502,12 @@
       if(this.over){
         const lim=M().cont;
         if(lim>=0&&this.contN>=lim){
-          this.toonMelding('NO CONTINUES LEFT','#ff3d55'); return; }
+          // Je continues zijn op: dan is het spel echt voorbij, dus vragen we
+          // meteen je naam. Hiervoor bleef je in het paneel hangen met alleen de
+          // melding 'NO CONTINUES LEFT' (gemeten).
+          this.toonMelding('NO CONTINUES LEFT','#ff3d55');
+          if(window.NAAMVRAAG) window.NAAMVRAAG();
+          return; }
         this.over=false; this.contN++; this.power=100; this.rood=0;
         for(let i=0;i<this.vij.length;i++) this.vijVrij2(this.vij[i]); }
       window.PAUSED=false; this.paneel(false); },
@@ -12598,13 +12603,13 @@
       // Geen parade meer op Sjoerds verzoek: na de eindbaas meteen de eindstand.
       this.over=true; window.PAUSED=true;
       SND.zeg('Sector cleared');
-      bewaarScore(this.punten,this.contN);
+      // NIET alvast bewaren: dat zette je score NAAMLOOS in de lijst, en daarna
+      // kwam je naam er nog eens bij. Sjoerd v14.85: "naam invullen werkt nog
+      // steeds niet." Het naamscherm doet het bewaren.
       try{ localStorage.removeItem('cosmic_save'); }catch(e){}   // uitgespeeld: schoon beginnen
-      this.paneel(true,'ALL SECTORS CLEARED','score '+this.punten+'   kills '+this.gedood+
-        '\nbest combo '+this.beste+'   continues '+this.contN,'ENTER NAME');
-      const q3=document.querySelector('#quitTxt');
-      if(q3) q3.setAttribute('value','SAVE SCORE');
-      this.klaar=true; }
+      this.klaar=true;
+      // en het naamscherm komt VANZELF: je hoefde het nooit zelf te zoeken
+      if(window.NAAMVRAAG) window.NAAMVRAAG(); }
   }); }
   registreerCosmic();
 
@@ -13051,6 +13056,9 @@
       const t=document.querySelector('#nmTxt');
       if(t) t.setAttribute('value',
         LETTERS[NAAM[0]]+LETTERS[NAAM[1]]+LETTERS[NAAM[2]]); };
+    // Zodat het spel zelf om je naam kan vragen: bij uitspelen en bij je laatste
+    // dood. Die twee zitten in de spelcode, die naamOpen niet kan zien.
+    window.NAAMVRAAG=function(){ naamOpen(true); };
     const naamOpen=function(aan){
       const n=document.querySelector('#naam');
       if(n) n.setAttribute('visible',!!aan);
