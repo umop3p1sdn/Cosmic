@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.85';
+  const VERSIE='v14.87';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -12848,6 +12848,8 @@
         const e=document.querySelector(id);
         if(e) e.setAttribute('visible',!!aan); }); };
     const techToon=function(aan){
+      // ...en andersom net zo
+      if(aan&&typeof hulpToon==='function') hulpToon(false);
       const t=document.querySelector('#tech');
       if(t) t.setAttribute('visible',!!aan);
       menuDeelToon(!aan); };
@@ -13021,6 +13023,9 @@
     // openstaat, anders kijk je door twee panelen tegelijk.
     let HULPAAN=false;
     const hulpToon=function(aan){
+      // Sjoerd v14.86: gemeten dat HELP en TEST tegelijk open konden staan —
+      // twee panelen over elkaar, en dan klik je op knoppen die je niet ziet.
+      if(aan) techToon(false);
       HULPAAN=!!aan;
       const p=document.querySelector('#hulp');
       if(p) p.setAttribute('visible',HULPAAN);
@@ -13084,6 +13089,9 @@
       // UITGESPEELD ZONDER NAAM IN TE VOEREN — Sjoerd: "niet grappig." Deze knop
       // ging bij klaar meteen naar het menu, dus wie het spel uitspeelde kwam
       // NOOIT bij het naamscherm. Nu krijg je juist dan als eerste je naam.
+      // Sjoerd v14.86: gemeten dat je met HELP open op RESUME kon drukken en dan
+      // doorspeelde MET het hulpscherm nog in beeld. Elk paneel gaat dicht.
+      hulpToon(false); techToon(false);
       if(C.klaar){ naamOpen(true); C.paneel(false); }
       else C.verder(); });
     // GIVE UP: eerst je naam invullen, dan pas terug naar het menu. Zo komt je
