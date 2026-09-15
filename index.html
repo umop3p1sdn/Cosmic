@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.88';
+  const VERSIE='v14.89';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2108,6 +2108,7 @@
   const COMBO_TIJD=4.0, COMBO_MAX=999, COMBO_TOON=1.8, COMBO_POPS=4.0;
   const RAK_PT=15, RAK_PT_ZW=40;   // punten voor een neergeschoten vijandelijke raket
   const COMBO_VUUR=5, COMBO_HEET=18;   // vanaf welke combo het vuur komt, en hoe snel het heet wordt
+  const BALK_UIT=1;             // v14.89: geen krachtbalk boven de baas
   const BALK_ORDE=120, COMBO_ORDE=40;  // de baasbalk tekent BOVEN de combometer
   // Vanaf COMBO_INF staat de hele meter in brand: meer vlammen, uit het hele
   // vlak, groter en witgloeiend. Sjoerd: "vanaf 50 dat hele ding in de fik!"
@@ -8530,6 +8531,11 @@
       this.toonMelding('LAUNCHING '+TYPE[tp].n,'#ff8aa6'); },
 
     baasBalk:function(e){
+      // Sjoerd v14.89: "baasbalk is al heel lang niet zichtbaar. Hoeft ook niet,
+      // hou maar weg." De code zette hem wél zichtbaar (gemeten), dus hij werd
+      // door iets anders overdekt — maar hij is niet gemist, dus weg ermee.
+      // De baasNAAM blijft wel staan: die zegt tegen wie je vecht.
+      if(BALK_UIT){ this.baasBalkUit(); return; }
       if(e.intro) return;
       if(e.geenBalk) return;                 // een schaduw van de ninja: geen balk
       // VOORRANG. Alles met depthTest:false wordt in HTML-volgorde getekend, en
