@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.87';
+  const VERSIE='v14.88';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1074,10 +1074,11 @@
   // shooters dit doen: een RING die leegloopt (zoveel tijd heb je nog voor de
   // volgende kill), een CIJFER dat opspringt bij elke verhoging, en kleuren die
   // meelopen met hoe goed je bezig bent.
-  // Sjoerd v14.84: "rechts mis ik soms wat mijn combo was, mid boven kan niet
-  // missen." De baasnaam staat op 0,640 en zijn balk op 0,575 — dus zit 0,44
-  // midden in beeld, net eronder, en nog steeds op ooghoogte.
-  '      <a-entity id="ceGroep" position="0 0.44 -1.30" visible="false">'+
+  // Sjoerd v14.88: "score komt nu erg hoog, ik zie hem niet — hij komt soms
+  // boven DANGER." Klopte: DANGER staat in #hudC op hoogte 0,34, en ik was
+  // uitgegaan van de BAASBALK op 0,575. Verkeerde referentie. De eindstand
+  // staat nu op 0,16 — ruim onder DANGER en mooi midden in beeld.
+  '      <a-entity id="ceGroep" position="0 0.16 -1.30" visible="false">'+
   '        <a-entity id="ceKreet" position="0 0.095 0"></a-entity>'+
   '        <a-entity id="ceTxt" position="0 0 0"></a-entity>'+
   '      </a-entity>'+
@@ -2122,8 +2123,8 @@
   // DE EINDSTAND van een combo: even dik in beeld, dan naar je puntenteller.
   const CE_TIJD=2.6, CE_STAAN=0.55, PUNT_FLITS=0.6;
   const CE_GROOT=100, SCORE_VUUR=6.0;   // boven de 100 staat je score in brand
-  const CE_VANX=0.00, CE_VANY=0.44, CE_NAARX=0.545, CE_NAARY=-0.640;   // midden boven -> #mScore
-  const CE_VAN='0 0.44 -1.30';
+  const CE_VANX=0.00, CE_VANY=0.16, CE_NAARX=0.545, CE_NAARY=-0.640;   // midden -> #mScore
+  const CE_VAN='0 0.16 -1.30';
   const VW_KLEUR=[0xff3d55,0xffe45c,0x6cf08a,0x66f0ff,0xc07dff,0xff8a3d,0xffffff];
   const COMBO_FLITSS=3.2;              // hoe snel de kreet inzakt en de streep uitschiet
   const ULT_FLITS=0.9;          // hoe lang de ult-teller opgloeit
@@ -11745,7 +11746,13 @@
       for(let i=0;i<this.hemels.length;i++)
         if(this.hemels[i].naam===naam){ H2.naam=naam; this.hemels[i]=H2;
           this.hemelI=-1; this.hemelZet(); return; }
-      this.hemels.push(H2); this.hemelSorteer(); this.hemelZet(); },
+      this.hemels.push(H2); this.hemelSorteer();
+      // zodra alles binnen is de indeling vastleggen
+      if(window.ART&&window.ART.af&&!this.hemelKaart){
+        try{ const r=localStorage.getItem('cosmic_hemels');
+          if(r) this.hemelKaart=JSON.parse(r); }catch(e){}
+        if(!this.hemelKaart) this.hemelVast(); }
+      this.hemelZet(); },
 
     baasVervang:function(naam,tex){
       (this.bazen||[]).forEach(function(B){
@@ -11904,18 +11911,49 @@
     // van de laadvolgorde af welke plaat waar terechtkomt.
     hemelVoorLevel:function(L){
       if(!this.hemels||!this.hemels.length) return 0;
+      // IS ER AL EEN VASTE INDELING? Dan telt die, en niets anders. Zo houdt
+      // elk level zijn eigen hemel, ook als er platen bijkomen of weggaan.
+      if(this.hemelKaart&&this.hemelKaart[L]){
+        for(let k=0;k<this.hemels.length;k++)
+          if(this.hemels[k].naam===this.hemelKaart[L]) return k; }
       // eerst kijken of een plaat expliciet voor dit level bedoeld is
       for(let k=0;k<this.hemels.length;k++){
         const N=nummerVan(this.hemels[k].naam);
         if(N&&N.level===L) return k; }
-      // anders de gewone volgorde, maar sla de vast toegewezen platen over
-      let n=0;
+      // Anders de gewone volgorde over de VRIJE platen. Sjoerd v14.88: "ik had
+      // het idee dat de achtergrond van level 1 ook bij level 2 kwam."
+      // GEMETEN en het klopte: de teller n liep over de vrije platen, maar de
+      // rest deelde door de HELE lijst. Bij zeven platen kreeg level 5 en 7
+      // dezelfde hemel en kwam plaat 4 zelfs drie keer voorbij.
+      const vrij=[];
       for(let k=0;k<this.hemels.length;k++){
         const N=nummerVan(this.hemels[k].naam);
-        if(N&&N.level) continue;
-        if(n===((L-1)%Math.max(1,this.hemels.length))) return k;
-        n++; }
-      return (L-1)%this.hemels.length; },
+        if(!(N&&N.level)) vrij.push(k); }
+      if(!vrij.length) return (L-1)%this.hemels.length;
+      // hoeveel vast toegewezen levels liggen VOOR dit level? Die tellen niet
+      // mee, anders slaat de rij over zodra er een vaste plaat tussen zit.
+      let voor=0;
+      for(let k=0;k<this.hemels.length;k++){
+        const N=nummerVan(this.hemels[k].naam);
+        if(N&&N.level&&N.level<L) voor++; }
+      return vrij[((L-1-voor)%vrij.length+vrij.length)%vrij.length]; },
+
+    // Sjoerd v14.88: "gewoon even simpele platen toewijzen aan levels."
+    // Dat kan niet vooraf — het spel kent de meeste platen pas bij het laden.
+    // Dus doen we het meteen NA het laden: elk level krijgt een vaste plaat uit
+    // de rij, en die blijft van hem. Hij wordt één keer per spel gezet en staat
+    // daarna in de opslag, zodat de indeling ook morgen dezelfde is.
+    hemelVast:function(){
+      if(!this.hemels||!this.hemels.length) return;
+      const kaart={};
+      for(let L=1;L<=11;L++){
+        const k=this.hemelVoorLevel(L);
+        kaart[L]=this.hemels[k]?this.hemels[k].naam:'';
+      }
+      this.hemelKaart=kaart;
+      try{ localStorage.setItem('cosmic_hemels',JSON.stringify(kaart)); }catch(e){}
+      if(window.LOG){ let r=[]; for(let L=1;L<=11;L++) r.push(L+':'+kaart[L]);
+        window.LOG('hemels per level  '+r.join('  ')); } },
 
     hemelZet:function(){
       if(!this.hemels||!this.hemels.length) return;
