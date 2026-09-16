@@ -11917,43 +11917,13 @@
       if(at&&window.ART) at.setAttribute('value',window.ART.vondst); },
 
     // welke hemel hoort bij dit level?
-    // Een hemel op een VASTE plek zetten: de nummerlijst kan een level noemen,
-    // en dan hoort die achtergrond daar en nergens anders. Zonder dit hangt het
-    // van de laadvolgorde af welke plaat waar terechtkomt.
+    // Geen vaste platen per level: alleen de verdeelsleutel bepaalt de volgorde.
     hemelVoorLevel:function(L){
       if(!this.hemels||!this.hemels.length) return 0;
-      // IS ER AL EEN VASTE INDELING? Dan telt die, en niets anders. Zo houdt
-      // elk level zijn eigen hemel, ook als er platen bijkomen of weggaan.
-      if(this.hemelKaart&&this.hemelKaart[L]){
-        for(let k=0;k<this.hemels.length;k++)
-          if(this.hemels[k].naam===this.hemelKaart[L]) return k; }
-      // eerst kijken of een plaat expliciet voor dit level bedoeld is
-      for(let k=0;k<this.hemels.length;k++){
-        const N=nummerVan(this.hemels[k].naam);
-        if(N&&N.level===L) return k; }
-      // Anders de gewone volgorde over de VRIJE platen. Sjoerd v14.88: "ik had
-      // het idee dat de achtergrond van level 1 ook bij level 2 kwam."
-      // GEMETEN en het klopte: de teller n liep over de vrije platen, maar de
-      // rest deelde door de HELE lijst. Bij zeven platen kreeg level 5 en 7
-      // dezelfde hemel en kwam plaat 4 zelfs drie keer voorbij.
-      const vrij=[];
-      for(let k=0;k<this.hemels.length;k++){
-        const N=nummerVan(this.hemels[k].naam);
-        if(!(N&&N.level)) vrij.push(k); }
-      if(!vrij.length) return (L-1)%this.hemels.length;
-      // hoeveel vast toegewezen levels liggen VOOR dit level? Die tellen niet
-      // mee, anders slaat de rij over zodra er een vaste plaat tussen zit.
-      let voor=0;
-      for(let k=0;k<this.hemels.length;k++){
-        const N=nummerVan(this.hemels[k].naam);
-        if(N&&N.level&&N.level<L) voor++; }
-      return vrij[((L-1-voor)%vrij.length+vrij.length)%vrij.length]; },
+      return (L-1)%this.hemels.length;
+    },
 
-    // Sjoerd v14.88: "gewoon even simpele platen toewijzen aan levels."
-    // Dat kan niet vooraf — het spel kent de meeste platen pas bij het laden.
-    // Dus doen we het meteen NA het laden: elk level krijgt een vaste plaat uit
-    // de rij, en die blijft van hem. Hij wordt één keer per spel gezet en staat
-    // daarna in de opslag, zodat de indeling ook morgen dezelfde is.
+    // Verdeel de geladen hemels over de levels volgens dezelfde verdeelsleutel.
     hemelVast:function(){
       if(!this.hemels||!this.hemels.length) return;
       const kaart={};
@@ -11963,37 +11933,7 @@
       }
       kaart.v=HEMELVERSIE;
       this.hemelKaart=kaart;
-      try{ localStorage.setItem('cosmic_hemels',JSON.stringify(kaart)); }catch(e){}
-      // Sjoerd v14.92: "kun je iets maken zodat ik kan zien welk level welke
-      // achtergrond krijgt, met welke props." Alles wat LEVELS.html nodig heeft
-      // in één keer wegschrijven — de pagina kan het spel zelf niet bevragen.
-      try{
-        const uit={v:HEMELVERSIE, tijd:new Date().toISOString().slice(0,16), lvl:{}};
-        for(let L=1;L<=11;L++){
-          const k=this.hemelVoorLevel(L);
-          const H=this.hemels[k]||{};
-          const N=nummerVan(H.naam||'');
-          const ruimte=N?!N.grond:((H.hel||0)<RUIMTE_HEL);
-          let prop=-1;
-          if(!(window.PROPSUIT||PROPS_UIT.indexOf(L)>=0)&&ruimte&&L>2&&this.skyObjs.length)
-            prop=(L-3)%this.skyObjs.length;
-          uit.lvl[L]={
-            hemel:H.naam||'?',
-            soort:ruimte?'ruimte':'landschap',
-            hel:Math.round((H.hel||0)*100)/100,
-            prop:(prop>=0&&this.skyObjs[prop])
-                 ?((this.skyObjs[prop].userData.naam||'?')+
-                   (this.skyObjs[prop].userData.planeet?'  (planeet)':''))
-                 :'geen',
-            propNr:prop };
-        }
-        uit.props=this.skyObjs.map(function(q){ return (q.userData.naam||'?')+
-          (q.userData.planeet?' (planeet)':''); });
-        uit.hemels=this.hemels.map(function(q){ return q.naam; });
-        localStorage.setItem('cosmic_levels',JSON.stringify(uit));
-      }catch(e){}
-      if(window.LOG){ let r=[]; for(let L=1;L<=11;L++) r.push(L+':'+kaart[L]);
-        window.LOG('hemels per level  '+r.join('  ')); } },
+    },
 
     hemelZet:function(){
       if(!this.hemels||!this.hemels.length) return;
