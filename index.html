@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.90';
+  const VERSIE='v14.91';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -12730,12 +12730,24 @@
       k.setAttribute('material','color:#0a1d28;shader:flat;opacity:0.4;transparent:true'); } }
 
   function toonScores(){
-    const L=leesScores(), e=document.querySelector('#scoreLijst'); if(!e) return;
-    if(!L.length){ mTekst('#scoreLijst','no runs logged yet','#bfe4f2',0.058,0.22); return; }
+    const L=leesScores();
+    // met naam, max combo en continues erbij
     let t='';
-    // met de naam erbij, zodat je ziet wie welke score heeft gehaald
-    for(let i=0;i<Math.min(5,L.length);i++)
-      t+=(i+1)+'.  '+(L[i].n?(L[i].n+'  '):'')+L[i].s+'   '+L[i].d+(L[i].c?'   C'+L[i].c:'')+'\n';
+    if(!L.length) t='no runs logged yet';
+    else for(let i=0;i<Math.min(5,L.length);i++)
+      t+=(i+1)+'.  '+(L[i].n?(L[i].n+'  '):'')+L[i].s+
+        (L[i].mx?('   x'+L[i].mx):'')+(L[i].c?('   C'+L[i].c):'')+'\n';
+    // Sjoerd v14.91: "knop score doet ook niets." GEVONDEN: #scoreLijst hangt in
+    // #menu, en dat blok staat uit zodra je speelt. De lijst werd dus keurig
+    // gevuld in een onzichtbaar menu. Tijdens het spel tonen we hem daarom in
+    // het pauzepaneel, waar je wél naar kijkt.
+    const inSpel=(window.PHASE==='game');
+    if(inSpel){
+      const rg=document.querySelector('#rig');
+      const c=rg&&rg.components&&rg.components.cosmic;
+      if(c&&c.paneel){ c.paneel(true,'HIGH SCORES',t,'RESUME'); return; } }
+    const e=document.querySelector('#scoreLijst'); if(!e) return;
+    if(!L.length){ mTekst('#scoreLijst','no runs logged yet','#bfe4f2',0.058,0.22); return; }
     e.setAttribute('value',t);
     const b=document.querySelector('#bestTxt'); if(b) b.setAttribute('value','best '+L[0].s); }
 
@@ -13115,6 +13127,12 @@
     // dood. Die twee zitten in de spelcode, die naamOpen niet kan zien.
     window.NAAMVRAAG=function(){ naamOpen(true); };
     const naamOpen=function(aan){
+      // Sjoerd v14.91: "uitgespeeld, weer niets in kunnen voeren." GEVONDEN:
+      // #naam hangt BINNEN #paneel, en dat stond uit. Het naamscherm was dus
+      // wel 'zichtbaar' maar zat in een onzichtbare ouder — daarom zag je niets
+      // en kon je nergens op klikken. Het paneel moet dus mee aan.
+      const P=document.querySelector('#paneel');
+      if(P&&aan) P.setAttribute('visible',true);
       const n=document.querySelector('#naam');
       if(n) n.setAttribute('visible',!!aan);
       // de knoppen eronder UITZETTEN: anders klik je er dwars doorheen op
@@ -13142,7 +13160,7 @@
       // Sjoerd v14.86: gemeten dat je met HELP open op RESUME kon drukken en dan
       // doorspeelde MET het hulpscherm nog in beeld. Elk paneel gaat dicht.
       hulpToon(false); techToon(false);
-      if(C.klaar){ naamOpen(true); C.paneel(false); }
+      if(C.klaar){ naamOpen(true); }        // paneel NIET uitzetten: naam zit erin
       else C.verder(); });
     // GIVE UP: eerst je naam invullen, dan pas terug naar het menu. Zo komt je
     // score in de lijst te staan met wie hem heeft gehaald.
