@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.89';
+  const VERSIE='v14.90';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -612,8 +612,8 @@
     // level 13. 9822 heeft veel lege ruimte en draait mee in de rotatie, zodat de
     // zwevende planeten daar goed tot hun recht komen.
     // Sjoerd: "hemel 9 wordt de achtergrond van het oude level 12."
-    {nr:'9823', rol:'hemel', grond:0, level:9,  naam:'planetenstelsel met ringen'},
-    {nr:'9822', rol:'hemel', grond:0, level:6,  naam:'zwart gat met komeet'},
+    {nr:'9823', rol:'hemel', grond:0, naam:'planetenstelsel met ringen'},
+    {nr:'9822', rol:'hemel', grond:0, naam:'zwart gat met komeet'},
     {nr:'9523', rol:'hemel', grond:1, naam:'landschap met paddenstoelbomen'},
     {nr:'9510', rol:'hemel', grond:1, naam:'wolken boven water'},
     {nr:'9516', rol:'hemel', grond:1, naam:'blauwe lucht'},
@@ -2108,6 +2108,7 @@
   const COMBO_TIJD=4.0, COMBO_MAX=999, COMBO_TOON=1.8, COMBO_POPS=4.0;
   const RAK_PT=15, RAK_PT_ZW=40;   // punten voor een neergeschoten vijandelijke raket
   const COMBO_VUUR=5, COMBO_HEET=18;   // vanaf welke combo het vuur komt, en hoe snel het heet wordt
+  const HEMELVERSIE=2;          // v14.90: 6 en 9 los, gewoon op volgorde
   const BALK_UIT=1;             // v14.89: geen krachtbalk boven de baas
   const BALK_ORDE=120, COMBO_ORDE=40;  // de baasbalk tekent BOVEN de combometer
   // Vanaf COMBO_INF staat de hele meter in brand: meer vlammen, uit het hele
@@ -11756,7 +11757,11 @@
       // zodra alles binnen is de indeling vastleggen
       if(window.ART&&window.ART.af&&!this.hemelKaart){
         try{ const r=localStorage.getItem('cosmic_hemels');
-          if(r) this.hemelKaart=JSON.parse(r); }catch(e){}
+          if(r){ const k=JSON.parse(r);
+            // Sjoerd v14.90: level 6 en 9 zijn losgemaakt, dus de oude opslag
+            // klopt niet meer. Aan het VERSIEMERK zien we of hij nog van de
+            // vorige indeling is; dan opnieuw maken.
+            if(k&&k.v===HEMELVERSIE) this.hemelKaart=k; } }catch(e){}
         if(!this.hemelKaart) this.hemelVast(); }
       this.hemelZet(); },
 
@@ -11956,6 +11961,7 @@
         const k=this.hemelVoorLevel(L);
         kaart[L]=this.hemels[k]?this.hemels[k].naam:'';
       }
+      kaart.v=HEMELVERSIE;
       this.hemelKaart=kaart;
       try{ localStorage.setItem('cosmic_hemels',JSON.stringify(kaart)); }catch(e){}
       if(window.LOG){ let r=[]; for(let L=1;L<=11;L++) r.push(L+':'+kaart[L]);
