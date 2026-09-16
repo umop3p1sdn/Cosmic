@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cosmic — levels</title>
+<style>
+  :root{ --diep:#060912; --paneel:#0d1524; --lijn:#1c2b42;
+         --amber:#ffb03a; --cyaan:#35e8ff; --bleek:#e8f6ff; --grijs:#6c86a8; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--diep);color:var(--bleek);
+       font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;padding:20px}
+  h1{margin:0;font-style:italic;font-weight:900;font-size:30px;color:var(--amber)}
+  .sub{color:var(--grijs);font-size:14px;margin:6px 0 22px}
+  table{width:100%;border-collapse:collapse;max-width:900px}
+  th{text-align:left;font-size:12px;letter-spacing:.06em;color:var(--grijs);
+     text-transform:uppercase;padding:0 10px 8px;border-bottom:1px solid var(--lijn)}
+  td{padding:13px 10px;border-bottom:1px solid var(--lijn);font-size:15px;vertical-align:top}
+  tr:hover td{background:var(--paneel)}
+  .lv{font-weight:900;font-style:italic;font-size:22px;color:var(--cyaan);width:64px}
+  .hemel{color:var(--bleek)}
+  .soort{display:inline-block;font-size:11px;padding:2px 8px;border-radius:9px;
+         border:1px solid var(--lijn);color:var(--grijs);margin-left:8px;white-space:nowrap}
+  .ruimte{border-color:#2b4a6b;color:#8fd8ec}
+  .prop{color:var(--amber)}
+  .geen{color:#3c4f6b}
+  .leeg{max-width:620px;line-height:1.6;color:var(--grijs);
+        background:var(--paneel);border:1px solid var(--lijn);
+        border-radius:10px;padding:20px}
+  .leeg b{color:var(--bleek)}
+  .vw{margin-top:26px;color:#3c4f6b;font-size:12.5px}
+  details{margin-top:24px;max-width:900px}
+  summary{cursor:pointer;color:var(--grijs);font-size:14px;padding:8px 0}
+  .lijst{color:var(--grijs);font-size:13.5px;line-height:1.9;padding:4px 0 0 4px}
+</style>
+</head>
+<body>
+<h1>Levels</h1>
+<div class="sub" id="sub">laden...</div>
+<div id="uit"></div>
+<script>
+(function(){
+  var r=null;
+  try{ r=JSON.parse(localStorage.getItem('cosmic_levels')||'null'); }catch(e){}
+  var uit=document.getElementById('uit'), sub=document.getElementById('sub');
+  if(!r||!r.lvl){
+    sub.textContent='';
+    uit.innerHTML='<div class="leeg"><b>Nog geen gegevens.</b><br><br>'+
+      'Deze pagina leest wat het spel heeft opgeslagen. Open eerst '+
+      '<b>het spel</b> een keer en laat het helemaal laden \u2014 daarna komt hier '+
+      'per level te staan welke achtergrond en welke prop hij krijgt.<br><br>'+
+      'Werkt alleen in dezelfde browser als waarin je speelt.</div>';
+    return; }
+  sub.textContent='bijgewerkt '+(r.tijd||'?').replace('T',' ')+
+                  '   \u00b7   '+(r.hemels?r.hemels.length:0)+' achtergronden, '+
+                  (r.props?r.props.length:0)+' props';
+  var t='<table><tr><th>lvl</th><th>achtergrond</th><th>prop in de verte</th></tr>';
+  for(var L=1;L<=11;L++){
+    var q=r.lvl[L]||r.lvl[String(L)]; if(!q) continue;
+    var kl=(q.soort==='ruimte')?'soort ruimte':'soort';
+    t+='<tr><td class="lv">'+L+'</td>'+
+       '<td class="hemel">'+q.hemel+'<span class="'+kl+'">'+q.soort+'</span></td>'+
+       '<td class="'+(q.prop==='geen'?'geen':'prop')+'">'+q.prop+'</td></tr>';
+  }
+  t+='</table>';
+  if(r.hemels&&r.hemels.length)
+    t+='<details><summary>alle achtergronden in je map ('+r.hemels.length+')</summary>'+
+       '<div class="lijst">'+r.hemels.join('<br>')+'</div></details>';
+  if(r.props&&r.props.length)
+    t+='<details><summary>alle props ('+r.props.length+')</summary>'+
+       '<div class="lijst">'+r.props.join('<br>')+'</div></details>';
+  t+='<div class="vw">De volgorde is vast: achtergrond 1 hoort bij level 1, '+
+     'enzovoort. Wil je hem anders, hernoem dan de bestanden in je Art-map.</div>';
+  uit.innerHTML=t;
+})();
+</script>
+</body>
+</html>

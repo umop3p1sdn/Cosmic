@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.91';
+  const VERSIE='v14.92';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -11964,6 +11964,34 @@
       kaart.v=HEMELVERSIE;
       this.hemelKaart=kaart;
       try{ localStorage.setItem('cosmic_hemels',JSON.stringify(kaart)); }catch(e){}
+      // Sjoerd v14.92: "kun je iets maken zodat ik kan zien welk level welke
+      // achtergrond krijgt, met welke props." Alles wat LEVELS.html nodig heeft
+      // in één keer wegschrijven — de pagina kan het spel zelf niet bevragen.
+      try{
+        const uit={v:HEMELVERSIE, tijd:new Date().toISOString().slice(0,16), lvl:{}};
+        for(let L=1;L<=11;L++){
+          const k=this.hemelVoorLevel(L);
+          const H=this.hemels[k]||{};
+          const N=nummerVan(H.naam||'');
+          const ruimte=N?!N.grond:((H.hel||0)<RUIMTE_HEL);
+          let prop=-1;
+          if(!(window.PROPSUIT||PROPS_UIT.indexOf(L)>=0)&&ruimte&&L>2&&this.skyObjs.length)
+            prop=(L-3)%this.skyObjs.length;
+          uit.lvl[L]={
+            hemel:H.naam||'?',
+            soort:ruimte?'ruimte':'landschap',
+            hel:Math.round((H.hel||0)*100)/100,
+            prop:(prop>=0&&this.skyObjs[prop])
+                 ?((this.skyObjs[prop].userData.naam||'?')+
+                   (this.skyObjs[prop].userData.planeet?'  (planeet)':''))
+                 :'geen',
+            propNr:prop };
+        }
+        uit.props=this.skyObjs.map(function(q){ return (q.userData.naam||'?')+
+          (q.userData.planeet?' (planeet)':''); });
+        uit.hemels=this.hemels.map(function(q){ return q.naam; });
+        localStorage.setItem('cosmic_levels',JSON.stringify(uit));
+      }catch(e){}
       if(window.LOG){ let r=[]; for(let L=1;L<=11;L++) r.push(L+':'+kaart[L]);
         window.LOG('hemels per level  '+r.join('  ')); } },
 
@@ -12144,6 +12172,9 @@
           w:(Math.random()<0.5?-1:1)*(6.2832/rondje),
           b:Math.random()*6.283, bs:0.16+Math.random()*0.18};
         m.visible=false;
+        // de naam bewaren, zodat LEVELS.html kan tonen welke prop waar staat
+        m.userData.naam=t.__naam||'?';
+        m.userData.planeet=planeet?1:0;
         self.par.add(m); self.skyObjs.push(m); });
       this.objZet(); },
 
