@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.93';
+  const VERSIE='v14.94';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -492,7 +492,12 @@
   const kaartBewaar=function(){
     try{ localStorage.setItem('cosmic_kaart',JSON.stringify({
       hemels:KAART.hemels.map(function(q){ return q.naam; }),
-      bazen:KAART.bazen.map(function(q){ return q.naam; })})); }catch(e){} };
+      bazen:KAART.bazen.map(function(q){ return q.naam; }),
+      // v14.94: welke baas hoort bij welk level? Zo kun je in LEVELS.html zien
+      // of een plaat een beurt heeft ingepikt die niet van hem is.
+      baasBeurt:KAART.bazen.map(function(q){
+        return {naam:q.naam, beurt:(q.lijst&&q.lijst.beurt)||99,
+                nm:(q.lijst&&q.lijst.naam)||'?'}; })})); }catch(e){} };
 
   function artLaad(url,cb){ try{
     const L=new THREE.TextureLoader(); L.setCrossOrigin('anonymous');
@@ -1795,7 +1800,9 @@
   const SCHEER_AF=26, SCHEER_SNEL=34, SCHEER_DUUR=5.0, SCHEER_EERST=14, SCHEER_ELK=22;
   // Het rode schild: wie het altijd heeft, hoe sterk, en vanaf welk level een
   // deel van de kleine jagers een dun schildje krijgt.
-  const SCHILD_GROOT=['HAULER','BULWARK','WATCHER'];
+  // v14.94: WATCHER (IRON CROSS) eruit — zijn schild gaf verwarring bij het
+  // neerhalen van zijn treintje.
+  const SCHILD_GROOT=['HAULER','BULWARK'];
   const SCHILD_DEEL=0.5, SCHILD_DUN=0.25, SCHILD_VANAF=7, SCHILD_KANS=0.3;
   // De schildwerper: welk schip, hoe vaak (2 per 5 s), hoe ver, en tot welke
   // breedte hij schilden geeft (alleen lichte en middenmoot).
@@ -2056,9 +2063,11 @@
   // achter elkaar, kronkelend als een slang door de ruimte. Bochten van 40 tot
   // 70 m wijd. Valt er een uit, dan sluit er een nieuwe aan bij het moederschip.
   const KRUIS_N=6;              // zoveel arrows in beeld
-  const KRUIS_ACHTER=0.085;     // hoeveel elke arrow achterloopt op de kop
+  const KRUIS_ACHTER=0.14;      // hoeveel elke arrow achterloopt: groter = meer rits
+  const KRUIS_MINY=2.0;         // ze duiken nooit onder deze hoogte
   const KRUIS_SP=26;            // hoe snel ze de slang volgen
   const KRUIS_WIJD=55, KRUIS_WIJD2=13;   // hoe wijd de bochten zijn (zij / hoogte)
+  const KRUIS_YMIN=2, KRUIS_YMAX=26;     // ...en tussen welke hoogtes ze blijven
   const KRUIS_HP=90;            // eigen kracht: veel lager dan een los BLUE ARROW
   const KRUIS_TRAAG=0.115;      // hoe snel de slang zelf voortkronkelt
   // GHOST WING: slingerende zoekraketten, ruime bochten van 30 m.
@@ -2861,7 +2870,11 @@
             if(performance.now()<(window.DEMOWACHT||0)) return;   // maar niet meteen
             naarMenu(); return; }
           if(self.held.indexOf(h)<0) self.held.push(h); self.fire(h); }); });
-        ['triggerup','selectend','gripup'].forEach(function(ev){ h.addEventListener(ev,function(){
+        // Sjoerd v14.95: "als ik ult druk, stopt schieten. Graag dat het beide
+        // gewoon kan." GEVONDEN: 'gripup' stond in deze lijst, dus het loslaten
+        // van de GRIP haalde je hand uit de vuurlijst alsof je de TRIGGER losliet.
+        // Nu alleen de trigger.
+        ['triggerup','selectend'].forEach(function(ev){ h.addEventListener(ev,function(){
           const i=self.held.indexOf(h); if(i>=0) self.held.splice(i,1); }); });
         ['gripdown','squeezestart'].forEach(function(ev){ h.addEventListener(ev,function(){ self.ultimate(h); }); });
         // De knop bovenop haalt je basiswapen terug, de joystick kiest direct.
@@ -8079,8 +8092,13 @@
       B.copy(e.p).addScaledVector(heen,af)
         .addScaledVector(zij,g1+((u>1)?-26:26))
         .add(this.tmpK4||(this.tmpK4=new THREE.Vector3()));
-      // ook flink op en neer: de slang kronkelt in ALLE richtingen
-      B.y=e.p.y+g2*2.4+g3*0.9;
+      // Sjoerd v14.94: "de vliegtuigen in een treintje kunnen niet kapot."
+      // GEMETEN: hun verticale uitslag was 31 m terwijl het moederschip op 4-9 m
+      // hangt — ze doken tot 30 m ONDER je, buiten beeld, en daar kun je niet op
+      // richten. Nu blijven ze tussen KRUIS_YMIN en KRUIS_YMAX, dus altijd in
+      // beeld en altijd te raken.
+      let yy=e.p.y+g2*1.1+g3*0.5;
+      B.y=Math.max(KRUIS_YMIN,Math.min(KRUIS_YMAX,yy));
       return B; },
 
     kruisTick:function(e,s){
@@ -9931,7 +9949,7 @@
       let txt;
       // Sjoerd v14.46: Engels, en zo beknopt mogelijk.
       if(fase===1) txt='SHOOT '+kleur+' BOX\n'+naam;
-      else txt='PRESS '+(WRICHT[k]||'')+' ON JOYSTICK\nL OR R HAND\n\nA / X TO RETURN TO GUN';
+      else txt='PRESS '+(WRICHT[k]||'')+' ON JOYSTICK\nL OR R HAND\n\nTHUMB BUTTON (A / B / X / Y)\nBACK TO MACHINE GUN';
       const e=document.querySelector('#lesTxt');
       if(e){ e.setAttribute('value',txt); e.setAttribute('color','#ffe45c');
         e.setAttribute('visible',true);
@@ -10124,7 +10142,7 @@
     tutPak:function(k){
       const S2=TUT[this.tutI]; if(!S2||S2.k!==k) return;
       this.tutFase=2; this.tutT=0;
-      this.tutTekst('PRESS '+(WRICHT[k]||'')+' ON JOYSTICK\nL OR R HAND'); },
+      this.tutTekst('PRESS '+(WRICHT[k]||'')+' ON JOYSTICK\nL OR R HAND\n\nTHUMB BUTTON = BACK TO GUN'); },
 
     // het wapen is gekozen: de vijanden komen
     tutKies:function(k){
@@ -12076,10 +12094,17 @@
         const ar=(t.image&&t.image.width)?t.image.width/t.image.height:1;
         // Staat hij in de map Baas, dan is het een baas. Anders raden op breedte:
         // een baas is breed en doorzichtig, planeten en stations zijn vierkant.
+        // Sjoerd v14.94: "eindbaas klopt niet, ik zie 9905." Dat is BOMBER, een
+        // SCHIP. Deze regel maakte van elke brede plaat een baas zodra __baas
+        // niet gezet was — ook als de nummerlijst hem als schip kent. Nu wint de
+        // lijst altijd.
+        const Lz=t.__lijst;
+        if(Lz&&Lz.rol&&Lz.rol!=='baas'){ t.__baas=0; }
         const isBaas=(t.__baas===1)||(t.__baas===undefined&&ar>=1.30);
         if(isBaas){ self.bazen=self.bazen||[];
           const L=t.__lijst;
-          const beurt=(L&&L.beurt)||99;
+          // geen beurt? dan 99: hij doet niet mee aan level 1 t/m 11
+          const beurt=(L&&L.beurt!==undefined&&L.beurt>0)?L.beurt:99;
           // platen met dezelfde beurt horen bij één gevecht (de drie ogen)
           let bs=null;
           for(let i=0;i<self.bazen.length;i++)
