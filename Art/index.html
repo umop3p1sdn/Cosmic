@@ -51,7 +51,10 @@
     <div id="count">Afbeeldingen laden...</div>
     <nav>
       <button id="fAlles" class="aan">alles</button>
-      <button id="fHemels">achtergronden (levels)</button>
+      <button id="fHemels">achtergronden</button>
+      <button id="fVloot">schepen</button>
+      <button id="fBaas">bazen</button>
+      <button id="fObject">objecten</button>
     </nav>
 </header>
 <div class="uitleg" id="uitleg"></div>
@@ -67,54 +70,126 @@
 <script>
 const OWNER="umop3p1sdn", REPO="Cosmic";
 const PADEN=["Art","art","ART"];
-// De selectiemethode van het spel, letterlijk overgenomen:
-//  1. een plaat is een ACHTERGROND als hij 1,7x zo breed is als hoog
-//     (en vol beeld, maar dat meten we hier niet — transparantie is zeldzaam)
-//  2. ze worden gesorteerd op het laatste VIERCIJFERIGE nummer in de naam
-//  3. de eerste elf krijgen level 1 t/m 11
-const AR_MIN=1.7, LEVELS=11;
+
+// ---- DE SELECTIEMETHODE VAN HET SPEL, VOLLEDIG ----
+// Ik had eerst alleen naar de breedte gekeken; daardoor kwamen er vliegtuigen
+// tussen de achtergronden. Het spel kijkt in deze volgorde:
+//
+//  1. VASTGELEGD NUMMER wint van alles. Het spel heeft een lijst van 56
+//     bestandsnummers met hun rol (schip, baas, hemel, object, planeet).
+//  2. DE MAPNAAM daarna: staat een plaat in een map met 'achtergrond', 'hemel',
+//     'sky' of 'background' in de naam, dan is het een hemel. Idem 'vijand',
+//     'schepen', 'fleet', 'enem' voor de vloot, 'baas'/'boss', en
+//     'object'/'planeet'/'prop'.
+//  3. DE KOPPENPLAAT (537ED456...) doet nergens aan mee.
+//  4. Pas als niets daarvan past RAADT het spel op vorm:
+//       breedte/hoogte >= 1,7  EN  minder dan 12% doorzichtig  -> ACHTERGROND
+//       0,55 tot 1,05 breed    EN  minstens 5% doorzichtig     -> VLOOT
+//       al het andere                                          -> object
+const NUMMERS={"9510":"hemel","9516":"hemel","9523":"hemel","9531":"object","9532":"planeet","9533":"planeet","9534":"planeet","9544":"baas","9550":"baas","9551":"baas","9559":"baas","9563":"baas","9564":"baas","9565":"baas","9573":"baas","9580":"baas","9822":"hemel","9823":"hemel","9835":"schip","9840":"schip","9841":"schip","9858":"schip","9860":"schip","9868":"schip","9872":"schip","9873":"schip","9874":"schip","9875":"schip","9879":"schip","9880":"schip","9881":"schip","9889":"schip","9891":"schip","9892":"schip","9893":"schip","9895":"schip","9897":"schip","9898":"schip","9899":"schip","9904":"schip","9905":"schip","9907":"schip","9910":"schip","9913":"schip","9916":"schip","9918":"schip","9922":"schip","9923":"baas","9937":"baas","9940":"baas","9969":"sleep","0127":"schip","0196":"schip","0005":"baas","0007":"baas","0006":"baas"};
+const KOPPEN="537ED456";
+const AR_MIN=1.7, LEEG_MAX=0.12, LEVELS=11;
+
+// hoeveel van de plaat is doorzichtig? Zelfde meting als het spel: 96x96.
+function doorzichtig(img){
+  try{
+    const c=document.createElement("canvas"); c.width=96; c.height=96;
+    const g=c.getContext("2d"); g.clearRect(0,0,96,96);
+    g.drawImage(img,0,0,96,96);
+    const d=g.getImageData(0,0,96,96).data;
+    let leeg=0;
+    for(let i=3;i<d.length;i+=4) if(d[i]<40) leeg++;
+    return leeg/(96*96);
+  }catch(e){ return 0; } }
+
+function nummer(naam){
+  const m=String(naam).match(/(\d{4})(?!.*\d{4})/);
+  return m?m[1]:null; }
+
+function mapSoort(pad){
+  const n=String(pad||"").toLowerCase();
+  if(/achtergrond|hemel|sky|background/.test(n)) return "hemel";
+  if(/vijand|schepen|fleet|enem/.test(n))        return "vloot";
+  if(/baas|boss/.test(n))                        return "baas";
+  if(/object|planeet|planet|prop/.test(n))       return "object";
+  return null; }
+
+// de rol van een plaat, in dezelfde volgorde als het spel
+function rolVan(f){
+  if(String(f.name).indexOf(KOPPEN)===0) return "koppen";
+  const nr=nummer(f.name);
+  if(nr&&NUMMERS[nr]) return NUMMERS[nr];          // 1. vastgelegd
+  const ms=mapSoort(f.map);
+  if(ms) return ms;                                // 2. mapnaam
+  if(f.ar>=AR_MIN&&f.leeg<LEEG_MAX) return "hemel";       // 3. raden op vorm
+  if(f.ar>=0.55&&f.ar<=1.05&&f.leeg>=0.05) return "vloot";
+  return "object"; }
+
 let images=[], current=0, filter="alles";
+
 
 function nummer(naam){
   const m=String(naam).match(/(\d{4})(?!.*\d{4})/);
   return m?parseInt(m[1],10):9999; }
 
 async function maten(list){
-  // elke plaat even inladen om breedte en hoogte te weten
+  // elke plaat inladen: breedte, hoogte EN hoeveel ervan doorzichtig is
   await Promise.all(list.map(f=>new Promise(res=>{
     const im=new Image();
+    im.crossOrigin="anonymous";
     im.onload=()=>{ f.w=im.naturalWidth; f.h=im.naturalHeight;
-      f.ar=f.h?(f.w/f.h):0; res(); };
-    im.onerror=()=>{ f.ar=0; res(); };
+      f.ar=f.h?(f.w/f.h):0; f.leeg=doorzichtig(im); res(); };
+    im.onerror=()=>{ f.ar=0; f.leeg=0; res(); };
     im.src=f.download_url; })));
 }
 
 async function loadImages(){
-  let files=null, gebruikt="";
+  let wortel=null, gebruikt="";
   for(const p of PADEN){
     try{ const r=await fetch("https://api.github.com/repos/"+OWNER+"/"+REPO+"/contents/"+p);
-      if(r.ok){ files=await r.json(); gebruikt=p; break; } }catch(e){}
+      if(r.ok){ wortel=await r.json(); gebruikt=p; break; } }catch(e){}
   }
-  if(!files){ document.getElementById("loading").textContent=
+  if(!wortel){ document.getElementById("loading").textContent=
     "\u274c Map niet gevonden (geprobeerd: "+PADEN.join(", ")+")"; return; }
 
-  images=files.filter(f=>f.type==="file"&&/\.(png|jpg|jpeg|webp)$/i.test(f.name))
+  // ook de SUBMAPPEN inlezen: hun naam bepaalt mee wat een plaat is
+  let alles=[];
+  for(const q of wortel){
+    if(q.type==="file") { q.map=""; alles.push(q); }
+    else if(q.type==="dir"){
+      try{ const r2=await fetch(q.url);
+        if(r2.ok){ const kids=await r2.json();
+          kids.forEach(k=>{ if(k.type==="file"){ k.map=q.name; alles.push(k); } }); } }catch(e){}
+    } }
+
+  images=alles.filter(f=>/\.(png|jpg|jpeg|webp)$/i.test(f.name))
               .sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
 
   document.getElementById("loading").textContent="Maten meten...";
   await maten(images);
 
-  // de achtergronden eruit vissen en op spelvolgorde zetten
-  const hemels=images.filter(f=>f.ar>=AR_MIN).sort((a,b)=>nummer(a.name)-nummer(b.name));
+  // de rol bepalen, precies zoals het spel dat doet
+  images.forEach(f=>{ f.rol=rolVan(f); });
+
+  // alleen de ECHTE achtergronden, op nummer gesorteerd zoals het spel
+  const hemels=images.filter(f=>f.rol==="hemel")
+    .sort((a,b)=>{ const na=nummer(a.name)||"9999", nb=nummer(b.name)||"9999";
+      return parseInt(na,10)-parseInt(nb,10); });
   hemels.forEach((f,i)=>{ if(i<LEVELS) f.level=i+1; });
 
   document.getElementById("loading").style.display="none";
+  const tel={};
+  images.forEach(f=>{ tel[f.rol]=(tel[f.rol]||0)+1; });
   document.getElementById("count").textContent=
-    images.length+" afbeeldingen  \u00b7  "+hemels.length+" achtergronden  \u00b7  /"+gebruikt;
+    images.length+" afbeeldingen  \u00b7  "+
+    (tel.hemel||0)+" achtergronden, "+(tel.vloot||0)+" schepen, "+
+    (tel.baas||0)+" bazen, "+(tel.object||0)+" objecten  \u00b7  /"+gebruikt;
   document.getElementById("uitleg").innerHTML=
-    "Een plaat telt als achtergrond zodra hij <b>"+AR_MIN+"\u00d7 zo breed is als hoog</b>. "+
-    "Ze worden gesorteerd op het laatste viercijferige nummer in de bestandsnaam, "+
-    "en de eerste "+LEVELS+" krijgen level 1 t/m "+LEVELS+". "+
+    "Het spel kijkt eerst naar het <b>vastgelegde nummer</b> (56 platen hebben een "+
+    "vaste rol), dan naar de <b>mapnaam</b>, en pas daarna naar de vorm: "+
+    AR_MIN+"\u00d7 zo breed als hoog \u00e9n minder dan 12% doorzichtig. "+
+    "De achtergronden worden op nummer gesorteerd; de eerste "+LEVELS+
+    " krijgen level 1 t/m "+LEVELS+". "+
     (hemels.length<LEVELS
       ? "<b style='color:#ff8a6a'>Je hebt er "+hemels.length+", dus "+(LEVELS-hemels.length)+
         " levels moeten een plaat delen.</b>"
@@ -125,16 +200,21 @@ async function loadImages(){
 function teken(){
   const g=document.getElementById("gallery");
   g.innerHTML="";
-  const lijst=(filter==="hemels")
-    ? images.filter(f=>f.ar>=AR_MIN).sort((a,b)=>nummer(a.name)-nummer(b.name))
-    : images;
+  let lijst=images;
+  if(filter==="hemel") lijst=images.filter(f=>f.rol==="hemel")
+    .sort((a,b)=>(parseInt(nummer(a.name)||"9999",10))-(parseInt(nummer(b.name)||"9999",10)));
+  else if(filter!=="alles") lijst=images.filter(f=>f.rol===filter);
   lijst.forEach(f=>{
     const item=document.createElement("div");
     item.className="item";
-    if(f.ar>=AR_MIN){
+    if(f.rol==="hemel"){
       const b=document.createElement("div");
       b.className="lv"+(f.level?"":" geen");
       b.textContent=f.level?("LEVEL "+f.level):"reserve";
+      item.appendChild(b); }
+    else if(f.rol&&f.rol!=="object"){
+      const b=document.createElement("div");
+      b.className="lv geen"; b.textContent=f.rol;
       item.appendChild(b); }
     const img=document.createElement("img");
     img.src=f.download_url; img.loading="lazy"; img.alt=f.name;
@@ -146,12 +226,13 @@ function teken(){
     g.appendChild(item); });
 }
 
-document.getElementById("fAlles").onclick=function(){
-  filter="alles"; this.classList.add("aan");
-  document.getElementById("fHemels").classList.remove("aan"); teken(); };
-document.getElementById("fHemels").onclick=function(){
-  filter="hemels"; this.classList.add("aan");
-  document.getElementById("fAlles").classList.remove("aan"); teken(); };
+[["fAlles","alles"],["fHemels","hemel"],["fVloot","vloot"],
+ ["fBaas","baas"],["fObject","object"]].forEach(function(q){
+  document.getElementById(q[0]).onclick=function(){
+    filter=q[1];
+    ["fAlles","fHemels","fVloot","fBaas","fObject"].forEach(function(id){
+      document.getElementById(id).classList.remove("aan"); });
+    this.classList.add("aan"); teken(); }; });
 
 function openViewer(i){ current=i;
   document.getElementById("viewer").style.display="flex"; updateViewer(); }
