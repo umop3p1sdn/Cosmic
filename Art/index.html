@@ -5,41 +5,56 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Art Gallery</title>
 <style>
-    * { box-sizing: border-box; }
-    body { margin:0; background:#111; color:white; font-family:Arial, sans-serif; }
-    header { position:sticky; top:0; z-index:10; background:#181818;
-             padding:15px; text-align:center; border-bottom:1px solid #333; }
-    h1 { margin:0 0 10px; font-size:22px; }
-    #count { color:#aaa; font-size:14px; }
-    .gallery { padding:15px; display:grid;
-               grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:15px; }
-    .item { background:#1d1d1d; border-radius:10px; padding:8px;
-            cursor:pointer; transition:transform .15s; }
-    .item:hover { transform:scale(1.03); }
-    .item img { width:100%; height:180px; object-fit:contain; display:block;
-                background:repeating-conic-gradient(#333 0% 25%, #222 0% 50%) 50% / 20px 20px;
-                border-radius:6px; }
-    .name { padding:8px 3px 3px; font-size:13px; color:#ccc;
-            white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    #viewer { display:none; position:fixed; inset:0; z-index:100;
-              background:rgba(0,0,0,.92); align-items:center; justify-content:center;
-              flex-direction:column; padding:20px; }
-    #viewer img { max-width:95vw; max-height:80vh; object-fit:contain; }
-    #viewerName { margin-top:12px; color:#ccc; text-align:center; }
-    button { position:absolute; border:none; background:rgba(255,255,255,.15);
-             color:white; font-size:35px; width:55px; height:55px;
-             border-radius:50%; cursor:pointer; }
-    #close { top:15px; right:15px; }
-    #prev { left:15px; top:50%; }
-    #next { right:15px; top:50%; }
-    #loading { text-align:center; padding:40px; color:#aaa; }
+    *{box-sizing:border-box}
+    body{margin:0;background:#111;color:#fff;font-family:Arial,sans-serif}
+    header{position:sticky;top:0;z-index:10;background:#181818;padding:15px;
+           text-align:center;border-bottom:1px solid #333}
+    h1{margin:0 0 10px;font-size:22px}
+    #count{color:#aaa;font-size:14px}
+    nav{margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+    nav button{position:static;width:auto;height:auto;border-radius:16px;
+      font-size:13px;padding:6px 14px;background:#222;border:1px solid #333;
+      color:#bbb;cursor:pointer}
+    nav button.aan{background:#ffb03a;border-color:#ffb03a;color:#111;font-weight:bold}
+    .gallery{padding:15px;display:grid;
+             grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:15px}
+    .item{background:#1d1d1d;border-radius:10px;padding:8px;cursor:pointer;
+          transition:transform .15s;position:relative}
+    .item:hover{transform:scale(1.03)}
+    .item img{width:100%;height:180px;object-fit:contain;display:block;
+      background:repeating-conic-gradient(#333 0% 25%,#222 0% 50%) 50%/20px 20px;
+      border-radius:6px}
+    .name{padding:8px 3px 3px;font-size:13px;color:#ccc;white-space:nowrap;
+          overflow:hidden;text-overflow:ellipsis}
+    /* het levelmerk linksboven op de plaat */
+    .lv{position:absolute;top:14px;left:14px;background:#ffb03a;color:#111;
+        font-weight:900;font-style:italic;font-size:15px;padding:3px 10px;
+        border-radius:6px;letter-spacing:.02em}
+    .lv.geen{background:#2a3648;color:#7d93ad;font-weight:normal;font-style:normal;
+             font-size:12px}
+    .uitleg{max-width:760px;margin:0 auto;padding:0 15px 6px;color:#888;
+            font-size:13px;line-height:1.6}
+    #viewer{display:none;position:fixed;inset:0;z-index:100;
+            background:rgba(0,0,0,.92);align-items:center;justify-content:center;
+            flex-direction:column;padding:20px}
+    #viewer img{max-width:95vw;max-height:80vh;object-fit:contain}
+    #viewerName{margin-top:12px;color:#ccc;text-align:center}
+    button{position:absolute;border:none;background:rgba(255,255,255,.15);
+      color:#fff;font-size:35px;width:55px;height:55px;border-radius:50%;cursor:pointer}
+    #close{top:15px;right:15px}  #prev{left:15px;top:50%}  #next{right:15px;top:50%}
+    #loading{text-align:center;padding:40px;color:#aaa}
 </style>
 </head>
 <body>
 <header>
     <h1>&#127912; Art Gallery</h1>
     <div id="count">Afbeeldingen laden...</div>
+    <nav>
+      <button id="fAlles" class="aan">alles</button>
+      <button id="fHemels">achtergronden (levels)</button>
+    </nav>
 </header>
+<div class="uitleg" id="uitleg"></div>
 <div id="loading">Even laden...</div>
 <div class="gallery" id="gallery"></div>
 <div id="viewer">
@@ -50,75 +65,118 @@
     <div id="viewerName"></div>
 </div>
 <script>
-const OWNER = "umop3p1sdn";
-const REPO  = "Cosmic";
-// GitHub is hoofdlettergevoelig. Het spel laadt uit 'Art/', dus die eerst
-// proberen; lukt dat niet, dan 'art' als reserve.
-const PADEN = ["Art", "art", "ART"];
-let images = [], current = 0;
+const OWNER="umop3p1sdn", REPO="Cosmic";
+const PADEN=["Art","art","ART"];
+// De selectiemethode van het spel, letterlijk overgenomen:
+//  1. een plaat is een ACHTERGROND als hij 1,7x zo breed is als hoog
+//     (en vol beeld, maar dat meten we hier niet — transparantie is zeldzaam)
+//  2. ze worden gesorteerd op het laatste VIERCIJFERIGE nummer in de naam
+//  3. de eerste elf krijgen level 1 t/m 11
+const AR_MIN=1.7, LEVELS=11;
+let images=[], current=0, filter="alles";
 
-async function loadImages() {
-    let files = null, gebruikt = "";
-    for (const p of PADEN) {
-        try {
-            const r = await fetch(
-                "https://api.github.com/repos/" + OWNER + "/" + REPO +
-                "/contents/" + p);
-            if (r.ok) { files = await r.json(); gebruikt = p; break; }
-        } catch (e) { /* volgende proberen */ }
-    }
-    if (!files) {
-        document.getElementById("loading").textContent =
-            "\u274c Map niet gevonden (geprobeerd: " + PADEN.join(", ") + ")";
-        return;
-    }
-    images = files
-        .filter(f => f.type === "file" && /\.(png|jpg|jpeg|webp)$/i.test(f.name))
-        .sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric:true}));
+function nummer(naam){
+  const m=String(naam).match(/(\d{4})(?!.*\d{4})/);
+  return m?parseInt(m[1],10):9999; }
 
-    document.getElementById("loading").style.display = "none";
-    document.getElementById("count").textContent =
-        images.length + " afbeeldingen  \u2014  /" + gebruikt;
-
-    const gallery = document.getElementById("gallery");
-    images.forEach((file, index) => {
-        const item = document.createElement("div");
-        item.className = "item";
-        const img = document.createElement("img");
-        img.src = file.download_url; img.loading = "lazy"; img.alt = file.name;
-        const nm = document.createElement("div");
-        nm.className = "name"; nm.textContent = file.name;
-        item.appendChild(img); item.appendChild(nm);
-        item.onclick = () => openViewer(index);
-        gallery.appendChild(item);
-    });
+async function maten(list){
+  // elke plaat even inladen om breedte en hoogte te weten
+  await Promise.all(list.map(f=>new Promise(res=>{
+    const im=new Image();
+    im.onload=()=>{ f.w=im.naturalWidth; f.h=im.naturalHeight;
+      f.ar=f.h?(f.w/f.h):0; res(); };
+    im.onerror=()=>{ f.ar=0; res(); };
+    im.src=f.download_url; })));
 }
+
+async function loadImages(){
+  let files=null, gebruikt="";
+  for(const p of PADEN){
+    try{ const r=await fetch("https://api.github.com/repos/"+OWNER+"/"+REPO+"/contents/"+p);
+      if(r.ok){ files=await r.json(); gebruikt=p; break; } }catch(e){}
+  }
+  if(!files){ document.getElementById("loading").textContent=
+    "\u274c Map niet gevonden (geprobeerd: "+PADEN.join(", ")+")"; return; }
+
+  images=files.filter(f=>f.type==="file"&&/\.(png|jpg|jpeg|webp)$/i.test(f.name))
+              .sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
+
+  document.getElementById("loading").textContent="Maten meten...";
+  await maten(images);
+
+  // de achtergronden eruit vissen en op spelvolgorde zetten
+  const hemels=images.filter(f=>f.ar>=AR_MIN).sort((a,b)=>nummer(a.name)-nummer(b.name));
+  hemels.forEach((f,i)=>{ if(i<LEVELS) f.level=i+1; });
+
+  document.getElementById("loading").style.display="none";
+  document.getElementById("count").textContent=
+    images.length+" afbeeldingen  \u00b7  "+hemels.length+" achtergronden  \u00b7  /"+gebruikt;
+  document.getElementById("uitleg").innerHTML=
+    "Een plaat telt als achtergrond zodra hij <b>"+AR_MIN+"\u00d7 zo breed is als hoog</b>. "+
+    "Ze worden gesorteerd op het laatste viercijferige nummer in de bestandsnaam, "+
+    "en de eerste "+LEVELS+" krijgen level 1 t/m "+LEVELS+". "+
+    (hemels.length<LEVELS
+      ? "<b style='color:#ff8a6a'>Je hebt er "+hemels.length+", dus "+(LEVELS-hemels.length)+
+        " levels moeten een plaat delen.</b>"
+      : "Wil je een andere volgorde, hernoem dan de bestanden.");
+  teken();
+}
+
+function teken(){
+  const g=document.getElementById("gallery");
+  g.innerHTML="";
+  const lijst=(filter==="hemels")
+    ? images.filter(f=>f.ar>=AR_MIN).sort((a,b)=>nummer(a.name)-nummer(b.name))
+    : images;
+  lijst.forEach(f=>{
+    const item=document.createElement("div");
+    item.className="item";
+    if(f.ar>=AR_MIN){
+      const b=document.createElement("div");
+      b.className="lv"+(f.level?"":" geen");
+      b.textContent=f.level?("LEVEL "+f.level):"reserve";
+      item.appendChild(b); }
+    const img=document.createElement("img");
+    img.src=f.download_url; img.loading="lazy"; img.alt=f.name;
+    const nm=document.createElement("div");
+    nm.className="name";
+    nm.textContent=f.name+(f.w?("  \u00b7  "+f.w+"\u00d7"+f.h):"");
+    item.appendChild(img); item.appendChild(nm);
+    item.onclick=()=>openViewer(images.indexOf(f));
+    g.appendChild(item); });
+}
+
+document.getElementById("fAlles").onclick=function(){
+  filter="alles"; this.classList.add("aan");
+  document.getElementById("fHemels").classList.remove("aan"); teken(); };
+document.getElementById("fHemels").onclick=function(){
+  filter="hemels"; this.classList.add("aan");
+  document.getElementById("fAlles").classList.remove("aan"); teken(); };
+
 function openViewer(i){ current=i;
-    document.getElementById("viewer").style.display="flex"; updateViewer(); }
+  document.getElementById("viewer").style.display="flex"; updateViewer(); }
 function updateViewer(){ const f=images[current];
-    document.getElementById("viewerImg").src=f.download_url;
-    document.getElementById("viewerName").textContent=
-        (current+1)+" / "+images.length+" \u2014 "+f.name; }
+  document.getElementById("viewerImg").src=f.download_url;
+  document.getElementById("viewerName").textContent=
+    (current+1)+" / "+images.length+" \u2014 "+f.name+
+    (f.level?("   \u2014  LEVEL "+f.level):""); }
 function closeViewer(){ document.getElementById("viewer").style.display="none"; }
 function previous(){ current=(current-1+images.length)%images.length; updateViewer(); }
 function next(){ current=(current+1)%images.length; updateViewer(); }
-
-document.getElementById("close").onclick = closeViewer;
-document.getElementById("prev").onclick  = previous;
-document.getElementById("next").onclick  = next;
-document.getElementById("viewer").onclick = function(e){
-    if (e.target === this) closeViewer(); };
-document.addEventListener("keydown", function(e){
-    if (document.getElementById("viewer").style.display !== "flex") return;
-    if (e.key === "Escape")     closeViewer();
-    if (e.key === "ArrowLeft")  previous();
-    if (e.key === "ArrowRight") next(); });
-let tx = 0;
-document.getElementById("viewer").addEventListener("touchstart",
-    e => { tx = e.changedTouches[0].screenX; });
-document.getElementById("viewer").addEventListener("touchend", e => {
-    const d = e.changedTouches[0].screenX - tx;
-    if (Math.abs(d) > 50) { d > 0 ? previous() : next(); } });
+document.getElementById("close").onclick=closeViewer;
+document.getElementById("prev").onclick=previous;
+document.getElementById("next").onclick=next;
+document.getElementById("viewer").onclick=function(e){ if(e.target===this) closeViewer(); };
+document.addEventListener("keydown",function(e){
+  if(document.getElementById("viewer").style.display!=="flex") return;
+  if(e.key==="Escape") closeViewer();
+  if(e.key==="ArrowLeft") previous();
+  if(e.key==="ArrowRight") next(); });
+let tx=0;
+document.getElementById("viewer").addEventListener("touchstart",e=>{tx=e.changedTouches[0].screenX;});
+document.getElementById("viewer").addEventListener("touchend",e=>{
+  const d=e.changedTouches[0].screenX-tx;
+  if(Math.abs(d)>50){ d>0?previous():next(); } });
 
 loadImages();
 </script>
