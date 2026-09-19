@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.95';
+  const VERSIE='v14.96';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2121,11 +2121,6 @@
   const COMBO_TIJD=4.0, COMBO_MAX=999, COMBO_TOON=1.8, COMBO_POPS=4.0;
   const RAK_PT=15, RAK_PT_ZW=40;   // punten voor een neergeschoten vijandelijke raket
   const COMBO_VUUR=5, COMBO_HEET=18;   // vanaf welke combo het vuur komt, en hoe snel het heet wordt
-  // Hoeveel van de plaat naar de polen gaat. 1 = zoals het was. LAGER dan 1
-  // betekent: een smallere rand wordt over de bolkap uitgesmeerd, dus minder
-  // vervorming daar. Gemeten bij 0,55: de bovenste tiende van de bol put nog uit
-  // 6% van de plaat in plaats van 10%.
-  const HEM_REK=0.55;
   const PANO_DRIFT=0;           // v14.93: de hemel draait NIET meer (naad bleef achter je)
   const WIJK_TERUG=32;          // verder dan dit opzij? dan wijkt hij naar het MIDDEN
   const HEMELVERSIE=2;          // v14.90: 6 en 9 los, gewoon op volgorde
@@ -2700,8 +2695,9 @@
       // planeten aan de rand meegetrokken. Door de textuur verticaal op te
       // rekken vult het MIDDEN van de plaat het grootste deel van de bol, en
       // gaat er nog maar een smalle rand naar de punten.
+      // v14.96: de uitrekking van v14.95 is eruit — Sjoerd vond het niet mooi.
+      // De plaat ligt weer gewoon over de bol, zoals het altijd was.
       this.hemel=new THREE.Mesh(new THREE.SphereGeometry(300,96,56),sterMat);
-      this.hemelRek(this.hemel.geometry);
       this.hemel.renderOrder=-20; this.par.add(this.hemel);
       this.skyObjs=[];
       window.ART.nieuw=function(){ self.artVernieuw(); };
@@ -11901,24 +11897,6 @@
       window.ARTKLAAR=klaar; },
 
     // volgorde: een cijfer voor de bestandsnaam wint, anders van licht naar donker
-    // De verticale textuurcoördinaat opnieuw verdelen. Het midden van de bol
-    // krijgt het midden van de plaat, uitgerekt; alleen de laatste HEM_RAND van
-    // de bolkap put nog uit de boven- en onderrand van de plaat.
-    //   v gaat van 0 (onder) tot 1 (boven).
-    //   Een macht groter dan 1 duwt de waardes naar het midden toe.
-    hemelRek:function(g){
-      const uv=g.attributes.uv;
-      for(let i=0;i<uv.count;i++){
-        const v=uv.getY(i);
-        // om het midden spiegelen, de randen indrukken, terugzetten.
-        // Een macht KLEINER dan 1 duwt de waardes naar buiten: het midden van de
-        // plaat vult daardoor meer van de bol, en er blijft maar een smalle rand
-        // over die naar de punten wordt getrokken.
-        const t=(v-0.5)*2;                       // -1 .. 1
-        const s=Math.sign(t)*Math.pow(Math.abs(t),HEM_REK);
-        uv.setY(i,s*0.5+0.5); }
-      uv.needsUpdate=true; },
-
     hemelSorteer:function(){
       if(!this.hemels) return;
       this.hemels.sort(function(a,b){
