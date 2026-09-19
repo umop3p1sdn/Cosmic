@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.92';
+  const VERSIE='v14.93';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1517,12 +1517,16 @@
       {t:5.0,d:186,v:1.2,zw:0.48,zb:60,hb:12,aanval:'zwaar', zeg:'WHEEL TURNS'},
       {t:4.5,d:81, v:1.5,zw:0.85,zb:34,hb:16,aanval:'kort',  zeg:''} ],
     // duikt weg naar links of rechts en valt van opzij aan
+    // Sjoerd v14.93: "level 5 boss blijft rechts heel lang hangen." GEMETEN: hij
+    // zat 59 s op 62-82 graden opzij. Oorzaak: zijn zijwaartse uitslag (zb) bleef
+    // in ALLE stappen op 105-158, terwijl elke andere baas na zijn eerste zwaai
+    // terugzakt naar 20-90. Hij flankeert nog steeds, maar komt nu ook terug.
     'RAVEN':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:168,hb:27,aanval:'jacht', zeg:'DISENGAGING'},
-      {t:4.0,d:134, v:2.2,zw:0.70,zb:158,hb:20,aanval:'niets', zeg:'FLANKING'},
-      {t:3.5,d:72, v:2.4,zw:0.90,zb:124,hb:23,aanval:'kort',  zeg:''},
-      {t:6.0,d:186,v:1.8,zw:0.34,zb:105,hb:17,aanval:'zwaar', zeg:'TALON'},
-      {t:4.0,d:98, v:2.0,zw:0.75,zb:139,hb:22,aanval:'jacht', zeg:''} ],
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:150,hb:27,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:4.0,d:134, v:2.2,zw:0.70,zb:62,hb:20,aanval:'niets', zeg:'FLANKING'},
+      {t:3.5,d:72, v:2.4,zw:0.90,zb:34,hb:23,aanval:'kort',  zeg:''},
+      {t:6.0,d:186,v:1.8,zw:0.34,zb:78,hb:17,aanval:'zwaar', zeg:'TALON'},
+      {t:4.0,d:98, v:2.0,zw:0.75,zb:45,hb:22,aanval:'jacht', zeg:''} ],
     // drie ogen: trekken ver terug, draaien om elkaar heen, vuren om beurten
     // Sjoerd: "de drie ogen moeten verder uit elkaar, ze overlappen bijna. Ook
     // verder weg — wel binnen schietbereik." GEMETEN: ze stonden 39-52 m uit
@@ -2108,6 +2112,8 @@
   const COMBO_TIJD=4.0, COMBO_MAX=999, COMBO_TOON=1.8, COMBO_POPS=4.0;
   const RAK_PT=15, RAK_PT_ZW=40;   // punten voor een neergeschoten vijandelijke raket
   const COMBO_VUUR=5, COMBO_HEET=18;   // vanaf welke combo het vuur komt, en hoe snel het heet wordt
+  const PANO_DRIFT=0;           // v14.93: de hemel draait NIET meer (naad bleef achter je)
+  const WIJK_TERUG=32;          // verder dan dit opzij? dan wijkt hij naar het MIDDEN
   const HEMELVERSIE=2;          // v14.90: 6 en 9 los, gewoon op volgorde
   const BALK_UIT=1;             // v14.89: geen krachtbalk boven de baas
   const BALK_ORDE=120, COMBO_ORDE=40;  // de baasbalk tekent BOVEN de combometer
@@ -6542,7 +6548,10 @@
       this.hurtCd=0.6;
       this.power=Math.max(0,this.power-dmg);
       this.rood=Math.min(0.75,this.rood+dmg*0.020);
-      this.combo=0;
+      // Sjoerd v14.93: "doe maar geen reset bij hit — hoort wel, maar doen we
+      // lekker niet." GEMETEN: in twee minuten brak de combo TIEN keer doordat
+      // hij geraakt werd en maar één keer doordat de klok afliep. Alleen de klok
+      // breekt hem nu nog.
       if(this.power<=0) this.gameOver(); },
 
     // =====================================================
@@ -7538,7 +7547,13 @@
       if(dot<scherp) return;
       // uitwijken: omhoog of omlaag, en meteen een andere kant op
       const op=(Math.random()<0.5)?1:-1;
-      const zij=(e.p.x<this.kop.x)?-1:1;
+      // Sjoerd v14.93: "level 5 boss blijft rechts heel lang hangen, in zijn
+      // gevecht." GEVONDEN: hij week altijd VERDER van het midden af — stond hij
+      // rechts, dan ging hij nog verder rechts. Elke keer dat je op hem richtte
+      // schoof hij op, tot 79 graden opzij (gemeten), en hij kwam nooit terug.
+      // Nu wijkt hij NAAR HET MIDDEN zodra hij te ver weg staat.
+      let zij=(e.p.x<this.kop.x)?-1:1;
+      if(Math.abs(e.p.x-this.kop.x)>WIJK_TERUG) zij=-zij;
       e.wijkT=WIJK_TIJD;
       e.wijkY=op*WIJK_KRACHT*(0.7+Math.random()*0.6);
       e.wijkX=zij*WIJK_KRACHT*(0.5+Math.random()*0.7);
@@ -10305,7 +10320,13 @@
       // opnieuw naar de videokaart — vier miljoen pixels, elk beeldje, in een
       // bril twee keer. Terwijl alleen de VERSCHUIVING verandert, en die wordt
       // vanzelf doorgegeven: needsUpdate is daar niet voor nodig.
-      if(this.panoAan&&this.hemel.material.map&&this.hemel.material.map.offset){
+      // Sjoerd v14.93: "elke map achtergrond draait, misschien moeten we dat
+      // niet doen. Er zit achter een lelijke naad, die komt dan links in beeld
+      // na een bepaalde tijd. Stoppen met draaien?" Klopt: de hemel schoof een
+      // rondje per 600-1500 s, dus na een paar minuten kwam de naad langs. De
+      // naad staat bewust achter je rug (rotation.y = PI/2) en daar hoort hij
+      // te blijven.
+      if(PANO_DRIFT&&this.panoAan&&this.hemel.material.map&&this.hemel.material.map.offset){
         const m=this.hemel.material.map;
         m.offset.x=(m.offset.x+s/(this.panoBreed?600:1500))%1; }
       if(this.hurtCd>0) this.hurtCd-=s;
