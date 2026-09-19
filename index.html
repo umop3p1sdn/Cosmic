@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.97';
+  const VERSIE='v14.98';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -493,6 +493,17 @@
     try{ localStorage.setItem('cosmic_kaart',JSON.stringify({
       hemels:KAART.hemels.map(function(q){ return q.naam; }),
       bazen:KAART.bazen.map(function(q){ return q.naam; }),
+      // v14.98: de ECHTE bazenlijst zoals het spel hem heeft gemaakt, met de
+      // beurt per plaat. Zo kun je in LEVELS.html zien welke plaat level 11
+      // inpikt in plaats van te moeten raden.
+      baasLijst:(function(){ try{
+        const rg=document.querySelector('#rig');
+        const c=rg&&rg.components&&rg.components.cosmic;
+        if(!c||!c.bazen) return [];
+        return c.bazen.map(function(b){
+          return {naam:b.naam, beurt:b.beurt,
+                  platen:(b.delen||[]).map(function(d){ return d.__naam||'?'; })}; });
+      }catch(e){ return []; } })(),
       // v14.94: welke baas hoort bij welk level? Zo kun je in LEVELS.html zien
       // of een plaat een beurt heeft ingepikt die niet van hem is.
       baasBeurt:KAART.bazen.map(function(q){
@@ -1192,7 +1203,7 @@
   '      <a-entity id="mHelp" position="0.29 0.470 -2.57"></a-entity>'+
   '      <a-entity id="mTest" position="0.86 0.470 -2.57"></a-entity>'+
   '      <a-entity id="mVR" position="-0.86 0.185 -2.57"></a-entity>'+
-  '      <a-entity id="scoreLijst" position="0 -0.115 -2.57"></a-entity>'+
+  '      <a-entity id="scoreLijst" position="0 0.100 -2.57"></a-entity>'+
   '      <a-entity id="hulp" visible="false">'+
   '        <a-plane position="0 0.55 -2.50" width="2.40" height="1.62" material="color:#08111c;shader:flat;opacity:0.94;transparent:true"></a-plane>'+
   '        <a-plane position="0 0.55 -2.51" width="2.46" height="1.68" material="color:#2a9fc4;shader:flat;opacity:0.55;transparent:true"></a-plane>'+
@@ -1213,7 +1224,7 @@
   '      <a-text id="artTxt" value="" align="center" color="#37586b" width="1.0" position="-0.62 0.060 -2.57"></a-text>'+
   '      <a-text id="musTxt" value="" align="center" color="#37586b" width="1.0" position="0.62 0.060 -2.57"></a-text>'+
   '      <a-plane id="btnTrack" class="menu-btn" position="0.62 0.060 -2.58" width="0.42" height="0.10" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
-  '      <a-text id="bestTxt" value="" align="center" color="#37586b" width="1.0" position="0 -0.080 -2.57"></a-text>'+
+  '      <a-text id="bestTxt" value="" align="center" color="#37586b" width="1.0" position="0 -0.330 -2.57"></a-text>'+
   // Sjoerd v14.58: "nu maakt links of rechts niets meer uit, alles is hetzelfde
   // — dan mag de keuze links/rechts ook uit het menu." Klopt: sinds v14.45
   // kiest elke hand zijn eigen wapen, en sinds v14.58 geven beide grips hetzelfde
@@ -12107,7 +12118,11 @@
         // lijst altijd.
         const Lz=t.__lijst;
         if(Lz&&Lz.rol&&Lz.rol!=='baas'){ t.__baas=0; }
-        const isBaas=(t.__baas===1)||(t.__baas===undefined&&ar>=1.30);
+        // Sjoerd v14.98: "je kiest een grote vijand als baas, 9831." Die plaat
+        // staat niet meer in de lijst (hij is vervangen door 9922), dus werd hij
+        // op zijn breedte als baas geraden. Een ONBEKENDE plaat wordt nu nooit
+        // meer baas: alleen wie in de lijst staat of in een 'baas'-map zit.
+        const isBaas=(t.__baas===1);
         if(isBaas){ self.bazen=self.bazen||[];
           const L=t.__lijst;
           // geen beurt? dan 99: hij doet niet mee aan level 1 t/m 11
