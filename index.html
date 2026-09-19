@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.96';
+  const VERSIE='v14.97';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2063,6 +2063,7 @@
   // achter elkaar, kronkelend als een slang door de ruimte. Bochten van 40 tot
   // 70 m wijd. Valt er een uit, dan sluit er een nieuwe aan bij het moederschip.
   const KRUIS_N=6;              // zoveel arrows in beeld
+  const KRUIS_PAUZE=1.6;        // seconden tussen twee arrows die het kruis uitstuurt
   const KRUIS_ACHTER=0.14;      // hoeveel elke arrow achterloopt: groter = meer rits
   const KRUIS_MINY=2.0;         // ze duiken nooit onder deze hoogte
   const KRUIS_SP=26;            // hoe snel ze de slang volgen
@@ -5982,14 +5983,9 @@
         if(e.kooi) e.kooi.visible=false;
         if(this.haulL) for(let q=0;q<this.haulL.length;q++)
           if(this.haulL[q]) this.haulL[q].visible=false; }
-      // IRON CROSS neemt zijn hele treintje mee. Dit moet VOOR de knalDood-
-      // afslag hieronder: bij veel neerstortende schepen springt hij daar weg
-      // en kwam mijn regel nooit aan de beurt (gemeten: 6 arrows bleven vliegen).
-      if(e.kruis&&e.kruis.length){
-        const rij=e.kruis.slice(); e.kruis.length=0;
-        for(let q=0;q<rij.length;q++){ const a=rij[q];
-          if(a&&a.live&&!a.dood&&!a.dood2){ a.kruisVan=null;
-            this.raak(a,99999,a.p.x,a.p.y,a.p.z); } } }
+      // v14.97: de arrows zijn LOS, dus ze sterven niet meer mee met het kruis.
+      // Ze vliegen gewoon door als gewone schepen; je schiet ze stuk voor stuk af.
+      if(e.kruis) e.kruis.length=0;
       if(bezig>=STORTMAX||!e.bb){ this.knalDood(e); return; }
       e.dood=1; e.doodT=0;
       e.fase=1;                                        // meteen naar het beschadigde plaatje
@@ -6120,11 +6116,7 @@
         if(e.kooi) e.kooi.visible=false;
         if(this.haulL) for(let q=0;q<this.haulL.length;q++)
           if(this.haulL[q]) this.haulL[q].visible=false; }
-      if(e.kruis&&e.kruis.length){
-        const rij=e.kruis.slice(); e.kruis.length=0;
-        for(let q=0;q<rij.length;q++){ const a=rij[q];
-          if(a&&a.live&&!a.dood&&!a.dood2){ a.kruisVan=null;
-            this.raak(a,99999,a.p.x,a.p.y,a.p.z); } } }
+      if(e.kruis) e.kruis.length=0;
       if(TYPE[e.tp]&&(TYPE[e.tp].basis||TYPE[e.tp].n)==='BULWARK') this.sterUiteen(e);
       e.live=false; e.dood=0; e.hp=0;
       if(e.romp){ e.romp.visible=false; e.romp=null; }
@@ -8116,8 +8108,12 @@
       if(!e.kruis){ e.kruis=[]; e.kruisU=0; }
       e.kruisU=(e.kruisU+s*KRUIS_TRAAG)%2;
       // de rij aanvullen: alleen als de kop van het treintje langs het
-      // moederschip komt, zodat er geen arrows uit het niets verschijnen
-      const bijna=(e.kruisU<0.06)||(e.kruisU>1.94);
+      // Ze komen nu ÉÉN VOOR ÉÉN uit het kruis, met KRUIS_PAUZE ertussen. Omdat
+      // ze allemaal dezelfde 'halte'-baan krijgen vanaf dezelfde plek, vliegen ze
+      // achter elkaar dezelfde route — maar als losse schepen die je stuk voor
+      // stuk kunt neerhalen.
+      e.kruisPauze=(e.kruisPauze||0)-s;
+      const bijna=(e.kruisPauze<=0);
       // NIET op .live tellen: een neergeschoten arrow blijft 'live' tot zijn val
       // klaar is, en dan vult het treintje zich nooit meer aan (gemeten: hij
       // bleef op 3 van de 6 staan).
@@ -8129,21 +8125,17 @@
         if(tp>=0){
           const a=this.spawn(tp,{x:e.p.x,y:e.p.y,z:e.p.z,stijl:'halte',kruis:1});
           if(a){
-            a.kruisVan=e; a.kruisU=e.kruisU;        // hij start waar de slang nu is
             a.kruisI=e.kruisTel=((e.kruisTel||0)+1)%KRUIS_N;
             a.hp=a.hpM=KRUIS_HP;                    // eigen, veel lagere kracht
             a.cd=1.4; a.bT=1.4+Math.random();
+            e.kruisPauze=KRUIS_PAUZE;               // de volgende komt zo
             e.kruis.push(a); } } }
       // opruimen wat er niet meer is
       for(let i=e.kruis.length-1;i>=0;i--){ const a=e.kruis[i];
         if(!a||!a.live||a.dood||a.dood2) e.kruis.splice(i,1); }
-      // valt het moederschip, dan storten al zijn arrows mee neer. Dit MOET
-      // hier: een arrow die al neerstort wordt in de beurt overgeslagen, dus
-      // kruisVolg draait dan niet meer voor hem (gemeten: ze bleven vliegen).
-      if(e.dood||e.dood2||!e.live){
-        for(let i=0;i<e.kruis.length;i++){ const a=e.kruis[i];
-          if(a&&a.live&&!a.dood&&!a.dood2) this.raak(a,99999,a.p.x,a.p.y,a.p.z); }
-        e.kruis.length=0; }
+      // Sjoerd v14.97: de arrows staan LOS. Valt het kruis, dan vliegen zij
+      // gewoon door als normale vijanden — alleen de lijst gaat leeg.
+      if(e.dood||e.dood2||!e.live) e.kruis.length=0;
     },
 
     // een arrow die aan een kruis hangt volgt de slang
@@ -10448,7 +10440,11 @@
         // AZURE PLATE zwiert met jagerssnelheid heen en weer; die slaat zijn
         // gewone baan over
         if(bnK==='BASILISK'&&!e.dood&&!e.dood2){ this.plaatZwier(e,s); continue; }
-        if(e.kruisVan){ if(this.kruisVolg(e,s)) continue; }
+        // Sjoerd v14.97: "kan ze niet killen, moet de host killen. Maak de
+        // vliegtuigen los, laat ze als normale vliegtuigen vliegen — ze zitten
+        // nog vast als blok." Deze regel liet ze de SLANGBAAN volgen en hun eigen
+        // baan overslaan. Weg ermee: ze vliegen nu gewoon zoals elk ander schip.
+        // Het kruis stuurt ze alleen nog UIT; daarna staan ze op zichzelf.
         this.baan(e,s);
         // Het spook hoort bij zijn golf: de golf is pas af als hij ook dood is.
         if(!e.dood&&!e.dood2&&e.prof!=='baas') levend++;
@@ -12944,7 +12940,7 @@
       if(t) t.setAttribute('visible',!!aan);
       menuDeelToon(!aan); };
     const lvToon=function(){ const t=document.querySelector('#lvTxt');
-      if(t) t.setAttribute('value',techLv>16?'PARADE':('LEVEL '+techLv)); };
+      if(t) t.setAttribute('value',techLv>LEVELS?'PARADE':('LEVEL '+techLv)); };
     kl('#btnNieuw',function(){ versieHerlaad(); });
     // De drie standen staan naast elkaar; de gekozen licht op.
     const moeiToon=function(){
@@ -13064,10 +13060,14 @@
     kl('#btnTech',function(){ techToon(true); lvToon(); });
     kl('#btnTechUit',function(){ techToon(false); });
     kl('#btnLvMin',function(){ techLv=Math.max(1,techLv-1); lvToon(); wvToon(); });
-    kl('#btnLvPlus',function(){ techLv=Math.min(17,techLv+1); lvToon(); });
+    // Sjoerd v14.97: "test level select tot level 11, daarna is niet meer van
+    // kracht." Klopte: de kiezer liep tot 17, maar 12 t/m 16 bestaan niet — die
+    // gingen naar startSpel met een level dat er niet is. Nu 1 t/m 11, en 12 is
+    // PARADE.
+    kl('#btnLvPlus',function(){ techLv=Math.min(LEVELS+1,techLv+1); lvToon(); });
     const techStart=function(w,demo){
       techToon(false);
-      if(techLv>16){ startSpel(!!demo,{l:1,w:0});
+      if(techLv>LEVELS){ startSpel(!!demo,{l:1,w:0});
         // hier bestaat de verkorte C() niet; het spel zit op de rig
         const rg=document.querySelector('#rig');
         const c=rg&&rg.components&&rg.components.cosmic;
