@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v14.98';
+  const VERSIE='v14.99';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1085,7 +1085,7 @@
   '      <a-text id="hudC" value="" align="center" color="#6cf08a" width="2.6" position="0 0.34 -1.3"></a-text>'+
   // De TUTORIAL-tekst hangt LAGER dan de gewone melding: Sjoerd moest omhoog
   // kijken om hem te lezen. Nu recht voor je, net onder de horizon.
-  '      <a-text id="tutTxt" value="" align="center" color="#ffe45c" width="2.4" position="0 -0.10 -1.5" visible="false"></a-text>'+
+  '      <a-text id="tutTxt" value="" align="center" color="#ffe45c" width="2.4" position="0 0.02 -1.5" visible="false"></a-text>'+
   // DE COMBOMETER, linksonder in je blikveld. Opzet gebaseerd op hoe andere
   // shooters dit doen: een RING die leegloopt (zoveel tijd heb je nog voor de
   // volgende kill), een CIJFER dat opspringt bij elke verhoging, en kleuren die
@@ -1472,6 +1472,9 @@
   // Sjoerd v14.54: niet te breed schrijven — de lange teksten over twee regels.
   const TUT=[
     {k:1, les:'USE ROCKETS\nTO CONTROL THE SPACE', vij:'RAZOR',  n:6, spreid:1},
+    // één keer, en goed: terug naar je mitrailleur met de duimknop
+    {k:5, les:'MACHINE GUN', knop:1, vij:'WASP', n:4, spreid:1,
+          vraag:'PRESS BUTTON ON TOP OF\nL OR R JOYSTICK'},
     {k:2, les:'SHOTGUN\nFOR STRONGER, BIGGER',     vij:'BOMBER', n:1, dicht:1},
     {k:3, les:'LASER\nFOR STRONGER, BIGGER',       vij:'WATCHER',n:1, ver:1},
     {k:4, les:'USE ELECTRO\nFOR GROUPS',           vij:'WASP',   n:5, klont:1},
@@ -6688,7 +6691,19 @@
           let B=(opt&&opt.baas);
           if(!B){ for(let q=0;q<this.bazen.length;q++)
                     if(this.bazen[q].beurt===lvB){ B=this.bazen[q]; break; } }
+          // Sjoerd v14.99: "als eindbaas en score werkt is het spel gewoon klaar."
+          // De terugval pakte bazen[(level-1) % lengte] — en als IMG_0006 niet in
+          // de map zit, kan dat elke willekeurige plaat zijn. Nu zoeken we eerst
+          // de baas met de HOOGSTE echte beurt (dat is de eindbaas), en pas als
+          // er helemaal niets is de oude regel.
+          if(!B){
+            let hoogste=null;
+            for(let q=0;q<this.bazen.length;q++){ const b2=this.bazen[q];
+              if(b2.beurt>0&&b2.beurt<99&&(!hoogste||b2.beurt>hoogste.beurt)) hoogste=b2; }
+            if(hoogste&&lvB>=LEVELS) B=hoogste; }
           if(!B) B=this.bazen[(lvB-1)%this.bazen.length];
+          if(window.LOG) window.LOG('BAAS level '+lvB+': '+(B?B.naam:'geen')+
+            '  beurt '+(B?B.beurt:'-'));
           const bt=B.tex;
           e.baasNaam=B.naam; e.gedrag=B.gedrag||'schip'; e.vuur=B.vuur||'duo';
           if(B.naam==='WARDEN') this.genStart(e);
@@ -10039,6 +10054,11 @@
       // de doos: bij de ult-stap geen doos maar meteen de vijanden
       if(S2.ult){ this.tutFase=3; this.tutT=0; this.tutVrij=0;
         this.tutVijanden(S2); this.tutTekst(S2.les); return; }
+      // DE KNOPSTAP (Sjoerd v14.99): geen doos, gewoon vragen of je op je
+      // duimknop drukt. Zodra je dat doet komen de vijanden en schiet je met je
+      // mitrailleur. Eén keer, en goed.
+      if(S2.knop){ this.tutFase=2; this.tutT=0;
+        this.tutTekst(S2.vraag||'PRESS WITH THUMB ON BUTTON\nL OR R'); return; }
       this.tutDoos(S2.k);
       this.tutTekst('SHOOT '+(WKLEUR[S2.k]||'')+' BOX\n'+(WNAAM[S2.k]||'')); },
 
@@ -10156,7 +10176,10 @@
     tutPak:function(k){
       const S2=TUT[this.tutI]; if(!S2||S2.k!==k) return;
       this.tutFase=2; this.tutT=0;
-      this.tutTekst('PRESS '+(WRICHT[k]||'')+' ON JOYSTICK\nL OR R HAND\n\nTHUMB BUTTON = BACK TO GUN'); },
+      // Sjoerd v14.99: "vaak vermelden heeft geen zin, moet gewoon 1x goed."
+      // De knopregel is een EIGEN stap geworden (zie TUT), niet meer onder elke
+      // doos. Zo leest het ook niet meer door de wapenmelding heen.
+      this.tutTekst('PRESS '+(WRICHT[k]||'')+'\nON L OR R JOYSTICK'); },
 
     // het wapen is gekozen: de vijanden komen
     tutKies:function(k){
@@ -13178,13 +13201,18 @@
       if(P&&aan) P.setAttribute('visible',true);
       const n=document.querySelector('#naam');
       if(n) n.setAttribute('visible',!!aan);
-      // de knoppen eronder UITZETTEN: anders klik je er dwars doorheen op
-      // RESUME of QUIT (dat was de hele reden dat invoeren nooit lukte)
-      ['#btnGo','#btnQuit'].forEach(function(id){
+      // Sjoerd v14.99: het lukte nog steeds niet. GEVONDEN: btnNieuw (HERLAAD)
+      // staat op z=-2,18 met hoogte 0,71-0,97, en SAVE SCORE op z=-2,21 met
+      // 0,89-1,21. Ze OVERLAPPEN, en btnNieuw staat ervóór — mik je op de
+      // onderrand van SAVE, dan herlaad je het spel en ben je alles kwijt.
+      // Nu gaat ELKE knop achter het naamscherm uit, niet alleen die twee.
+      ['#btnGo','#btnQuit','#btnNieuw','#btnCont','#btnScores','#btnHelp',
+       '#btnTech','#btnVR','#btnShare','#btnStop','#btnStart','#btnDemo',
+       '#btnEasy','#btnNorm','#btnHard','#btnTrack','#btnProps','#btnLog'].forEach(function(id){
         const q=document.querySelector(id);
         if(q){ q.setAttribute('visible',!aan);
           if(aan) q.classList.remove('menu-btn'); else q.classList.add('menu-btn'); } });
-      ['#goTxt','#quitTxt','#pTitel','#pInfo'].forEach(function(id){
+      ['#goTxt','#quitTxt','#pTitel','#pInfo','#nieuwTxt'].forEach(function(id){
         const q=document.querySelector(id); if(q) q.setAttribute('visible',!aan); });
       if(aan){ NAAM=[0,0,0]; naamToon();
         // Sjoerd v14.77: "ook max combo erbij vermelden, en aantal continues."
