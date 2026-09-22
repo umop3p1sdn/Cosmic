@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.04';
+  const VERSIE='v15.05';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -3470,6 +3470,15 @@
         const gl=new THREE.Mesh(new THREE.SphereGeometry(1.9,12,8),
           new THREE.MeshBasicMaterial({color:kl,transparent:true,opacity:0.3,
             depthWrite:false,blending:THREE.AdditiveBlending}));
+        // Sjoerd v15.05: "level 9, 10 en 11 hebben nog steeds die bubble bij de
+        // intro van de baas." GEVONDEN: deze bollen werden hier op het NULPUNT
+        // gemaakt en pas in doelTick op hun plek gezet — en doelTick draait niet
+        // tijdens de intro. De hele intro lang stond er dus een bol van bijna
+        // twee meter om je hoofd (gemeten: 651 van de 651 beeldjes, bij AEGIS,
+        // LONGSHIP en AXLE). Nu meteen bij de baas, en pas zichtbaar als hij
+        // ergens staat.
+        g.position.copy(e.p);
+        g.visible=!!(e.p&&(e.p.x||e.p.y||e.p.z));
         g.add(gl); g.frustumCulled=false; g.renderOrder=8; this.par.add(g);
         e.doelen.push({m:g,hp:DOEL_HP,hpM:DOEL_HP,live:true,p:new THREE.Vector3(),
           i:i, hk:(i/n)*6.283, f0:(i/n)*6.283, r:0, kl:kl, flits:0}); }
@@ -10618,6 +10627,13 @@
           if(e.schildM3&&e.schildM3.visible){
             if(!e.live) e.schildM3.visible=false;
             else e.schildM3.position.copy(e.p); }
+          // v15.05: hetzelfde voor de bollen van een baas. Tijdens zijn intro
+          // draait doelTick niet, dus zouden ze blijven staan waar ze gemaakt
+          // zijn. Ze horen bij hem tot hij zelf het stuur overneemt.
+          if(e.doelen&&e.intro) for(let q=0;q<e.doelen.length;q++){
+            const g2=e.doelen[q];
+            if(g2&&g2.m){ g2.m.position.copy(e.p); g2.m.visible=!!(e.live&&g2.live);
+              g2.p.copy(e.p); } }
           // NIET op zichtbaarheid filteren: het SPOOKSCHIP is af en toe
           // onzichtbaar, werd dan overgeslagen, en stond scheef zodra hij weer
           // verscheen. Daar zag Sjoerd zijn platte kant.
