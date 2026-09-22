@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.03';
+  const VERSIE='v15.04';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -4637,7 +4637,19 @@
             blending:THREE.AdditiveBlending}));
         net.frustumCulled=false; m.add(net); m.__net=net;
         this.par.add(m); e.schildM3=m; }
-      e.schildM3.visible=true; },
+      // Sjoerd v15.04: "sommige bazen, als ik schiet als ze opkomen, heb ik een
+      // soort schild om mij heen." GEVONDEN: het schild werd hier meteen
+      // zichtbaar gezet, maar zijn PLEK pas in schildTick — en die komt niet aan
+      // de beurt tijdens de intro of bij een schip in springRust. Tot dan stond
+      // de bol op het nulpunt: precies waar jij staat. Dus nu meteen goed zetten.
+      // GEMETEN: dit wordt in spawn() aangeroepen VOORDAT het schip zijn plek
+      // krijgt (schild op regel ~6848, plek pas op ~6875). De bol stond dus één
+      // beeldje op het nulpunt — precies waar jij staat. Daarom pas zichtbaar
+      // zodra hij ergens staat; anders doet de schild-beurt het volgende beeldje.
+      const R0=Math.max(2,Math.max(e.bw||0,e.bh||0)*0.62);   // zelfde maat als schildTick
+      e.schildM3.position.copy(e.p);
+      e.schildM3.scale.set(R0,R0,R0);
+      e.schildM3.visible=!!(e.p&&(e.p.x||e.p.y||e.p.z)); },
 
     schildTick:function(e,s){
       if(!e.schildM3) return;
@@ -10600,6 +10612,12 @@
       // (rolaanval, klok, klimrol, yoyo, split-s, break turn) blijven vrij.
       { const nrm=this.PG||(this.PG=new THREE.Vector3());
         for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
+          // v15.04: het schild loopt ALTIJD mee met zijn schip, ook als de rest
+          // van zijn beurt wordt overgeslagen (intro, springRust). En van een
+          // schip dat er niet meer is hoort geen schild te blijven hangen.
+          if(e.schildM3&&e.schildM3.visible){
+            if(!e.live) e.schildM3.visible=false;
+            else e.schildM3.position.copy(e.p); }
           // NIET op zichtbaarheid filteren: het SPOOKSCHIP is af en toe
           // onzichtbaar, werd dan overgeslagen, en stond scheef zodra hij weer
           // verscheen. Daar zag Sjoerd zijn platte kant.
