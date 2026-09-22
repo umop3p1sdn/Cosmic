@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.01';
+  const VERSIE='v15.02';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1954,7 +1954,11 @@
   // Het overhellen in een bocht: hoeveel, bij welke zijsnelheid vol, en hoe
   // traag hij erin en eruit komt. Eén formule voor alle plekken.
   const HELLING=1.35, HELLING_V=26, HELLING_TRAAG=2.2, HELLING_MAX=0.92, HELLING_KRIMP=1.1;
-  const PLATGRENS=0.50;         // cos(60°): platter dan dit mag geen schip staan
+  const PLATGRENS=0.50;         // cos(60°): platter dan dit mag geen schip staan (bazen)
+  // v15.02: gewone schepen kijken altijd recht naar je toe (zie de laatste
+  // grens aan het eind van de beurt). Na een kunstje draaien ze in NAKUNST_T
+  // seconden vloeiend terug.
+  const NAKUNST_T=0.30, NAKUNST_V=14;
   // DE SPRINGER: hoe ver hij verspringt en hoe lang hij daarna moet wachten.
   // Sjoerd: de sprong en de duik waren te klein om te zien. Allebei verdubbeld.
   const SPRING_VER=50, SPRING_CD=10, SPRING_RUST=0.55;
@@ -6698,6 +6702,7 @@
         e.prof=T.prof; e.form=null; e.uit=0; e.dood=0; e.doodT=0; e.ring=null;
         e.stijl=(opt&&opt.stijl)||'halte'; e.zij=(opt&&opt.zij)||1; e.overs=0;
         e.dood2=0; e.dt=0; e.stuur=0; e.dz=0; e.hulpT=9; e.baasNaam=''; e.gedrag=''; e.trioI=null;
+        e.naKunst=0;                           // v15.02: geen oude kunstje-stand meenemen
         this.genWeg(e); this.escWeg(e); this.velgWeg(e); this.openWeg(e);
         e.hangar=0; e.escVorm=null; e.zwermBaas=0; e.zwT=undefined;
         e.trip=0; e.tripT=0; e.tripAan=0; e.weer=0; e.wapens=null; e.vuur='duo'; e.rookT=0;
@@ -10578,9 +10583,54 @@
           if(!e.live||!e.bb) continue;
           // Wrakken vallen hier ook onder: die draaien wel weg, maar mogen ook
           // niet zo plat komen te staan dat je hun zijkant ziet.
-          if(e.rolT>0||e.klimT>0||e.yoT>0||e.ssT>0||e.herpakT>0||e.klokR) continue;
+          if(e.rolT>0||e.klimT>0||e.yoT>0||e.ssT>0||e.herpakT>0||e.klokR){
+            // v15.02: onthouden hoe hij er tijdens het kunstje bij hing, zodat
+            // hij daarna vloeiend terugdraait in plaats van in één klap
+            e.naKunst=NAKUNST_T;
+            if(!e.qV) e.qV=new THREE.Quaternion();
+            e.qV.copy(e.bb.m.quaternion);
+            continue; }
           if(e.intro) continue;                         // baasintro doet zijn eigen ding
           const m=e.bb.m;
+          // ---- v15.02: ALTIJD RECHT NAAR JE TOE ----
+          // Sjoerd: "enkele vliegtuigen draaiden niet mooi met hun plaatje naar mij
+          // toe als ze op de rand kwamen, ze klapten over een knik als correctie op
+          // de hoek. Kan het vloeiend, dat ze gewoon haaks op mij blijven staan?"
+          // De oude regel hieronder liet een schip tot 60 graden wegdraaien en zette
+          // het pas dan in één klap terug. Nu kijkt elk gewoon schip ELK BEELDJE
+          // recht naar je hoofd — ook in de hoogte — met zijn kanteling erbovenop.
+          // Na een kunstje (rol, yoyo, looping) draait hij vloeiend terug.
+          // Bazen houden hun eigen regeling: die kantelen met opzet.
+          if(e.prof!=='baas'&&!e.baasNaam&&!e.dood&&!e.dood2){
+            const D=this.PGd||(this.PGd=new THREE.Object3D());
+            const lk3=this.PG3||(this.PG3=new THREE.Vector3());
+            D.position.copy(m.position);
+            // Horizontaal richten, net als de sprite-routine eerder in de beurt.
+            // Met hoogte erbij sprong hij heen en weer: sommige beurten stoppen
+            // vroeg en halen deze regel niet, en dan gold de richting zonder
+            // hoogte (gemeten: sprongen van 20-45 graden bij schepen die hoog
+            // vliegen). Nu zijn beide regels het eens, dus geen verschil meer.
+            lk3.set(this.kop.x, e.p.y, this.kop.z);
+            D.quaternion.identity(); D.lookAt(lk3);
+            // Zijn kanteling blijft: dat is de waarde die de bocht-, uitwijk- en
+            // golfroutines in rotation.z hebben gezet. Staat daar meer dan 90
+            // graden, dan is dat een omklapfout van de hoekberekening (een schip
+            // opzij van je) en geen bedoelde kanteling — die gaat dan terug.
+            let bank=m.rotation.z;
+            bank=Math.atan2(Math.sin(bank),Math.cos(bank));
+            if(bank>Math.PI/2) bank-=Math.PI; else if(bank<-Math.PI/2) bank+=Math.PI;
+            D.rotateZ(bank);
+            // Elke beurt EXACT recht naar je toe. Een 'vloeiend terugdraaien'
+            // begon elke beurt opnieuw vanaf de stand die eerdere code net had
+            // gezet, niet vanaf het vorige beeldje — dat gaf juist schokken.
+            if(e.naKunst>0&&e.qV){
+              // net klaar met een kunstje: vloeiend terug naar recht
+              e.naKunst-=s;
+              e.qV.slerp(D.quaternion,Math.min(1,s*NAKUNST_V));
+              if(e.naKunst<=0) e.qV.copy(D.quaternion);
+              m.quaternion.copy(e.qV); }
+            else m.quaternion.copy(D.quaternion);
+            continue; }
           nrm.set(0,0,1).applyQuaternion(m.quaternion);
           const kx=this.kop.x-e.p.x, ky=this.kop.y-e.p.y, kz=this.kop.z-e.p.z;
           const kl=Math.hypot(kx,ky,kz)||1;
