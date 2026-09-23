@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.05';
+  const VERSIE='v15.06';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -734,7 +734,14 @@
             if(!window.ART.pano||t.image.width>(window.ART.pano.image.width||0)) window.ART.pano=t; }
           else if(ar>=0.55&&ar<=1.05&&leeg>=0.05){            // staande of vierkante plaat = de vloot
             window.ART.schepen.push(t); }
-          else window.ART.objs.push(t);
+          // Sjoerd v15.06: "ik zie vliegtuigen nu als props voorbij komen. Geef
+          // png-bestanden ook voorbestemming, het een is niet het ander."
+          // Deze laatste regel maakte van ELKE plaat die nergens in paste een
+          // prop in de verte — ook een nieuw vliegtuig dat nog niet in de lijst
+          // staat. Een prop is nu alleen nog iets dat ER OM VRAAGT: in de
+          // nummerlijst als object of planeet, of in een map met 'object',
+          // 'planeet' of 'prop' in de naam. Al het andere wordt een schip.
+          else window.ART.schepen.push(t);
           if(window.ART.nieuw) window.ART.nieuw(); }
         }); }); }
 
@@ -4665,6 +4672,11 @@
       if(!(e.schild>0)){ e.schildM3.visible=false; return; }
       e.schildP=(e.schildP||0)+s*3.6;
       e.schildM3.position.copy(e.p);
+      // v15.06: hier weer AANZETTEN. In v15.05 liet ik hem bij het maken uit als
+      // het schip nog geen plek had (tegen de bol op je hoofd), maar niets zette
+      // hem daarna ooit aan — dus miste je het schild bij bazen die hun schild
+      // bij het opstarten krijgen, zoals AEGIS in level 9.
+      if(e.p.x||e.p.y||e.p.z) e.schildM3.visible=true;
       // een echte BOL: overal even dik, ruim om het schip heen
       const R=Math.max(e.bw,e.bh)*0.62;
       e.schildM3.scale.set(R,R,R);
@@ -10624,9 +10636,11 @@
           // v15.04: het schild loopt ALTIJD mee met zijn schip, ook als de rest
           // van zijn beurt wordt overgeslagen (intro, springRust). En van een
           // schip dat er niet meer is hoort geen schild te blijven hangen.
-          if(e.schildM3&&e.schildM3.visible){
+          if(e.schildM3){
             if(!e.live) e.schildM3.visible=false;
-            else e.schildM3.position.copy(e.p); }
+            else { e.schildM3.position.copy(e.p);
+              // ook tijdens de intro: wel zichtbaar, maar bij zijn eigen schip
+              if(e.schild>0&&(e.p.x||e.p.y||e.p.z)) e.schildM3.visible=true; } }
           // v15.05: hetzelfde voor de bollen van een baas. Tijdens zijn intro
           // draait doelTick niet, dus zouden ze blijven staan waar ze gemaakt
           // zijn. Ze horen bij hem tot hij zelf het stuur overneemt.
