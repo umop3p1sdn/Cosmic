@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.08';
+  const VERSIE='v15.09';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -674,6 +674,12 @@
       const url=ARTBASE+nm.split('/').map(encodeURIComponent).join('/');
       artLaad(url,function(t){
         klaar++; window.ART.klaar=klaar;
+        // Sjoerd v15.09: "in het eerste laadscherm blijft de laadbalk vaak
+        // hangen en laat niet zien dat hij verder laadt." Klopte: de balk werd
+        // op zeven vaste momenten gezet (12, 20, 38, 58, 88, 100) en juist
+        // hiertussen — het laden van alle platen — gebeurde niets. Nu schuift
+        // hij mee met elke plaat die binnen is, van 58 naar 88 procent.
+        try{ prog(58+30*(klaar/Math.max(1,n)),'ART  '+klaar+' / '+n); }catch(e){}
         // METEEN afvinken. Stond dit onderaan, dan sprongen bazen en planeten er
         // met een return overheen en bleef 'alles binnen' op onwaar staan — en
         // dan weigeren LAUNCH, DEMO en TEST allemaal.
