@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.06';
+  const VERSIE='v15.07';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -12248,7 +12248,15 @@
           // Alleen wie ECHT gemeten is met 4 kolommen en genoeg rijen telt als vloot;
           // de rest verhuist naar de losse hemelobjecten.
           const echt=P&&P.hoe.indexOf('gemeten')===0&&P.kol.length===4&&P.rijen>=4;
-          if(!echt){ window.ART.objs.push(t); return; }
+          // Sjoerd v15.07: "alle vliegtuigen hebben toch al een bestemming, per
+          // level zijn ze ingedeeld." Klopt: elk schip staat in de nummerlijst en
+          // wordt via ART.losse gebruikt. Een plaat die HIER strandt is dus geen
+          // schip dat nog een plek zoekt, maar een restant — en die werd een prop
+          // in de verte. Dat is wat Sjoerd als 'vliegtuigen als props' zag.
+          // Nu blijft zo'n plaat gewoon ongebruikt. Een prop wordt alleen wie
+          // erom vraagt: in de nummerlijst als object of planeet, of in een map
+          // met 'object', 'planeet' of 'prop' in de naam.
+          if(!echt){ return; }
           // DE VIERKANTE VIJANDEN. De platen werden gekozen op hun VERHOUDING,
           // maar twee vlootplaten zijn allebei 1024x1536 — dus wisselden die
           // willekeurig van rol. Kwam de plaat met 6 rijen op de plek van een
