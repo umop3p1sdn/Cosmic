@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.07';
+  const VERSIE='v15.08';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1486,6 +1486,7 @@
   //  HET SPEL
   // =========================================================
   const WCOL=[0x9fe4f5,0xff8a3d,0xfff2c0,0x66f0ff,0xc07dff,0xffe45c];   // 0 basis 1 raket 2 hagel 3 kanon 4 electro 5 mg
+  const RECHTS_DONKER=0.78;     // v15.08: de rechterhand schiet een tintje donkerder
   const WNAAM=['','ROCKET','SHOTGUN','LASER','ELECTRO','MACHINE GUN'];
   // Sjoerd v14.45: in level 1 krijg je bij de EERSTE doos van elke soort uitleg.
   // Het spel pauzeert, vertelt welke kleur bij welk wapen hoort, en na het
@@ -1902,7 +1903,7 @@
   // groot ze zijn, en hoe lang het schild valt als ze allemaal kapot zijn.
   // Sjoerd: "die ballen zijn al kapot before you know it." Van 190 naar 760,
   // en ze knipperen wit bij elke treffer zodat je ziet dat je ze raakt.
-  const DOEL_HP=340, DOEL_MAAT=4.0, DOEL_OPEN=4, DOEL_FLITS=0.16;   // v14.24: venster van 4 s
+  const DOEL_HP=340, DOEL_MAAT=4.0, DOEL_OPEN=4, DOEL_FLITS=0.30;   // v15.08: langere flits
   const AXLE_BLAUW=1000;        // het binnenschild van de eindbaas; weg is weg
   const CORE_SNEL=0.7, CORE_R=34;   // hoe snel en hoe ver de knooppunten schuiven
   const HEAD_SNEL=0.5, HEAD_R=30;   // hoe snel en hoe wijd de kernen meedraaien
@@ -3553,8 +3554,18 @@
           const f=g.flits/DOEL_FLITS;
           g.m.material.color.setHex(0xffffff);
           g.m.scale.setScalar(DOEL_MAAT*(1+f*0.55)); }
-        else { if(g.kl!==undefined) g.m.material.color.setHex(g.kl);
-          g.m.scale.setScalar(DOEL_MAAT*(1+Math.sin(this.T*5+i)*0.1)); }
+        else {
+          // hoe meer hij gehad heeft, hoe roder hij gloeit: zo zie je of je
+          // opschiet (v15.08)
+          const deel=Math.max(0,Math.min(1,g.hp/Math.max(1,g.hpM||DOEL_HP)));
+          if(g.kl!==undefined){
+            const k0=g.kl, rr=(k0>>16)&255, gg=(k0>>8)&255, bb2=k0&255;
+            const r2=Math.round(rr+(255-rr)*(1-deel));
+            const g2=Math.round(gg*(0.35+deel*0.65));
+            const b2=Math.round(bb2*(0.25+deel*0.75));
+            g.m.material.color.setHex((r2<<16)|(g2<<8)|b2); }
+          // en hij pulseert sneller naarmate hij zwakker wordt
+          g.m.scale.setScalar(DOEL_MAAT*(1+Math.sin(this.T*(5+(1-deel)*9)+i)*(0.1+(1-deel)*0.12))); }
         if(Math.random()<s*1.2) this.bliksemStraal(g.p,e.p,
           (e.doelSoort==='core')?0xffc040:((e.doelSoort==='head')?0xff6a4a:0x6fd8ff)); }
       // alles kapot: het schild valt een paar seconden en komt dan terug
@@ -3574,7 +3585,13 @@
         if(!g.live) continue;
         if(Math.hypot(px-g.p.x,py-g.p.y,pz-g.p.z)>DOEL_MAAT*2.2) continue;
         g.hp-=dmg; g.flits=DOEL_FLITS;                  // knippert wit bij een treffer
-        this.vonk(px,py,pz,0xffffff,5,3,0.4);
+        // Sjoerd v15.08: "als ik hun bol schiet om het schild kapot te maken,
+        // graag dat de bol duidelijk laat zien dat ik hem raak." Meer vonken, een
+        // ring op de inslag, en een tik.
+        this.vonk(px,py,pz,0xffffff,12,5,0.5);
+        this.vonk(px,py,pz,0xffc040,8,7,0.7);
+        this.schokRing(g.p);
+        SND.hit&&SND.hit(px*0.02,0.55);
         if(g.hp<=0){ g.live=false; g.m.visible=false;
           this.vonk(g.p.x,g.p.y,g.p.z,0xffffff,14,6,0.6);
           this.vonk(g.p.x,g.p.y,g.p.z,0x6fd8ff,20,9,0.9);
@@ -5485,6 +5502,11 @@
         SND.boom(0); return true; }
       return false; },
 
+    // een kleur een tikje donkerder maken (1 = gelijk, 0,8 = twintig procent donkerder)
+    tintDonker:function(kl,f){
+      const r=Math.round(((kl>>16)&255)*f), g=Math.round(((kl>>8)&255)*f), b=Math.round((kl&255)*f);
+      return (r<<16)|(g<<8)|b; },
+
     fire:function(h){
       // Tijdens de UITLEG mag je wél schieten: Sjoerd wil dat je in de pauze
       // rondkijkt, de doos zoekt en hem raakt — dat is juist de manier om verder
@@ -5507,7 +5529,12 @@
       if(mikH) this.dir.copy(mikH).normalize();
       if(this.grab(this.ori,this.dir,h)) return;
       this.schoten++;
-      const col=WCOL[W.t], lv=this.kr(W);
+      // Sjoerd v15.08: "graag mijn rechter machine gun een klein tintje anders,
+      // zodat ik altijd weet welke links of rechts is als ik ze dicht bij elkaar
+      // houd." Een tikje donkerder, verder precies dezelfde kleur.
+      let col=WCOL[W.t];
+      if(h&&h.id==='rightHand') col=this.tintDonker(col,RECHTS_DONKER);
+      const lv=this.kr(W);
 
       if(W.t===1){ SND.gun(this.dir.x*0.6,1); SND.boom(this.dir.x*0.3);
         // ZEVEN TRAPPEN. Aantal en explosiekracht groeien apart, dus je voelt
