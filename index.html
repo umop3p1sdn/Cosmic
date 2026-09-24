@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.09';
+  const VERSIE='v15.11';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1910,6 +1910,7 @@
   // Sjoerd: "die ballen zijn al kapot before you know it." Van 190 naar 760,
   // en ze knipperen wit bij elke treffer zodat je ziet dat je ze raakt.
   const DOEL_HP=340, DOEL_MAAT=4.0, DOEL_OPEN=4, DOEL_FLITS=0.30;   // v15.08: langere flits
+  const DOEL_FX=0.26;           // v15.11: minstens zoveel tijd tussen twee grote inslagen
   const AXLE_BLAUW=1000;        // het binnenschild van de eindbaas; weg is weg
   const CORE_SNEL=0.7, CORE_R=34;   // hoe snel en hoe ver de knooppunten schuiven
   const HEAD_SNEL=0.5, HEAD_R=30;   // hoe snel en hoe wijd de kernen meedraaien
@@ -3531,6 +3532,7 @@
       const n=e.doelen.length;
       for(let i=0;i<n;i++){ const g=e.doelen[i];
         if(!g.live) continue; leven++;
+        if(g.fxT>0) g.fxT-=s;                   // v15.11: rustpauze voor het vuurwerk
         if(e.doelSoort==='core'){
           // LONGSHIP: knooppunten SCHUIVEN langs zijn lange romp, heen en weer,
           // en wisselen af en toe van kant. Je moet meebewegen met de romp.
@@ -3594,10 +3596,16 @@
         // Sjoerd v15.08: "als ik hun bol schiet om het schild kapot te maken,
         // graag dat de bol duidelijk laat zien dat ik hem raak." Meer vonken, een
         // ring op de inslag, en een tik.
-        this.vonk(px,py,pz,0xffffff,12,5,0.5);
-        this.vonk(px,py,pz,0xffc040,8,7,0.7);
-        this.schokRing(g.p);
-        SND.hit&&SND.hit(px*0.02,0.55);
+        // v15.11: NIET bij elke kogel de volle bak. Met de mitrailleur zijn dat
+        // twaalf treffers per seconde, en dan liep de vonkenstapel tot 262 van de
+        // 300 vol (gemeten) — dan blijft er niets over voor explosies elders. De
+        // grote klap hooguit vijf keer per seconde, daartussen een kleine.
+        if(!(g.fxT>0)){ g.fxT=DOEL_FX;
+          this.vonk(px,py,pz,0xffffff,10,5,0.5);
+          this.vonk(px,py,pz,0xffc040,6,7,0.7);
+          this.schokRing(g.p);
+          SND.hit&&SND.hit(px*0.02,0.55); }
+        else this.vonk(px,py,pz,0xffffff,2,4,0.3);
         if(g.hp<=0){ g.live=false; g.m.visible=false;
           this.vonk(g.p.x,g.p.y,g.p.z,0xffffff,14,6,0.6);
           this.vonk(g.p.x,g.p.y,g.p.z,0x6fd8ff,20,9,0.9);
@@ -5539,7 +5547,9 @@
       // zodat ik altijd weet welke links of rechts is als ik ze dicht bij elkaar
       // houd." Een tikje donkerder, verder precies dezelfde kleur.
       let col=WCOL[W.t];
-      if(h&&h.id==='rightHand') col=this.tintDonker(col,RECHTS_DONKER);
+      // v15.11: alleen de MITRAILLEUR, zoals gevraagd. In v15.08 raakte dit ook
+      // de hagel, want die gebruikt dezelfde kleur.
+      if(W.t===5&&h&&h.id==='rightHand') col=this.tintDonker(col,RECHTS_DONKER);
       const lv=this.kr(W);
 
       if(W.t===1){ SND.gun(this.dir.x*0.6,1); SND.boom(this.dir.x*0.3);
@@ -10469,6 +10479,7 @@
       // overTick, dus telde de GAME OVER-klok (overT) nooit af, weigerde verder()
       // eeuwig, en kwam er nooit een CONTINUE. Nu telt de klok hier ook.
       if(window.DEMO&&this.over){ this.overTick(s);
+        this.musTick(s);                    // v15.10: ook hier muziek blijven proberen
         this.dOver=(this.dOver||0)+s;
         if(this.dOver>2.2){ this.dOver=0; this.verder(); }
         return; }
@@ -13090,7 +13101,13 @@
     if(window.ARTKLAAR===false) return;                  // nog aan het laden
     window.DEMO=!!demo;
     if(demo) window.DEMOWACHT=performance.now()+1400;   // niet meteen weer uit
+    // Sjoerd v15.10: "de demo heeft geen muziek of geluid." De geluidsmachine
+    // kan op pauze staan (dat gebeurt onder meer na QUIT, dat hem suspend). AC()
+    // maakt hem niet wakker; alleen speelAls deed dat, en die loopt pas een halve
+    // seconde later. Nu meteen hier.
     AC(); SND.initSFX(); SND.muziek(); SND.wake();
+    try{ const a=AC(); if(a&&a.state==='suspended'&&a.resume) a.resume(); }catch(e){}
+    try{ SND.speelAls&&SND.speelAls(); }catch(e){}
     const m=document.querySelector('#menu'); if(m) m.setAttribute('visible',false);
     const p=document.querySelector('#paneel'); if(p) p.setAttribute('visible',false);
     // Ook de losse panelen dicht: die zitten BINNEN het menu, maar staan op hun
