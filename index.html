@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.13';
+  const VERSIE='v15.15';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2117,6 +2117,7 @@
   // achter elkaar, kronkelend als een slang door de ruimte. Bochten van 40 tot
   // 70 m wijd. Valt er een uit, dan sluit er een nieuwe aan bij het moederschip.
   const KRUIS_N=6;              // zoveel arrows in beeld
+  const STER_MAAT=3.4;          // v15.15: hoe groot een ministerretje is
   const KRUIS_PAUZE=1.6;        // seconden tussen twee arrows die het kruis uitstuurt
   const KRUIS_ACHTER=0.14;      // hoeveel elke arrow achterloopt: groter = meer rits
   const KRUIS_MINY=2.0;         // ze duiken nooit onder deze hoogte
@@ -6912,7 +6913,13 @@
           // dus je schoten gaan er vaak langs. Ze zijn nu groter en zachter.
           if(B.naam==='IRONCLAD'){ e.escVorm='ring'; this.escStart(e); e.escMaat=2.6; e.escHp=90; }
           // THE WALKER: vier kanonnen op de flanken als generatoren, ze vuren terug
-          if(B.naam==='THE WALKER'){ e.escVorm='flank'; this.escStart(e); e.escMaat=2.4; e.escHp=110; }
+          // Sjoerd v15.14: "ik zie zijn defensiebollen bijna niet, laat ze ook
+          // maar door de lucht vliegen. En dat ze power geven aan zijn shield,
+          // net als bij een andere baas die dat ook heeft." Zijn vier mijnen
+          // kleefden tegen zijn romp (op 0,55 x zijn breedte) en vielen daardoor
+          // weg tegen zijn plaat. Nu vier VLIEGENDE bollen, net als AEGIS: zolang
+          // er één leeft staat zijn schild, en zijn ze op dan ligt hij open.
+          if(B.naam==='THE WALKER') this.doelStart(e,4,'sera');
           // HALO: overal schild, één wandelende opening (wisselend)
           if(B.naam==='AEGIS') this.doelStart(e,3,'sera');      // drie vliegende bollen
           // LONGSHIP: overal schild, vaste opening bovenop (de toren)
@@ -8051,7 +8058,20 @@
           B.streep=0; B.boog=0; B.wieg=0;
           B.tol=STER_TOL; B.tolHk=Math.random()*6.283;
           B.brand=0; B.splT=0; B.wijk=0;
-          if(B.m&&B.m.material&&B.m.material.color) B.m.material.color.setHex(0xffe45c);
+          // Sjoerd v15.15: "de ster laat niet altijd even duidelijk ministerren
+          // achter die naar mij toe komen. Doe maar dezelfde png van de ster,
+          // maar dan mini." Ze waren een gekleurde streep; nu dragen ze zijn
+          // eigen plaat, vierkant en klein.
+          const tex=(e.bb&&e.bb.m&&e.bb.m.material)?e.bb.m.material.map:null;
+          if(tex&&B.m){
+            if(!this.sterMat) this.sterMat=new THREE.MeshBasicMaterial({
+              transparent:true,alphaTest:0.06,depthWrite:false,
+              side:THREE.DoubleSide,color:0xffffff});
+            if(this.sterMat.map!==tex){ this.sterMat.map=tex; this.sterMat.needsUpdate=true; }
+            B.m.material=this.sterMat;
+            B.len=STER_MAAT; B.br=STER_MAAT; }       // vierkant, dus de plaat blijft kloppen
+          else { if(B.m&&B.m.material&&B.m.material.color) B.m.material.color.setHex(0xffe45c);
+            B.len=2.4; B.br=1.2; }
           if(B.m) B.m.scale.setScalar(1.15);
           B.m.position.copy(p);
           break; } }
