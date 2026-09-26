@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.15';
+  const VERSIE='v15.16';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -4874,7 +4874,9 @@
       if(!(e.velgFx>0)){ e.velgFx=DOEL_FX;
         this.vonk(vx,vy,vz,0xffffff,9,5,0.5);
         this.vonk(vx,vy,vz,0xffd030,6,6,0.6);
-        this.schokRing(this.tmpV||(this.tmpV=new THREE.Vector3(vx,vy,vz)).set(vx,vy,vz));
+        // v15.16: de haakjes stonden fout. Bestond tmpV al, dan werd hij NIET
+        // bijgewerkt en kwam elke ring op de plek van de eerste treffer.
+        this.schokRing((this.tmpV||(this.tmpV=new THREE.Vector3())).set(vx,vy,vz));
         SND.hit&&SND.hit(vx*0.02,0.55); }
       else this.vonk(vx,vy,vz,0xffd030,2,4,0.3);
       // Sjoerd: "kan zijn schild kapot? Dan daar graag een krachtbalk van."
@@ -6844,6 +6846,9 @@
         e.rakOp=0; e.rakWijkT=0; e.ssT=0; e.ssCd=0; e.duikRolCd=0;
         e.ufoT=undefined; e.ufoDoel=null; e.ufoRust=0; e.ufoWegCd=0; e.ufoZij=0;
         e.rsT=undefined; e.rsAan=0; e.rsRest=0; e.rsOp=0; e.ringHulpje=0; e.dubbel=0; e.rsHp=0;
+        // v15.16 (valkuil 1): de rustpauzes van de inslagen horen ook in de
+        // wisregel, anders erft een hergebruikte baas een rem die nooit afloopt
+        e.velgFx=0; e.openFx=0; e.blauwFx=0; e.velgFlits=0; e.blauwFlits=0;
         e.wiel=0; e.wielA=undefined; e.velgKapot=0; e.velgAan=0; e.velgRest=0;
         e.blauw=0; e.blauwM=0; e.blauwFlits=0;
         if(e.doelen) this.doelWeg(e); e.doelT=0; e.doelSoort=null; e.klimT=0; e.klimCd=0; e.klimDuik=0; e.yoT=0; e.yoCd=0; e.flareCd=0; e.flareWeg=0; e.hangarJager=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
@@ -8064,11 +8069,11 @@
           // eigen plaat, vierkant en klein.
           const tex=(e.bb&&e.bb.m&&e.bb.m.material)?e.bb.m.material.map:null;
           if(tex&&B.m){
-            if(!this.sterMat) this.sterMat=new THREE.MeshBasicMaterial({
+            if(!this.sterPlaat) this.sterPlaat=new THREE.MeshBasicMaterial({
               transparent:true,alphaTest:0.06,depthWrite:false,
               side:THREE.DoubleSide,color:0xffffff});
-            if(this.sterMat.map!==tex){ this.sterMat.map=tex; this.sterMat.needsUpdate=true; }
-            B.m.material=this.sterMat;
+            if(this.sterPlaat.map!==tex){ this.sterPlaat.map=tex; this.sterPlaat.needsUpdate=true; }
+            B.m.material=this.sterPlaat;
             B.len=STER_MAAT; B.br=STER_MAAT; }       // vierkant, dus de plaat blijft kloppen
           else { if(B.m&&B.m.material&&B.m.material.color) B.m.material.color.setHex(0xffe45c);
             B.len=2.4; B.br=1.2; }
