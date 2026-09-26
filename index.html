@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.17';
+  const VERSIE='v15.18';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2183,7 +2183,7 @@
   const PANO_DRIFT=0;           // v14.93: de hemel draait NIET meer (naad bleef achter je)
   const WIJK_TERUG=32;          // verder dan dit opzij? dan wijkt hij naar het MIDDEN
   const HEMELVERSIE=2;          // v14.90: 6 en 9 los, gewoon op volgorde
-  const BW_KNIP=11, BW_POP=0.5; // v15.17: hoe snel ATTACK! knippert, en de klap bij het omslaan
+  const BW_KNIP=11, BW_POP=0.5, BW_AANVAL=2.0;   // knippertempo, de klap, en hoe lang ATTACK! blijft
   const BALK_UIT=1;             // v14.89: geen krachtbalk boven de baas
   const BALK_ORDE=120, COMBO_ORDE=40;  // de baasbalk tekent BOVEN de combometer
   // Vanaf COMBO_INF staat de hele meter in brand: meer vlammen, uit het hele
@@ -8816,46 +8816,42 @@
     // Zolang er nog iets tussen jou en zijn romp zit kun je hem niet raken.
     // Dat is de volgorde uit raak(): eerst zijn bollen, dan het blauwe
     // binnenschild, dan zijn schild, dan zijn krachtveld.
-    baasDicht:function(e){
-      if(!e) return false;
-      if(e.doelen) for(let i=0;i<e.doelen.length;i++) if(e.doelen[i].live) return true;
-      if(e.blauw>0) return true;
-      // de OPENING telt niet als dicht: daar kun je gewoon doorheen mikken,
-      // het is een kwestie van richten en niet van wachten
-      if(e.schild>0) return true;
-      if(e.moedF===1) return true;
-      return false; },
-
+    // ---- HOLD YOUR FIRE / ATTACK (Sjoerd v15.18) ----
+    // "Hold your fire is bij de intro als de baas opkomt. Daarna is er gewoon
+    // gevecht. Attack is voor 2 seconden genoeg."
     baasWaarschuwing:function(s){
       const el=document.querySelector('#mBaasWaar'); if(!el) return;
       const e=this.baas;
-      const toon=!!(e&&e.live&&!e.intro&&!e.dood&&!e.dood2&&window.PHASE==='game'&&!window.PAUSED);
-      if(!toon){ if(this.bwAan){ this.bwAan=0; this.bwStand=null;
-          el.setAttribute('visible',false); } return; }
-      this.bwAan=1;                       // v15.17: deze stond nooit aan, dus bleef
-      el.setAttribute('visible',true);    // ATTACK! staan nadat de baas dood was
-      const dicht=this.baasDicht(e);
-      this.bwT=(this.bwT||0)+s;
-      // wisselt hij van dicht naar open, dan een korte klap erbij
-      if(this.bwDicht===undefined) this.bwDicht=dicht?1:0;
-      if((dicht?1:0)!==this.bwDicht){
-        this.bwDicht=dicht?1:0; this.bwT=0;
-        if(!dicht){ SND.alarm&&SND.alarm(0.6); this.bwPop=BW_POP; } }
-      if(this.bwPop>0) this.bwPop-=s;
-      if(dicht){
-        // rustig, geel: je verspilt je kogels
+      const bezig=!!(e&&e.live&&!e.dood&&!e.dood2&&window.PHASE==='game'&&!window.PAUSED);
+      const uit=function(self){ if(self.bwAan){ self.bwAan=0; self.bwStand=null;
+        el.setAttribute('visible',false); } };
+      // geen baas (meer): alles uit en de tellers terug
+      if(!bezig){ uit(this); this.bwIntro=0; this.bwAanval=0; return; }
+      if(e.intro){
+        // hij komt op: HOLD YOUR FIRE, rustig geel
+        this.bwIntro=1; this.bwAanval=0; this.bwAan=1;
+        el.setAttribute('visible',true); el.setAttribute('scale','1 1 1');
         if(this.bwStand!=='dicht'){ this.bwStand='dicht';
           try{ this.letterZet('#mBaasWaar','HOLD YOUR FIRE!','#ffe45c','#a06a10',0.070,0.30,'actie'); }catch(x){} }
-        el.setAttribute('scale','1 1 1');
-      } else {
-        // groot, knipperend rood
-        const kn=Math.sin(this.bwT*BW_KNIP);
-        const wit=(kn>0.4);
+        return; }
+      // de intro is net voorbij: twee tellen ATTACK
+      if(this.bwIntro){ this.bwIntro=0; this.bwAanval=BW_AANVAL; this.bwT=0;
+        SND.alarm&&SND.alarm(0.6); }
+      if(this.bwAanval>0){
+        this.bwAanval-=s; this.bwT=(this.bwT||0)+s; this.bwAan=1;
+        el.setAttribute('visible',true);
+        const kn=Math.sin(this.bwT*BW_KNIP), wit=(kn>0.4);
         if(this.bwStand!==(wit?'aanW':'aanR')){ this.bwStand=(wit?'aanW':'aanR');
           try{ this.letterZet('#mBaasWaar','ATTACK!',wit?'#ffffff':'#ff3d55',
             wit?'#ff3d55':'#7a0d1c',0.130,0.34,'actie'); }catch(x){} }
-        const gr=1+Math.max(0,kn)*0.10+((this.bwPop>0)?(this.bwPop/BW_POP)*0.45:0);
-        el.setAttribute('scale',gr+' '+gr+' '+gr); } },
+        // groot binnenkomen, daarna rustig kloppen
+        const start=Math.max(0,(this.bwAanval-(BW_AANVAL-BW_POP))/BW_POP);
+        const gr=1+Math.max(0,kn)*0.10+start*0.45;
+        el.setAttribute('scale',gr+' '+gr+' '+gr);
+        if(this.bwAanval<=0) uit(this);
+        return; }
+      // daarna gewoon gevecht: niets in beeld
+      uit(this); },
 
     baasBalk:function(e){
       // Sjoerd v14.89: "baasbalk is al heel lang niet zichtbaar. Hoeft ook niet,
