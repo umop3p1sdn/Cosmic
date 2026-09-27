@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.19';
+  const VERSIE='v15.20';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1233,13 +1233,68 @@
   '      <a-entity id="mShare" position="0.00 0.74 -2.51"></a-entity>'+
   '      <a-plane id="btnLog" class="menu-btn" position="0.62 0.74 -2.52" width="0.54" height="0.24" material="color:#0a1420;shader:flat;opacity:0.82;transparent:true"></a-plane>'+
   '      <a-entity id="mLog" position="0.62 0.74 -2.51"></a-entity>'+
-  '      <a-plane id="btnVR" class="menu-btn" position="-0.31 0.40 -2.52" width="0.54" height="0.24" material="color:#0a1420;shader:flat;opacity:0.82;transparent:true"></a-plane>'+
-  '      <a-entity id="mVR" position="-0.31 0.40 -2.51"></a-entity>'+
-  '      <a-plane id="btnStop" class="menu-btn" position="0.31 0.40 -2.52" width="0.54" height="0.24" material="color:#0a1420;shader:flat;opacity:0.82;transparent:true"></a-plane>'+
-  '      <a-entity id="mStop" position="0.31 0.40 -2.51"></a-entity>'+
+  '      <a-plane id="btnVR" class="menu-btn" position="-0.62 0.40 -2.52" width="0.54" height="0.24" material="color:#0a1420;shader:flat;opacity:0.82;transparent:true"></a-plane>'+
+  '      <a-entity id="mVR" position="-0.62 0.40 -2.51"></a-entity>'+
+  '      <a-plane id="btnStop" class="menu-btn" position="0.62 0.40 -2.52" width="0.54" height="0.24" material="color:#0a1420;shader:flat;opacity:0.82;transparent:true"></a-plane>'+
+  '      <a-entity id="mStop" position="0.62 0.40 -2.51"></a-entity>'+
+  // v15.20: WORLDS — de werelden bekijken
+  '      <a-plane id="btnWorlds" class="menu-btn" position="0 0.40 -2.52" width="0.54" height="0.24" material="color:#101a30;shader:flat;opacity:0.86;transparent:true"></a-plane>'+
+  '      <a-entity id="mWorlds" position="0 0.40 -2.51"></a-entity>'+
   '      <a-text id="artTxt" value="" align="center" color="#37586b" width="1.0" position="-0.60 0.10 -2.51"></a-text>'+
   '      <a-text id="musTxt" value="" align="center" color="#37586b" width="1.0" position="0.60 0.10 -2.51"></a-text>'+
   '      <a-plane id="btnTrack" class="menu-btn" position="0.60 0.10 -2.52" width="0.42" height="0.10" material="color:#000000;shader:flat;opacity:0.01;transparent:true"></a-plane>'+
+  '      </a-entity>'+
+  // ---- v15.20: WERELDEN BEKIJKEN ----
+  // Een eigen laag, net als 'hoofd' en 'opties'. Hij toont ALLE platen die het
+  // spel als achtergrond herkent (ook de reserves die bij geen level horen),
+  // en daaronder de props met een vinkje aan of uit.
+  '      <a-entity id="wereld" visible="false">'+
+  '        <a-plane position="0 0.98 -2.545" width="2.40" height="2.20" material="color:#070d18;shader:flat;opacity:0.94;transparent:true"></a-plane>'+
+  '        <a-plane position="0 0.98 -2.55" width="2.46" height="2.26" material="color:#35e8ff;shader:flat;opacity:0.40;transparent:true"></a-plane>'+
+  '        <a-entity id="wTitel" position="0 1.92 -2.51"></a-entity>'+
+  '        <a-plane id="btnWUit" class="menu-btn" position="1.04 1.92 -2.52" width="0.22" height="0.22" material="color:#3a0a1c;shader:flat;opacity:0.95;transparent:true"></a-plane>'+
+  '        <a-text position="1.04 1.92 -2.51" value="X" align="center" color="#ff5c8a" width="3.2"></a-text>'+
+  '        <a-plane id="btnWPag" class="menu-btn" position="-1.04 1.92 -2.52" width="0.22" height="0.22" material="color:#12283a;shader:flat;opacity:0.95;transparent:true"></a-plane>'+
+  '        <a-text id="wPagT" position="-1.04 1.92 -2.51" value="&gt;" align="center" color="#8fd8ec" width="3.2"></a-text>'+
+  '        <a-plane id="wv0" class="menu-btn" position="-0.84 1.56 -2.52" width="0.50" height="0.30" material="shader:flat;color:#16222e"></a-plane>'+
+  '        <a-entity id="wvT0" position="-0.84 1.375 -2.51"></a-entity>'+
+  '        <a-plane id="wv1" class="menu-btn" position="-0.28 1.56 -2.52" width="0.50" height="0.30" material="shader:flat;color:#16222e"></a-plane>'+
+  '        <a-entity id="wvT1" position="-0.28 1.375 -2.51"></a-entity>'+
+  '        <a-plane id="wv2" class="menu-btn" position="0.28 1.56 -2.52" width="0.50" height="0.30" material="shader:flat;color:#16222e"></a-plane>'+
+  '        <a-entity id="wvT2" position="0.28 1.375 -2.51"></a-entity>'+
+  '        <a-plane id="wv3" class="menu-btn" position="0.84 1.56 -2.52" width="0.50" height="0.30" material="shader:flat;color:#16222e"></a-plane>'+
+  '        <a-entity id="wvT3" position="0.84 1.375 -2.51"></a-entity>'+
+  '        <a-plane id="wv4" class="menu-btn" position="-0.84 1.14 -2.52" width="0.50" height="0.30" material="shader:flat;color:#16222e"></a-plane>'+
+  '        <a-entity id="wvT4" position="-0.84 0.955 -2.51"></a-entity>'+
+  '        <a-plane id="wv5" class="menu-btn" position="-0.28 1.14 -2.52" width="0.50" height="0.30" material="shader:flat;color:#16222e"></a-plane>'+
+  '        <a-entity id="wvT5" position="-0.28 0.955 -2.51"></a-entity>'+
+  '        <a-plane id="wv6" class="menu-btn" position="0.28 1.14 -2.52" width="0.50" height="0.30" material="shader:flat;color:#16222e"></a-plane>'+
+  '        <a-entity id="wvT6" position="0.28 0.955 -2.51"></a-entity>'+
+  '        <a-plane id="wv7" class="menu-btn" position="0.84 1.14 -2.52" width="0.50" height="0.30" material="shader:flat;color:#16222e"></a-plane>'+
+  '        <a-entity id="wvT7" position="0.84 0.955 -2.51"></a-entity>'+
+  '        <a-plane id="wv8" class="menu-btn" position="-0.84 0.72 -2.52" width="0.50" height="0.30" material="shader:flat;color:#16222e"></a-plane>'+
+  '        <a-entity id="wvT8" position="-0.84 0.535 -2.51"></a-entity>'+
+  '        <a-plane id="wv9" class="menu-btn" position="-0.28 0.72 -2.52" width="0.50" height="0.30" material="shader:flat;color:#16222e"></a-plane>'+
+  '        <a-entity id="wvT9" position="-0.28 0.535 -2.51"></a-entity>'+
+  '        <a-plane id="wv10" class="menu-btn" position="0.28 0.72 -2.52" width="0.50" height="0.30" material="shader:flat;color:#16222e"></a-plane>'+
+  '        <a-entity id="wvT10" position="0.28 0.535 -2.51"></a-entity>'+
+  '        <a-plane id="wv11" class="menu-btn" position="0.84 0.72 -2.52" width="0.50" height="0.30" material="shader:flat;color:#16222e"></a-plane>'+
+  '        <a-entity id="wvT11" position="0.84 0.535 -2.51"></a-entity>'+
+  '        <a-plane id="btnWPP" class="menu-btn" position="1.03 0.10 -2.52" width="0.18" height="0.22" material="color:#12283a;shader:flat;opacity:0.95;transparent:true"></a-plane>'+
+  '        <a-text id="wPPT" position="1.03 0.10 -2.51" value="&gt;" align="center" color="#8fd8ec" width="2.6"></a-text>'+
+  '        <a-plane id="wp0" class="menu-btn" position="-0.75 0.10 -2.52" width="0.26" height="0.26" material="shader:flat;color:#16222e"></a-plane>'+
+  '        <a-plane id="wpV0" position="-0.66 0.24 -2.50" width="0.10" height="0.10" material="shader:flat;color:#6cf08a;opacity:0.9;transparent:true" visible="false"></a-plane>'+
+  '        <a-plane id="wp1" class="menu-btn" position="-0.45 0.10 -2.52" width="0.26" height="0.26" material="shader:flat;color:#16222e"></a-plane>'+
+  '        <a-plane id="wpV1" position="-0.36 0.24 -2.50" width="0.10" height="0.10" material="shader:flat;color:#6cf08a;opacity:0.9;transparent:true" visible="false"></a-plane>'+
+  '        <a-plane id="wp2" class="menu-btn" position="-0.15 0.10 -2.52" width="0.26" height="0.26" material="shader:flat;color:#16222e"></a-plane>'+
+  '        <a-plane id="wpV2" position="-0.06 0.24 -2.50" width="0.10" height="0.10" material="shader:flat;color:#6cf08a;opacity:0.9;transparent:true" visible="false"></a-plane>'+
+  '        <a-plane id="wp3" class="menu-btn" position="0.15 0.10 -2.52" width="0.26" height="0.26" material="shader:flat;color:#16222e"></a-plane>'+
+  '        <a-plane id="wpV3" position="0.24 0.24 -2.50" width="0.10" height="0.10" material="shader:flat;color:#6cf08a;opacity:0.9;transparent:true" visible="false"></a-plane>'+
+  '        <a-plane id="wp4" class="menu-btn" position="0.45 0.10 -2.52" width="0.26" height="0.26" material="shader:flat;color:#16222e"></a-plane>'+
+  '        <a-plane id="wpV4" position="0.54 0.24 -2.50" width="0.10" height="0.10" material="shader:flat;color:#6cf08a;opacity:0.9;transparent:true" visible="false"></a-plane>'+
+  '        <a-plane id="wp5" class="menu-btn" position="0.75 0.10 -2.52" width="0.26" height="0.26" material="shader:flat;color:#16222e"></a-plane>'+
+  '        <a-plane id="wpV5" position="0.84 0.24 -2.50" width="0.10" height="0.10" material="shader:flat;color:#6cf08a;opacity:0.9;transparent:true" visible="false"></a-plane>'+
+  '        <a-entity id="wProps" position="0 0.36 -2.51"></a-entity>'+
   '      </a-entity>'+
   '      <a-entity id="hulp" visible="false">'+
   '        <a-plane position="0 0.55 -2.50" width="2.40" height="1.62" material="color:#08111c;shader:flat;opacity:0.94;transparent:true"></a-plane>'+
@@ -12333,7 +12388,8 @@
            ['#mHelp','CONTROLS','#eafcff',0.120],
            ['#mTest','TEST','#eafcff',0.150],
            ['#mVR','OTHER GAME','#eafcff',0.112],
-           ['#mShare','SHARE','#eafcff',0.145]].forEach(function(q){
+           ['#mShare','SHARE','#eafcff',0.145],
+           ['#mWorlds','WORLDS','#9fe4f5',0.128]].forEach(function(q){
             try{ self3.letterZet(q[0],q[1],q[2],'#2a9fc4',q[3],0.30); }catch(e){} });
           // v15.00: het nieuwe hoofdmenu en het OPTIONS-paneel
           [['#mOpt','OPTIONS','#f3e2ff','#8a4fd0',0.125],
@@ -12374,13 +12430,24 @@
       this.hemelKaart=kaart;
     },
 
+    // v15.20: in de wereldkijker bepaal JIJ welke props er hangen. Buiten die
+    // modus doet objZet zijn gewone werk en raakt dit niets.
+    wPropZet:function(){
+      if(!this.skyObjs) return;
+      for(let i=0;i<this.skyObjs.length;i++){
+        const o=this.skyObjs[i]; if(!o) continue;
+        o.visible=!!(this.wProp&&this.wProp[i]); } },
+
     hemelZet:function(){
       if(!this.hemels||!this.hemels.length) return;
       // In het MENU een willekeurige wereld: je zag altijd die van level 1,
       // terwijl er dertien mooie platen zijn. Eén keer kiezen per opstart, zodat
       // hij niet wisselt terwijl je in het menu staat.
       let i;
-      if(window.PHASE==='menu'){
+      // v15.20: in de wereldkijker bepaal JIJ welke plaat er hangt
+      if(window.WERELD&&this.wereldI!==undefined&&this.hemels[this.wereldI]){
+        i=this.wereldI; }
+      else if(window.PHASE==='menu'){
         // De platen komen ÉÉN VOOR ÉÉN binnen. Kozen we meteen bij de eerste,
         // dan viel de keuze altijd op hemel 0 — die van level 1. Daarom pas
         // kiezen als het laden klaar is, en tot die tijd de eerste tonen.
@@ -12936,6 +13003,16 @@
     //  PAUZE / EINDE
     // =====================================================
     pauzeKnop:function(){
+      // v15.20: sta je in de wereldkijker, dan haalt de pauzeknop het raster
+      // terug zodat je meteen een andere wereld kunt kiezen. Alleen daar — in
+      // een gewoon spel verandert er niets.
+      if(window.WERELD){
+        const nu2=Date.now(); if(nu2-(this.pzDeb||0)<350) return; this.pzDeb=nu2;
+        const Wd=document.querySelector('#wereld');
+        if(Wd){ const aan=(Wd.getAttribute('visible')!==false);
+          Wd.setAttribute('visible',!aan);
+          if(!aan&&window.WVUL) window.WVUL(); }
+        return; }
       if(window.PHASE!=='game') return;
       const nu=Date.now(); if(nu-(this.pzDeb||0)<350) return; this.pzDeb=nu;
       if(this.over) return;
@@ -13292,6 +13369,13 @@
   function naarMenu(){
     window.PHASE='menu'; window.PAUSED=false; window.PARADEKLAAR=0;
     window.TUT=0;                                      // v15.01: bleef aan staan
+    // v15.20: stond je in de wereldkijker, dan hoort die hier uit. Anders zou de
+    // gekozen wereld in het spel blijven hangen en deed de pauzeknop niet meer
+    // wat hij moet doen.
+    window.WERELD=0;
+    { const rg0=document.querySelector('#rig');
+      const c0=rg0&&rg0.components&&rg0.components.cosmic;
+      if(c0) c0.wereldI=undefined; }
     try{ document.body.className=''; }catch(e){}      // beschermlaag uit in het menu
     { const rg=document.querySelector('#rig');
       const c=rg&&rg.components&&rg.components.cosmic; if(c) c.besAan=false; }
@@ -13347,18 +13431,156 @@
     let MENULAAG='hoofd';
     const laagZet=function(l){ MENULAAG=l;
       const H=document.querySelector('#hoofd'), O=document.querySelector('#opties');
+      const Wd=document.querySelector('#wereld');
       if(H) H.setAttribute('visible',l==='hoofd');
-      if(O) O.setAttribute('visible',l==='opties'); };
+      if(O) O.setAttribute('visible',l==='opties');
+      // v15.20: de wereldkijker is een derde laag; hij hoort bij het menu, dus
+      // gaat hij uit zodra je naar hoofd of opties gaat
+      if(Wd) Wd.setAttribute('visible',l==='wereld'); };
     window.MENULAAG=laagZet;
     const menuDeelToon=function(aan){
       MENUDEEL.forEach(function(id){
         const e=document.querySelector(id);
         if(e) e.setAttribute('visible',!!aan); });
       const H=document.querySelector('#hoofd'), O=document.querySelector('#opties');
-      if(!aan){ if(H) H.setAttribute('visible',false); if(O) O.setAttribute('visible',false); }
+      if(!aan){ if(H) H.setAttribute('visible',false); if(O) O.setAttribute('visible',false);
+        // v15.20: de derde laag hoorde hier ook bij. Zonder deze regel bleven de
+        // wereldvakjes aanklikbaar achter een paneel.
+        const W0=document.querySelector('#wereld');
+        if(W0) W0.setAttribute('visible',false); }
       else laagZet(MENULAAG); };
     window.MENUDEELTOON=menuDeelToon;
     kl('#btnOpt',function(){ laagZet('opties'); });
+
+    // ================= v15.20: WERELDEN BEKIJKEN =================
+    // Sjoerd: "ik wil werelden kunnen bekijken in game, alle platen die nu
+    // beschikbaar zijn in art — niet alleen de levels, maar echt alle platen
+    // die eventueel in aanmerking zouden komen. En props ook als keuze met
+    // kleine plaatjes, met een vinkje."
+    let wPag=0, wPPag=0;        // welke pagina werelden / props
+    const WVAK=12, WPROP=6;
+    const C0=function(){ const rg=document.querySelector('#rig');
+      return rg&&rg.components&&rg.components.cosmic; };
+    // een plaatje op een vakje zetten: het a-plane heeft al een eigen materiaal
+    const wPlaat=function(id,tex){
+      const e=document.querySelector(id); if(!e) return false;
+      const m=e.getObject3D&&e.getObject3D('mesh');
+      if(!m||!m.material) return false;
+      if(tex){ m.material.map=tex; m.material.color&&m.material.color.setHex(0xffffff); }
+      else { m.material.map=null; m.material.color&&m.material.color.setHex(0x16222e); }
+      m.material.needsUpdate=true; return true; };
+    // Na een ronde gooit rondeOpruimen de platen weg die dat level niet
+    // gebruikte: de plaat zelf blijft in de lijst staan, maar zonder beeld. In de
+    // kijker wil je ze allemaal zien, dus halen we er hier eentje terug. Precies
+    // langs de weg die het spel zelf gebruikt (artLaad + hemelVervang), zodat er
+    // niets nieuws bij komt.
+    let wBezig=0;
+    const wLeeg=function(H){ return !(H&&H.tex&&H.tex.image&&H.tex.image.width); };
+    const wHaal=function(idx,klaar){
+      const c=C0(); const H=c&&c.hemels&&c.hemels[idx];
+      if(!H||!wLeeg(H)){ if(klaar) klaar(!!H); return; }
+      const info=KAART.hemels.filter(function(x){ return x.naam===H.naam; })[0];
+      if(!info||!info.url){ H.__wMis=1; if(klaar) klaar(false); return; }
+      // EEN poging per plaat. Zonder deze streep vroeg een plaat die niet
+      // terugkomt zichzelf eindeloos opnieuw op: wVul roept wRij, wRij roept
+      // wHaal, en die roept wVul weer.
+      H.__wMis=1;
+      wBezig++;
+      artLaad(info.url,function(t){
+        wBezig--;
+        if(t){ t.__naam=info.naam; t.__lijst=info.lijst; H.__wMis=0;
+          try{ c.hemelVervang(info.naam,t); }catch(e){} }
+        if(klaar) klaar(!!t); }); };
+    // de platen van DEZE pagina die geen beeld meer hebben, netjes achter elkaar
+    // terughalen — niet alles tegelijk, dat geeft hapering
+    const wRij=function(){
+      const c=C0(); if(!c||wBezig) return;
+      const Wd=document.querySelector('#wereld');
+      if(!Wd||Wd.getAttribute('visible')===false) return;
+      const H=c.hemels||[];
+      for(let i=0;i<WVAK;i++){
+        const idx=wPag*WVAK+i;
+        if(idx<H.length&&wLeeg(H[idx])&&!H[idx].__wMis){
+          wHaal(idx,function(ok){ wVul(); if(ok) wRij(); }); return; } } };
+    const wVul=function(){
+      const c=C0(); if(!c) return;
+      const H=c.hemels||[], P=c.skyObjs||[];
+      const tot=Math.ceil(Math.max(1,H.length)/WVAK);
+      if(wPag>=tot) wPag=0;
+      mTekst('#wTitel','WORLDS   '+(wPag+1)+' / '+tot,'#eafcff',0.100,0.32);
+      const pt=document.querySelector('#wPagT');
+      if(pt) pt.setAttribute('visible',tot>1);
+      for(let i=0;i<WVAK;i++){
+        const idx=wPag*WVAK+i, Hh=H[idx];
+        const vak=document.querySelector('#wv'+i);
+        if(vak) vak.setAttribute('visible',!!Hh);
+        wPlaat('#wv'+i,Hh?Hh.tex:null);
+        const t=document.querySelector('#wvT'+i);
+        if(t){ t.setAttribute('visible',!!Hh);
+          if(Hh) mTekst('#wvT'+i,String(Hh.naam||'').replace(/\.[a-z]+$/i,'')
+            +(wLeeg(Hh)?'  ...':''),
+            (c.wereldI===idx)?'#6cf08a':(wLeeg(Hh)?'#4d7d91':'#8fd8ec'),0.030,0.16); } }
+      try{ wRij(); }catch(e){}
+      // de props eronder, met hun vinkje. Ook deze rij bladert door, want
+      // hoeveel props er zijn hangt af van wat er in Art staat.
+      const ptot=Math.ceil(Math.max(1,P.length)/WPROP);
+      if(wPPag>=ptot) wPPag=0;
+      mTekst('#wProps',P.length?('PROPS'+(ptot>1?('   '+(wPPag+1)+'/'+ptot):'')):'',
+        '#bfe4f2',0.045,0.22);
+      const pp=document.querySelector('#btnWPP'), ppt=document.querySelector('#wPPT');
+      if(pp) pp.setAttribute('visible',ptot>1);
+      if(ppt) ppt.setAttribute('visible',ptot>1);
+      for(let i=0;i<WPROP;i++){
+        const pi=wPPag*WPROP+i;
+        const o=P[pi], vak=document.querySelector('#wp'+i), vink=document.querySelector('#wpV'+i);
+        if(vak) vak.setAttribute('visible',!!o);
+        if(vink) vink.setAttribute('visible',!!(o&&c.wProp&&c.wProp[pi]));
+        wPlaat('#wp'+i,(o&&o.material)?o.material.map:null); } };
+    window.WVUL=wVul;
+    // een wereld kiezen: het menu gaat uit en je staat erin
+    const wKies=function(idx){
+      const c=C0(); if(!c||!c.hemels||!c.hemels[idx]) return;
+      const toon=function(){
+        const c2=C0(); if(!c2) return;
+        c2.wereldI=idx; window.WERELD=1;
+        c2.hemelI=-1; c2.hemelZet();
+        try{ c2.wPropZet(); }catch(e){}
+        // De laag terugzetten op 'opties': zou iets het menu herstellen, dan
+        // komt OPTIONS terug en niet dit keuzeraster bovenop het hoofdmenu.
+        MENULAAG='opties';
+        menuDeelToon(false);
+        const Wd=document.querySelector('#wereld'); if(Wd) Wd.setAttribute('visible',false);
+        SND.pling&&SND.pling(0.6); };
+      // heeft deze plaat geen beeld meer, dan eerst terughalen — anders sta je in
+      // het zwart
+      if(wLeeg(c.hemels[idx])){
+        c.hemels[idx].__wMis=0;     // jij vraagt er zelf om: nog een poging
+        mTekst('#wTitel','LOADING...','#ffe08a',0.100,0.32);
+        wHaal(idx,function(ok){ if(ok) toon(); else wVul(); });
+        return; }
+      toon(); };
+    for(let i=0;i<WVAK;i++) (function(i){
+      kl('#wv'+i,function(){ wKies(wPag*WVAK+i); }); })(i);
+    for(let i=0;i<WPROP;i++) (function(i){
+      kl('#wp'+i,function(){ const c=C0(); if(!c) return;
+        const pi=wPPag*WPROP+i;
+        if(!c.skyObjs||!c.skyObjs[pi]) return;
+        c.wProp=c.wProp||[]; c.wProp[pi]=!c.wProp[pi];
+        try{ c.wPropZet(); }catch(e){}
+        wVul(); }); })(i);
+    kl('#btnWPag',function(){ wPag++; wVul(); });
+    kl('#btnWPP',function(){ wPPag++; wVul(); });
+    kl('#btnWorlds',function(){ const c=C0();
+      if(c&&!c.wProp) c.wProp=[];
+      laagZet('wereld'); wVul(); });
+    // X of BACK: terug naar het menu, en de wereldkijker uit
+    const wStop=function(){
+      const c=C0();
+      window.WERELD=0;
+      if(c){ c.wereldI=undefined; c.hemelI=-1; c.hemelZet();
+        try{ c.objZet(); }catch(e){} }
+      menuDeelToon(true); laagZet('opties'); };
+    kl('#btnWUit',wStop);
     kl('#btnOptUit',function(){ laagZet('hoofd'); });
     const techToon=function(aan){
       // ...en andersom net zo
