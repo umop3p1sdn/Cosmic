@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.20';
+  const VERSIE='v15.21';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -737,7 +737,11 @@
           else if(soort==='object'){ t.__baas=0; window.ART.objs.push(t); }
           else if(ar>=1.7&&leeg<0.12){ window.ART.panos.push(t);   // vol beeld = achtergrond
             KAART.hemels.push({naam:nm,url:url,lijst:N||null});
-            if(!window.ART.pano||t.image.width>(window.ART.pano.image.width||0)) window.ART.pano=t; }
+            // v15.21: een eerdere pano kan zijn plaatje al hebben afgestaan
+            // (zie hemelBereid). Dan is .image null en mag dit niet klappen.
+            const bp=window.ART.pano&&window.ART.pano.image
+              ? (window.ART.pano.image.width||0) : 0;
+            if(!window.ART.pano||t.image.width>bp) window.ART.pano=t; }
           else if(ar>=0.55&&ar<=1.05&&leeg>=0.05){            // staande of vierkante plaat = de vloot
             window.ART.schepen.push(t); }
           // Sjoerd v15.06: "ik zie vliegtuigen nu als props voorbij komen. Geef
@@ -2120,7 +2124,12 @@
   // dat; op 4096 werden ze opgeblazen zonder scherper te worden, en dat kostte
   // 36 MB per stuk — de bron van de haperingen. 2720 is precies goed: volle
   // scherpte, 16 MB.
-  const HEMEL_MAX=2720;
+  // v15.21: 2720 px over 360 graden is 7,6 pixels per graad, terwijl de Quest 3
+  // er ongeveer 20 levert — elke textuurpixel werd dus over 2,6 headsetpixels
+  // uitgesmeerd. 4096 brengt dat op 11,4. Dat het past komt doordat hemelBereid
+  // het BRONPLAATJE nu vrijgeeft zodra de verkleinde versie er staat; vroeger
+  // stonden beide naast elkaar in het geheugen.
+  const HEMEL_MAX=4096;
   const PROP_MAX=1024;
   // NAGEMETEN: Sjoerds 23 nieuwe platen kosten op volle grootte samen 62 MB —
   // minder dan wanneer je ze allemaal naar 1024 zou brengen, want de meeste zijn
@@ -2799,7 +2808,13 @@
       prog(38,'FLEET');
 
       // ---- sterrenhemel ----
-      const sterMat=new THREE.MeshBasicMaterial({map:mkSterren(),side:THREE.BackSide,depthWrite:false});
+      // v15.21: dithering ruist de laatste 8-bits stapjes weg. In een vlakke
+      // donkere lucht zie je die stapjes als ringen; een halve bit ruis maakt ze
+      // onzichtbaar. MeshBasicMaterial ondersteunt dit (dithering_fragment zit in
+      // zijn fragment-shader), en omdat dit spel niets napoetst gebeurt het nog
+      // voor de sRGB-codering — daar moet het ook, anders is het te laat.
+      const sterMat=new THREE.MeshBasicMaterial({map:mkSterren(),side:THREE.BackSide,
+        depthWrite:false,dithering:true});
       // De bol had 32x20 segmenten: de plaat werd dus over grove vlakken
       // gespannen en vervormde zichtbaar, hoe scherp de plaat zelf ook was.
       // 96x56 kost nauwelijks meer en laat de tekening tot zijn recht komen.
@@ -3498,12 +3513,33 @@
       // liggend streepje. Zonder die eis leest hij '46a38d17-...' als nummer 46
       // en zet hij een willekeurige plaat vooraan.
       const mm=nm.match(/^\s*(\d{1,3})[ _-]/);
+      // v15.21: DE PLAAT ALS sRGB MARKEREN.
+      // De scene staat op colorManagement:true, maar A-Frame zet colorSpace
+      // alleen op textures die via material="src:..." binnenkomen (zie
+      // applyColorCorrection in zijn renderer-systeem). Deze platen maken we zelf,
+      // dus die bleven op NoColorSpace staan: three rekende de waarden als al
+      // lineair en codeerde ze daarna nog eens naar sRGB. Gevolg: opgelicht zwart,
+      // en een donker bereik van 10-20 dat over 24 stappen werd uitgerekt — dat
+      // zijn precies de ringen en blokjes in vlakke donkere ruimte.
+      try{ const CS=THREE.SRGBColorSpace||'srgb';
+        if(klaar&&klaar.colorSpace!==CS){ klaar.colorSpace=CS; klaar.needsUpdate=true; }
+      }catch(e){}
       const UIT={tex:klaar, breed:(arb>2.4), ar:arb,
               basisU:x0/Wv, spanU:(bw/Wv)*ru, naad:naad, buur:buur,
               hel:hel, nr:mm?parseInt(mm[1],10):null, naam:nm,
               rand:(x0>0||y0>0||x1<W-1||y1<H-1)};
       // onthouden op de BRON, zodat een tweede keer gratis is
       try{ if(bron) bron.__bereid=UIT; }catch(e){}
+      // v15.21: en dan het BRONPLAATJE weg. Na dit punt wordt het nergens meer
+      // gelezen: de uitkomst hangt aan bron.__bereid (en die tak keert meteen
+      // terug, zonder het plaatje aan te raken), de wachtrij haalt elke plaat maar
+      // een keer op, en komt een hemel later terug uit het geheugen, dan laadt
+      // rondeLaden hem opnieuw van zijn url. Alleen vrijgeven als de verkleinde
+      // versie ECHT een andere is — was de plaat al klein genoeg, dan is klaar
+      // hetzelfde plaatje en zou dit de hemel wissen.
+      try{ if(bron&&klaar&&klaar!==bron&&klaar.image!==bron.image){
+        if(bron.image&&bron.image.close) bron.image.close();
+        bron.image=null; } }catch(e){}
       return UIT; },
 
     // welke plaat en welk vak hoort bij dit scheepstype?
