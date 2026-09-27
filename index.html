@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.18';
+  const VERSIE='v15.19';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1076,7 +1076,7 @@
   '      <a-entity id="mBaasNaam" position="0 0.640 -1.30"></a-entity>'+
   // v15.17: eigen regel voor HOLD YOUR FIRE / ATTACK, zodat de andere
   // meldingen (DANGER, ROUND CLEAR) ongemoeid blijven
-  '      <a-entity id="mBaasWaar" position="0 0.505 -1.30"></a-entity>'+
+  '      <a-entity id="mBaasWaar" position="0 0.00 -1.30"></a-entity>'+
   '      <a-plane id="baasBalkA" visible="false" position="0 0.575 -1.31" width="0.001" height="0.001" material="color:#000000;shader:flat;opacity:0;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-plane id="baasBalkB" visible="false" position="-0.345 0.575 -1.30" width="0.68" height="0.024" material="color:#ff3d55;shader:flat;depthWrite:false;depthTest:false"></a-plane>'+
   '      <a-plane id="baasBalkS" visible="false" position="-0.345 0.552 -1.30" width="0.68" height="0.012" material="color:#ffd030;shader:flat;opacity:0.9;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
@@ -5515,7 +5515,14 @@
       // elke hand los, met dezelfde joystickrichtingen. Kies je in beide handen
       // hetzelfde wapen, dan schiet je dubbel — uit DEZELFDE voorraad, want
       // W.mag is gedeeld (this.zak.mag).
-      const W=this.wp(h); if(!W||w===W.t) return;
+      const W=this.wp(h); if(!W) return;
+      if(w===W.t){
+        // Sjoerd v15.19: "in de tutorial, als je op een knop moet drukken en je
+        // hebt hem al ingedrukt, dan werkt het signaal niet." Klopte: heb je dat
+        // wapen al, dan stopte hij hier en hoorde de tutorial je druk nooit.
+        // Nu geeft hij de les wél door en stopt daarna pas.
+        if(window.TUT) this.tutKies(w);
+        return; }
       if(w!==5&&!(W.mag&&W.mag[w]>0)){
         this.toonMelding('NO '+(WNAAM[w]||'WEAPON'),'#ff8aa6');
         SND.hit(0,0.4); return; }
