@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.23';
+  const VERSIE='v15.24';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -8198,6 +8198,20 @@
           // maar dan mini." Ze waren een gekleurde streep; nu dragen ze zijn
           // eigen plaat, vierkant en klein.
           const tex=(e.bb&&e.bb.m&&e.bb.m.material)?e.bb.m.material.map:null;
+          // v15.24: DE UV'S TERUGZETTEN OP DE HELE PLAAT. Hier zat de fout waarom
+          // je de ministerren niet zag. Elk projectiel dat eerder een UITSNEDE van
+          // een plaat droeg hield die uitsnede — alle andere plekken die een plaat
+          // op een projectiel zetten roepen er uvRect bij, deze niet. Zette de ster
+          // dan zijn plaat erop, dan zag je een hoekje van een paar procent, en dat
+          // is meestal doorzichtig: met alphaTest verdween die ster helemaal.
+          // Gemeten: een projectiel dat een baas had gebruikt kwam terug met
+          // uv 0.10-0.18 bij 0.55-0.62, dus 8% bij 7% van de plaat. En juist in
+          // level 9 t/m 11 — waar STERFORT voorkomt — vuren de bazen voortdurend
+          // plaatprojectielen af, dus was de pool vol met zulke uitsnedes.
+          if(B.m&&B.m.geometry&&B.m.geometry.attributes&&B.m.geometry.attributes.uv){
+            const uvA=B.m.geometry.attributes.uv;
+            uvA.setXY(0,0,1); uvA.setXY(1,1,1); uvA.setXY(2,0,0); uvA.setXY(3,1,0);
+            uvA.needsUpdate=true; }
           if(tex&&B.m){
             if(!this.sterPlaat) this.sterPlaat=new THREE.MeshBasicMaterial({
               transparent:true,alphaTest:0.06,depthWrite:false,
