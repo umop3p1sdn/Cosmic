@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.22';
+  const VERSIE='v15.23';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2155,6 +2155,9 @@
   // het BRONPLAATJE nu vrijgeeft zodra de verkleinde versie er staat; vroeger
   // stonden beide naast elkaar in het geheugen.
   const HEMEL_MAX=4096;
+  // Hoe lang START op slot mag staan als er nog geen enkele plaat bekend is.
+  // Komt de mapinhoud niet (geen netwerk), dan kun je daarna alsnog beginnen.
+  const ARTNOOD=8000;
   const PROP_MAX=1024;
   // NAGEMETEN: Sjoerds 23 nieuwe platen kosten op volle grootte samen 62 MB —
   // minder dan wanneer je ze allemaal naar 1024 zou brengen, want de meeste zijn
@@ -12376,13 +12379,27 @@
       const A=window.ART||{};
       const tot=(A.totaal||0), af=(A.klaar||0);
       const rij=(this.hemelRij?this.hemelRij.length:0);
-      const klaar=(A.af&&!rij&&!bezig)||tot===0;
+      // v15.23: Sjoerd: "de eerste keer speel ik lvl 1 en 2 in dezelfde wereld."
+      // START zat al achter dit slot, maar 'tot===0' liet hem open. Bij een KOUDE
+      // start is ART.totaal nog 0 zolang de mapinhoud niet binnen is, en in dat
+      // gaatje kon je beginnen met nul hemels klaar. Het klaarmaken gebeurt alleen
+      // in het menu, dus daarna kwam er ook niks meer bij: elk level bleef in
+      // dezelfde wereld. De tweede keer zet de bewaarde lijst 'totaal' meteen, en
+      // daarom viel het alleen de eerste keer op.
+      //
+      // Is er ECHT geen art, dan zet artVerwerk ART.af op true, en dat vangt de
+      // eerste voorwaarde al af. 'tot===0' is dus alleen nog een noodrem voor het
+      // geval de mapinhoud helemaal niet komt (geen netwerk) — anders zou START
+      // voor altijd op slot staan. Vandaar de wachttijd.
+      if(this.laadT0===undefined) this.laadT0=Date.now();
+      const stilLang=(tot===0&&!A.af&&(Date.now()-this.laadT0)>ARTNOOD);
+      const klaar=(A.af&&!rij&&!bezig)||stilLang;
       window.ARTKLAAR=klaar;                        // altijd bijwerken, ook als de tekst gelijk blijft
       const st=(klaar?'klaar':(af+'/'+tot+(rij?'  +'+rij:'')));
       if(st===this.laadSt) return; this.laadSt=st;
       const t=document.querySelector('#startTxt'), k=document.querySelector('#btnStart');
       const b=document.querySelector('#laadBalk');
-      mTekst('#startTxt',klaar?'START':('LOADING  '+af+' / '+tot),
+      mTekst('#startTxt',klaar?'START':(tot?('LOADING  '+af+' / '+tot):'LOADING'),
         klaar?'#eafcff':'#2b6274',klaar?0.125:0.055,0.30);
       if(k) k.setAttribute('material','color:'+(klaar?'#062a38':'#051820')+
         ';shader:flat;opacity:'+(klaar?0.85:0.45)+';transparent:true');
