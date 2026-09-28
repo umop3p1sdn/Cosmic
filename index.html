@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.24';
+  const VERSIE='v15.25';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2237,6 +2237,15 @@
   // ze DRIE KEER zoveel vuurkracht zolang de draad staat.
   const HAUL_AF=80, HAUL_MAAL=3, HAUL_TREK=34, HAUL_MAXBR=20;
   const HAUL_HOEK=17, HAUL_HOEKY=12, HAUL_DRAAD=0.22;
+  // Sjoerd v15.25: "het vliegtuig dat 4 andere kaapt moet iets speciaals doen.
+  // Laat hem die 4 op jou af vuren als kamikazevliegtuigen."
+  const KAMI_LAAD=3.0;          // zo lang laadt hij ze op voordat hij lanceert
+  const KAMI_TUSSEN=1.0;        // en dan een per seconde, zodat je ze kunt afschieten
+  const KAMI_SP0=26;            // beginsnelheid van de duik
+  const KAMI_SPMAX=62;          // waar hij op uitkomt
+  const KAMI_ACC=26;            // hoe hard hij versnelt (m/s per seconde)
+  const KAMI_DMG=12;            // wat een inslag kost van je 100
+  const KAMI_VOORBIJ=14;        // zo ver achter je geeft hij het op
   // BLACK MANTA: trage diepe golfslag met zijwaartse drift.
   const MANTA_TEMPO=0.85, MANTA_OP=11, MANTA_ZIJ=16, MANTA_KANTEL=0.42;
   // Welke baas welke handtekening heeft, en hoe vaak hij hem afvuurt.
@@ -6290,6 +6299,8 @@
       // STERFORT gaat uiteen in vijf zoekende sterren. Dit stond in het blok
       // waar de VAL KLAAR is — en daar kwam hij nooit, want een neerstortend
       // schip verdwijnt via een andere weg (gemeten: 0 sterren).
+      // v15.25: ook langs deze weg de duikstand en de rode kooi opruimen
+      if(e.kami) this.kamiStop(e);
       if(TYPE[e.tp]&&(TYPE[e.tp].basis||TYPE[e.tp].n)==='BULWARK') this.sterUiteen(e);
       // HAULER laat zijn vier schepen los: de draden vallen weg en ze schieten
       // weer op hun eigen tempo (Sjoerd v14.81).
@@ -6453,6 +6464,8 @@
         if(this.haulL) for(let q=0;q<this.haulL.length;q++)
           if(this.haulL[q]) this.haulL[q].visible=false; }
       if(e.kruis) e.kruis.length=0;
+      // v15.25: schiet je een duiker neer, dan hoort zijn rode kooi mee te gaan
+      if(e.kami) this.kamiStop(e);
       if(TYPE[e.tp]&&(TYPE[e.tp].basis||TYPE[e.tp].n)==='BULWARK') this.sterUiteen(e);
       e.live=false; e.dood=0; e.hp=0;
       if(e.romp){ e.romp.visible=false; e.romp=null; }
@@ -6895,8 +6908,12 @@
       if(maal>=4)  return '#ffe45c';
       return '#ffb03a'; },
 
-    raakMij:function(dmg){
-      if(window.PAUSED||this.hurtCd>0) return;
+    raakMij:function(dmg,altijd){
+      if(window.PAUSED) return;
+      // v15.25: de kamikazes van de HAULER komen een per seconde binnen, en die
+      // rustpauze van 0,6 s zou de tweede en derde inslag gratis maken. Alleen
+      // een aanval die 'altijd' meegeeft mag er langs.
+      if(this.hurtCd>0&&!altijd) return;
       this.hurtCd=0.6;
       this.power=Math.max(0,this.power-dmg);
       this.rood=Math.min(0.75,this.rood+dmg*0.020);
@@ -7000,6 +7017,9 @@
         e.trip=0; e.tripT=0; e.tripAan=0; e.weer=0; e.wapens=null; e.vuur='duo'; e.rookT=0;
         e.rijst=0; e.rt=0; e.parade=0; e.broed=0; e.gen=0; e.brT=0; e.ax=undefined;
         e.omT=0; e.omZij=0; e.vrede=0;
+        // v15.25: anders duikt een hergebruikt schip meteen op je af
+        e.kami=0; e.kamiT=0; e.kamiR=0;
+        e.haulVol=0; e.kamiGaat=0; e.kamiCd=0;
         e.vv=0; e.rol=0; e.zb=undefined; e.zw=undefined; e.hb=undefined; e.fase2=0;
         e.intro=(T.prof==='baas')?1:0; e.ip=0; e.it=0; e.iv=null; e.izij=0;
         e.route=(opt&&opt.route)||null; e.rp=(opt&&opt.rp)||0; e.rv=null;
@@ -8248,8 +8268,11 @@
     haulTick:function(e,s){
       if(!e.haul){ e.haul=[null,null,null,null]; e.haulF=0; }
       e.haulF+=s;
+      // v15.25: is hij aan het LANCEREN, dan vangt hij niets nieuws. Anders zou
+      // elke vrijgekomen hoek meteen opnieuw gevuld worden en werd het een
+      // eindeloze stroom duikers.
       // 1. lege hoeken vullen: het dichtstbijzijnde vrije schip binnen HAUL_AF
-      for(let hk=0;hk<4;hk++){
+      if(!e.kamiGaat) for(let hk=0;hk<4;hk++){
         const a=e.haul[hk];
         if(a&&a.live&&!a.dood&&!a.dood2) continue;
         if(a){ this.haulLos(a); e.haul[hk]=null; }
@@ -8269,6 +8292,24 @@
           if(best.bT>0.6) best.bT=0.6;
           e.haul[hk]=best;
           SND.zap&&SND.zap(e.p.x*0.02); } }
+      // 1b. ALLE VIER AAN DE DRAAD? Dan laadt hij ze KAMI_LAAD seconden op en
+      // vuurt ze daarna een per seconde op je af. Een voor een, want vier
+      // tegelijk kun je niet ontwijken — en zo kun je ze afschieten voordat ze
+      // aankomen. Dat is de uitweg.
+      let vol=0;
+      for(let hk=0;hk<4;hk++){ const q=e.haul[hk];
+        if(q&&q.live&&!q.dood&&!q.dood2) vol++; }
+      if(!e.kamiGaat){ e.haulVol=(vol===4)?((e.haulVol||0)+s):0;
+        if(e.haulVol>=KAMI_LAAD){ e.kamiGaat=1; e.kamiCd=0; } }
+      if(e.kamiGaat){
+        e.kamiCd=Math.max(0,(e.kamiCd||0)-s);
+        if(e.kamiCd<=0){
+          let weg=0;
+          for(let hk=0;hk<4;hk++){ const a=e.haul[hk];
+            if(!a||!a.live||a.dood||a.dood2){ e.haul[hk]=null; continue; }
+            this.kamiStart(a); e.haul[hk]=null; e.kamiCd=KAMI_TUSSEN; weg=1; break; }
+          // niets meer over: hij is klaar en gaat weer vangen
+          if(!weg){ e.kamiGaat=0; e.haulVol=0; } } }
       // 2. de aangesloten schepen naar hun hoek trekken
       const naar=this.tmp.copy(this.kop).sub(e.p); naar.y=0;
       const d2=naar.length(); if(d2>0.01) naar.multiplyScalar(1/d2);
@@ -8289,6 +8330,51 @@
           if(a.bb&&a.bb.m) a.bb.m.position.copy(a.p); } }
       // 3. de draden en de kooien tekenen
       this.haulDraad(e); },
+
+    // ---- DE KAMIKAZE (Sjoerd v15.25) ----
+    // De HAULER knipt de draad en schiet zijn schip op je af. Vanaf dat moment
+    // stuurt het niet meer en schiet het niet meer: het is zelf het projectiel.
+    kamiStart:function(a){
+      if(!a) return;
+      this.haulLos(a);                  // draad los, vuurkracht weer normaal
+      a.kami=1; a.kamiT=0; a.kamiR=0;
+      a.bT=1e9;                         // niet meer schieten tijdens de duik
+      a.vrede=0; a.wijkT=0; a.rolT=0;
+      // de kooi blijft, maar wordt rood: dat is je waarschuwing
+      try{ this.haulKooi(a,0xff4040); }catch(q){}
+      if(a.kooiM&&a.kooiM.color) a.kooiM.color.setHex(0xff4040);
+      SND.zap&&SND.zap(a.p.x*0.02); },
+
+    // afblazen: hij is je voorbij gevlogen, of hij gaat dood
+    kamiStop:function(a){
+      if(!a) return;
+      a.kami=0; a.kamiT=0;
+      if(a.kooi) a.kooi.visible=false;
+      if(a.kooiM&&a.kooiM.color) a.kooiM.color.setHex(0xffe45c);
+      if(a.bT>=1e9) a.bT=1.5; },       // en zijn vuurklok weer aan de praat
+
+    kamiTick:function(e,s,eye,naar,afst){
+      e.kamiT=(e.kamiT||0)+s;
+      // recht op je af, en hij versnelt onderweg
+      const sp=Math.min(KAMI_SPMAX,KAMI_SP0+e.kamiT*KAMI_ACC);
+      e.p.addScaledVector(naar,sp*s);
+      // een rooksliert, zodat je hem ziet aankomen
+      e.kamiR=(e.kamiR||0)+s;
+      if(e.kamiR>0.05){ e.kamiR=0;
+        this.vonk(e.p.x,e.p.y,e.p.z,0xff5a2a,2,e.sc*0.3,0.3); }
+      // de rode kooi loopt mee
+      try{ this.haulKooi(e,0xff4040); }catch(q){}
+      // INSLAG
+      if(afst<e.r+1.8){
+        this.raakMij(KAMI_DMG,true);                    // langs de rustpauze
+        this.vonk(e.p.x,e.p.y,e.p.z,0xffffff,10,e.sc*0.6,0.5);
+        this.vonk(e.p.x,e.p.y,e.p.z,0xff5a2a,12,e.sc*0.9,0.8);
+        this.schokRing(e.p);
+        this.kamiStop(e);
+        this.knalDood(e);              // hij sterft op de inslag, en geeft geen punten
+        return; }
+      // je ontweken: dan is het over en vliegt hij gewoon door
+      if(e.p.z>eye.z+KAMI_VOORBIJ) this.kamiStop(e); },
 
     // het schip weer loslaten: zijn gewone vuurtempo terug
     haulLos:function(a){
@@ -9569,6 +9655,21 @@
       e.t+=s; e.cd-=s;
       const sp=T.sp;
 
+      // ---- KAMIKAZE: hij stuurt niet meer, hij duikt (v15.25) ----
+      // Dit staat VOOR alle stuurroutines: een duiker moet niet tegelijk door
+      // zijn eigen profiel bijgestuurd worden, dan trekt hij scheef.
+      if(e.kami&&!e.dood&&!e.dood2){
+        this.kamiTick(e,s,eye,naar,afst);
+        if(!e.live) return;
+        if(e.kami){
+          // alleen zijn plaatje meelaten lopen; sturen doet hij niet meer
+          if(e.romp) e.romp.position.copy(e.p);
+          const bk=e.bb;
+          if(bk&&bk.m){ bk.m.position.copy(e.p);
+            const lk0=this.LK||(this.LK=new THREE.Vector3());
+            lk0.set(eye.x,e.p.y,eye.z); bk.m.lookAt(lk0); }
+          return; } }
+
       // ---- vortex: wie gevangen is verliest zijn eigen koers volledig ----
       // Hij pakt METEEN alles binnen zijn bereik. Eerst groeide hij van 28 naar
       // 70 m, waardoor de eerste seconde bijna niets gebeurde.
@@ -10508,6 +10609,9 @@
         if(e.schildM3) e.schildM3.visible=false;
         if(e.kooi) e.kooi.visible=false;
         e.haul=null; e.haulVan=null; e.haulMaal=0;
+        // v15.25: de duikstand en de rode kooi horen hier ook weg
+        e.kami=0; e.kamiT=0; e.haulVol=0; e.kamiGaat=0; e.kamiCd=0;
+        if(e.kooiM&&e.kooiM.color) e.kooiM.color.setHex(0xffe45c);
         if(e.kruis) e.kruis.length=0; }
       if(this.haulL) for(let i=0;i<this.haulL.length;i++)
         if(this.haulL[i]) this.haulL[i].visible=false; },
