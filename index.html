@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.21';
+  const VERSIE='v15.22';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -765,6 +765,27 @@
     if(/object|planeet|planet|prop/.test(n))       return 'object';
     return null; }
 
+  // v15.22: DEZELFDE PLAAT IN TWEE FORMATEN IS EEN PLAAT.
+  // Sjoerd wil platen kunnen vervangen door een kleinere versie zonder de oude
+  // weg te gooien. Staan IMG_0212.png en IMG_0212.webp naast elkaar, dan zou het
+  // spel ze als twee losse achtergronden inlezen: dubbel zoveel hemels, dubbele
+  // laadtijd en dubbel geheugen. Nu wint de webp en wordt de png overgeslagen.
+  // Haal je de webp weer weg, dan pakt hij automatisch de png terug — en dat
+  // geldt per plaat, dus je kunt er eerst een paar proberen.
+  // De vergelijking gaat over het HELE pad zonder extensie: een plaat in een
+  // submap is een andere plaat, want die map bepaalt zijn rol.
+  function ontdubbel(lijst){
+    if(!lijst||!lijst.length) return lijst;
+    const naamVan=function(o){ return String((o&&o.n!==undefined)?o.n:o); };
+    const rang=function(o){
+      const e=naamVan(o).toLowerCase().split('.').pop();
+      return e==='webp'?3:(e==='png'?2:1); };
+    const stam=function(o){ return naamVan(o).replace(/\.[^./]+$/,'').toLowerCase(); };
+    const beste={};
+    lijst.forEach(function(o){ const k=stam(o);
+      if(!beste[k]||rang(o)>rang(beste[k])) beste[k]=o; });
+    return lijst.filter(function(o){ return beste[stam(o)]===o; }); }
+
   function artScan(pad){
     if(!pad) return;
     ARTBASE=basisVoor(pad);
@@ -772,7 +793,7 @@
     if(window.ART.bezig) return; window.ART.bezig=true;
     let cache=null;
     try{ const raw=localStorage.getItem('cosmic_art'); if(raw) cache=JSON.parse(raw); }catch(e){}
-    if(cache&&cache.length){ artVerwerk(cache); }
+    if(cache&&cache.length){ cache=ontdubbel(cache); artVerwerk(cache); }
     if(typeof fetch!=='function') return;
     const plaatje=function(f){ return /\.(png|jpg|jpeg|webp)$/i.test(f.name||''); };
     fetch(APIURL).then(function(r){ return r.ok?r.json():null; }).then(function(j){
@@ -782,6 +803,10 @@
       let wacht=mappen.length;
       const af=function(){
         if(!uit.length) return;
+        // eerst de dubbelen eruit, dan bewaren: zo staat er ook in het geheugen
+        // van de volgende keer maar een versie per plaat
+        { const w=ontdubbel(uit);
+          if(w.length!==uit.length) uit.splice(0,uit.length,...w); }
         try{ localStorage.setItem('cosmic_art',JSON.stringify(uit)); }catch(e){}
         const nieuw=uit.map(function(o){ return o.n+'|'+o.s; }).join();
         const oud=(cache||[]).map(function(o){ return (o.n||o)+'|'+(o.s||null); }).join();
