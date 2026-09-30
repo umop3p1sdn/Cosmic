@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.30';
+  const VERSIE='v15.31';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -12917,6 +12917,43 @@
       }
       kaart.v=HEMELVERSIE;
       this.hemelKaart=kaart;
+      try{ this.levelsBewaren(); }catch(e){}
+    },
+
+    // v15.31: LEVELS.html leest 'cosmic_levels', maar het spel schreef die sleutel
+    // NERGENS — die pagina toonde dus altijd "nog geen gegevens". Nu schrijft hij
+    // hem hier weg, op het moment dat de indeling vastligt: per level de
+    // achtergrond, de prop in de verte, en welke vijanden erin zitten.
+    levelsBewaren:function(){
+      const uit={tijd:new Date().toISOString().slice(0,16), versie:VERSIE, lvl:{},
+                 hemels:(this.hemels||[]).map(function(H){ return H.naam; }),
+                 props:(this.skyObjs||[]).map(function(o){
+                   return (o&&o.userData&&o.userData.naam)||'?'; })};
+      const bewaarL=this.level;
+      for(let L=1;L<=LEVELS;L++){
+        this.level=L;
+        const k=this.hemelVoorLevel(L);
+        const H=this.hemels[k];
+        const N=H?nummerVan(H.naam):null;
+        const ruimte=N?!N.grond:((H?H.hel:0)<RUIMTE_HEL);
+        // dezelfde regel als objZet gebruikt om de prop te kiezen
+        let pi=-1;
+        if(this.skyObjs&&this.skyObjs.length&&ruimte&&L>2&&
+           !(window.PROPSUIT||PROPS_UIT.indexOf(L)>=0)) pi=(L-3)%this.skyObjs.length;
+        const vp=VOORPROEF[L]||[];
+        const vij=[];
+        try{ this.levelSoorten().forEach(function(t){
+          if(!TYPE[t]) return;
+          vij.push({n:TYPE[t].n, br:TYPE[t].br, hp:TYPE[t].hp,
+                    vp:(vp.indexOf(t)>=0)?1:0}); }); }catch(e){}
+        // klein eerst, dan groot: zo lees je de opbouw van een level af
+        vij.sort(function(a,b){ return a.br-b.br; });
+        uit.lvl[L]={hemel:H?H.naam:'', soort:ruimte?'ruimte':'grond',
+                    prop:(pi>=0&&this.skyObjs[pi]&&this.skyObjs[pi].userData)
+                         ?(this.skyObjs[pi].userData.naam||'?'):'', vij:vij};
+      }
+      this.level=bewaarL;
+      try{ localStorage.setItem('cosmic_levels',JSON.stringify(uit)); }catch(e){}
     },
 
     // v15.20: in de wereldkijker bepaal JIJ welke props er hangen. Buiten die
