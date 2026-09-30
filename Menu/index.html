@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cosmic — menu</title>
+<style>
+  :root{ --diep:#060912; --paneel:#0d1524; --lijn:#1c2b42;
+         --amber:#ffb03a; --cyaan:#35e8ff; --bleek:#e8f6ff; --grijs:#6c86a8; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--diep);color:var(--bleek);
+       font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;
+       padding:22px 18px 40px;-webkit-text-size-adjust:100%}
+  h1{margin:0;font-style:italic;font-weight:900;font-size:32px;color:var(--amber);
+     letter-spacing:.01em}
+  .sub{color:var(--grijs);font-size:14px;margin:7px 0 24px}
+  .rij{display:grid;gap:12px;max-width:760px;
+       grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+  a.k{display:block;text-decoration:none;color:inherit;
+      background:var(--paneel);border:1px solid var(--lijn);border-radius:12px;
+      padding:16px 17px;transition:border-color .15s,background .15s}
+  a.k:hover,a.k:focus{border-color:var(--cyaan);background:#101b2e;outline:none}
+  .t{font-size:19px;font-weight:700;color:var(--bleek);margin-bottom:5px}
+  .t i{font-style:normal;color:var(--cyaan);margin-right:8px}
+  .u{font-size:13px;color:var(--grijs);line-height:1.5}
+  .kop{margin:30px 0 12px;font-size:12px;letter-spacing:.09em;color:var(--grijs);
+       text-transform:uppercase}
+  .speel{border-color:#3a2a10;background:#181206}
+  .speel:hover,.speel:focus{border-color:var(--amber);background:#211808}
+  .speel .t i{color:var(--amber)}
+  .vt{margin-top:32px;color:#3c4f6b;font-size:12.5px;max-width:760px;line-height:1.7}
+  .st{color:var(--grijs);font-size:12.5px;margin-top:8px}
+  .st b{color:var(--bleek);font-weight:600}
+</style>
+</head>
+<body>
+<h1>Cosmic</h1>
+<div class="sub">alles op één plek</div>
+
+<div class="rij">
+  <a class="k speel" href="../index.html">
+    <div class="t"><i>&#9654;</i>Spelen</div>
+    <div class="u">Het spel zelf. Zet je bril op en druk op START.</div></a>
+</div>
+
+<div class="kop">Naslag</div>
+<div class="rij">
+  <a class="k" href="../VIJANDEN.html">
+    <div class="t"><i>&#9670;</i>Vijanden</div>
+    <div class="u">Alle schepen en bazen met hun plaat, maten, kracht en in welke
+      levels ze voorkomen.</div></a>
+  <a class="k" href="../LEVELS.html">
+    <div class="t"><i>&#9632;</i>Levels</div>
+    <div class="u">Per level de achtergrond, de prop in de verte en welke vijanden
+      erin zitten.</div></a>
+</div>
+
+<div class="kop">De bestanden</div>
+<div class="rij">
+  <a class="k" href="https://github.com/umop3p1sdn/Cosmic/tree/main/Art">
+    <div class="t"><i>&#9635;</i>Art</div>
+    <div class="u">De map met alle platen: vijanden, bazen, achtergronden,
+      raketkoppen.</div></a>
+  <a class="k" href="https://github.com/umop3p1sdn/Cosmic/tree/main/Music">
+    <div class="t"><i>&#9834;</i>Muziek</div>
+    <div class="u">De muziekmap die het spel afspeelt.</div></a>
+  <a class="k" href="https://github.com/umop3p1sdn/Cosmic">
+    <div class="t"><i>&#9881;</i>De repo</div>
+    <div class="u">Alles bij elkaar op GitHub, met de README.</div></a>
+</div>
+
+<div class="st" id="st"></div>
+<div class="vt">Vijanden en Levels lezen wat het spel zelf heeft opgeslagen. Werkt
+dus pas als je het spel in <b>deze browser</b> een keer helemaal hebt laten laden,
+en loopt daarna vanzelf mee met elke nieuwe versie.</div>
+
+<script>
+(function(){
+  // een regeltje met wat het spel in deze browser heeft klaarstaan
+  var st=document.getElementById('st'), d=[];
+  function lees(k){ try{ return JSON.parse(localStorage.getItem(k)||'null'); }catch(e){ return null; } }
+  var art=lees('cosmic_art'), lvl=lees('cosmic_levels'), top=lees('cosmic_top20');
+  if(art&&art.length) d.push('<b>'+art.length+'</b> platen gevonden');
+  if(lvl&&lvl.lvl){
+    var n=0; for(var L=1;L<=11;L++){ var q=lvl.lvl[L]||lvl.lvl[String(L)];
+      if(q&&q.vij) n+=q.vij.length; }
+    d.push('<b>'+(lvl.hemels?lvl.hemels.length:0)+'</b> achtergronden');
+    if(lvl.versie) d.push('spelversie <b>'+lvl.versie+'</b>'); }
+  if(top&&top.length) d.push('beste score <b>'+top[0].s+'</b>'+(top[0].n?(' van '+top[0].n):''));
+  st.innerHTML=d.length?('In deze browser: '+d.join(' &middot; ')):
+    'Nog niets geladen in deze browser — open het spel een keer.';
+})();
+</script>
+</body>
+</html>
