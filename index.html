@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.25';
+  const VERSIE='v15.29';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1325,6 +1325,77 @@
   '        <a-plane id="wpV5" position="0.84 0.24 -2.50" width="0.10" height="0.10" material="shader:flat;color:#6cf08a;opacity:0.9;transparent:true" visible="false"></a-plane>'+
   '        <a-entity id="wProps" position="0 0.36 -2.51"></a-entity>'+
   '      </a-entity>'+
+  // ---- HET SCOREBORD (Sjoerd v15.28) ----
+  // "Ook mis ik een echt scorebord. Als je drukt op score." Een eigen menulaag met
+  // een echte tabel. Elke cel is een eigen vakje op een vaste x, want de letters
+  // worden per stuk opgemeten en zijn dus NIET monospace — een regel met spaties
+  // ertussen zou nooit uitlijnen.
+  '      <a-entity id="bord" visible="false">'+
+  '        <a-plane position="0 0.98 -2.545" width="2.40" height="2.20" material="color:#070d18;shader:flat;opacity:0.94;transparent:true"></a-plane>'+
+  '        <a-plane position="0 0.98 -2.55" width="2.46" height="2.26" material="color:#ffd24a;shader:flat;opacity:0.34;transparent:true"></a-plane>'+
+  '        <a-entity id="bTitel" position="0 1.92 -2.51"></a-entity>'+
+  '        <a-plane id="btnBUit" class="menu-btn" position="1.04 1.92 -2.52" width="0.22" height="0.22" material="color:#3a0a1c;shader:flat;opacity:0.95;transparent:true"></a-plane>'+
+  '        <a-text position="1.04 1.92 -2.51" value="X" align="center" color="#ff5c8a" width="3.2"></a-text>'+
+  '        <a-plane id="btnBPag" class="menu-btn" position="-1.04 1.92 -2.52" width="0.22" height="0.22" material="color:#12283a;shader:flat;opacity:0.95;transparent:true"></a-plane>'+
+  '        <a-text id="bPagT" position="-1.04 1.92 -2.51" value="&gt;" align="center" color="#ffd24a" width="3.2"></a-text>'+
+  '        <a-plane position="0 1.53 -2.53" width="2.16" height="0.012" material="color:#ffd24a;shader:flat;opacity:0.45;transparent:true"></a-plane>'+
+  '        <a-entity id="bLeeg" position="0 1.05 -2.51"></a-entity>'+
+  '        <a-entity id="bHR" position="-1.02 1.65 -2.51"></a-entity>'+
+  '        <a-entity id="bHN" position="-0.62 1.65 -2.51"></a-entity>'+
+  '        <a-entity id="bHS" position="0.14 1.65 -2.51"></a-entity>'+
+  '        <a-entity id="bHC" position="0.66 1.65 -2.51"></a-entity>'+
+  '        <a-entity id="bHK" position="0.99 1.65 -2.51"></a-entity>'+
+  '        <a-entity id="bR0" position="-1.02 1.360 -2.51"></a-entity>'+
+  '        <a-entity id="bN0" position="-0.62 1.360 -2.51"></a-entity>'+
+  '        <a-entity id="bS0" position="0.14 1.360 -2.51"></a-entity>'+
+  '        <a-entity id="bC0" position="0.66 1.360 -2.51"></a-entity>'+
+  '        <a-entity id="bK0" position="0.99 1.360 -2.51"></a-entity>'+
+  '        <a-entity id="bR1" position="-1.02 1.215 -2.51"></a-entity>'+
+  '        <a-entity id="bN1" position="-0.62 1.215 -2.51"></a-entity>'+
+  '        <a-entity id="bS1" position="0.14 1.215 -2.51"></a-entity>'+
+  '        <a-entity id="bC1" position="0.66 1.215 -2.51"></a-entity>'+
+  '        <a-entity id="bK1" position="0.99 1.215 -2.51"></a-entity>'+
+  '        <a-entity id="bR2" position="-1.02 1.070 -2.51"></a-entity>'+
+  '        <a-entity id="bN2" position="-0.62 1.070 -2.51"></a-entity>'+
+  '        <a-entity id="bS2" position="0.14 1.070 -2.51"></a-entity>'+
+  '        <a-entity id="bC2" position="0.66 1.070 -2.51"></a-entity>'+
+  '        <a-entity id="bK2" position="0.99 1.070 -2.51"></a-entity>'+
+  '        <a-entity id="bR3" position="-1.02 0.925 -2.51"></a-entity>'+
+  '        <a-entity id="bN3" position="-0.62 0.925 -2.51"></a-entity>'+
+  '        <a-entity id="bS3" position="0.14 0.925 -2.51"></a-entity>'+
+  '        <a-entity id="bC3" position="0.66 0.925 -2.51"></a-entity>'+
+  '        <a-entity id="bK3" position="0.99 0.925 -2.51"></a-entity>'+
+  '        <a-entity id="bR4" position="-1.02 0.780 -2.51"></a-entity>'+
+  '        <a-entity id="bN4" position="-0.62 0.780 -2.51"></a-entity>'+
+  '        <a-entity id="bS4" position="0.14 0.780 -2.51"></a-entity>'+
+  '        <a-entity id="bC4" position="0.66 0.780 -2.51"></a-entity>'+
+  '        <a-entity id="bK4" position="0.99 0.780 -2.51"></a-entity>'+
+  '        <a-entity id="bR5" position="-1.02 0.635 -2.51"></a-entity>'+
+  '        <a-entity id="bN5" position="-0.62 0.635 -2.51"></a-entity>'+
+  '        <a-entity id="bS5" position="0.14 0.635 -2.51"></a-entity>'+
+  '        <a-entity id="bC5" position="0.66 0.635 -2.51"></a-entity>'+
+  '        <a-entity id="bK5" position="0.99 0.635 -2.51"></a-entity>'+
+  '        <a-entity id="bR6" position="-1.02 0.490 -2.51"></a-entity>'+
+  '        <a-entity id="bN6" position="-0.62 0.490 -2.51"></a-entity>'+
+  '        <a-entity id="bS6" position="0.14 0.490 -2.51"></a-entity>'+
+  '        <a-entity id="bC6" position="0.66 0.490 -2.51"></a-entity>'+
+  '        <a-entity id="bK6" position="0.99 0.490 -2.51"></a-entity>'+
+  '        <a-entity id="bR7" position="-1.02 0.345 -2.51"></a-entity>'+
+  '        <a-entity id="bN7" position="-0.62 0.345 -2.51"></a-entity>'+
+  '        <a-entity id="bS7" position="0.14 0.345 -2.51"></a-entity>'+
+  '        <a-entity id="bC7" position="0.66 0.345 -2.51"></a-entity>'+
+  '        <a-entity id="bK7" position="0.99 0.345 -2.51"></a-entity>'+
+  '        <a-entity id="bR8" position="-1.02 0.200 -2.51"></a-entity>'+
+  '        <a-entity id="bN8" position="-0.62 0.200 -2.51"></a-entity>'+
+  '        <a-entity id="bS8" position="0.14 0.200 -2.51"></a-entity>'+
+  '        <a-entity id="bC8" position="0.66 0.200 -2.51"></a-entity>'+
+  '        <a-entity id="bK8" position="0.99 0.200 -2.51"></a-entity>'+
+  '        <a-entity id="bR9" position="-1.02 0.055 -2.51"></a-entity>'+
+  '        <a-entity id="bN9" position="-0.62 0.055 -2.51"></a-entity>'+
+  '        <a-entity id="bS9" position="0.14 0.055 -2.51"></a-entity>'+
+  '        <a-entity id="bC9" position="0.66 0.055 -2.51"></a-entity>'+
+  '        <a-entity id="bK9" position="0.99 0.055 -2.51"></a-entity>'+
+  '      </a-entity>'+
   '      <a-entity id="hulp" visible="false">'+
   '        <a-plane position="0 0.55 -2.50" width="2.40" height="1.62" material="color:#08111c;shader:flat;opacity:0.94;transparent:true"></a-plane>'+
   '        <a-plane position="0 0.55 -2.51" width="2.46" height="1.68" material="color:#2a9fc4;shader:flat;opacity:0.55;transparent:true"></a-plane>'+
@@ -1417,6 +1488,33 @@
   '        <a-plane id="btnNmOk" class="menu-btn" position="0 1.05 -2.21" width="1.40" height="0.32" material="color:#1d3a24;shader:flat"></a-plane>'+
   '        <a-text position="0 1.05 -2.20" value="SAVE SCORE" align="center" color="#bdf0a8" width="2.8"></a-text>'+
   '      </a-entity>'+
+  '    </a-entity>'+
+  // ---- DE EINDTELLING (Sjoerd v15.27) ----
+  // Hangt NAAST het pauzepaneel en dus rechtstreeks aan de rig, niet in #menu:
+  // #menu staat uit zodra je speelt, en deze telling komt juist aan het eind van
+  // een spel in beeld.
+  '    <a-entity id="eind" visible="false" position="0 0 0">'+
+  '      <a-plane position="0 1.56 -2.40" width="2.46" height="1.94" material="color:#35e8ff;shader:flat;opacity:0.09;transparent:true;depthWrite:false"></a-plane>'+
+  '      <a-plane position="0 1.56 -2.38" width="2.28" height="1.78" material="color:#0a5f78;shader:flat;opacity:0.22;transparent:true;depthWrite:false"></a-plane>'+
+  '      <a-plane position="0 1.56 -2.36" width="2.16" height="1.66" material="color:#04101c;shader:flat;opacity:0.97;transparent:true"></a-plane>'+
+  '      <a-entity id="eTitel" position="0 2.30 -2.34"></a-entity>'+
+  '      <a-entity id="eL0" position="-0.92 2.04 -2.34"></a-entity>'+
+  '      <a-entity id="eV0" position="0.92 2.04 -2.34"></a-entity>'+
+  '      <a-entity id="eL1" position="-0.92 1.85 -2.34"></a-entity>'+
+  '      <a-entity id="eV1" position="0.92 1.85 -2.34"></a-entity>'+
+  '      <a-entity id="eL2" position="-0.92 1.66 -2.34"></a-entity>'+
+  '      <a-entity id="eV2" position="0.92 1.66 -2.34"></a-entity>'+
+  '      <a-entity id="eL3" position="-0.92 1.47 -2.34"></a-entity>'+
+  '      <a-entity id="eV3" position="0.92 1.47 -2.34"></a-entity>'+
+  '      <a-entity id="eL4" position="-0.92 1.28 -2.34"></a-entity>'+
+  '      <a-entity id="eV4" position="0.92 1.28 -2.34"></a-entity>'+
+  '      <a-entity id="eL5" position="-0.92 1.09 -2.34"></a-entity>'+
+  '      <a-entity id="eV5" position="0.92 1.09 -2.34"></a-entity>'+
+  '      <a-plane position="0 0.98 -2.35" width="1.90" height="0.012" material="color:#35e8ff;shader:flat;opacity:0.5;transparent:true"></a-plane>'+
+  '      <a-entity id="eL6" position="-0.92 0.86 -2.34"></a-entity>'+
+  '      <a-entity id="eV6" position="0.92 0.86 -2.34"></a-entity>'+
+  '      <a-entity id="eRang" position="0 0.58 -2.34"></a-entity>'+
+  '      <a-entity id="eHint" position="0 0.33 -2.34"></a-entity>'+
   '    </a-entity>'+
   '  </a-entity>'+
   '</a-scene>';
@@ -1778,8 +1876,34 @@
   const BAAS_MAXAF=125;         // een baas komt nooit verder dan dit
   const PARADE_AFSTAND=14;      // eerst zo dichtbij komt iedereen
   const PARADE_VERMAX=105;      // en niet verder terug dan dit
-  const PARADE_DICHT_T=1.6;     // seconden vlak voor je neus
-  const PARADE_VER_T=2.0;       // seconden op de kijkafstand
+  const PARADE_DICHT_T=1.5;     // seconden dat hij voor je hangt
+  const PARADE_VER_T=2.0;       // (niet meer gebruikt sinds v15.26)
+  // Sjoerd v15.26: "ze komen op een rail langs. Ze mogen wel vrij vliegen, 1 voor
+  // 1. Ze mogen 4 sec in beeld ongeveer, hun ding doen en weer door."
+  const PARADE_SP=58;           // vliegsnelheid bij aankomen en wegvliegen
+  const PARADE_DRAAI=2.8;       // hoe snel hij zijn koers naar zijn doel draait
+  const PARADE_HEL=0.34;        // hoeveel hij overhelt in een bocht
+  const PARADE_IN_MAX=1.5;      // langer dan dit mag aanvliegen niet duren
+  const PARADE_UIT_MAX=1.0;     // en wegvliegen ook niet
+  const PARADE_START=80;        // vanaf hier komt hij aanvliegen (plus wat spreiding)
+  const PARADE_WEG=110;         // en zo ver weg is hij klaar
+  // Sjoerd v15.27: "tijdens de parade vuurwerk tussendoor, met meer kleur dan
+  // normaal, en als iets spat dat het net als vuurwerk in kleinere delen verder
+  // uit elkaar spat."
+  const VUUR_KL=[0xff3b6b,0xffd24a,0x6cf08a,0x66f0ff,0xc07dff,0xff8a3d,0xffffff,0x7dff4a];
+  const VUUR_N=16;              // scherven in de eerste bol
+  const VUUR_SPR=30;            // hoe hard die eerste bol uiteengaat
+  const VUUR_SZ=2.6;            // hoe groot een scherf is
+  const VUUR_VRIJ=140;          // zoveel vonken moeten vrij zijn voor een nieuwe bom
+  const VUUR_TUSSEN0=0.8, VUUR_TUSSEN1=1.0;   // seconden tussen twee bommen
+  // De rang bij je eindscore. Een level levert ongeveer 300.000 punten op, dus een
+  // hele doorloop komt in de miljoenen. Deze grenzen zijn een eerste gok — als
+  // Sjoerd zijn eigen score ziet zijn ze in een regel bij te stellen.
+  const RANGEN=[[6000000,'COSMIC','#ffd24a'],[3000000,'LEGEND','#c07dff'],
+                [1500000,'VETERAN','#66f0ff'],[750000,'ACE','#6cf08a'],
+                [250000,'PILOT','#9fe4f5'],[0,'ROOKIE','#bfe4f2']];
+  const EIND_TIK=0.55;          // hoe lang een regel omhoog tikt
+  const EIND_PAUZE=0.22;        // en de rust tussen twee regels
   // Taaiheid van de gewone vijanden. 1,00 is zoals ze getekend zijn.
   const VIJHP=0.88;
   const GROOTHP=6.0;            // Sjoerd: grote schepen 2x zo taai (was 3.0)
@@ -2208,6 +2332,13 @@
   const SALVO_SNEL=19, SALVO_DRAAI=4.2;
   // STERFORT gaat bij zijn dood uiteen in vijf zoekende sterren.
   const STER_N=5, STER_SP=17, STER_DMG=9, STER_DRAAI=3.2, STER_WACHT=0.55, STER_TOL=7.0;
+  // v15.29: Sjoerd: "als ontploffing in kleine sterren die WIJD naar buiten
+  // ontploffen en dan als homing missiles op mij af vliegen, in vreemde bochten
+  // of wijd slingerend. Niet te veel hp, ze moeten nog wel kapot."
+  const STER_UIT=44;            // hoe hard ze eerst naar buiten spatten
+  const STER_HP=2;              // zo makkelijk gaan ze kapot
+  const STER_SLING=7.5;         // hoe wijd ze slingeren op weg naar je toe
+  const STER_SLINGF=1.7;        // en hoe snel die slinger heen en weer gaat
   // IRON CROSS stuurt BLUE ARROWS in een treintje (Sjoerd v14.78): zes in beeld,
   // achter elkaar, kronkelend als een slang door de ruimte. Bochten van 40 tot
   // 70 m wijd. Valt er een uit, dan sluit er een nieuwe aan bij het moederschip.
@@ -2786,22 +2917,33 @@
   // De lichte jagers (WASP 1, SCOUT 0, NEEDLE 22, RAZOR 6) horen bij het BEGIN.
   // Ze verdwijnen geleidelijk uit de lijst, zodat de late levels om zware schepen
   // draaien in plaats van om dezelfde jagers met meer gezelschap.
+  // v15.29: de tabel opnieuw ontworpen op Sjoerds eisen:
+  //   - level 1 begint met een paar schepen, er komen er steeds meer bij
+  //   - oudere modellen rouleren eruit als nieuwere komen
+  //   - een nieuw model krijgt eerst een VOORPROEF: een level lang komt hij maar
+  //     een enkele keer voorbij (zie VOORPROEF hieronder), daarna pas normaal
+  //   - elk level heeft balans: iets kleins en snels, iets zwaars, iemand met
+  //     portalen en iemand die zich vermenigvuldigt
+  //   - niemand in meer dan zes levels; de oude tabel had er vier op zeven tot elf
+  //   - hoogstens twaalf soorten per level, tegen de chaos
+  //   - het gewicht loopt op van level 1 naar 11, dus het wordt echt zwaarder
   const NIVEAU=[
-    // v14.27: een ECHTE mix. Elk schip komt in 2 tot 6 levels, niemand in acht
-    // achter elkaar en niemand nergens. FOUR CANNON, GREY WHALE en BLUE ARROW
-    // stonden per ongeluk in GEEN ENKEL level; die zijn terug.
-    [ 1, 6, 0,22, 7, 8],                          // 1  rustig: vijf lichte + BLACK RAVEN
-    [ 1, 6, 0,22, 7, 9, 2, 8,19],                 // 2  + VIOLET WING, STEEL TALON(1 portaal), IRON FALCON
-    [ 6, 0,22, 7, 9,19,18,25,24,28],              // 3  + BLUE SPINE, FOUR FLAME(3), de klok, het moederschip
-    [ 6,22, 7, 9,11, 2,12, 5,26,10,28],           // 4  + CRIMSON CLAW, RED VEIN, DARK LANCE(5), het moederschip
-    [22, 9,19,11, 2,25,16, 4,13,18,31],           // 5  + IRON CROSS, GREY WHALE, GREY HAWK, STATIC
-    [ 9,19,11, 2,12,10, 5,27,14,21,24,28],        // 6  + AMBER RING, FOUR CANNON, BLACK MANTA, het moederschip
-    [ 9,11, 2,12,10,13,24, 3,16,26,18,31],        // 7  + BLUE ARROW, DARK SAUCER, BLUE SPINE, STATIC
-    [19,11,10, 5,13,24,16,20,28,14,26],           // 8  + GHOST WING, het moederschip, DARK SAUCER
-    [19,11,12,10, 5,13,16,20,28,15,27,31],        // 9  + sterfort, AMBER RING, STATIC
-    [11,10, 5,24,20,28,15,17,23, 4,13,21],        // 10 + vrachtkruiser, AZURE PLATE, BLACK MANTA
-    [12, 5,13,24,16,28,15,17,23,29,27,31]         // 11 + RED TALON, AMBER RING, STATIC
-  ];;;;
+    [ 0, 1, 6],                                  //  1  OLIVE HAWK, GREY DART, PALE EDGE
+    [ 1, 2, 3, 6,22],                            //  2  + STEEL TALON (voorproef), BLUE ARROW, RED LANCE
+    [ 0, 1, 2, 3, 7, 8,10,24],                   //  3  + BRONZE FANG, BLACK RAVEN (voorproef), GREEN DISC, de klok
+    [ 2, 3, 4, 6, 7, 8,10,18,22,24],             //  4  + GREY WHALE, BLUE SPINE (voorproef)
+    [ 0, 2, 4, 7, 8, 9,10,13,18,24],             //  5  + VIOLET WING, GREY HAWK (voorproef)
+    [ 4, 8, 9,11,13,18,22,25,26,28],             //  6  + CRIMSON CLAW, FOUR FLAME (voorproef), DARK SAUCER, het moederschip
+    [ 9,11,13,15,18,19,22,23,25,26,28,31],       //  7  + sterfort (voorproef), IRON FALCON, AZURE PLATE, STATIC (voorproef)
+    [ 1, 5,11,13,15,16,19,21,23,25,26,28],       //  8  + DARK LANCE (voorproef), IRON CROSS (voorproef), BLACK MANTA
+    [ 5, 6,12,14,15,16,19,20,21,27,31],          //  9  + RED VEIN, FOUR CANNON, GHOST WING, AMBER RING (voorproef)
+    [ 0, 5, 7,12,14,15,16,17,20,27,29,31],       // 10  + vrachtkruiser, RED TALON (voorproef)
+    [ 5, 7,12,14,16,17,20,22,27,29,31]           // 11  de zwaarste ploeg
+  ];
+  // Welke schepen in welk level nog maar een VOORPROEF zijn: daar komt er hoogstens
+  // EEN tegelijk, zodat je hem leert kennen voordat hij in getale opduikt.
+  const VOORPROEF={2:[2], 3:[8], 4:[18], 5:[13], 6:[25], 7:[15,31], 8:[5,16], 9:[27], 10:[29]};
+
   const LEVELS=NIVEAU.length;
   const DOOS_VAKER=1.2;         // v14.44: wapendozen 1,2x zo vaak
   const LES_TWEEDE=5.5;         // hoe lang het tweede lesscherm blijft staan
@@ -3044,6 +3186,18 @@
           if(!window.INVR&&LS2&&LS2.style.display!=='none'){
             window.NAKLIK=performance.now()+800; return; }
           if(performance.now()<(window.NAKLIK||0)) return;
+          // v15.27: staat de eindtelling in beeld, dan brengt een druk je naar
+          // het naamscherm. Dit MOET voor de PARADEKLAAR-regel staan: die stuurt
+          // je naar het menu, en dan was je je naam kwijt.
+          if(window.EINDKLAAR){ window.EINDKLAAR=0;
+            const ep=document.querySelector('#eind');
+            if(ep) ep.setAttribute('visible',false);
+            const rg3=document.querySelector('#rig');
+            const c3=rg3&&rg3.components&&rg3.components.cosmic;
+            if(c3){ c3.state='niets'; c3.eind=null; c3.over=true; }
+            window.PAUSED=true;
+            if(window.NAAMVRAAG) window.NAAMVRAAG();
+            return; }
           if(window.PARADEKLAAR){ window.PARADEKLAAR=0; naarMenu(); return; }
           if(window.PHASE==='menu'||window.PAUSED){ menuKlik(h); return; }
           if(window.DEMO){                              // demo stopt bij aanraking,
@@ -3108,8 +3262,22 @@
       this.melding=0; this.meldC=0; this.wave=0; this.golfT=0; this.state='wacht';
       this.ults=M().ult; this.ultPt=0; this.combo=0; this.laatst=-9; this.beste=0;
       this.comboKlok=0; this.comboPt=0; this.comboPop=0;
+      // v15.29: Sjoerd: "ik sluit het spel tijdens het spelen en zie het combo-
+      // icoon nog rechts in beeld terwijl ik in het startmenu ben."
+      // GEVONDEN: comboTick zet deze drie groepen aan EN uit, maar die routine
+      // loopt alleen tijdens het spel. Stop je midden in een combo, dan staat het
+      // laatste beeld er nog en wist niemand het meer. Dus hier expliciet uit —
+      // reset() draait zowel bij terug-naar-menu als bij een nieuw spel.
+      this.ceT=0; this.vwT=0; this.comboTot=0; this.vwEl=0;
+      ['#comboHoek','#ceGroep','#vwGroep'].forEach(function(id){
+        const q=document.querySelector(id); if(q) q.setAttribute('visible',false); });
+      // en de vlammetjes om de meter doven mee, anders blijven die zweven
+      if(this.vlamP) for(let q=0;q<this.vlamP.length;q++){ const P=this.vlamP[q];
+        if(!P) continue; P.live=0;
+        if(P.m) P.m.visible=false; if(P.r) P.r.visible=false; }
       this.baas=null; this.rood=0; this.hurtCd=0; this.melding=0; this.contN=0;
       this.gedood=0; this.schoten=0;
+      this.spelT=0;                                  // v15.27: speeltijd voor de eindtelling
       const prim=(window.PRIMHAND==='right')?'rightHand':'leftHand';
       const spec=(prim==='leftHand')?'rightHand':'leftHand';
       this.prim=prim; this.spec=spec;
@@ -6575,7 +6743,46 @@
           F.m.material.color.setHex(col); F.m.material.opacity=1;
           F.m.position.set(x,y,z); F.m.visible=true;
           F.vx=(Math.random()-0.5)*spr; F.vy=(Math.random()-0.5)*spr; F.vz=(Math.random()-0.5)*spr;
+          // v15.27: een gewone vonk is GEEN vuurwerk. Zonder deze twee regels erft
+          // hij de naspat en de trage dooftijd van een vuurwerkscherf die dit
+          // deeltje eerder gebruikte — en dan spat elke explosie in het spel open.
+          F.na=0; F.traag=0;
           break; } } },
+
+    // ---- VUURWERK (Sjoerd v15.27) ----
+    // Geen losse bol vonken maar een KETTING: een bol spat uiteen, en elke scherf
+    // spat daarna zelf nog eens open, kleiner en verder van je af. Dat is wat een
+    // echte vuurwerkbom doet.
+    // 'diep' zegt hoeveel keer er nog een naspat volgt. Op 1 krijg je dus twee
+    // lagen: de bol en de scherven die zelf openspatten.
+    vuurSpat:function(x,y,z,n,col,spr,sz,diep,traag){
+      for(let k=0;k<n;k++){
+        for(let i=0;i<this.vonken.length;i++){ const F=this.vonken[i]; if(F.live) continue;
+          F.live=true; this.vonkVrij=(this.vonkVrij||0)-1;
+          F.life=1; F.sz=sz*(0.6+Math.random()*0.8);
+          F.m.material.color.setHex(col); F.m.material.opacity=1;
+          F.m.position.set(x,y,z); F.m.visible=true;
+          // in een BOL uiteen, niet in een kubus: een kubus leest als een wolk,
+          // een bol leest als vuurwerk. Vandaar de hoek over twee assen.
+          const hk=Math.random()*6.283, ho=Math.acos(2*Math.random()-1);
+          const v=spr*(0.55+Math.random()*0.45);
+          F.vx=Math.sin(ho)*Math.cos(hk)*v;
+          F.vy=Math.cos(ho)*v;
+          F.vz=Math.sin(ho)*Math.sin(hk)*v;
+          F.traag=traag?1:0;
+          F.na=(diep>0)?(3+Math.floor(Math.random()*2)):0;
+          F.naOp=0.42+Math.random()*0.22;               // wanneer hij openspat
+          F.naK=col; F.naSp=spr*0.55; F.naSz=sz*0.6; F.naD=(diep||0)-1;
+          break; } } },
+
+    // een hele bom: twee kleuren door elkaar, want dat leest rijker dan een
+    vuurBom:function(x,y,z){
+      const a=VUUR_KL[Math.floor(Math.random()*VUUR_KL.length)];
+      let b=VUUR_KL[Math.floor(Math.random()*VUUR_KL.length)];
+      if(b===a) b=VUUR_KL[(VUUR_KL.indexOf(a)+3)%VUUR_KL.length];
+      this.vuurSpat(x,y,z,Math.round(VUUR_N*0.6),a,VUUR_SPR,VUUR_SZ,1,1);
+      this.vuurSpat(x,y,z,Math.round(VUUR_N*0.4),b,VUUR_SPR*0.75,VUUR_SZ*0.8,1,1);
+      try{ SND.boom(x*0.02,false); }catch(q){} },
 
     // ---- DE COMBOMETER ----
     // Bij elke kill: het cijfer springt op, de ring vult zich weer, en de kleur
@@ -7230,7 +7437,7 @@
       // Sjoerd zag twee verschillende koppen die precies dezelfde baan vlogen.
       for(let k=0;k<(n||1);k++){
         for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(B.live) continue;
-          B.live=true; B.o.copy(e.p); B.d=0; B.md=140;
+          B.live=true; B.ster=0; B.o.copy(e.p); B.d=0; B.md=140;
           const Tv=TYPE[e.tp];
           B.sp=(Tv&&Tv.snel?Tv.snel:13)+Math.random()*4; // rustig genoeg om te zien aankomen
           B.zwaar=(Tv&&Tv.zwaar)?1:0;
@@ -7687,7 +7894,7 @@
 
     vijVrij:function(){
       for(let i=0;i<this.vij.length;i++) if(!this.vij[i].live){
-        const B=this.vij[i]; B.live=true; B.d=0; B.md=200; B.boog=0; return B; }
+        const B=this.vij[i]; B.live=true; B.ster=0; B.d=0; B.md=200; B.boog=0; return B; }
       return null; },
     vijRicht:function(B,spreid,snel,hp){
       B.dir.copy(this.kop).sub(B.o).normalize();
@@ -7730,7 +7937,7 @@
       const tp=e.wapens[k%e.wapens.length];
       const eye=this.tmp.copy(this.kop);
       for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(B.live) continue;
-        B.live=true;
+        B.live=true; B.ster=0;
         B.o.copy(e.p);
         B.o.x+=(k-1)*e.sc*0.22; B.o.y-=e.sc*0.06;       // uit verschillende kanonnen
         B.d=0; B.md=170;
@@ -7768,7 +7975,7 @@
       let gezet=0;
       for(let i=0;i<this.vij.length&&gezet<N;i++){ const B=this.vij[i]; if(B.live) continue;
         const hoek=(gezet/N)*6.283+Math.random()*0.25;
-        B.live=true; B.buis=null; B.m.visible=!(this.kopVak&&this.kopVak.length);
+        B.live=true; B.buis=null; B.ster=0; B.m.visible=!(this.kopVak&&this.kopVak.length);
         B.o.copy(e.p); B.d=0; B.dir.subVectors(this.kop,e.p).normalize();
         B.sp=34+Math.random()*10; B.md=420;
         B.zoek=1; B.zwaar=1; B.hp=3; B.streep=0; B.boog=0; B.wieg=0;
@@ -7801,7 +8008,7 @@
       if(e&&(e.dood||e.dood2||!e.live)) return;
       const o=opt||{};
       for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(B.live) continue;
-        B.live=true; B.buis=null; B.m.visible=!(this.kopVak&&this.kopVak.length);
+        B.live=true; B.buis=null; B.ster=0; B.m.visible=!(this.kopVak&&this.kopVak.length);
         B.o.copy(o.van||e.p); B.d=0;
         B.dir.copy(dir).normalize();
         B.sp=o.sp||20; B.md=o.md||420;
@@ -8205,12 +8412,19 @@
           if(B.live) continue;
           B.live=true; B.buis=null; B.m.visible=true;
           B.o.copy(p); B.d=0;
-          B.dir.set(Math.cos(hk),Math.sin(hk)*0.7,0.22).normalize();
-          B.sp=STER_SP; B.md=420;
-          B.hp=3; B.zwaar=0; B.dmg=STER_DMG;
-          // eerst uitwaaieren, dan pas zoeken
+          // v15.29: WIJD naar buiten. Een bol uiteen, niet een platte ring, en
+          // met flink wat vaart zodat je de explosie ziet openklappen.
+          const ho=Math.acos(2*Math.random()-1);
+          B.dir.set(Math.sin(ho)*Math.cos(hk),Math.cos(ho)*0.8,Math.sin(ho)*Math.sin(hk)).normalize();
+          B.sp=STER_UIT; B.md=520;
+          B.hp=STER_HP; B.zwaar=0; B.dmg=STER_DMG;
+          // eerst uitwaaieren, dan pas zoeken — en dan slingerend, niet recht
           B.zoek=0; B.laatZoek=STER_WACHT; B.leef=0; B.draai=STER_DRAAI;
-          B.streep=0; B.boog=0; B.wieg=0;
+          B.streep=0; B.boog=0;
+          B.wieg=1; B.wiegW=STER_SLING*(0.7+Math.random()*0.7);
+          B.wiegF=STER_SLINGF*(0.75+Math.random()*0.6);
+          B.sp0=STER_SP;                 // waar hij op terugvalt als hij gaat zoeken
+          B.ster=1;                      // hij draagt zijn eigen plaat, zie de tekenlus
           B.tol=STER_TOL; B.tolHk=Math.random()*6.283;
           B.brand=0; B.splT=0; B.wijk=0;
           // Sjoerd v15.15: "de ster laat niet altijd even duidelijk ministerren
@@ -9765,6 +9979,40 @@
       return this.zaad/0x7fffffff; },
 
     // ---- soorten van dit level, gesorteerd van licht naar zwaar ----
+    // v15.29: welke kleintjes krijgt dit level erbij?
+    // Hij telt eerst hoe vaak elk kleintje al IN de tabel staat, loopt dan van
+    // level 1 omhoog, en geeft elk level dat er geen heeft de twee die tot dan toe
+    // het minst zijn gebruikt. Dat is deterministisch: dezelfde levels krijgen
+    // altijd dezelfde schepen, dus je leert het spel gewoon kennen.
+    kleinVoor:function(L0){
+      const kl=[];
+      for(let t=0;t<TYPE.length;t++)
+        if(TYPE[t]&&TYPE[t].prof!=='baas'&&TYPE[t].br<=7) kl.push(t);
+      if(!kl.length) return [];
+      const tel={}; kl.forEach(function(t){ tel[t]=0; });
+      for(let i=0;i<NIVEAU.length;i++)
+        for(let q=0;q<NIVEAU[i].length;q++){ const t=NIVEAU[i][q];
+          if(tel[t]!==undefined) tel[t]++; }
+      let uit=[], vorig=[];
+      for(let L=1;L<=NIVEAU.length;L++){
+        const rij=NIVEAU[Math.min(NIVEAU.length-1,L-1)];
+        let heeft=false;
+        for(let q=0;q<rij.length;q++) if(TYPE[rij[q]]&&TYPE[rij[q]].br<=7){ heeft=true; break; }
+        if(heeft){ if(L===L0) uit=[]; continue; }
+        const vrij=kl.filter(function(t){ return rij.indexOf(t)<0; });
+        // minst gebruikt eerst, MET een strafpunt voor wie het vorige level ook al
+        // meedeed. Zonder die straf kreeg level 6 en 7 hetzelfde duo, en 10 en 11
+        // ook — precies het effect dat we juist weg willen hebben. De straf weegt
+        // zwaarder dan een verschil van een, dus hij wisselt echt.
+        vrij.sort(function(a,b){
+          const pa=(vorig.indexOf(a)>=0)?2:0, pb=(vorig.indexOf(b)>=0)?2:0;
+          return ((tel[a]+pa)-(tel[b]+pb))||(((a+L)%3)-((b+L)%3))||(a-b); });
+        const p=vrij.slice(0,Math.min(2,vrij.length));
+        for(let q=0;q<p.length;q++) tel[p[q]]++;
+        vorig=p;
+        if(L===L0) uit=p; }
+      return uit; },
+
     levelSoorten:function(){
       const L=NIVEAU[Math.min(NIVEAU.length-1,this.level-1)].slice();
       // Het venster schuift op, dus vanaf level 9 vielen de kleine schepen er
@@ -9776,8 +10024,17 @@
         const kl=[];
         for(let t=0;t<TYPE.length;t++) if(TYPE[t].br<=7&&TYPE[t].prof!=='baas') kl.push(t);
         kl.sort(function(a,b){ return TYPE[b].hp-TYPE[a].hp; });   // de taaiste kleintjes
-        const n=Math.min(3,kl.length);
-        for(let i=0;i<n;i++) if(L.indexOf(kl[i])<0) L.push(kl[i]); }
+        // v15.29: Sjoerd: "hij zit in zo veel levels, en ook best veel."
+        // GEMETEN: level 6 TOT EN MET 11 heeft geen enkel schip van 7 m of
+        // smaller, dus kregen ALLE ZES dezelfde drie taaiste kleintjes erbij —
+        // NEEDLE, RAZOR en SCOUT. Die kwamen daardoor in 11, 10 en 9 levels voor,
+        // terwijl de code zelf zegt "elk schip in 2 tot 6 levels". WASP stond
+        // vierde en werd nooit gekozen.
+        // Nu kiest hij per level de TWEE kleintjes die tot dan toe het MINST zijn
+        // gebruikt — de tabel meegeteld. Zo vult hij de gaten in plaats van de
+        // drukste nog drukker te maken, en komt niemand ver boven de zes levels.
+        const p=this.kleinVoor(Math.max(1,this.level));
+        for(let i=0;i<p.length;i++) if(L.indexOf(p[i])<0) L.push(p[i]); }
       L.sort(function(a,b){ return TYPE[a].hp-TYPE[b].hp; });
       return L; },
 
@@ -10042,9 +10299,16 @@
       // groep, samen 27 portalen.
       {
         let pTot=0, jGehad=0, wGehad=0, zTot=0;
+        // v15.29: de VOORPROEF hoort in DEZE zeef en niet in zet(). Precies zoals
+        // de opmerking hierboven zegt wordt het plan na zet() nog twee keer
+        // aangeraakt: de variatiewissel en de dubbele-soort-wissel kunnen een
+        // voorproefschip alsnog IN een bestaande groep van drie zetten. Gemeten:
+        // BLACK RAVEN kwam zo met vier tegelijk in zijn voorproeflevel.
+        const vpL=VOORPROEF[this.level]||null;
         for(let i=0;i<plan.length;i++){
           const q=plan[i], T3=TYPE[q.tp]; if(!T3) continue;
           const bn3=T3.basis||T3.n;
+          if(vpL&&vpL.indexOf(q.tp)>=0) q.n=Math.min(q.n,1);
           if(bn3==='JAMMER'){                         // hoogstens ÉÉN jammer
             if(jGehad){ q.n=0; continue; }
             q.n=1; jGehad=1; continue; }
@@ -10818,6 +11082,10 @@
       // DE TUTORIAL tikt VOORAAN, vóór alle returns verderop — anders loopt hij
       // vast zodra de beurt ergens eerder afslaat (gemeten: tutT bleef op 0).
       if(window.PHASE==='game'&&(window.TUT||this.tutHemelOp)) this.tutTick(sEcht);
+      // v15.27: de speeltijd loopt alleen als je ECHT speelt — niet in het menu,
+      // niet op pauze, en niet tijdens de parade of de eindtelling.
+      if(window.PHASE==='game'&&!window.PAUSED&&!window.DEMO&&
+         this.state!=='parade'&&this.state!=='eind') this.spelT=(this.spelT||0)+sEcht;
       // ---- DE ZWARTE DOOS ----
       // Elke beurt een regel: waar we zijn, hoe druk het is, en HOE LANG de
       // vorige beurt duurde. Loopt het spel vast, dan zie je de aanloop.
@@ -11590,7 +11858,13 @@
         // Het projectielplaatje van de VLOOTPLAAT is er helemaal uit: Sjoerds
         // eigen koppen zijn nu de raket. Zo zie je nooit meer het oude raketje
         // uit de atlas ertussen.
-        if(this.kopVak&&B.m.visible) B.m.visible=false;
+        // v15.29: HIER ZAT DE FOUT waardoor je de ministerren nooit zag. Deze
+        // regel verstopt de romp van elk vijandelijk projectiel zodra Sjoerds
+        // koppenplaat geladen is — want dan is de KOP de raket. Maar een
+        // ministerretje IS zijn romp: hij draagt de sterplaat zelf. Zonder deze
+        // uitzondering werd hij elk beeldje opnieuw onzichtbaar gemaakt, en in
+        // mijn tests viel dat niet op omdat daar geen koppenplaat was.
+        if(this.kopVak&&B.m.visible&&!B.ster) B.m.visible=false;
         if(B.buis){
           // Het lichaam wijst met zijn lengte langs de vliegrichting en draait niet
           // naar je toe: daardoor zie je hem van opzij als raket en van voren als neus.
@@ -11600,6 +11874,12 @@
           B.buis.scale.set(Br,L,Br);
           this.richtAs(B.buis,B.dir);
           B.m.visible=false;
+        } else if(B.ster){
+          // vierkant en altijd naar je toe gedraaid: een platte ster die van
+          // opzij vliegt zou anders verdwijnen
+          B.m.position.copy(p);
+          B.m.lookAt(eye);
+          B.m.scale.set(B.len||STER_MAAT,B.br||STER_MAAT,1);
         } else this.richtQuad(B.m,p,B.dir,B.len||2.4,B.br||0.42);
         if(p.distanceTo(eye)<0.80){ this.raakMij(5); this.vijVrij2(B);
           this.vonk(p.x,p.y,p.z,0xff5a3c,6,7,0.6); if(window.PAUSED) return; continue; }
@@ -11636,11 +11916,18 @@
 
       // ---- vonken ----
       for(let i=0;i<this.vonken.length;i++){ const F=this.vonken[i]; if(!F.live) continue;
-        F.life-=s*1.7;
+        // v15.27: een vuurwerkscherf dooft ruim twee keer zo langzaam, zodat je de
+        // bol ziet openbloeien in plaats van knipperen
+        F.life-=s*(F.traag?0.75:1.7);
         F.m.position.x+=F.vx*s; F.m.position.y+=F.vy*s-4*s*(1-F.life); F.m.position.z+=F.vz*s;
         F.m.lookAt(eye);
         F.m.scale.setScalar(Math.max(0.01,F.sz*F.life*2.2));
         F.m.material.opacity=Math.max(0,F.life);
+        // v15.27: halverwege zijn leven spat hij zelf nog eens open, kleiner en
+        // verder naar buiten. vuurSpat slaat DIT deeltje over, want het leeft nog.
+        if(F.na&&F.life<=F.naOp){ const n2=F.na; F.na=0;
+          this.vuurSpat(F.m.position.x,F.m.position.y,F.m.position.z,
+                        n2,F.naK,F.naSp,F.naSz,F.naD,F.traag); }
         if(F.life<=0){ F.live=false; this.vonkVrij=(this.vonkVrij||0)+1;
           F.m.visible=false; } }
 
@@ -11664,6 +11951,7 @@
 
       // ---- golvenmachine ----
       if(this.state==='parade'){ this.paradeTick(s); }
+      if(this.state==='eind'){ this.eindTick(s); }
       else if(this.state==='rust'){ this.rustTick(s); }
       else if(this.state==='baaswacht'){ this.golfT-=s;
         if(this.golfT<=0){ this.toonGroot('',''); 
@@ -13267,7 +13555,19 @@
     // =====================================================
     //  DE PARADE — na het uitspelen komt alles nog één keer langs
     // =====================================================
-    paradeStart:function(){
+    paradeStart:function(eind){
+      // v15.26: als dit het EINDE van het spel is, moet het veld eerst leeg —
+      // anders vliegt de parade tussen de restanten van het eindgevecht door.
+      if(eind){
+        try{ this.extraUit(); }catch(q){}
+        for(let i=0;i<this.enemies.length;i++){ const q=this.enemies[i];
+          if(!q.live) continue;
+          try{ this.genWeg(q); this.escWeg(q); this.velgWeg(q); this.openWeg(q); }catch(z){}
+          q.live=false; q.dood=0; q.dood2=0; q.kami=0;
+          if(q.romp){ q.romp.visible=false; q.romp=null; }
+          if(q.bb){ this.bbVrij(q.bb); q.bb=null; } }
+        for(let i=0;i<this.vij.length;i++) if(this.vij[i].live) this.vijVrij2(this.vij[i]);
+        this.baas=null; }
       const L=[];
       for(let t=0;t<TYPE.length;t++) if(TYPE[t].prof!=='baas') L.push({tp:t});
       L.sort(function(a,b){ return TYPE[a.tp].br-TYPE[b.tp].br||TYPE[a.tp].hp-TYPE[b.tp].hp; });
@@ -13275,7 +13575,8 @@
       const B=(this.bazen||[]).slice().sort(function(a,b){ return a.beurt-b.beurt; });
       B.forEach(function(b){ if(b.gedrag!=='reus') L.push({baas:b}); });
       B.forEach(function(b){ if(b.gedrag==='reus') L.push({baas:b,reus:1}); });
-      this.par9={lijst:L, i:-1, e:null, fase:'leeg', t:0, klaarT:0};
+      this.par9={lijst:L, i:-1, e:null, fase:'leeg', t:0, klaarT:0, eind:!!eind,
+                 v:new THREE.Vector3(0,0,1), uit:new THREE.Vector3(), hel:0};
       // de achtergrond die geen enkel level gebruikt
       if(this.hemels&&this.hemels.length){
         const i=Math.min(this.hemels.length-1,LEVELS);
@@ -13285,53 +13586,128 @@
       if(this.skyObjs) this.skyObjs.forEach(function(m){ m.visible=false; });
       this.state='parade'; window.PAUSED=false;
       this.toonGroot('','');
-      SND.zeg('Hall of fame'); },
+      SND.zeg(eind?'Sector cleared':'Hall of fame'); },
 
     paradeTick:function(s){
       const P=this.par9; if(!P) return;
+      // ---- vuurwerk tussendoor (v15.27) ----
+      // Om je heen, maar met de nadruk naar voren zodat je het ziet zonder te
+      // moeten zoeken. Alleen als er genoeg vonken vrij zijn: een bom kost er
+      // ongeveer tachtig, en de parade zelf heeft er ook een paar nodig.
+      P.vwT=(P.vwT||0)-s;
+      if(P.vwT<=0){
+        P.vwT=VUUR_TUSSEN0+Math.random()*VUUR_TUSSEN1;
+        if((this.vonkVrij||0)>VUUR_VRIJ){
+          const hk=(Math.random()*2-1)*2.1;             // ruim naar voren
+          const r=50+Math.random()*55;
+          this.vuurBom(this.kop.x+Math.sin(hk)*r,
+                       this.kop.y+14+Math.random()*34,
+                       this.kop.z-Math.cos(hk)*r); } }
       // ---- niemand in beeld: de volgende komt op ----
       if(!P.e){
         P.i++;
         if(P.i>=P.lijst.length){ this.paradeEind(s); return; }
         const it=P.lijst[P.i];
         let e=null;
-        if(it.baas){ e=this.spawn(BAAS,{x:-220,y:this.kop.y,z:-90,baas:it.baas,hp:0.001});
+        // v15.26: hij komt niet meer van een vast punt links, maar uit een
+        // willekeurige hoek om je heen en op een willekeurige hoogte.
+        const hk0=(Math.random()*2-1)*2.3;
+        const rr=PARADE_START+Math.random()*20;
+        const sx=this.kop.x+Math.sin(hk0)*rr;
+        const sz=this.kop.z-Math.cos(hk0)*rr;
+        const sy=this.kop.y+(Math.random()*2-1)*36;
+        if(it.baas){ e=this.spawn(BAAS,{x:sx,y:sy,z:sz,baas:it.baas,hp:0.001});
           if(e){ e.intro=0; e.rijst=0; e.dood2=0; } }
-        else e=this.spawn(it.tp,{x:-220,y:this.kop.y,z:-60});
+        else e=this.spawn(it.tp,{x:sx,y:sy,z:sz});
         if(!e){ return; }
+        e.p.set(sx,sy,sz);
+        // zijn beginkoers wijst NAAST je, zodat hij een bocht moet draaien om
+        // bij je te komen. Daar komt zijn overhelling uit.
+        { const vx=this.kop.x-sx, vz=this.kop.z-sz;
+          const dl=Math.max(0.001,Math.hypot(vx,vz));
+          const zw=(Math.random()<0.5?-1:1)*(0.75+Math.random()*0.5);
+          const cx=vx/dl, cz=vz/dl;
+          P.v.set(cx*Math.cos(zw)-cz*Math.sin(zw),0,cx*Math.sin(zw)+cz*Math.cos(zw)).normalize(); }
+        P.hel=0;
         e.parade=1; e.hp=e.hpM=999999;                 // hij hoort niet te sneuvelen
         e.rol=0;
         P.e=e; P.fase='in'; P.t=0;
         // Iedereen komt eerst op DEZELFDE korte afstand — zo voel je hoe groot
         // ze zijn. Daarna zakken ze terug tot ze helemaal in beeld passen; die
         // afstand schaalt met hun breedte en hoogte.
-        P.dichtbij=PARADE_AFSTAND;
-        P.ver=Math.max(PARADE_AFSTAND+10,
-              Math.min(PARADE_VERMAX, Math.max(e.bw,e.bh*0.8)*1.35+10));
-        P.d=P.dichtbij;
+        // v15.26: EEN toonafstand, op zijn maat. Een klein schip komt vlak voor
+        // je neus, een kolos blijft verder weg zodat hij nog in beeld past. De
+        // aparte terugzak-fase is eruit: met vier seconden per schip is daar
+        // geen ruimte voor, en dit leest net zo goed.
+        P.d=Math.max(PARADE_AFSTAND,
+            Math.min(PARADE_VERMAX, Math.max(e.bw,e.bh*0.8)*1.35+9));
         P.naam=(it.baas?(it.baas.naam+'   -   BOSS'):TYPE[it.tp].n);
         this.toonGroot(P.naam,it.baas?'#ff8aa6':'#9fe4f5');
         return; }
 
       const e=P.e; P.t+=s;
       e.cd=99; e.dood=0;                                // niet schieten, niet sterven
-      const doelX=(P.fase==='uit')?260:0;
-      const stil=(P.fase==='stil'||P.fase==='ver');
-      const snel=stil?0:78;
-      e.p.x+=Math.max(-snel,Math.min(snel,(doelX-e.p.x)*1.4))*s;
-      // terugzakken doet hij rustig, dat leest prettiger dan wegschieten
-      e.p.z+=((-P.d)-e.p.z)*Math.min(1,s*(P.fase==='terug'?0.9:1.6));
-      // een kolos houdt zijn hoofd op ooghoogte; zijn romp hangt eronder
+      // ---- v15.26: VRIJ VLIEGEN IN PLAATS VAN DE RAIL ----
+      // Vroeger schoof hij van x=-220 op een rechte lijn op vaste hoogte naar je
+      // toe en er weer uit. Nu heeft hij een SNELHEIDSVECTOR die naar zijn doel
+      // toe draait in plaats van er recht naartoe te schuiven. Daardoor vliegt hij
+      // bochten, en uit de scherpte van die bocht rolt zijn overhelling — net
+      // zoals de vijanden in het spel zelf overhellen.
+      // Een kolos houdt zijn kop op ooghoogte; zijn romp hangt eronder.
       const hoog=(e.bh>40)?(this.kop.y-e.bh*0.34):this.kop.y;
-      e.p.y+=(hoog-e.p.y)*Math.min(1,s*1.6);
-      if(e.bb){ e.bb.m.rotation.z=0; }
+      const V=P.v, D=this.pdD||(this.pdD=new THREE.Vector3());
+      const doel=this.pdT||(this.pdT=new THREE.Vector3());
+      if(P.fase==='uit') doel.copy(P.uit);
+      else doel.set(this.kop.x,hoog,this.kop.z-P.d);
+      D.copy(doel).sub(e.p);
+      const dAf=D.length(); if(dAf>0.001) D.multiplyScalar(1/dAf);
+      const vx0=V.x, vz0=V.z;
+      V.addScaledVector(D,PARADE_DRAAI*s);
+      if(V.lengthSq()<1e-6) V.copy(D);
+      V.normalize();
+      if(P.fase==='toon'){
+        // hij hangt voor je en doet zijn ding: een lichte deining en een langzame
+        // wieg, zodat hij leeft in plaats van stil te staan. Alle drie de assen
+        // lopen er GELIJKMATIG naartoe — eerst zette ik x en y hard, en dan
+        // verspringt een schip dat net iets scheef aankwam.
+        const tx=this.kop.x+Math.sin(P.t*1.15)*Math.min(2.4,1.0+e.bw*0.05);
+        const ty=hoog+Math.sin(P.t*1.9)*Math.min(1.8,0.5+e.bh*0.05);
+        const tz=this.kop.z-P.d;
+        const f2=Math.min(1,s*4.5);
+        e.p.x+=(tx-e.p.x)*f2; e.p.y+=(ty-e.p.y)*f2; e.p.z+=(tz-e.p.z)*f2; }
+      else {
+        let sp2=(P.fase==='uit')?(PARADE_SP*(1+P.t*0.9)):PARADE_SP;
+        // netjes afremmen bij aankomst, anders schiet hij er dwars door
+        if(P.fase==='in') sp2=Math.min(sp2,Math.max(10,dAf*2.0));
+        e.p.addScaledVector(V,sp2*s);
+        e.p.y+=((P.fase==='uit'?doel.y:hoog)-e.p.y)*Math.min(1,s*1.7); }
+      // de overhelling: hoe scherper de bocht, hoe verder hij overhelt. Let op de
+      // deling door s: het kruisproduct hieronder is de koerswijziging van DIT
+      // beeldje, en die is per beeldje piepklein. Gedeeld door s is het een
+      // draaisnelheid, en daar hoort de helling bij.
+      const bocht=((V.x-vx0)*vz0-(V.z-vz0)*vx0)/Math.max(0.004,s);
+      const wil=(P.fase==='toon')?(Math.sin(P.t*1.5)*0.22):(-bocht*PARADE_HEL);
+      P.hel=(P.hel||0)+(wil-(P.hel||0))*Math.min(1,s*4.5);
+      if(e.bb&&e.bb.m){
+        const lk=this.pdL||(this.pdL=new THREE.Vector3());
+        // aanvliegen en wegvliegen: hij kijkt waar hij heen gaat. Voor je hangen:
+        // hij kijkt JOU aan. Altijd op zijn eigen hoogte, anders zie je zijn zij.
+        if(P.fase==='toon') lk.set(this.kop.x,e.p.y,this.kop.z);
+        else lk.set(e.p.x+V.x*25,e.p.y,e.p.z+V.z*25);
+        e.bb.m.lookAt(lk);
+        e.bb.m.rotation.z=Math.max(-1.05,Math.min(1.05,P.hel)); }
 
-      if(P.fase==='in'&&Math.abs(e.p.x)<1.5&&Math.abs(e.p.z+P.d)<2.5){ P.fase='stil'; P.t=0; }
-      else if(P.fase==='stil'&&P.t>=PARADE_DICHT_T){    // even van dichtbij
-        P.fase='terug'; P.t=0; P.d=P.ver; }
-      else if(P.fase==='terug'&&Math.abs(e.p.z+P.d)<3.0){ P.fase='ver'; P.t=0; }
-      else if(P.fase==='ver'&&P.t>=PARADE_VER_T){ P.fase='uit'; P.t=0; this.toonGroot('',''); }
-      else if(P.fase==='uit'&&e.p.x>150){
+      if(P.fase==='in'&&(dAf<Math.max(4,e.bw*0.30)||P.t>PARADE_IN_MAX)){
+        P.fase='toon'; P.t=0; }
+      else if(P.fase==='toon'&&P.t>=PARADE_DICHT_T){
+        P.fase='uit'; P.t=0; this.toonGroot('','');
+        // een eigen uitweg kiezen: opzij en omhoog, of opzij en omlaag. Niet
+        // recht naar achteren, want dan verdwijnt hij achter je rug.
+        const hk=(Math.random()*2-1)*2.0, op=(Math.random()<0.5?1:-1);
+        P.uit.set(this.kop.x+Math.sin(hk)*250,
+                  hoog+op*(45+Math.random()*55),
+                  this.kop.z-Math.cos(hk)*250); }
+      else if(P.fase==='uit'&&(e.p.distanceTo(this.kop)>PARADE_WEG||P.t>PARADE_UIT_MAX+1.4)){
         e.live=false; if(e.bb){ this.bbVrij(e.bb); e.bb=null; }
         if(e.romp){ e.romp.visible=false; e.romp=null; }
         P.e=null; } },
@@ -13339,6 +13715,18 @@
     paradeEind:function(s){
       const P=this.par9;
       P.klaarT+=s;
+      // v15.26: HET ECHTE EINDE. Heb je het spel uitgespeeld, dan is de parade je
+      // ereronde en komt daarna je naam — niet GAME OVER en terug naar het menu.
+      if(P.eind){
+        const ec=document.querySelector('#hudC');
+        if(!ec||ec.getAttribute('value')!=='MISSION COMPLETE')
+          this.toonGroot('MISSION COMPLETE','#6cf08a');
+        this.meldC=9;
+        if(P.klaarT>2&&!P.naamGedaan){
+          P.naamGedaan=1;
+          // v15.27: eerst de telling, en daarna pas je naam
+          this.eindStart(); }
+        return; }
       // GAME OVER is geen melding die wegvaagt: hij blijft staan tot je drukt.
       const gc=document.querySelector('#hudC');
       if(!gc||gc.getAttribute('value')!=='GAME OVER') this.toonGroot('GAME OVER','#ffe45c');
@@ -13351,17 +13739,86 @@
                w.setAttribute('color','#9fe4f5'); }
         this.wepC=999; } },
 
+    // ---- DE EINDTELLING (Sjoerd v15.27) ----
+    // "Die score wil ik ook zien op het laatst." Na de parade lopen je cijfers
+    // een voor een omhoog, met een tik per regel, en daarboven je rang. Pas als
+    // alles staat mag je door naar je naam.
+    eindStart:function(){
+      const sec=Math.max(0,Math.round(this.spelT||0));
+      const mm=Math.floor(sec/60), ss=sec%60;
+      const per=(this.schoten>0)?Math.round(this.gedood*1000/this.schoten)/10:0;
+      this.eind={
+        i:0, t:0, wacht:0, klaar:0,
+        rij:[['KILLS',this.gedood||0,0],
+             ['BEST COMBO',this.beste||0,0],
+             ['SHOTS FIRED',this.schoten||0,0],
+             ['HITS PER 100',per,1],
+             ['TIME',mm*100+ss,2],
+             ['CONTINUES',this.contN||0,0],
+             ['FINAL SCORE',this.punten||0,0]] };
+      // de zeven regels leeg zetten en het paneel aan
+      for(let k=0;k<7;k++){
+        mTekst('#eL'+k,'','#bfe4f2',0.052,0.20);
+        mTekst('#eV'+k,'','#eafcff',0.052,0.20); }
+      mTekst('#eTitel','MISSION COMPLETE','#6cf08a',0.082,0.28);
+      mTekst('#eRang','','#ffd24a',0.115,0.32);
+      mTekst('#eHint','','#9fe4f5',0.046,0.20);
+      const p=document.querySelector('#eind'); if(p) p.setAttribute('visible',true);
+      this.state='eind'; this.toonGroot('',''); },
+
+    // een getal netjes in beeld: de tijd als m:ss, een deling met een decimaal,
+    // en een score met punten tussen de duizenden
+    eindCijfer:function(v,soort){
+      if(soort===2){ const m=Math.floor(v/100), s2=Math.round(v%100);
+        return m+':'+(s2<10?'0':'')+s2; }
+      if(soort===1) return (Math.round(v*10)/10).toFixed(1);
+      const n=Math.round(v);
+      return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,'.'); },
+
+    eindTick:function(s){
+      const E=this.eind; if(!E) return;
+      if(E.klaar){
+        // de rang knippert zachtjes, zodat het beeld leeft
+        E.t+=s;
+        const R=document.querySelector('#eRang');
+        if(R&&R.object3D) R.object3D.scale.setScalar(1+Math.sin(E.t*3)*0.035);
+        return; }
+      if(E.wacht>0){ E.wacht-=s; return; }
+      const r=E.rij[E.i];
+      if(!r){
+        // alles staat: de rang erbij en dan mag je door
+        let rang=RANGEN[RANGEN.length-1];
+        for(let k=0;k<RANGEN.length;k++) if((this.punten||0)>=RANGEN[k][0]){ rang=RANGEN[k]; break; }
+        mTekst('#eRang',rang[1],rang[2],0.115,0.32);
+        mTekst('#eHint','PRESS TO ENTER YOUR NAME','#9fe4f5',0.046,0.20);
+        try{ SND.zeg('Hall of fame'); }catch(q){}
+        E.klaar=1; E.t=0; window.EINDKLAAR=1;
+        return; }
+      E.t+=s;
+      const f=Math.min(1,E.t/EIND_TIK);
+      // van 0 naar zijn waarde, aan het eind afremmend zodat het laatste cijfer
+      // even blijft hangen in plaats van door te schieten
+      const nu=r[1]*(1-(1-f)*(1-f));
+      mTekst('#eL'+E.i,r[0],'#bfe4f2',0.052,0.20);
+      mTekst('#eV'+E.i,this.eindCijfer(nu,r[2]),
+             (E.i===6)?'#ffd24a':'#eafcff',(E.i===6)?0.070:0.052,(E.i===6)?0.24:0.20);
+      if(f>=1){
+        mTekst('#eV'+E.i,this.eindCijfer(r[1],r[2]),
+               (E.i===6)?'#ffd24a':'#eafcff',(E.i===6)?0.070:0.052,(E.i===6)?0.24:0.20);
+        try{ SND.pling&&SND.pling(0.5+E.i*0.08); }catch(q){}
+        E.i++; E.t=0; E.wacht=EIND_PAUZE; } },
+
     gehaald:function(){
-      // Geen parade meer op Sjoerds verzoek: na de eindbaas meteen de eindstand.
-      this.over=true; window.PAUSED=true;
-      SND.zeg('Sector cleared');
+      // v15.26: Sjoerd: "nu stopt het ineens en mag je je naam invullen, dat is
+      // wel heel boring." Dus is de parade terug als EREROND: de hele vloot komt
+      // een voor een langs vliegen, en pas als die klaar is komt je naam. Het
+      // naamscherm wordt nu vanuit paradeEind geopend.
       // NIET alvast bewaren: dat zette je score NAAMLOOS in de lijst, en daarna
       // kwam je naam er nog eens bij. Sjoerd v14.85: "naam invullen werkt nog
       // steeds niet." Het naamscherm doet het bewaren.
       try{ localStorage.removeItem('cosmic_save'); }catch(e){}   // uitgespeeld: schoon beginnen
       this.klaar=true;
-      // en het naamscherm komt VANZELF: je hoefde het nooit zelf te zoeken
-      if(window.NAAMVRAAG) window.NAAMVRAAG(); }
+      this.paradeStart(true); }
   }); }
   registreerCosmic();
 
@@ -13406,9 +13863,13 @@
     return t+(LOG.length?LOG.join('\n'):oud||'(nog niets)');
   }
 
-  function bewaarScore(s,c,nm,mx){ try{
+  // v15.27: kills en speeltijd gaan mee, zodat het scorebord meer kan tonen dan
+  // een naam en een getal. Oude regels missen die velden; wie ze leest moet daar
+  // tegen kunnen.
+  function bewaarScore(s,c,nm,mx,k,t){ try{
     const L=leesScores();
-    L.push({s:s,c:c||0,n:nm||'',mx:mx||0,d:new Date().toISOString().slice(0,10)});
+    L.push({s:s,c:c||0,n:nm||'',mx:mx||0,k:k||0,t:Math.round(t||0),
+            d:new Date().toISOString().slice(0,10)});
     L.sort(function(a,b){ return b.s-a.s; });
     localStorage.setItem('cosmic_top20',JSON.stringify(L.slice(0,20)));
   }catch(e){} }
@@ -13524,8 +13985,9 @@
     const p=document.querySelector('#paneel'); if(p) p.setAttribute('visible',false);
     // Ook de losse panelen dicht: die zitten BINNEN het menu, maar staan op hun
     // eigen zichtbaarheid — dus bleven ze aan zodra het menu weer opkwam.
-    ['#tech','#hulp','#naam'].forEach(function(id){
+    ['#tech','#hulp','#naam','#eind'].forEach(function(id){
       const e=document.querySelector(id); if(e) e.setAttribute('visible',false); });
+    window.EINDKLAAR=0;
     laserAan(false);
     const rig=document.querySelector('#rig'), C=rig&&rig.components&&rig.components.cosmic;
     window.PAUSED=false; window.PHASE='game';
@@ -13587,8 +14049,9 @@
     // ALLE PANELEN DICHT bij terugkeer naar het menu. Het testpaneel, het
     // hulpscherm en het naamscherm bleven anders openstaan — en dan kijk je door
     // twee schermen tegelijk of zit je vast in een scherm zonder uitweg.
-    ['#tech','#hulp','#naam'].forEach(function(id){
+    ['#tech','#hulp','#naam','#eind'].forEach(function(id){
       const e=document.querySelector(id); if(e) e.setAttribute('visible',false); });
+    window.EINDKLAAR=0;
     { const d=document.querySelector('#laad');
       if(d&&d.__log){ d.style.display='none'; d.innerHTML=''; d.__log=0; } }
     // v15.00: menuDeelToon zit binnen knoppen() en was hier niet te zien (de
@@ -13632,7 +14095,10 @@
       if(O) O.setAttribute('visible',l==='opties');
       // v15.20: de wereldkijker is een derde laag; hij hoort bij het menu, dus
       // gaat hij uit zodra je naar hoofd of opties gaat
-      if(Wd) Wd.setAttribute('visible',l==='wereld'); };
+      if(Wd) Wd.setAttribute('visible',l==='wereld');
+      // v15.28: en het scorebord is de vierde laag
+      const Bd=document.querySelector('#bord');
+      if(Bd) Bd.setAttribute('visible',l==='bord'); };
     window.MENULAAG=laagZet;
     const menuDeelToon=function(aan){
       MENUDEEL.forEach(function(id){
@@ -13643,10 +14109,56 @@
         // v15.20: de derde laag hoorde hier ook bij. Zonder deze regel bleven de
         // wereldvakjes aanklikbaar achter een paneel.
         const W0=document.querySelector('#wereld');
-        if(W0) W0.setAttribute('visible',false); }
+        if(W0) W0.setAttribute('visible',false);
+        const B0=document.querySelector('#bord');
+        if(B0) B0.setAttribute('visible',false); }
       else laagZet(MENULAAG); };
     window.MENUDEELTOON=menuDeelToon;
     kl('#btnOpt',function(){ laagZet('opties'); });
+
+    // ================= v15.28: HET SCOREBORD =================
+    // Sjoerd: "ook mis ik een echt scorebord. Als je drukt op score."
+    let bPag=0; const BRIJ=10;
+    const bordVul=function(){
+      const L=leesScores();
+      const tot=Math.max(1,Math.ceil(L.length/BRIJ));
+      if(bPag>=tot) bPag=0;
+      mTekst('#bTitel','HIGH SCORES'+(tot>1?('   '+(bPag+1)+' / '+tot):''),
+             '#ffd24a',0.095,0.30);
+      const pg=document.querySelector('#btnBPag'), pgt=document.querySelector('#bPagT');
+      if(pg) pg.setAttribute('visible',tot>1);
+      if(pgt) pgt.setAttribute('visible',tot>1);
+      const leeg=document.querySelector('#bLeeg');
+      if(leeg) leeg.setAttribute('visible',!L.length);
+      if(!L.length) mTekst('#bLeeg','no runs logged yet','#bfe4f2',0.060,0.24);
+      // de kopregel
+      [['#bHR','#'],['#bHN','NAME'],['#bHS','SCORE'],['#bHC','COMBO'],['#bHK','KILLS']]
+        .forEach(function(q){
+          const el=document.querySelector(q[0]);
+          if(el) el.setAttribute('visible',!!L.length);
+          if(L.length) mTekst(q[0],q[1],'#7fb8cc',0.040,0.20); });
+      const getal=function(n){ return String(Math.round(n||0))
+        .replace(/\B(?=(\d{3})+(?!\d))/g,'.'); };
+      for(let i=0;i<BRIJ;i++){
+        const idx=bPag*BRIJ+i, e=L[idx];
+        // de nummer 1 in goud, de rest gewoon
+        const kl=(idx===0)?'#ffd24a':'#eafcff';
+        const hg=(idx===0)?0.052:0.046;
+        // een rij zonder score gaat UIT. Lege tekst erin zetten laat wel niets
+        // zien, maar dan staat er nog wel een vlak, en dat is niet te meten.
+        ['#bR','#bN','#bS','#bC','#bK'].forEach(function(p){
+          const el=document.querySelector(p+i);
+          if(el) el.setAttribute('visible',!!e); });
+        if(!e) continue;
+        mTekst('#bR'+i, String(idx+1), (idx===0)?'#ffd24a':'#7fb8cc', hg,0.20);
+        mTekst('#bN'+i, String(e.n||'---').slice(0,9).toUpperCase(), kl,hg,0.20);
+        mTekst('#bS'+i, getal(e.s), kl,hg,0.20);
+        // oude opgeslagen regels hebben geen combo of kills: dan een streepje
+        mTekst('#bC'+i, e.mx?('x'+e.mx):'-', kl,hg,0.20);
+        mTekst('#bK'+i, e.k?getal(e.k):'-', kl,hg,0.20); } };
+    window.BORDVUL=bordVul;
+    kl('#btnBUit',function(){ laagZet('hoofd'); });
+    kl('#btnBPag',function(){ bPag++; bordVul(); });
 
     // ================= v15.20: WERELDEN BEKIJKEN =================
     // Sjoerd: "ik wil werelden kunnen bekijken in game, alle platen die nu
@@ -13950,9 +14462,13 @@
       SND.boom(0); });
     // Met deze knop zet je de meetregel aan: dan zie je IN DE BRIL hoeveel
     // vijandelijk vuur er leeft en hoeveel daarvan zichtbaar is.
-    kl('#btnScores',function(){ toonScores();
-      // in het menu staat de top 5 op het hoofdscherm: daar naartoe
-      if(window.PHASE!=='game') laagZet('hoofd'); });
+    kl('#btnScores',function(){
+      // v15.28: in het MENU opent nu het echte scorebord. Tijdens het spel blijft
+      // het zoals het was — daar komt de lijst in het pauzepaneel, want #menu
+      // staat dan uit en een laag daarin zou je niet zien.
+      if(window.PHASE==='game'){ toonScores(); return; }
+      toonScores();                                  // houdt 'best' in het menu bij
+      bPag=0; laagZet('bord'); bordVul(); });
     // CONTROLS deed niets: #scoreLijst is een entity zonder tekst, dus
     // setAttribute('value') kwam nergens terecht. Nu een echt paneel met alle
     // knoppen erop.
@@ -14054,7 +14570,7 @@
       const rg=document.querySelector('#rig');
       const c=rg&&rg.components&&rg.components.cosmic;
       const nm=(LETTERS[NAAM[0]]+LETTERS[NAAM[1]]+LETTERS[NAAM[2]]).trim();
-      if(c) bewaarScore(c.punten,c.contN,nm||'---',c.beste||0);
+      if(c) bewaarScore(c.punten,c.contN,nm||'---',c.beste||0,c.gedood||0,c.spelT||0);
       naamOpen(false); naarMenu(); });
     kl('#btnQuit',function(){
       const rg=document.querySelector('#rig');
