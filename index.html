@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.29';
+  const VERSIE='v15.30';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -8423,7 +8423,6 @@
           B.streep=0; B.boog=0;
           B.wieg=1; B.wiegW=STER_SLING*(0.7+Math.random()*0.7);
           B.wiegF=STER_SLINGF*(0.75+Math.random()*0.6);
-          B.sp0=STER_SP;                 // waar hij op terugvalt als hij gaat zoeken
           B.ster=1;                      // hij draagt zijn eigen plaat, zie de tekenlus
           B.tol=STER_TOL; B.tolHk=Math.random()*6.283;
           B.brand=0; B.splT=0; B.wijk=0;
@@ -11753,6 +11752,12 @@
         if(B.laatZoek&&!B.zoek){
           B.leef=(B.leef||0)+s;
           if(B.leef>B.laatZoek){ B.zoek=1; B.draai=B.draai||LAATDRAAI;
+            // v15.30: een ministerretje spat eerst HARD naar buiten en remt dan af
+            // zodra hij omdraait. Anders komt hij op volle vaart terug en kun je
+            // hem niet meer neerschieten. Ik dacht eerst dat B.sp0 die terugval
+            // regelde, maar dat veld gebruiken alleen twee vliegstijlen — het deed
+            // hier dus niets.
+            if(B.ster) B.sp=STER_SP;
             this.vonk(B.o.x+B.dir.x*B.d,B.o.y+B.dir.y*B.d,B.o.z+B.dir.z*B.d,
                       0xff8a3d,2,2.0,0.22); } }
         // ---- VLIEGSTIJLEN: hoe een raket zich door de lucht beweegt ----
