@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.31';
+  const VERSIE='v15.32';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1877,6 +1877,28 @@
   const PARADE_AFSTAND=14;      // eerst zo dichtbij komt iedereen
   const PARADE_VERMAX=105;      // en niet verder terug dan dit
   const PARADE_DICHT_T=1.5;     // seconden dat hij voor je hangt
+  // v15.32, Sjoerd: "in parade zie geen eindbazen.. alleen de allerlaatste baas."
+  // GEMETEN met de echte bazenlijst: ze komen er allemaal wel, maar een baas was
+  // na 1,9 tot 3,6 s weer weg terwijl een klein schip 4,0 s in beeld bleef.
+  // Oorzaak: de uit-fase stopt op PARADE_WEG (110 m) en een baas HANGT al op
+  // 91 m, dus hij was na 0,3 s buiten beeld; een schip van 14 m moet 96 m
+  // afleggen (1,6 s). Nu hangt een baas langer EN schaalt zijn wegvliegafstand
+  // mee met de afstand waarop hij hing.
+  // v15.32, Sjoerd: "na het uitspelen even 9 sec rust. Met de tekst
+  // Congratulation! (3sec) Hope you enjoyed the game (3sec) You are a true
+  // champion! (3sec) Dan verdwijnt je hele Hud. En komt de parade."
+  const FELIC=[['Congratulation!','#ffe45c'],
+               ['Hope you enjoyed the game','#9fe4f5'],
+               ['You are a true champion!','#6cf08a']];
+  const FELIC_T=3.0;            // seconden per regel
+  // alle onderdelen van de HUD BEHALVE #hudC: die blijft, want daar staan de
+  // namen van de schepen in de parade op.
+  const HUD_DEEL=['#mBaasNaam','#mBaasWaar','#baasBalkA','#baasBalkB','#baasBalkS',
+    '#baasRand','#mBaasPct','#mHull','#krachtR','#krachtA','#krachtB','#mHp',
+    '#mUltL','#mUlt','#mWap','#mWapLv','#mAmmo','#magA','#magB','#tutTxt',
+    '#ceGroep','#vwGroep','#comboKreet','#comboTxt','#comboTxt2','#comboHoek'];
+  const PARADE_DICHT_B=3.2;     // een baas hangt zo lang voor je
+  const PARADE_WEG_EXTRA=55;    // en moet altijd zoveel meter verder dan waar hij hing
   const PARADE_VER_T=2.0;       // (niet meer gebruikt sinds v15.26)
   // Sjoerd v15.26: "ze komen op een rail langs. Ze mogen wel vrij vliegen, 1 voor
   // 1. Ze mogen 4 sec in beeld ongeveer, hun ding doen en weer door."
@@ -2090,10 +2112,24 @@
   const VELD_SAMEN2=7;          // en alleen als er nog ruimte is: geen 25 tegelijk
   const SAMEN_VANAF=3;          // pas vanaf level 3 twee groepen tegelijk
   const BEGIN_REM=0.78;         // level 1-2: iets minder, niet half
-  const BEGIN_MAX=14;           // en in level 1-2 nooit meer dan zoveel per golf
+  const BEGIN_MAX=20;           // en in level 1-2 nooit meer dan zoveel per golf (was 14)
   const RUST_GOLF=0.80;         // elke derde golf is iets rustiger
-  const GOLF_DAK=17;            // level 1-2: hoogstens zoveel schepen per golf
+  const GOLF_DAK=17;            // level 3-4 rekent hiermee: *1.7
   const GOLF_BODEM=9;           // ...en minstens zoveel: geen halve golven
+  // v15.32, Sjoerd: "lvl 1 + 2 iets meer vijanden per wave. Niet in 1x in beeld
+  // maar meer zodat de waves wat langer duren. Gaat nu wel heel snel."
+  // GEMETEN: de plafonds hierboven deden niets — het KRACHTBUDGET was de rem
+  // (caps weghalen gaf 12,8 -> 13,6 schepen per golf). Dus krijgen level 1 en 2
+  // extra budget, en komt er tegelijk een grens op hoeveel er TEGELIJK in de
+  // lucht hangen, zodat de rest nadruppelt en de golf langer duurt.
+  // LET OP: GOLF_DAK en GOLF_BODEM hierboven WORDEN OOK DOOR LEVEL 3 EN 4
+  // GEBRUIKT (dak = GOLF_DAK*1,7, bodem = GOLF_BODEM+2). Ze hier verhogen tilde
+  // level 3 mee van 11,3 naar 13,7 schepen per golf (gemeten) — daarom hebben
+  // level 1 en 2 nu hun eigen twee getallen en blijft de rest ongemoeid.
+  const GOLF_DAK12=23;          // level 1-2: hoogstens zoveel per golf
+  const GOLF_BODEM12=12;        // level 1-2: en minstens zoveel
+  const BEGIN_BUDGET=380;       // extra krachtbudget in level 1-2
+  const BEGIN_GELIJK=5;         // ...en hoogstens zoveel per groep tegelijk in beeld
   // DE OPBOUW (Sjoerd v14.38). Elk level heeft een krachtbudget per golf dat
   // oploopt; daarbinnen mag ELK schip voorkomen, ook een zware in een vroeg
   // level — maar dan één, en dat is juist de variatie. BIJZ_VANAF is de grens
@@ -2331,11 +2367,27 @@
   // bocht, net als jouw eigen salvo.
   const SALVO_SNEL=19, SALVO_DRAAI=4.2;
   // STERFORT gaat bij zijn dood uiteen in vijf zoekende sterren.
-  const STER_N=5, STER_SP=17, STER_DMG=9, STER_DRAAI=3.2, STER_WACHT=0.55, STER_TOL=7.0;
+  // STER_WACHT (0,55 s) is er in v15.32 uit: de uitwaaiertijd heet nu
+  // STER_SPAT en loopt gelijk met de onsterfelijkheid. Eén knop, geen twee.
+  const STER_N=5, STER_SP=17, STER_DMG=8, STER_DRAAI=3.2, STER_TOL=7.0;
   // v15.29: Sjoerd: "als ontploffing in kleine sterren die WIJD naar buiten
   // ontploffen en dan als homing missiles op mij af vliegen, in vreemde bochten
   // of wijd slingerend. Niet te veel hp, ze moeten nog wel kapot."
   const STER_UIT=44;            // hoe hard ze eerst naar buiten spatten
+  // v15.32, Sjoerd: "de kleine sterren gaan meteen kapot. Graag deze 5 sterren
+  // 1 sec onsterfelijk, zodat ze niet direct kapot gaan bij impact op het
+  // moederschip. En ze vliegen eerst horizontaal / verticaal op afstand van hun
+  // moeder ster in die 1 sec, en dan pas op mij af. En iets meer kracht."
+  // OORZAAK dat ze meteen weg waren: de raket waarmee je de STERFORT neerhaalt
+  // doet gebiedsschade (vijTreffer2) op dezelfde plek waar de vijf sterren net
+  // geboren zijn — 9 schade tegen 2 hp. Ze stierven dus aan de klap die ze maakte.
+  // "Iets meer kracht": een ministerretje kostte je 5 van je 100 (de vaste
+  // waarde voor elk vijandelijk schot; B.dmg werd voor jou nooit gelezen). Nu 8.
+  // Niet hoger: een kamikazeschip kost 12, en een losse mini-ster hoort minder
+  // te doen dan een heel schip dat op je inrijdt. Door de rustpauze van 0,6 s
+  // landen van vijf sterren bij elkaar maar één of twee treffers.
+  const STER_ONQ=1.0;           // zo lang raakt niets ze
+  const STER_SPAT=STER_ONQ;     // en zo lang waaieren ze eerst uit
   const STER_HP=2;              // zo makkelijk gaan ze kapot
   const STER_SLING=7.5;         // hoe wijd ze slingeren op weg naar je toe
   const STER_SLINGF=1.7;        // en hoe snel die slinger heen en weer gaat
@@ -2443,7 +2495,9 @@
   const ULT_DEEL=0.5;           // v14.76: punten tellen half mee voor je volgende ult
   const LAZ_DIK=0.30, LAZ_RAAK=1.6, LAZ_EXTRA=0.9;   // de laserbalk: dikte en trefbreedte
   const ULT_RAK=25;             // v14.59: een ult is 25 raketten (was 50)
-  const ULT_PUNT=12500;         // ...en je verdient er 2x zo snel een (was 25000)
+  // v15.32, Sjoerd: "de ults 20% minder snel in hoe snel ik ze krijg."
+  // 12500 -> 15625 is precies 1/0,8: je verdient ze op 80% van de oude snelheid.
+  const ULT_PUNT=15625;         // was 12500
   const ULT_DOOF=700;           // milliseconden tussen twee ults
   // De straal-ult: dik, ver, en hij verdampt alles in zijn koker.
   // De demomelding: hoe hoog hij hangt en hoe gedempt hij is.
@@ -2460,7 +2514,9 @@
   // De balans die Sjoerd vroeg: bazen dubbel zo taai, minder raketten in de
   // grote golven, maar de zoekende raketten doen veel meer schade en zijn
   // taaier. Vier treffers van een slingerende zoeker en je bent dood.
-  const BAAS_TAAI=2.0;
+  // v15.32, Sjoerd: "eind bazen mogen wel 50% meer health." 2,0 -> 3,0.
+  // Deze ene knop regelt zowel de elf levelbazen als de reus (6200 x BAAS_TAAI).
+  const BAAS_TAAI=3.0;          // was 2.0
   // De spiraalwerper: vanaf level 4, hoogstens twee tegelijk. Acht zoekers die
   // vanuit zijn midden naar buiten spreiden en spiralend op je af draaien.
   // In welke golven het spook kan opduiken. Alleen daar, en alleen als hij er
@@ -3268,6 +3324,9 @@
       // loopt alleen tijdens het spel. Stop je midden in een combo, dan staat het
       // laatste beeld er nog en wist niemand het meer. Dus hier expliciet uit —
       // reset() draait zowel bij terug-naar-menu als bij een nieuw spel.
+      // v15.32 wisregel: de HUD stond uit tijdens de parade. Zonder dit begin
+      // je een nieuw spel zonder kracht, munitie en combometer.
+      this.hudWeg(0); this.fel=null;
       this.ceT=0; this.vwT=0; this.comboTot=0; this.vwEl=0;
       ['#comboHoek','#ceGroep','#vwGroep'].forEach(function(id){
         const q=document.querySelector(id); if(q) q.setAttribute('visible',false); });
@@ -7437,7 +7496,7 @@
       // Sjoerd zag twee verschillende koppen die precies dezelfde baan vlogen.
       for(let k=0;k<(n||1);k++){
         for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(B.live) continue;
-          B.live=true; B.ster=0; B.o.copy(e.p); B.d=0; B.md=140;
+          B.live=true; B.ster=0; B.onq=0; B.o.copy(e.p); B.d=0; B.md=140;
           const Tv=TYPE[e.tp];
           B.sp=(Tv&&Tv.snel?Tv.snel:13)+Math.random()*4; // rustig genoeg om te zien aankomen
           B.zwaar=(Tv&&Tv.zwaar)?1:0;
@@ -7894,7 +7953,7 @@
 
     vijVrij:function(){
       for(let i=0;i<this.vij.length;i++) if(!this.vij[i].live){
-        const B=this.vij[i]; B.live=true; B.ster=0; B.d=0; B.md=200; B.boog=0; return B; }
+        const B=this.vij[i]; B.live=true; B.ster=0; B.onq=0; B.d=0; B.md=200; B.boog=0; return B; }
       return null; },
     vijRicht:function(B,spreid,snel,hp){
       B.dir.copy(this.kop).sub(B.o).normalize();
@@ -7937,7 +7996,7 @@
       const tp=e.wapens[k%e.wapens.length];
       const eye=this.tmp.copy(this.kop);
       for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(B.live) continue;
-        B.live=true; B.ster=0;
+        B.live=true; B.ster=0; B.onq=0;
         B.o.copy(e.p);
         B.o.x+=(k-1)*e.sc*0.22; B.o.y-=e.sc*0.06;       // uit verschillende kanonnen
         B.d=0; B.md=170;
@@ -7975,7 +8034,7 @@
       let gezet=0;
       for(let i=0;i<this.vij.length&&gezet<N;i++){ const B=this.vij[i]; if(B.live) continue;
         const hoek=(gezet/N)*6.283+Math.random()*0.25;
-        B.live=true; B.buis=null; B.ster=0; B.m.visible=!(this.kopVak&&this.kopVak.length);
+        B.live=true; B.buis=null; B.ster=0; B.onq=0; B.m.visible=!(this.kopVak&&this.kopVak.length);
         B.o.copy(e.p); B.d=0; B.dir.subVectors(this.kop,e.p).normalize();
         B.sp=34+Math.random()*10; B.md=420;
         B.zoek=1; B.zwaar=1; B.hp=3; B.streep=0; B.boog=0; B.wieg=0;
@@ -8008,7 +8067,7 @@
       if(e&&(e.dood||e.dood2||!e.live)) return;
       const o=opt||{};
       for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(B.live) continue;
-        B.live=true; B.buis=null; B.ster=0; B.m.visible=!(this.kopVak&&this.kopVak.length);
+        B.live=true; B.buis=null; B.ster=0; B.onq=0; B.m.visible=!(this.kopVak&&this.kopVak.length);
         B.o.copy(o.van||e.p); B.d=0;
         B.dir.copy(dir).normalize();
         B.sp=o.sp||20; B.md=o.md||420;
@@ -8406,20 +8465,56 @@
       // dood zijn is hier juist de aanleiding (gemeten: nul sterren). Dus de
       // projectielen hier zelf uit de pool halen.
       const p=e.p;
+      // v15.32: ALTIJD vijf. Is de pool vol, dan maakt hij EERST plaats door de
+      // verste gewone schoten op te ruimen — anders kwamen er bij een vol scherm
+      // soms maar drie. Vooraf ruimen, niet achteraf: dan vindt de lus hieronder
+      // altijd vijf vrije plekken en blijft het één pad in plaats van twee.
+      let vrij=0;
+      for(let q=0;q<this.vij.length;q++) if(!this.vij[q].live) vrij++;
+      for(let n=vrij;n<STER_N;n++){
+        let ver=-1, vid=-1;
+        for(let q=0;q<this.vij.length;q++){ const B=this.vij[q];
+          if(!B.live||B.ster) continue;
+          const d2=B.o.distanceToSquared(this.kop);
+          if(d2>ver){ ver=d2; vid=q; } }
+        if(vid<0) break;
+        this.vijVrij2(this.vij[vid]); }
+      // de vijf armen van een kruis, in het vlak dat jij ziet: rechts, omhoog,
+      // links, omlaag en een schuine. Zo klapt de explosie open als een ster in
+      // plaats van als een bol, precies wat Sjoerd vroeg.
+      const naarMij=this.SU1||(this.SU1=new THREE.Vector3());
+      const rechts=this.SU2||(this.SU2=new THREE.Vector3());
+      const boven=this.SU3||(this.SU3=new THREE.Vector3());
+      naarMij.set(this.kop.x-p.x,this.kop.y-p.y,this.kop.z-p.z);
+      if(naarMij.lengthSq()<1e-6) naarMij.set(0,0,1);
+      naarMij.normalize();
+      rechts.set(0,1,0).cross(naarMij);
+      if(rechts.lengthSq()<1e-4) rechts.set(1,0,0);
+      rechts.normalize();
+      boven.copy(naarMij).cross(rechts).normalize();
+      const ARMEN=[[1,0],[0,1],[-1,0],[0,-1],[0.72,0.72]];
       for(let i=0;i<STER_N;i++){
-        const hk=(i/STER_N)*6.283+Math.random()*0.4;
+        const arm=ARMEN[i%ARMEN.length];
         for(let q=0;q<this.vij.length;q++){ const B=this.vij[q];
           if(B.live) continue;
           B.live=true; B.buis=null; B.m.visible=true;
           B.o.copy(p); B.d=0;
           // v15.29: WIJD naar buiten. Een bol uiteen, niet een platte ring, en
           // met flink wat vaart zodat je de explosie ziet openklappen.
-          const ho=Math.acos(2*Math.random()-1);
-          B.dir.set(Math.sin(ho)*Math.cos(hk),Math.cos(ho)*0.8,Math.sin(ho)*Math.sin(hk)).normalize();
+          // v15.32: horizontaal/verticaal weg van de moederster, met een kleine
+          // speling zodat het niet machinaal leest. Een tikje naar jou toe, want
+          // vlak langs het kruis zie je de armen van opzij.
+          const sch=(Math.random()*2-1)*0.14;
+          B.dir.set(0,0,0)
+            .addScaledVector(rechts,arm[0]+sch*arm[1])
+            .addScaledVector(boven, arm[1]-sch*arm[0])
+            .addScaledVector(naarMij,0.18).normalize();
           B.sp=STER_UIT; B.md=520;
           B.hp=STER_HP; B.zwaar=0; B.dmg=STER_DMG;
+          // DE KLAP VAN JE EIGEN RAKET OVERLEVEN: één seconde raakt niets ze.
+          B.onq=STER_ONQ;
           // eerst uitwaaieren, dan pas zoeken — en dan slingerend, niet recht
-          B.zoek=0; B.laatZoek=STER_WACHT; B.leef=0; B.draai=STER_DRAAI;
+          B.zoek=0; B.laatZoek=STER_SPAT; B.leef=0; B.draai=STER_DRAAI;
           B.streep=0; B.boog=0;
           B.wieg=1; B.wiegW=STER_SLING*(0.7+Math.random()*0.7);
           B.wiegF=STER_SLINGF*(0.75+Math.random()*0.6);
@@ -10093,8 +10188,8 @@
       // een golf tussen GOLF_BODEM en GOLF_DAK. Geen sprong van 4 naar 13,
       // wel merkbaar verschil tussen de rustige en de volle golven.
       let planTot=0, laatste=null;
-      const dak=(LV0<=2)?GOLF_DAK:((LV0<=4)?GOLF_DAK*1.7:9999);
-      const bodem=(LV0<=2)?GOLF_BODEM:((LV0<=4)?GOLF_BODEM+2:0);
+      const dak=(LV0<=2)?GOLF_DAK12:((LV0<=4)?GOLF_DAK*1.7:9999);
+      const bodem=(LV0<=2)?GOLF_BODEM12:((LV0<=4)?GOLF_BODEM+2:0);
       // Sjoerd: "vooral een soort opbouw in hoe sterk ze zijn, van begin spel
       // naar steeds zwaarder. Er mag variatie komen door al in eerdere levels
       // ook vijanden van later erin te mixen — maak een soort gemiddelde."
@@ -10103,7 +10198,7 @@
       // BUDGET dat oploopt, en daarbinnen mag alles voorkomen. Een zwaar schip
       // in level 2 mag, maar dan wel ÉÉN — en dat is precies de variatie die
       // Sjoerd wil. Hoe hoger het level, hoe meer zware schepen passen.
-      const budget=BUDGET_START+(LV0-1)*BUDGET_STAP;
+      const budget=BUDGET_START+(LV0-1)*BUDGET_STAP+((LV0<=2)?BEGIN_BUDGET:0);
       let besteed=0;
       // en een bijzonder schip komt hoogstens in een paar golven per level voor,
       // zodat AMBER RING niet in acht van de tien golven staat (gemeten)
@@ -10460,6 +10555,10 @@
       // gaat omhoog zodat een gemengde golf ook echt vol voelt: meer kleintjes,
       // en twee grote mogen samen.
       let gelijk=Math.min(n,(b<=7)?7:((b<=12)?5:((b<=17)?3:2)));
+      // v15.32: in level 1 en 2 komt een groep in porties in beeld. De golf is
+      // groter geworden; zou alles tegelijk opkomen, dan werd het juist drukker
+      // in plaats van langer.
+      if(this.level<=2) gelijk=Math.min(gelijk,BEGIN_GELIJK);
       if(TYPE[a.tp]&&(TYPE[a.tp].basis||TYPE[a.tp].n)==='WRAITH') gelijk=Math.min(gelijk,3);
       // Sjoerd: "die ufo met zijn 2 teleports komt iets te vaak voor." Hoogstens
       // één tegelijk, zodat je hem als bijzonderheid ziet en niet als standaard.
@@ -11084,7 +11183,8 @@
       // v15.27: de speeltijd loopt alleen als je ECHT speelt — niet in het menu,
       // niet op pauze, en niet tijdens de parade of de eindtelling.
       if(window.PHASE==='game'&&!window.PAUSED&&!window.DEMO&&
-         this.state!=='parade'&&this.state!=='eind') this.spelT=(this.spelT||0)+sEcht;
+         this.state!=='parade'&&this.state!=='eind'&&
+         this.state!=='felic') this.spelT=(this.spelT||0)+sEcht;
       // ---- DE ZWARTE DOOS ----
       // Elke beurt een regel: waar we zijn, hoe druk het is, en HOE LANG de
       // vorige beurt duurde. Loopt het spel vast, dan zie je de aanloop.
@@ -11636,6 +11736,7 @@
 
       // ---- vijandelijke kogels ----
       for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(!B.live) continue;
+        if(B.onq>0) B.onq-=s;                         // v15.32: onsterfelijke ster
         B.d+=B.sp*s;
         if(B.boog){ B.dir.y-=B.boog*s; B.dir.normalize(); }   // buigt naar je toe
         if(B.zoek){
@@ -11886,7 +11987,7 @@
           B.m.lookAt(eye);
           B.m.scale.set(B.len||STER_MAAT,B.br||STER_MAAT,1);
         } else this.richtQuad(B.m,p,B.dir,B.len||2.4,B.br||0.42);
-        if(p.distanceTo(eye)<0.80){ this.raakMij(5); this.vijVrij2(B);
+        if(p.distanceTo(eye)<0.80){ this.raakMij(B.ster?STER_DMG:5); this.vijVrij2(B);
           this.vonk(p.x,p.y,p.z,0xff5a3c,6,7,0.6); if(window.PAUSED) return; continue; }
         if(B.d>B.md){ this.vijVrij2(B); } }
 
@@ -11956,6 +12057,7 @@
 
       // ---- golvenmachine ----
       if(this.state==='parade'){ this.paradeTick(s); }
+      if(this.state==='felic'){ this.felicTick(s); }
       if(this.state==='eind'){ this.eindTick(s); }
       else if(this.state==='rust'){ this.rustTick(s); }
       else if(this.state==='baaswacht'){ this.golfT-=s;
@@ -12163,6 +12265,7 @@
     vijTreffer2:function(p,dmg,straal){
       const r2=straal*straal;
       for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(!B.live) continue;
+        if(B.onq>0) continue;                         // v15.32: nog onsterfelijk
         const q=this.KP2||(this.KP2=new THREE.Vector3());
         q.copy(B.o).addScaledVector(B.dir,B.d);
         // Een raket is geen punt maar een staaf van een paar meter. Vroeger telde
@@ -12288,6 +12391,7 @@
       const aan=(window.PHASE==='game');
       if(HA&&aan!==this.hudZicht){ this.hudZicht=aan; HA.setAttribute('visible',aan); }
       if(!aan) return;
+      if(this.hudStil) return;                         // v15.32: HUD staat uit
       if((this.hudT=(this.hudT||0)-1)>0) return; this.hudT=14;
       const GR='#6cf08a', GRZ='#3f9c5f', ROOD='#ff6a7d';
       const p=Math.round(this.power);
@@ -13597,19 +13701,70 @@
     // =====================================================
     //  DE PARADE — na het uitspelen komt alles nog één keer langs
     // =====================================================
+    // v15.32: het veld leegmaken stond alleen in paradeStart. De felicitatie
+    // heeft het ook nodig — "even 9 sec rust" is geen rust als de laatste
+    // escortes nog op je vuren — dus staat het nu één keer hier.
+    veldLeeg:function(){
+      try{ this.extraUit(); }catch(q){}
+      for(let i=0;i<this.enemies.length;i++){ const q=this.enemies[i];
+        if(!q.live) continue;
+        try{ this.genWeg(q); this.escWeg(q); this.velgWeg(q); this.openWeg(q); }catch(z){}
+        q.live=false; q.dood=0; q.dood2=0; q.kami=0;
+        if(q.romp){ q.romp.visible=false; q.romp=null; }
+        if(q.bb){ this.bbVrij(q.bb); q.bb=null; } }
+      for(let i=0;i<this.vij.length;i++) if(this.vij[i].live) this.vijVrij2(this.vij[i]);
+      this.baas=null; },
+
+    // ---- DE FELICITATIE (Sjoerd v15.32) ----
+    // Drie regels van drie seconden, het veld leeg en niets wat je kan raken.
+    // Daarna gaat de HUD uit en begint de parade.
+    felicStart:function(){
+      this.veldLeeg();
+      try{ this.baasBalkUit(); }catch(q){}
+      this.fel={i:-1,t:FELIC_T};
+      this.state='felic'; window.PAUSED=false;
+      SND.zeg('Mission complete'); },
+
+    felicTick:function(s){
+      const F=this.fel;
+      if(!F){ this.hudWeg(1); this.toonGroot('',''); this.paradeStart(true); return; }
+      F.t+=s;
+      if(F.t>=FELIC_T){
+        F.t=0; F.i++;
+        if(F.i>=FELIC.length){
+          this.fel=null;
+          this.hudWeg(1);                              // "dan verdwijnt je hele Hud"
+          this.toonGroot('','');
+          this.paradeStart(true); return; }
+        this.toonGroot(FELIC[F.i][0],FELIC[F.i][1]); }
+      this.meldC=9;                                    // de regel mag niet wegvagen
+      },
+
+    // De HUD aan of uit, zonder #hudC: die draagt in de parade de scheepsnamen.
+    // LET OP: niet alles in deze lijst hoort straks weer AAN te gaan. De
+    // baasbalken, de tutorialtekst en een paar hulpvlakjes staan in de scene al
+    // op visible=false. Daarom bewaart hij per onderdeel hoe het stond en zet
+    // hij dat bij een nieuw spel precies zo terug.
+    hudWeg:function(uit){
+      if(this.hudStil===(uit?1:0)) return;
+      this.hudStil=uit?1:0;
+      if(uit){
+        this.hudVoor=[];
+        for(let i=0;i<HUD_DEEL.length;i++){ const e=document.querySelector(HUD_DEEL[i]);
+          if(!e){ this.hudVoor.push(null); continue; }
+          this.hudVoor.push(e.getAttribute('visible')!==false);
+          e.setAttribute('visible',false); }
+        const w=document.querySelector('#hudW'); if(w) w.setAttribute('value',''); }
+      else {
+        for(let i=0;i<HUD_DEEL.length;i++){ const e=document.querySelector(HUD_DEEL[i]);
+          const v=this.hudVoor?this.hudVoor[i]:null;
+          if(e&&v!==null&&v!==undefined) e.setAttribute('visible',!!v); }
+        this.hudVoor=null; } },
+
     paradeStart:function(eind){
       // v15.26: als dit het EINDE van het spel is, moet het veld eerst leeg —
       // anders vliegt de parade tussen de restanten van het eindgevecht door.
-      if(eind){
-        try{ this.extraUit(); }catch(q){}
-        for(let i=0;i<this.enemies.length;i++){ const q=this.enemies[i];
-          if(!q.live) continue;
-          try{ this.genWeg(q); this.escWeg(q); this.velgWeg(q); this.openWeg(q); }catch(z){}
-          q.live=false; q.dood=0; q.dood2=0; q.kami=0;
-          if(q.romp){ q.romp.visible=false; q.romp=null; }
-          if(q.bb){ this.bbVrij(q.bb); q.bb=null; } }
-        for(let i=0;i<this.vij.length;i++) if(this.vij[i].live) this.vijVrij2(this.vij[i]);
-        this.baas=null; }
+      if(eind) this.veldLeeg();
       const L=[];
       for(let t=0;t<TYPE.length;t++) if(TYPE[t].prof!=='baas') L.push({tp:t});
       L.sort(function(a,b){ return TYPE[a.tp].br-TYPE[b.tp].br||TYPE[a.tp].hp-TYPE[b.tp].hp; });
@@ -13683,6 +13838,12 @@
         // geen ruimte voor, en dit leest net zo goed.
         P.d=Math.max(PARADE_AFSTAND,
             Math.min(PARADE_VERMAX, Math.max(e.bw,e.bh*0.8)*1.35+9));
+        P.baas=it.baas?1:0;
+        P.dicht=P.baas?PARADE_DICHT_B:PARADE_DICHT_T;
+        // alleen voor een BAAS: de grote schepen (HAULER, TITAN, NOVA) hingen
+        // ook verder weg, en die zou deze regel ongevraagd meeslepen — gemeten
+        // kostte dat de schepenparade twee seconden extra.
+        P.weg=P.baas?Math.max(PARADE_WEG,P.d+PARADE_WEG_EXTRA):PARADE_WEG;
         P.naam=(it.baas?(it.baas.naam+'   -   BOSS'):TYPE[it.tp].n);
         this.toonGroot(P.naam,it.baas?'#ff8aa6':'#9fe4f5');
         return; }
@@ -13741,7 +13902,7 @@
 
       if(P.fase==='in'&&(dAf<Math.max(4,e.bw*0.30)||P.t>PARADE_IN_MAX)){
         P.fase='toon'; P.t=0; }
-      else if(P.fase==='toon'&&P.t>=PARADE_DICHT_T){
+      else if(P.fase==='toon'&&P.t>=(P.dicht||PARADE_DICHT_T)){
         P.fase='uit'; P.t=0; this.toonGroot('','');
         // een eigen uitweg kiezen: opzij en omhoog, of opzij en omlaag. Niet
         // recht naar achteren, want dan verdwijnt hij achter je rug.
@@ -13749,7 +13910,7 @@
         P.uit.set(this.kop.x+Math.sin(hk)*250,
                   hoog+op*(45+Math.random()*55),
                   this.kop.z-Math.cos(hk)*250); }
-      else if(P.fase==='uit'&&(e.p.distanceTo(this.kop)>PARADE_WEG||P.t>PARADE_UIT_MAX+1.4)){
+      else if(P.fase==='uit'&&(e.p.distanceTo(this.kop)>(P.weg||PARADE_WEG)||P.t>PARADE_UIT_MAX+1.4)){
         e.live=false; if(e.bb){ this.bbVrij(e.bb); e.bb=null; }
         if(e.romp){ e.romp.visible=false; e.romp=null; }
         P.e=null; } },
@@ -13860,7 +14021,9 @@
       // steeds niet." Het naamscherm doet het bewaren.
       try{ localStorage.removeItem('cosmic_save'); }catch(e){}   // uitgespeeld: schoon beginnen
       this.klaar=true;
-      this.paradeStart(true); }
+      // v15.32: eerst negen seconden felicitatie, dan gaat de HUD uit en komt
+      // de parade. felicTick doet paradeStart als hij klaar is.
+      this.felicStart(); }
   }); }
   registreerCosmic();
 
