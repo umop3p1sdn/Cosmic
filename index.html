@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.32';
+  const VERSIE='v15.33';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2388,7 +2388,10 @@
   // landen van vijf sterren bij elkaar maar één of twee treffers.
   const STER_ONQ=1.0;           // zo lang raakt niets ze
   const STER_SPAT=STER_ONQ;     // en zo lang waaieren ze eerst uit
-  const STER_HP=2;              // zo makkelijk gaan ze kapot
+  // v15.33, Sjoerd: "mini sterren graag wat meer HP, gaan nu net te snel kapot."
+  // 2 -> 5. Een raket doet 9 en een hagelkorrel een stuk minder, dus ze gaan nog
+  // steeds in één raket kapot maar niet meer bij het eerste schampschot.
+  const STER_HP=5;              // zo makkelijk gaan ze kapot
   const STER_SLING=7.5;         // hoe wijd ze slingeren op weg naar je toe
   const STER_SLINGF=1.7;        // en hoe snel die slinger heen en weer gaat
   // IRON CROSS stuurt BLUE ARROWS in een treintje (Sjoerd v14.78): zes in beeld,
@@ -5193,7 +5196,15 @@
             opacity:0.45,depthWrite:false,blending:THREE.AdditiveBlending}));
         net.frustumCulled=false; m.add(net); m.__net=net;
         m.renderOrder=9; m.frustumCulled=false; this.par.add(m); e.velgM3=m; }
-      e.velgM3.visible=true; },
+      // v15.33: dit stond er niet, en daarmee had velgStart precies de fout die
+      // schildAan in v15.04 al opgelost kreeg: de bol werd zichtbaar gezet maar
+      // kreeg zijn plek pas in velgTick. Bij een hergebruikt schip stond hij dus
+      // nog op de plek EN de maat van de vorige THE WHEEL. Nu meteen goed, en
+      // alleen zichtbaar als hij ergens staat.
+      const Rv=Math.max(2,Math.max(e.bw||0,e.bh||0)*0.62);
+      e.velgM3.position.copy(e.p);
+      e.velgM3.scale.set(Rv,Rv,Rv);
+      e.velgM3.visible=!!(e.p&&(e.p.x||e.p.y||e.p.z)); },
 
     velgTick:function(e,s){
       if(!e.velgM3) return;
@@ -5348,7 +5359,14 @@
             new THREE.MeshBasicMaterial({color:0x9fe4f5,transparent:true,opacity:0.22,
               depthWrite:false,blending:THREE.AdditiveBlending}));
           g.add(gl); g.frustumCulled=false; this.par.add(g); w.m=g; }
-        w.live=true; w.hp=e.escHp||ESC_HP; w.m.visible=true; }
+        w.live=true; w.hp=e.escHp||ESC_HP;
+        // v15.33: HIER ZAT DE PARADEFOUT. Hij werd zichtbaar gezet zonder plek,
+        // dus op het nulpunt (of op de maat en plek van de vorige eigenaar van
+        // dit bolletje). escTick zet hem het volgende beeldje goed, maar die
+        // draait niet overal. Nu meteen bij de baas, en pas zichtbaar als die
+        // ergens staat — dezelfde regel als bij het rode schild.
+        w.m.position.copy(e.p);
+        w.m.visible=!!(e.p&&(e.p.x||e.p.y||e.p.z)); }
       this.schildAan(e,1e9); },
 
     escTick:function(e,s){
@@ -5372,6 +5390,12 @@
           const k=(i/(e.esc.length-1))-0.5;
           w.p.set(e.p.x+k*e.bw*1.4, e.p.y+Math.sin(this.T*1.8+i)*1.8, e.p.z+ESC_VOOR); }
         w.m.position.copy(w.p);
+        // v15.33: de zichtbaarheid hoort HIER, bij de beurt die hem ook een plek
+        // geeft. escRij zette hem vroeger zichtbaar zonder plek — en dat was de
+        // paradefout. Nu zet escRij hem alleen aan als de baas al ergens staat,
+        // en neemt deze beurt het daarna over; anders bleef een escorte die in
+        // spawn werd gemaakt (nog zonder plek) de hele strijd onzichtbaar.
+        if(!w.m.visible) w.m.visible=true;
         if(w.fxT>0) w.fxT-=s;
         // v15.12: witte flits bij een treffer, en feller naarmate hij zwakker wordt
         const M2=(e.escMaat||ESC_MAAT), dW=Math.max(0,Math.min(1,w.hp/Math.max(1,w.hpM||e.escHp||90)));
@@ -6327,6 +6351,10 @@
       // tijdens de tutorial houdt de les het meldingsvlak bezet — anders
       // overschrijft 'LEVEL 1  WAVE 1' meteen je uitleg (gemeten)
       if(window.TUT&&this.tutFase) return;
+      // v15.33: in de parade en de felicitatie staat de NAAM in dit vlak.
+      // GEMETEN: een ult tijdens de parade schreef er 'SALVO' over, en dan
+      // leest de volgende naam ook in de verkeerde kleur.
+      if(this.state==='parade'||this.state==='felic') return;
       const e=document.querySelector('#hudC'); if(!e) return;
       e.setAttribute('value',txt); e.setAttribute('color',kl||'#ffb03a'); this.meldC=1.6; },
 
@@ -7194,6 +7222,13 @@
     // =====================================================
     spawn:function(tp,opt){
       const T=TYPE[tp]; if(!T) return null;
+      // v15.33: GEMETEN dat er tijdens de parade nog schepen bijkwamen — de
+      // vijandbeurt draait gewoon door, dus een portaalschip opende portalen en
+      // een moederschip liet jagers los. Die kwamen MET schild, en zo'n bol
+      // hangt stil in de lucht omdat zijn eigen beurt hem niet verplaatst.
+      // Vier schepen bleven zo aan het eind van de parade over (gemeten).
+      // In de parade zet alleen de parade zelf iets in het veld.
+      if(this.state==='parade'&&!(opt&&opt.parade)) return null;
       // BLACK RAVEN is 18 m breed. Sjoerd: "in grote groepen in level 1 is echt
       // not done." Grenzen in het plan en in aanval() bleken allebei te omzeilen
       // (formaties gingen erlangs), dus staat de grens HIER — bij het neerzetten
@@ -7243,7 +7278,7 @@
         if(T&&(T.basis||T.n)==='SPINNER'){ e.cd=RAVEN_EERST; e.bT=RAVEN_EERST; }
         e.jamX=undefined; e.jamT=0;
         // de jammer heeft een schild: Sjoerd wil dat je hem echt moet opruimen
-        if(T&&(T.basis||T.n)==='JAMMER') this.schildAan(e,JAM_SCHILD);
+        if(T&&(T.basis||T.n)==='JAMMER'&&!(opt&&opt.parade)) this.schildAan(e,JAM_SCHILD);
         if(T&&PORTSCHEPEN[T.basis||T.n]!==undefined){
           e.portN=PORTSCHEPEN[T.basis||T.n];
           e.direct=1; }                                // valt meteen aan, zie baan()
@@ -7318,6 +7353,17 @@
             '  beurt '+(B?B.beurt:'-'));
           const bt=B.tex;
           e.baasNaam=B.naam; e.gedrag=B.gedrag||'schip'; e.vuur=B.vuur||'duo';
+          // v15.33, Sjoerd: "ook kom ik zelf in een schield", "zie nog niet alle
+          // bazen", "de namen worden zwart tegen zwarte achtergrond".
+          // EEN OORZAAK voor alle drie. escRij() maakt acht escortebollen ZONDER
+          // ze een plek te geven — dus op het nulpunt, precies waar jij staat —
+          // en roept er schildAan(e,1e9) bij. In het spel zet escTick ze het
+          // volgende beeldje op hun plek, maar in de PARADE draait baan() niet,
+          // dus draait escTick ook niet: die bollen bleven de hele parade om je
+          // hoofd hangen. Acht bollen van dekking 0,85 om de camera = het beeld
+          // wordt donker (dus ook de naamtekst) en de baas erachter verdwijnt.
+          // Een parade is een rondvlucht, geen gevecht: hij komt nu KAAL langs.
+          if(!(opt&&opt.parade)){
           if(B.naam==='WARDEN') this.genStart(e);
           // LANCE (Sjoerd): "zijn moves werken niet goed. Geef hem hetzelfde
           // profiel als AMBER RING gecombineerd met BRONZE FANG — en laat hem
@@ -7363,6 +7409,7 @@
           //  4. pas als het blauwe schild op is, raak je de baas zelf
           if(B.naam==='AXLE'){ this.doelStart(e,5,'head'); e.zwermBaas=0;
             e.blauw=AXLE_BLAUW; e.blauwM=AXLE_BLAUW; }
+          }
           if(!this.baasMat) this.baasMat={};
           if(!this.baasMat[bt.uuid]) this.baasMat[bt.uuid]=new THREE.MeshBasicMaterial(
             {map:bt,transparent:true,alphaTest:0.06,side:THREE.DoubleSide,depthWrite:false});
@@ -7406,7 +7453,8 @@
         // HET RODE SCHILD, nu de kracht bekend is. Kolossen altijd (halve kracht);
         // kleine jagers een dun schildje, pas in de latere levels.
         { const bn=T.basis||T.n;
-          if(T.prof!=='baas'&&SCHILD_GROOT.indexOf(bn)>=0) this.schildAan(e,Math.round(e.hpM*SCHILD_DEEL));
+          if(opt&&opt.parade){ }                      // v15.33: parade = geen schilden
+          else if(T.prof!=='baas'&&SCHILD_GROOT.indexOf(bn)>=0) this.schildAan(e,Math.round(e.hpM*SCHILD_DEEL));
           else if(T.prof!=='baas'&&T.br<=9&&this.level>=SCHILD_VANAF&&Math.random()<SCHILD_KANS)
             this.schildAan(e,Math.round(e.hpM*SCHILD_DUN)); }
         // de reus is enorm maar zijn raakbol blijft binnen zijn houdafstand,
@@ -10835,6 +10883,15 @@
     toonGroot:function(txt,kl){
       const e=document.querySelector('#hudC'); if(!e) return;
       e.setAttribute('value',txt); e.setAttribute('color',kl||'#ffb03a');
+      // v15.33: deze tekst hangt op 1,3 m voor je neus en hoort ALTIJD vooraan
+      // te staan. Elk ander HUD-onderdeel heeft dat al (depthTest uit,
+      // renderOrder 24); #hudC was de enige die nog gewoon meedeed in de
+      // wereld, en kon dus achter of onder een doorzichtig vlak verdwijnen.
+      // Het net van A-Frame maakt zijn mesh pas als het font binnen is, dus
+      // zetten we het hier zodra hij er is — één keer, met een vlaggetje.
+      try{ const o=e.getObject3D('mesh');
+        if(o&&!o.__vooraan){ o.__vooraan=1; o.renderOrder=26; o.frustumCulled=false;
+          if(o.material){ o.material.depthTest=false; o.material.depthWrite=false; } } }catch(q){}
       this.meldC=txt?9:0; },
 
     // ---- DE UITLEG IN LEVEL 1 (Sjoerd v14.45) ----
@@ -13713,6 +13770,16 @@
         if(q.romp){ q.romp.visible=false; q.romp=null; }
         if(q.bb){ this.bbVrij(q.bb); q.bb=null; } }
       for(let i=0;i<this.vij.length;i++) if(this.vij[i].live) this.vijVrij2(this.vij[i]);
+      // v15.33: ook de bollen en ringen van schepen die al dood waren. Die
+      // hangen in this.par en worden alleen door hun eigen beurt verplaatst —
+      // staat die stil, dan blijven ze in de lucht hangen tijdens de parade.
+      for(let i=0;i<this.enemies.length;i++){ const q=this.enemies[i];
+        if(q.schildM3) q.schildM3.visible=false;
+        if(q.velgM3) q.velgM3.visible=false;
+        if(q.openM3) q.openM3.visible=false;
+        if(q.esc) for(let k=0;k<q.esc.length;k++){ const w=q.esc[k];
+          if(w){ w.live=false; if(w.m) w.m.visible=false; } }
+        if(q.doelen) try{ this.doelWeg(q); }catch(z){} }
       this.baas=null; },
 
     // ---- DE FELICITATIE (Sjoerd v15.32) ----
@@ -13775,15 +13842,53 @@
       this.par9={lijst:L, i:-1, e:null, fase:'leeg', t:0, klaarT:0, eind:!!eind,
                  v:new THREE.Vector3(0,0,1), uit:new THREE.Vector3(), hel:0};
       // de achtergrond die geen enkel level gebruikt
-      if(this.hemels&&this.hemels.length){
-        const i=Math.min(this.hemels.length-1,LEVELS);
-        const H=this.hemels[i];
-        if(H&&this.hemel){ this.hemel.material.map=H.tex;
-          this.hemel.material.needsUpdate=true; } }
+      // v15.33, Sjoerd: "tegen zwarte achtergrond". OORZAAK: rondeOpruimen maakt
+      // hemelplaten leeg (tex.image=null) om geheugen vrij te maken. hemelZet
+      // controleert daarop ("anders blijft de hemel naar een leeggemaakte
+      // textuur wijzen en zie je niets") — deze regel niet. Een leeggemaakte
+      // textuur geeft een PIKZWARTE hemel. Nu pakt hij de hoogste plaat die nog
+      // een plaatje heeft, en laat hij de hemel staan als er geen is.
+      // En ook basisU en breed meenemen: zonder die twee staat een panorama
+      // scheef in beeld. Dat zette alleen hemelZet, hier was het vergeten.
+      if(this.hemels&&this.hemels.length&&this.hemel){
+        let H=null;
+        for(let q=Math.min(this.hemels.length-1,LEVELS);q>=0;q--){
+          const Hq=this.hemels[q];
+          if(Hq&&Hq.tex&&Hq.tex.image){ H=Hq; break; } }
+        if(H&&this.hemel.material.map!==H.tex){
+          this.hemel.material.map=H.tex;
+          this.hemel.material.needsUpdate=true;
+          this.panoBreed=H.breed;
+          if(H.tex.offset) H.tex.offset.x=H.basisU;
+          this.hemelI=-1; } }                           // hemelZet mag hem later hernemen
       if(this.skyObjs) this.skyObjs.forEach(function(m){ m.visible=false; });
       this.state='parade'; window.PAUSED=false;
       this.toonGroot('','');
       SND.zeg(eind?'Sector cleared':'Hall of fame'); },
+
+    // v15.33: alles weghalen wat een baas in een GEVECHT bij zich heeft.
+    // De spawn geeft het hem al niet meer (opt.parade), maar dit schip komt uit
+    // een voorraad en kan de bollen, ringen en schilden van zijn vorige leven
+    // nog aan boord hebben. Een parade is een rondvlucht, dus: kaal.
+    paradeKaal:function(e){
+      try{ this.escWeg(e); }catch(q){}
+      try{ this.genWeg(e); }catch(q){}
+      try{ this.velgWeg(e); }catch(q){}
+      try{ this.openWeg(e); }catch(q){}
+      try{ this.doelWeg(e); }catch(q){}
+      try{ this.jagersUit(e); }catch(q){}
+      if(e.schildM3) e.schildM3.visible=false;
+      if(e.velgM3) e.velgM3.visible=false;
+      if(e.openM3) e.openM3.visible=false;
+      if(e.esc) for(let i=0;i<e.esc.length;i++){ const w=e.esc[i];
+        if(w){ w.live=false; if(w.m) w.m.visible=false; } }
+      e.esc=null; e.escVorm=null; e.escMaat=0; e.escHp=0;
+      e.doelen=null; e.doelSoort=null;
+      e.schild=0; e.schildM=0; e.rsHp=0; e.rsAan=0; e.rsT=undefined; e.rsRest=0;
+      e.velg=0; e.velgM=0; e.velgAan=0; e.velgRest=0; e.wiel=0;
+      e.blauw=0; e.blauwM=0; e.zwermBaas=0; e.dubbel=0;
+      e.hangar=0; e.moedF=0; e.moedT=0;
+      e.portN=0; e.portOp=0; e.portT=0; e.direct=0; e.trioI=0; },
 
     paradeTick:function(s){
       const P=this.par9; if(!P) return;
@@ -13813,10 +13918,15 @@
         const sx=this.kop.x+Math.sin(hk0)*rr;
         const sz=this.kop.z-Math.cos(hk0)*rr;
         const sy=this.kop.y+(Math.random()*2-1)*36;
-        if(it.baas){ e=this.spawn(BAAS,{x:sx,y:sy,z:sz,baas:it.baas,hp:0.001});
+        if(it.baas){ e=this.spawn(BAAS,{x:sx,y:sy,z:sz,baas:it.baas,hp:0.001,parade:1});
           if(e){ e.intro=0; e.rijst=0; e.dood2=0; } }
-        else e=this.spawn(it.tp,{x:sx,y:sy,z:sz});
+        else e=this.spawn(it.tp,{x:sx,y:sy,z:sz,parade:1});
         if(!e){ return; }
+        // v15.33: GEMETEN dat dit ook voor de SCHEPEN nodig is, niet alleen voor
+        // de bazen: een schip met een rood schild kreeg dat schild in spawn,
+        // vóórdat het zijn plek had, en schildTick draait niet in de parade. Er
+        // hingen zo zes bollen van 14 m doorsnee stil in de lucht.
+        this.paradeKaal(e);
         e.p.set(sx,sy,sz);
         // zijn beginkoers wijst NAAST je, zodat hij een bocht moet draaien om
         // bij je te komen. Daar komt zijn overhelling uit.
@@ -13911,6 +14021,7 @@
                   hoog+op*(45+Math.random()*55),
                   this.kop.z-Math.cos(hk)*250); }
       else if(P.fase==='uit'&&(e.p.distanceTo(this.kop)>(P.weg||PARADE_WEG)||P.t>PARADE_UIT_MAX+1.4)){
+        try{ this.paradeKaal(e); }catch(q){}
         e.live=false; if(e.bb){ this.bbVrij(e.bb); e.bb=null; }
         if(e.romp){ e.romp.visible=false; e.romp=null; }
         P.e=null; } },
