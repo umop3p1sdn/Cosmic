@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.33';
+  const VERSIE='v15.36';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1874,9 +1874,11 @@
   const SLEEP_GOLF=1.5, SLEEP_TEMPO=2.6, SLEEP_LAG=9.5;
   const SLEEP_LEVEL=1, SLEEP_GOLF_NR=3, SLEEP_NA=2.5;   // wanneer hij langskomt
   const BAAS_MAXAF=125;         // een baas komt nooit verder dan dit
-  const PARADE_AFSTAND=14;      // eerst zo dichtbij komt iedereen
-  const PARADE_VERMAX=105;      // en niet verder terug dan dit
-  const PARADE_DICHT_T=1.5;     // seconden dat hij voor je hangt
+  const PARADE_VERMAX=105;      // en niet verder weg dan dit
+  // De negen constanten van de VRIJ VLIEGENDE parade (v15.26-v15.33) zijn er in
+  // v15.35 uit: snelheid, draaisnelheid, overhelling, aanvlieg- en wegvliegtijd,
+  // startafstand en wegvliegafstand. Een schip verschijnt nu op zijn plek en
+  // doet zijn truc; er wordt niet meer aan- en weggevlogen.
   // v15.32, Sjoerd: "in parade zie geen eindbazen.. alleen de allerlaatste baas."
   // GEMETEN met de echte bazenlijst: ze komen er allemaal wel, maar een baas was
   // na 1,9 tot 3,6 s weer weg terwijl een klein schip 4,0 s in beeld bleef.
@@ -1897,18 +1899,53 @@
     '#baasRand','#mBaasPct','#mHull','#krachtR','#krachtA','#krachtB','#mHp',
     '#mUltL','#mUlt','#mWap','#mWapLv','#mAmmo','#magA','#magB','#tutTxt',
     '#ceGroep','#vwGroep','#comboKreet','#comboTxt','#comboTxt2','#comboHoek'];
-  const PARADE_DICHT_B=3.2;     // een baas hangt zo lang voor je
-  const PARADE_WEG_EXTRA=55;    // en moet altijd zoveel meter verder dan waar hij hing
+  // ---- DE PARADE v15.35 (Sjoerd) ----
+  // "Kun je in de parade alle schepen hun ding laten doen? 1 spawn, 2 hit /
+  // portals / enz, 3 clean. Natuurlijk even kijken hoe lang punt 2 duurt, die
+  // wil je volledig even zien plus 1 sec."
+  // Dus: elk schip verschijnt op zijn plek, draait zijn EIGEN spelgedrag af, en
+  // wordt daarna met alles wat hij opriep opgeruimd. De tijden hieronder komen
+  // uit de constanten van het spel zelf:
+  //   ontwijksprong  WIJK_TIJD 0,55
+  //   portalen       PORT_NA 1,2 + PORT_OPEN 0,9 + PORT_DOOR 0,7 + PORT_DICHT 0,8
+  //   jammer         JAM_PULSTIJD 1,1 + JAM_DUUR 3,0
+  //   moederschip    MOEDER_AAN 4,0 (veld aan, dan vier jagers eruit)
+  //   HAULER         4 kapen + KAMI_LAAD 3,0 + 4x KAMI_TUSSEN 1,0
+  //   STERFORT       2 s staan + STER_ONQ 1,0 uitwaaieren + aanvliegen
+  //   THE WHEEL      VELG_AAN 5,0 (alleen 'aan'; de hele cyclus zou 8 s kosten)
+  const PARADE_EXTRA=1.0;       // de seconde erbij die Sjoerd vroeg
+  const PARADE_TUSSEN=0.45;     // adempauze tussen twee schepen
+  const PARADE_DICHTBIJ=18;     // zo dicht mag een klein schip komen
+  // wie geen eigen truc heeft: de sprong (0,55) PLUS zijn eerste schot, zodat
+  // je ook van een gewone jager iets ziet gebeuren
+  const PARADE_WIJK_T=1.7;
+  const PARADE_BAAS_T=3.0;      // een baas komt KAAL langs (Sjoerds keuze)
+  // welk schip doet wat, en hoe lang fase 2 dan duurt (zonder de extra seconde)
+  const PARADE_TR={
+    'JAMMER':  ['jam',    4.2],
+    'TITAN':   ['moeder', 4.4],
+    'HAULER':  ['kapen',  8.0],
+    'WRAITH':  ['yoyo',   2.8],
+    'BULWARK': ['ster',   5.6],
+    'FIGHTER': ['portal', 3.6],
+    'SHRIKE':  ['portal', 3.6],
+    'HEAVY':   ['portal', 3.6],
+    'WATCHER': ['kruis',  3.6],
+    'BOMBER':  ['salvo',  2.6],
+    'SENTINEL':['kanon',  2.6],
+    'ORACLE':  ['werper', 4.6],
+    'INFERNO': ['slinger',3.0],
+    'SPINNER': ['raket',  2.6],
+    'CYCLONE': ['klok',   3.0],
+    'BASILISK':['zwier',  3.0],
+    'HALO':    ['golf',   2.6],
+    'NOVA':    ['zwaar',  2.4]
+  };
+  // en welke truc halverwege een tweede zetje nodig heeft, en wanneer
+  const PARADE_TR2={ 'ster':2.0, 'kapen':4.0, 'zwier':1.4, 'werper':2.9 };
   const PARADE_VER_T=2.0;       // (niet meer gebruikt sinds v15.26)
   // Sjoerd v15.26: "ze komen op een rail langs. Ze mogen wel vrij vliegen, 1 voor
   // 1. Ze mogen 4 sec in beeld ongeveer, hun ding doen en weer door."
-  const PARADE_SP=58;           // vliegsnelheid bij aankomen en wegvliegen
-  const PARADE_DRAAI=2.8;       // hoe snel hij zijn koers naar zijn doel draait
-  const PARADE_HEL=0.34;        // hoeveel hij overhelt in een bocht
-  const PARADE_IN_MAX=1.5;      // langer dan dit mag aanvliegen niet duren
-  const PARADE_UIT_MAX=1.0;     // en wegvliegen ook niet
-  const PARADE_START=80;        // vanaf hier komt hij aanvliegen (plus wat spreiding)
-  const PARADE_WEG=110;         // en zo ver weg is hij klaar
   // Sjoerd v15.27: "tijdens de parade vuurwerk tussendoor, met meer kleur dan
   // normaal, en als iets spat dat het net als vuurwerk in kleinere delen verder
   // uit elkaar spat."
@@ -5437,13 +5474,24 @@
 
     escWeg:function(e){
       if(!e.esc) return;
-      e.esc.forEach(function(w){ w.live=false; if(w.m) w.m.visible=false; });
+      // v15.34: ook uit de scene halen. Hij maakte de lijst leeg maar liet de
+      // bollen zelf achter; escStart maakte er daarna nieuwe. Elke baas met
+      // escorte liet zo acht onzichtbare bollen in de scene achter.
+      e.esc.forEach(function(w){ w.live=false;
+        if(w.m){ w.m.visible=false; try{ this.par.remove(w.m); }catch(q){} } },this);
       e.esc=null; },
 
     // ---- WARDEN: DE GENERATOREN (Sjoerds principe: waarom onraakbaar, en
     // hoe open je hem). Twee bollen naast hem voeden een rood schild dat ALLES
     // opvangt. Schiet beide bollen kapot en het schild valt, definitief.
     genStart:function(e){
+      // v15.34: twee dingen die hier misgingen.
+      //  1. De bollen werden gemaakt en METEEN aan de scene gehangen — en een
+      //     nieuwe mesh staat van zichzelf aan. Zonder positie betekent dat: op
+      //     het nulpunt, tussen jouw voeten, tot genTick ze oppakt. En genTick
+      //     komt niet aan de beurt tijdens de intro van de baas.
+      //  2. Elke WARDEN maakte NIEUWE bollen, terwijl genWeg de oude alleen
+      //     onzichtbaar maakte. Die bleven voor altijd in de scene hangen.
       e.genBol=[];
       for(let i=0;i<2;i++){
         const g=new THREE.Mesh(new THREE.SphereGeometry(1,16,12),
@@ -5452,6 +5500,9 @@
           new THREE.MeshBasicMaterial({color:0xff2020,transparent:true,opacity:0.25,
             depthWrite:false,blending:THREE.AdditiveBlending}));
         g.add(gl); g.frustumCulled=false; this.par.add(g);
+        g.position.copy(e.p);
+        g.scale.setScalar(GEN_MAAT);
+        g.visible=!!(e.p&&(e.p.x||e.p.y||e.p.z));
         e.genBol.push({m:g,hp:GEN_HP,hpM:GEN_HP,zij:i?1:-1,live:true,p:new THREE.Vector3()}); }
       // het schild van de baas: onbreekbaar zolang een generator leeft
       this.schildAan(e,1e9); },
@@ -5463,6 +5514,7 @@
         if(!g.live) continue; leven++;
         g.p.set(e.p.x+g.zij*e.bw*GEN_AF, e.p.y+Math.sin(this.T*1.3+i*3)*2.5, e.p.z+GEN_VOOR);
         g.m.position.copy(g.p);
+        if(!g.m.visible) g.m.visible=true;             // v15.34: de beurt die hem plaatst, zet hem ook aan
         if(g.fxT>0) g.fxT-=s;
         // v15.12: knippert wit bij een treffer, en kleurt feller naarmate hij
         // zwakker wordt — net als de bollen van de late bazen
@@ -5513,7 +5565,9 @@
 
     genWeg:function(e){
       if(!e.genBol) return;
-      e.genBol.forEach(function(g){ g.live=false; g.m.visible=false; });
+      // v15.34: net als escWeg — ook echt uit de scene halen (zie genStart)
+      e.genBol.forEach(function(g){ g.live=false;
+        if(g.m){ g.m.visible=false; try{ this.par.remove(g.m); }catch(q){} } },this);
       e.genBol=null; },
 
     // ---- DE SCHILDWERPER (Sjoerds ontwerp): AMBER RING ----
@@ -7204,6 +7258,11 @@
 
     raakMij:function(dmg,altijd){
       if(window.PAUSED) return;
+      // v15.35, Sjoerd: "ik ontvang in deze eind lvl de parade geen dmg."
+      // De schepen doen in de parade hun echte truc — kamikazes, ministerren,
+      // portaaljagers — dus moet je onkwetsbaar zijn. Ook tijdens de
+      // felicitatie, want daar sta je negen seconden stil.
+      if(this.state==='parade'||this.state==='felic') return;
       // v15.25: de kamikazes van de HAULER komen een per seconde binnen, en die
       // rustpauze van 0,6 s zou de tweede en derde inslag gratis maken. Alleen
       // een aanval die 'altijd' meegeeft mag er langs.
@@ -7222,13 +7281,15 @@
     // =====================================================
     spawn:function(tp,opt){
       const T=TYPE[tp]; if(!T) return null;
-      // v15.33: GEMETEN dat er tijdens de parade nog schepen bijkwamen — de
-      // vijandbeurt draait gewoon door, dus een portaalschip opende portalen en
-      // een moederschip liet jagers los. Die kwamen MET schild, en zo'n bol
-      // hangt stil in de lucht omdat zijn eigen beurt hem niet verplaatst.
-      // Vier schepen bleven zo aan het eind van de parade over (gemeten).
-      // In de parade zet alleen de parade zelf iets in het veld.
-      if(this.state==='parade'&&!(opt&&opt.parade)) return null;
+      // v15.35: in de parade MAG alles opkomen — dat is nu juist de bedoeling:
+      // portaaljagers, de jagers van het moederschip, de schepen die de HAULER
+      // kaapt. In v15.33 blokkeerde ik dat nog, omdat ze met een schild kwamen
+      // dat stil in de lucht bleef hangen. Dat is bij de wortel opgelost (de
+      // schilden staan nu onderaan in spawn, als plek en maat bekend zijn) en
+      // Sjoerd wil ze in de parade helemaal zonder schild. Dus: niet blokkeren,
+      // maar iedereen in de parade als paradeschip behandelen.
+      if(this.state==='parade'&&!(opt&&opt.parade))
+        opt=Object.assign({},opt||{},{parade:1});
       // BLACK RAVEN is 18 m breed. Sjoerd: "in grote groepen in level 1 is echt
       // not done." Grenzen in het plan en in aanval() bleken allebei te omzeilen
       // (formaties gingen erlangs), dus staat de grens HIER — bij het neerzetten
@@ -7236,7 +7297,7 @@
       // Sjoerd v14.79: "schepen die verbonden zijn aan grote schepen, graag
       // laten opkomen MET hun grote schip. Misschien niet meer zomaar alleen."
       // BLUE ARROW hoort bij IRON CROSS: los komt hij niet meer op.
-      if((T.basis||T.n)==='SAUCER'&&!(opt&&opt.kruis)&&!(opt&&opt.baas)){
+      if((T.basis||T.n)==='SAUCER'&&!(opt&&opt.kruis)&&!(opt&&opt.baas)&&!(opt&&opt.parade)){
         let kruis=0;
         for(let q=0;q<this.enemies.length;q++){ const e2=this.enemies[q];
           if(e2.live&&TYPE[e2.tp]&&(TYPE[e2.tp].basis||TYPE[e2.tp].n)==='WATCHER') kruis=1; }
@@ -7278,7 +7339,8 @@
         if(T&&(T.basis||T.n)==='SPINNER'){ e.cd=RAVEN_EERST; e.bT=RAVEN_EERST; }
         e.jamX=undefined; e.jamT=0;
         // de jammer heeft een schild: Sjoerd wil dat je hem echt moet opruimen
-        if(T&&(T.basis||T.n)==='JAMMER'&&!(opt&&opt.parade)) this.schildAan(e,JAM_SCHILD);
+        // het schild van de jammer staat nu onderaan, bij de andere schilden —
+        // zie de uitleg daar (v15.34)
         if(T&&PORTSCHEPEN[T.basis||T.n]!==undefined){
           e.portN=PORTSCHEPEN[T.basis||T.n];
           e.direct=1; }                                // valt meteen aan, zie baan()
@@ -7328,6 +7390,10 @@
         const P=this.plaatVoor(tp);
         const LOS=(window.ART&&window.ART.losse)?window.ART.losse[T.n]:null;
         e.plaat=P; e.rij=T.rij;
+        // v15.34: de uitrusting van een baas (generatoren, escortes, velg,
+        // kernen, hangar) wordt nu ONDERAAN gezet, als e.p, e.bw en e.bh bekend
+        // zijn. Zijn NAAM moeten we daarvoor even vasthouden.
+        let baasDef=null;
         if(T.prof==='baas'&&this.bazen&&this.bazen.length){
           // Sjoerd v14.76: "laatste baas klopt niet, dat moet AXLE zijn."
           // De oude regel pakte bazen[(level-1) % lengte] en ging er dus vanuit
@@ -7349,6 +7415,7 @@
               if(b2.beurt>0&&b2.beurt<99&&(!hoogste||b2.beurt>hoogste.beurt)) hoogste=b2; }
             if(hoogste&&lvB>=LEVELS) B=hoogste; }
           if(!B) B=this.bazen[(lvB-1)%this.bazen.length];
+          baasDef=B;
           if(window.LOG) window.LOG('BAAS level '+lvB+': '+(B?B.naam:'geen')+
             '  beurt '+(B?B.beurt:'-'));
           const bt=B.tex;
@@ -7363,53 +7430,6 @@
           // hoofd hangen. Acht bollen van dekking 0,85 om de camera = het beeld
           // wordt donker (dus ook de naamtekst) en de baas erachter verdwijnt.
           // Een parade is een rondvlucht, geen gevecht: hij komt nu KAAL langs.
-          if(!(opt&&opt.parade)){
-          if(B.naam==='WARDEN') this.genStart(e);
-          // LANCE (Sjoerd): "zijn moves werken niet goed. Geef hem hetzelfde
-          // profiel als AMBER RING gecombineerd met BRONZE FANG — en laat hem
-          // beide uitvoeren." Dus: Z-sprints, schild aan/uit zonder reset,
-          // portalen met hulptroepen, wegsprong bij een treffer, EN de break
-          // turn van de herpakker met de versnelling erna.
-          if(B.naam==='LANCE'){ e.dubbel=1; e.rsHp=LANCE_SCHILD; }
-          if(B.naam==='THE WHEEL'){ this.velgStart(e); e.wiel=1; }
-          if(B.naam==='LANCE') e.eigenVuur=null;
-          // RAVEN: de hangar — krachtveld 4 s aan / uit, vier jagers eruit
-          if(B.naam==='RAVEN'){ e.hangar=1; e.moedF=1; e.moedT=MOEDER_AAN; }
-          // IRONCLAD: een ring van acht mijnen om hem heen (escorte in een kring)
-          // De mijnen moeten RAAKBAAR zijn: ze staan in een kring om hem heen,
-          // dus je schoten gaan er vaak langs. Ze zijn nu groter en zachter.
-          if(B.naam==='IRONCLAD'){ e.escVorm='ring'; this.escStart(e); e.escMaat=2.6; e.escHp=90; }
-          // THE WALKER: vier kanonnen op de flanken als generatoren, ze vuren terug
-          // Sjoerd v15.14: "ik zie zijn defensiebollen bijna niet, laat ze ook
-          // maar door de lucht vliegen. En dat ze power geven aan zijn shield,
-          // net als bij een andere baas die dat ook heeft." Zijn vier mijnen
-          // kleefden tegen zijn romp (op 0,55 x zijn breedte) en vielen daardoor
-          // weg tegen zijn plaat. Nu vier VLIEGENDE bollen, net als AEGIS: zolang
-          // er één leeft staat zijn schild, en zijn ze op dan ligt hij open.
-          if(B.naam==='THE WALKER') this.doelStart(e,4,'sera');
-          // HALO: overal schild, één wandelende opening (wisselend)
-          if(B.naam==='AEGIS') this.doelStart(e,3,'sera');      // drie vliegende bollen
-          // LONGSHIP: overal schild, vaste opening bovenop (de toren)
-          if(B.naam==='LONGSHIP') this.doelStart(e,4,'core');     // vier schuivende knooppunten
-          // AXLE: een zwerm om hem heen die je raketten opvangt
-          // De nieuwe plaat van AXLE (IMG_0006) heeft een wiel. Hij
-          // krijgt daarom de wijde ronde van THE WHEEL — hij stond stil (nul
-          // meter breedte gemeten) en rolt nu om je heen.
-          // AXLE, HERBOUWD (v14.18). Sjoerd: "er zit veel oude config bij
-          // deze baas." Hij had VIER lagen tegelijk: een zwerm die alles
-          // opving, drie meedraaiende kernen, de ontwijkervlag, en een eigen
-          // dans — die vochten met elkaar en hij stond stil. Nu één helder
-          // mechanisme: VIER KERNEN die met hem meedraaien en die je stuk moet
-          // schieten; zolang er één leeft is hij gepantserd.
-          // AXLE, de eindbaas (Sjoerd, v14.24). DRIE LAGEN:
-          //  1. VIJF vliegende ballen houden zijn schild in stand
-          //  2. alle vijf kapot -> vier seconden open, dan komen ze terug
-          //  3. in dat venster schiet je zijn BLAUWE binnenschild (1000) stuk,
-          //     en wat eraf is BLIJFT eraf
-          //  4. pas als het blauwe schild op is, raak je de baas zelf
-          if(B.naam==='AXLE'){ this.doelStart(e,5,'head'); e.zwermBaas=0;
-            e.blauw=AXLE_BLAUW; e.blauwM=AXLE_BLAUW; }
-          }
           if(!this.baasMat) this.baasMat={};
           if(!this.baasMat[bt.uuid]) this.baasMat[bt.uuid]=new THREE.MeshBasicMaterial(
             {map:bt,transparent:true,alphaTest:0.06,side:THREE.DoubleSide,depthWrite:false});
@@ -7450,13 +7470,6 @@
         e.sc=T.br*((opt&&opt.sc)||1);
         if(T.prof==='baas'&&e.gedrag==='reus'){ e.sc=134;
           e.hp=e.hpM=Math.round(6200*BAAS_TAAI*((opt&&opt.hp)||1)); }   // de eindbaas blijft zwaarder
-        // HET RODE SCHILD, nu de kracht bekend is. Kolossen altijd (halve kracht);
-        // kleine jagers een dun schildje, pas in de latere levels.
-        { const bn=T.basis||T.n;
-          if(opt&&opt.parade){ }                      // v15.33: parade = geen schilden
-          else if(T.prof!=='baas'&&SCHILD_GROOT.indexOf(bn)>=0) this.schildAan(e,Math.round(e.hpM*SCHILD_DEEL));
-          else if(T.prof!=='baas'&&T.br<=9&&this.level>=SCHILD_VANAF&&Math.random()<SCHILD_KANS)
-            this.schildAan(e,Math.round(e.hpM*SCHILD_DUN)); }
         // de reus is enorm maar zijn raakbol blijft binnen zijn houdafstand,
         // anders ramt hij je onafgebroken terwijl hij gewoon staat te vechten
         // De raakbol was 42% van de breedte: dat is 84% van de HALVE breedte, dus
@@ -7490,6 +7503,84 @@
         e.ar=ar0;
         e.bw=(ar0>=1)?e.sc:e.sc*ar0;               // breedte
         e.bh=(ar0>=1)?e.sc/ar0:e.sc;               // hoogte
+        // ---- HET RODE SCHILD, HELEMAAL ONDERAAN (v15.34) ----
+        // Sjoerd heeft deze fout nu drie keer gezien: v15.04 "een soort schild om
+        // mij heen", v15.05 "die bubble bij de intro", v15.33 "ik kom zelf in een
+        // schield". Elke keer dezelfde oorzaak en elke keer alleen het symptoom
+        // gerepareerd. DE ECHTE OORZAAK: schildAan stond BOVEN in spawn, en
+        //   - e.p krijgt zijn waarde pas 20 regels LATER, en
+        //   - e.bw en e.bh (waar de schildstraal uit komt) nog later.
+        // Een schip komt uit een voorraad, dus beide velden hadden nog de waarden
+        // van de VORIGE bewoner van dat plekje. Een kleine jager kreeg dus de
+        // plek EN de maat van het schip dat daar net gesneuveld was — en stierf
+        // die vlak bij jou, dan stond zijn schild om JOU heen. De v15.04-regel
+        // keek alleen of het het NULPUNT was, en een oude plek is niet het
+        // nulpunt, dus die liet het door. En schildTick zet het pas goed als het
+        // schip aan de beurt komt — wat tijdens de intro of in springRust niet
+        // gebeurt. Nu staat het schild hier: plek bekend, maat bekend, klaar.
+        // Kolossen altijd (halve kracht); kleine jagers een dun schildje, pas in
+        // de latere levels. De jammer houdt zijn eigen, zwaardere schild.
+        // ---- DE UITRUSTING VAN DE BAAS, OOK HIER (v15.34) ----
+        // Stond boven, bij zijn plaatje. Maar genStart, escStart, velgStart en
+        // doelStart maken bollen en ringen die METEEN op hun plek moeten staan,
+        // en e.p/e.bw/e.bh waren daar nog die van de vorige bewoner van dit
+        // poolplekje. Vandaar WARDEN's rode bollen op het nulpunt en de
+        // escortes om je hoofd. Nu: plek en maat bekend, dan de uitrusting.
+        if(baasDef){
+          if(!(opt&&opt.parade)){
+          if(baasDef.naam==='WARDEN') this.genStart(e);
+          // LANCE (Sjoerd): "zijn moves werken niet goed. Geef hem hetzelfde
+          // profiel als AMBER RING gecombineerd met BRONZE FANG — en laat hem
+          // beide uitvoeren." Dus: Z-sprints, schild aan/uit zonder reset,
+          // portalen met hulptroepen, wegsprong bij een treffer, EN de break
+          // turn van de herpakker met de versnelling erna.
+          if(baasDef.naam==='LANCE'){ e.dubbel=1; e.rsHp=LANCE_SCHILD; }
+          if(baasDef.naam==='THE WHEEL'){ this.velgStart(e); e.wiel=1; }
+          if(baasDef.naam==='LANCE') e.eigenVuur=null;
+          // RAVEN: de hangar — krachtveld 4 s aan / uit, vier jagers eruit
+          if(baasDef.naam==='RAVEN'){ e.hangar=1; e.moedF=1; e.moedT=MOEDER_AAN; }
+          // IRONCLAD: een ring van acht mijnen om hem heen (escorte in een kring)
+          // De mijnen moeten RAAKBAAR zijn: ze staan in een kring om hem heen,
+          // dus je schoten gaan er vaak langs. Ze zijn nu groter en zachter.
+          if(baasDef.naam==='IRONCLAD'){ e.escVorm='ring'; this.escStart(e); e.escMaat=2.6; e.escHp=90; }
+          // THE WALKER: vier kanonnen op de flanken als generatoren, ze vuren terug
+          // Sjoerd v15.14: "ik zie zijn defensiebollen bijna niet, laat ze ook
+          // maar door de lucht vliegen. En dat ze power geven aan zijn shield,
+          // net als bij een andere baas die dat ook heeft." Zijn vier mijnen
+          // kleefden tegen zijn romp (op 0,55 x zijn breedte) en vielen daardoor
+          // weg tegen zijn plaat. Nu vier VLIEGENDE bollen, net als AEGIS: zolang
+          // er één leeft staat zijn schild, en zijn ze op dan ligt hij open.
+          if(baasDef.naam==='THE WALKER') this.doelStart(e,4,'sera');
+          // HALO: overal schild, één wandelende opening (wisselend)
+          if(baasDef.naam==='AEGIS') this.doelStart(e,3,'sera');      // drie vliegende bollen
+          // LONGSHIP: overal schild, vaste opening bovenop (de toren)
+          if(baasDef.naam==='LONGSHIP') this.doelStart(e,4,'core');     // vier schuivende knooppunten
+          // AXLE: een zwerm om hem heen die je raketten opvangt
+          // De nieuwe plaat van AXLE (IMG_0006) heeft een wiel. Hij
+          // krijgt daarom de wijde ronde van THE WHEEL — hij stond stil (nul
+          // meter breedte gemeten) en rolt nu om je heen.
+          // AXLE, HERBOUWD (v14.18). Sjoerd: "er zit veel oude config bij
+          // deze baas." Hij had VIER lagen tegelijk: een zwerm die alles
+          // opving, drie meedraaiende kernen, de ontwijkervlag, en een eigen
+          // dans — die vochten met elkaar en hij stond stil. Nu één helder
+          // mechanisme: VIER KERNEN die met hem meedraaien en die je stuk moet
+          // schieten; zolang er één leeft is hij gepantserd.
+          // AXLE, de eindbaas (Sjoerd, v14.24). DRIE LAGEN:
+          //  1. VIJF vliegende ballen houden zijn schild in stand
+          //  2. alle vijf kapot -> vier seconden open, dan komen ze terug
+          //  3. in dat venster schiet je zijn BLAUWE binnenschild (1000) stuk,
+          //     en wat eraf is BLIJFT eraf
+          //  4. pas als het blauwe schild op is, raak je de baas zelf
+          if(baasDef.naam==='AXLE'){ this.doelStart(e,5,'head'); e.zwermBaas=0;
+            e.blauw=AXLE_BLAUW; e.blauwM=AXLE_BLAUW; }
+          }
+        }
+        if(T&&(T.basis||T.n)==='JAMMER'&&!(opt&&opt.parade)) this.schildAan(e,JAM_SCHILD);
+        { const bn=T.basis||T.n;
+          if(opt&&opt.parade){ }                      // v15.33: parade = geen schilden
+          else if(T.prof!=='baas'&&SCHILD_GROOT.indexOf(bn)>=0) this.schildAan(e,Math.round(e.hpM*SCHILD_DEEL));
+          else if(T.prof!=='baas'&&T.br<=9&&this.level>=SCHILD_VANAF&&Math.random()<SCHILD_KANS)
+            this.schildAan(e,Math.round(e.hpM*SCHILD_DUN)); }
         bb.m.scale.set(e.bw,e.bh,1); bb.m.position.copy(e.p);
         e.romp.position.copy(e.p); e.romp.scale.setScalar(e.r*0.45);
         return e; }
@@ -8260,6 +8351,13 @@
       // rechts, dan ging hij nog verder rechts. Elke keer dat je op hem richtte
       // schoof hij op, tot 79 graden opzij (gemeten), en hij kwam nooit terug.
       // Nu wijkt hij NAAR HET MIDDEN zodra hij te ver weg staat.
+      this.wijkNu(e,op); },
+
+    // v15.35: de uitwijksprong zat midden in mikTick, en die gaat pas af als
+    // JOUW vizier op hem staat. De parade moet hem op commando kunnen laten
+    // zien, dus staat de sprong zelf nu los. Zelfde code, zelfde waarden.
+    wijkNu:function(e,op){
+      op=op||((Math.random()<0.5)?-1:1);
       let zij=(e.p.x<this.kop.x)?-1:1;
       if(Math.abs(e.p.x-this.kop.x)>WIJK_TERUG) zij=-zij;
       e.wijkT=WIJK_TIJD;
@@ -10883,15 +10981,19 @@
     toonGroot:function(txt,kl){
       const e=document.querySelector('#hudC'); if(!e) return;
       e.setAttribute('value',txt); e.setAttribute('color',kl||'#ffb03a');
-      // v15.33: deze tekst hangt op 1,3 m voor je neus en hoort ALTIJD vooraan
-      // te staan. Elk ander HUD-onderdeel heeft dat al (depthTest uit,
-      // renderOrder 24); #hudC was de enige die nog gewoon meedeed in de
-      // wereld, en kon dus achter of onder een doorzichtig vlak verdwijnen.
-      // Het net van A-Frame maakt zijn mesh pas als het font binnen is, dus
-      // zetten we het hier zodra hij er is — één keer, met een vlaggetje.
-      try{ const o=e.getObject3D('mesh');
-        if(o&&!o.__vooraan){ o.__vooraan=1; o.renderOrder=26; o.frustumCulled=false;
-          if(o.material){ o.material.depthTest=false; o.material.depthWrite=false; } } }catch(q){}
+      // NIET DOEN: #hudC op depthTest:false met een hoge renderOrder zetten.
+      // Ik had dat in v15.33 eerst gedaan tegen de 'zwarte namen', maar:
+      //  1. het was de oorzaak niet (escortebollen van 1 tot 2,6 m hingen OP
+      //     2 m van de camera, dus fysiek VOOR deze tekst op 1,3 m — geen
+      //     tekenvolgorde ter wereld haalt die weg), en
+      //  2. het zwarte doek (#doek) staat op z=-1,05, dus DICHTERBIJ dan deze
+      //     tekst, met depthTest:false en renderOrder 0. Met renderOrder 26
+      //     wordt de tekst NA het doek getekend en schijnt hij er dus door.
+      //     Gerekend: HULL RESTORED staat 9 s, het beeld is na 3,8 s helemaal
+      //     zwart en blijft dat 2,4 s — de melding zou dus bij elke
+      //     levelovergang (tien keer per spel) door het zwart heen staan.
+      // De diepte beschermt deze tekst al: hij hangt op 1,3 m en het pauze- en
+      // eindpaneel staan op 2,3 m, dus die zitten er altijd achter.
       this.meldC=txt?9:0; },
 
     // ---- DE UITLEG IN LEVEL 1 (Sjoerd v14.45) ----
@@ -11400,8 +11502,12 @@
       // ---- vijanden ----
       let levend=0;
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i]; if(!e.live) continue;
-        if(e.parade){ if(e.bb){ e.bb.m.position.copy(e.p);
-            e.bb.m.scale.set(e.bw,e.bh,1); } continue; }         // de parade stuurt hem zelf
+        // v15.35: HIER sloeg de parade elk schip over, want de oude parade
+        // stuurde hem zelf langs een eigen baan. Sjoerd wil nu dat hij zijn
+        // EIGEN ding doet — vuren, portalen openen, kapen, splijten — "alsof
+        // het gewoon het spel is". Dus geen uitzondering meer: hij draait de
+        // hele vijandbeurt af. paradeTick zet hem alleen terug in beeld als hij
+        // te ver afdwaalt, en raakMij geeft jou geen schade in de parade.
         // Achter je vliegen mag, blijven hangen niet. Eerst duwde ik hem recht
         // naar voren, maar dat vocht met zijn eigen baan: op de grens hielden ze
         // elkaar in evenwicht en plakte hij ertegenaan. Nu maakt hij zijn rondje
@@ -12387,7 +12493,11 @@
         // uitgerekend: ze verdwijnen gewoon. Anders roept elke klap de volgende
         // op en kan het spel vastlopen bij een dichte zwerm.
         for(let k=0;k<this.vij.length;k++){ const N=this.vij[k];
-          if(!N.live||N===B) continue;
+          // v15.34: ook hier de onsterfelijke ministerren overslaan. Deze klap
+          // deelt schade UIT ZICHZELF (N.hp-=...) en ging dus langs de controle
+          // in vijTreffer2 heen: een zware vijandraket die naast een pasgeboren
+          // ster ontplofte maakte hem alsnog kapot.
+          if(!N.live||N===B||N.onq>0) continue;
           const nq=this.KP4||(this.KP4=new THREE.Vector3());
           nq.copy(N.o).addScaledVector(N.dir,N.d);
           const dx2=nq.x-q.x, dy2=nq.y-q.y, dz2=nq.z-q.z;
@@ -13840,7 +13950,7 @@
       B.forEach(function(b){ if(b.gedrag!=='reus') L.push({baas:b}); });
       B.forEach(function(b){ if(b.gedrag==='reus') L.push({baas:b,reus:1}); });
       this.par9={lijst:L, i:-1, e:null, fase:'leeg', t:0, klaarT:0, eind:!!eind,
-                 v:new THREE.Vector3(0,0,1), uit:new THREE.Vector3(), hel:0};
+                 pauze:0, truc:'', duur:0, gedaan:0, baas:0, naam:''};
       // de achtergrond die geen enkel level gebruikt
       // v15.33, Sjoerd: "tegen zwarte achtergrond". OORZAAK: rondeOpruimen maakt
       // hemelplaten leeg (tex.image=null) om geheugen vrij te maken. hemelZet
@@ -13893,9 +14003,6 @@
     paradeTick:function(s){
       const P=this.par9; if(!P) return;
       // ---- vuurwerk tussendoor (v15.27) ----
-      // Om je heen, maar met de nadruk naar voren zodat je het ziet zonder te
-      // moeten zoeken. Alleen als er genoeg vonken vrij zijn: een bom kost er
-      // ongeveer tachtig, en de parade zelf heeft er ook een paar nodig.
       P.vwT=(P.vwT||0)-s;
       if(P.vwT<=0){
         P.vwT=VUUR_TUSSEN0+Math.random()*VUUR_TUSSEN1;
@@ -13905,126 +14012,210 @@
           this.vuurBom(this.kop.x+Math.sin(hk)*r,
                        this.kop.y+14+Math.random()*34,
                        this.kop.z-Math.cos(hk)*r); } }
-      // ---- niemand in beeld: de volgende komt op ----
+
+      // ================= DE PARADE, v15.35 =================
+      // Sjoerd: "kun je in de parade alle schepen hun ding laten doen? Spawn ze
+      // recht voor mijn neus en geef ze 1 kleine hit, dan doen ze hun ontwijk
+      // move. Laat de jammer ook 1x zijn cirkel schieten, moederschip zijn
+      // vijanden spawnen en de andere schepen hun portals doen. 1 spawn,
+      // 2 hit/portals/enz, 3 clean. Dus alsof het gewoon het spel is."
+      //
+      // Daarom is het vrije vliegen eruit. Een schip VERSCHIJNT op zijn plek,
+      // draait daarna gewoon zijn eigen spelgedrag af (vuren, portalen, kapen,
+      // jammen) en wordt daarna met alles wat hij heeft opgeroepen opgeruimd.
+      // Zijn truc bepaalt hoe lang fase 2 duurt; die tijden staan in PARADE_TR.
       if(!P.e){
+        if(P.pauze>0){ P.pauze-=s; return; }
         P.i++;
         if(P.i>=P.lijst.length){ this.paradeEind(s); return; }
         const it=P.lijst[P.i];
         let e=null;
-        // v15.26: hij komt niet meer van een vast punt links, maar uit een
-        // willekeurige hoek om je heen en op een willekeurige hoogte.
-        const hk0=(Math.random()*2-1)*2.3;
-        const rr=PARADE_START+Math.random()*20;
-        const sx=this.kop.x+Math.sin(hk0)*rr;
-        const sz=this.kop.z-Math.cos(hk0)*rr;
-        const sy=this.kop.y+(Math.random()*2-1)*36;
-        if(it.baas){ e=this.spawn(BAAS,{x:sx,y:sy,z:sz,baas:it.baas,hp:0.001,parade:1});
+        // ---- 1. SPAWNEN, recht voor je neus en op zijn maat ----
+        // Een kolos moet verder weg staan om heel in beeld te passen; een jager
+        // komt vlak voor je neus. Dezelfde maatregel als de oude parade, maar
+        // nu is dat METEEN zijn plek in plaats van zijn eindpunt.
+        const bw0=it.baas?60:(TYPE[it.tp].br||8);
+        const d0=Math.max(PARADE_DICHTBIJ,Math.min(PARADE_VERMAX,bw0*1.5+8));
+        const hk0=(Math.random()*2-1)*0.5;              // een tikje opzij, niet precies in het midden
+        const sx=this.kop.x+Math.sin(hk0)*d0;
+        const sz=this.kop.z-Math.cos(hk0)*d0;
+        if(it.baas){ e=this.spawn(BAAS,{x:sx,y:this.kop.y,z:sz,baas:it.baas,hp:0.001,parade:1});
           if(e){ e.intro=0; e.rijst=0; e.dood2=0; } }
-        else e=this.spawn(it.tp,{x:sx,y:sy,z:sz,parade:1});
-        if(!e){ return; }
-        // v15.33: GEMETEN dat dit ook voor de SCHEPEN nodig is, niet alleen voor
-        // de bazen: een schip met een rood schild kreeg dat schild in spawn,
-        // vóórdat het zijn plek had, en schildTick draait niet in de parade. Er
-        // hingen zo zes bollen van 14 m doorsnee stil in de lucht.
-        this.paradeKaal(e);
-        e.p.set(sx,sy,sz);
-        // zijn beginkoers wijst NAAST je, zodat hij een bocht moet draaien om
-        // bij je te komen. Daar komt zijn overhelling uit.
-        { const vx=this.kop.x-sx, vz=this.kop.z-sz;
-          const dl=Math.max(0.001,Math.hypot(vx,vz));
-          const zw=(Math.random()<0.5?-1:1)*(0.75+Math.random()*0.5);
-          const cx=vx/dl, cz=vz/dl;
-          P.v.set(cx*Math.cos(zw)-cz*Math.sin(zw),0,cx*Math.sin(zw)+cz*Math.cos(zw)).normalize(); }
-        P.hel=0;
-        e.parade=1; e.hp=e.hpM=999999;                 // hij hoort niet te sneuvelen
+        else e=this.spawn(it.tp,{x:sx,y:this.kop.y,z:sz,parade:1});
+        if(!e){ P.pauze=0.1; return; }
+        e.parade=1;
+        e.hp=e.hpM=999999;                              // hij hoort niet te sneuvelen
         e.rol=0;
-        P.e=e; P.fase='in'; P.t=0;
-        // Iedereen komt eerst op DEZELFDE korte afstand — zo voel je hoe groot
-        // ze zijn. Daarna zakken ze terug tot ze helemaal in beeld passen; die
-        // afstand schaalt met hun breedte en hoogte.
-        // v15.26: EEN toonafstand, op zijn maat. Een klein schip komt vlak voor
-        // je neus, een kolos blijft verder weg zodat hij nog in beeld past. De
-        // aparte terugzak-fase is eruit: met vier seconden per schip is daar
-        // geen ruimte voor, en dit leest net zo goed.
-        P.d=Math.max(PARADE_AFSTAND,
-            Math.min(PARADE_VERMAX, Math.max(e.bw,e.bh*0.8)*1.35+9));
+        // een kolos houdt zijn kop op ooghoogte; zijn romp hangt eronder
+        if(e.bh>40) e.p.y=this.kop.y-e.bh*0.30;
+        if(e.bb){ e.bb.m.position.copy(e.p); e.bb.m.lookAt(this.kop.x,e.p.y,this.kop.z); }
+        P.e=e; P.fase='truc'; P.t=0; P.gedaan=0;
         P.baas=it.baas?1:0;
-        P.dicht=P.baas?PARADE_DICHT_B:PARADE_DICHT_T;
-        // alleen voor een BAAS: de grote schepen (HAULER, TITAN, NOVA) hingen
-        // ook verder weg, en die zou deze regel ongevraagd meeslepen — gemeten
-        // kostte dat de schepenparade twee seconden extra.
-        P.weg=P.baas?Math.max(PARADE_WEG,P.d+PARADE_WEG_EXTRA):PARADE_WEG;
         P.naam=(it.baas?(it.baas.naam+'   -   BOSS'):TYPE[it.tp].n);
         this.toonGroot(P.naam,it.baas?'#ff8aa6':'#9fe4f5');
+        // ---- hoe lang mag hij bezig zijn? ----
+        const bn=it.baas?null:(TYPE[it.tp].basis||TYPE[it.tp].n);
+        const tr=(bn&&PARADE_TR[bn])||null;
+        P.truc=tr?tr[0]:(it.baas?'baas':'ontwijk');
+        P.duur=(tr?tr[1]:(it.baas?PARADE_BAAS_T:PARADE_WIJK_T))+PARADE_EXTRA;
+        this.paradeDoe(e,P.truc);
         return; }
 
       const e=P.e; P.t+=s;
-      e.cd=99; e.dood=0;                                // niet schieten, niet sterven
-      // ---- v15.26: VRIJ VLIEGEN IN PLAATS VAN DE RAIL ----
-      // Vroeger schoof hij van x=-220 op een rechte lijn op vaste hoogte naar je
-      // toe en er weer uit. Nu heeft hij een SNELHEIDSVECTOR die naar zijn doel
-      // toe draait in plaats van er recht naartoe te schuiven. Daardoor vliegt hij
-      // bochten, en uit de scherpte van die bocht rolt zijn overhelling — net
-      // zoals de vijanden in het spel zelf overhellen.
-      // Een kolos houdt zijn kop op ooghoogte; zijn romp hangt eronder.
-      const hoog=(e.bh>40)?(this.kop.y-e.bh*0.34):this.kop.y;
-      const V=P.v, D=this.pdD||(this.pdD=new THREE.Vector3());
-      const doel=this.pdT||(this.pdT=new THREE.Vector3());
-      if(P.fase==='uit') doel.copy(P.uit);
-      else doel.set(this.kop.x,hoog,this.kop.z-P.d);
-      D.copy(doel).sub(e.p);
-      const dAf=D.length(); if(dAf>0.001) D.multiplyScalar(1/dAf);
-      const vx0=V.x, vz0=V.z;
-      V.addScaledVector(D,PARADE_DRAAI*s);
-      if(V.lengthSq()<1e-6) V.copy(D);
-      V.normalize();
-      if(P.fase==='toon'){
-        // hij hangt voor je en doet zijn ding: een lichte deining en een langzame
-        // wieg, zodat hij leeft in plaats van stil te staan. Alle drie de assen
-        // lopen er GELIJKMATIG naartoe — eerst zette ik x en y hard, en dan
-        // verspringt een schip dat net iets scheef aankwam.
-        const tx=this.kop.x+Math.sin(P.t*1.15)*Math.min(2.4,1.0+e.bw*0.05);
-        const ty=hoog+Math.sin(P.t*1.9)*Math.min(1.8,0.5+e.bh*0.05);
-        const tz=this.kop.z-P.d;
-        const f2=Math.min(1,s*4.5);
-        e.p.x+=(tx-e.p.x)*f2; e.p.y+=(ty-e.p.y)*f2; e.p.z+=(tz-e.p.z)*f2; }
-      else {
-        let sp2=(P.fase==='uit')?(PARADE_SP*(1+P.t*0.9)):PARADE_SP;
-        // netjes afremmen bij aankomst, anders schiet hij er dwars door
-        if(P.fase==='in') sp2=Math.min(sp2,Math.max(10,dAf*2.0));
-        e.p.addScaledVector(V,sp2*s);
-        e.p.y+=((P.fase==='uit'?doel.y:hoog)-e.p.y)*Math.min(1,s*1.7); }
-      // de overhelling: hoe scherper de bocht, hoe verder hij overhelt. Let op de
-      // deling door s: het kruisproduct hieronder is de koerswijziging van DIT
-      // beeldje, en die is per beeldje piepklein. Gedeeld door s is het een
-      // draaisnelheid, en daar hoort de helling bij.
-      const bocht=((V.x-vx0)*vz0-(V.z-vz0)*vx0)/Math.max(0.004,s);
-      const wil=(P.fase==='toon')?(Math.sin(P.t*1.5)*0.22):(-bocht*PARADE_HEL);
-      P.hel=(P.hel||0)+(wil-(P.hel||0))*Math.min(1,s*4.5);
-      if(e.bb&&e.bb.m){
-        const lk=this.pdL||(this.pdL=new THREE.Vector3());
-        // aanvliegen en wegvliegen: hij kijkt waar hij heen gaat. Voor je hangen:
-        // hij kijkt JOU aan. Altijd op zijn eigen hoogte, anders zie je zijn zij.
-        if(P.fase==='toon') lk.set(this.kop.x,e.p.y,this.kop.z);
-        else lk.set(e.p.x+V.x*25,e.p.y,e.p.z+V.z*25);
-        e.bb.m.lookAt(lk);
-        e.bb.m.rotation.z=Math.max(-1.05,Math.min(1.05,P.hel)); }
+      // ---- 2. HIJ DOET ZIJN DING ----
+      // Hier staat bewust niets: het spel zelf laat hem vuren, portalen openen,
+      // kapen en jammen. Alleen wat een zetje nodig heeft krijgt dat in
+      // paradeDoe/paradeDoe2, en jij krijgt geen schade (zie raakMij).
+      if(P.fase==='truc'){
+        // sommige trucs hebben halverwege een tweede zetje nodig
+        if(!P.gedaan&&P.t>=(PARADE_TR2[P.truc]||1e9)){ P.gedaan=1;
+          this.paradeDoe2(e,P.truc); }
+        // hij mag rondvliegen, maar niet uit beeld raken: raakt hij te ver of
+        // komt hij achter je, dan zetten we hem terug op zijn plek.
+        if(e.live){
+          const dAf=e.p.distanceTo(this.kop);
+          const bw=Math.max(8,e.bw||8);
+          const ver=Math.max(PARADE_VERMAX,bw*1.5+8)*1.6;
+          const vz=this.kop.z-e.p.z;
+          if(dAf>ver||vz<bw*0.5){
+            const hk=(Math.random()*2-1)*0.5;
+            const d1=Math.max(PARADE_DICHTBIJ,Math.min(PARADE_VERMAX,bw*1.5+8));
+            e.p.set(this.kop.x+Math.sin(hk)*d1,e.p.y,this.kop.z-Math.cos(hk)*d1);
+            if(e.bb) e.bb.m.position.copy(e.p); } }
+        if(P.t>=P.duur){ P.fase='weg'; P.t=0; }
+        return; }
 
-      if(P.fase==='in'&&(dAf<Math.max(4,e.bw*0.30)||P.t>PARADE_IN_MAX)){
-        P.fase='toon'; P.t=0; }
-      else if(P.fase==='toon'&&P.t>=(P.dicht||PARADE_DICHT_T)){
-        P.fase='uit'; P.t=0; this.toonGroot('','');
-        // een eigen uitweg kiezen: opzij en omhoog, of opzij en omlaag. Niet
-        // recht naar achteren, want dan verdwijnt hij achter je rug.
-        const hk=(Math.random()*2-1)*2.0, op=(Math.random()<0.5?1:-1);
-        P.uit.set(this.kop.x+Math.sin(hk)*250,
-                  hoog+op*(45+Math.random()*55),
-                  this.kop.z-Math.cos(hk)*250); }
-      else if(P.fase==='uit'&&(e.p.distanceTo(this.kop)>(P.weg||PARADE_WEG)||P.t>PARADE_UIT_MAX+1.4)){
-        try{ this.paradeKaal(e); }catch(q){}
-        e.live=false; if(e.bb){ this.bbVrij(e.bb); e.bb=null; }
-        if(e.romp){ e.romp.visible=false; e.romp=null; }
-        P.e=null; } },
+      // ---- 3. OPRUIMEN ----
+      // Alles weg: hijzelf, zijn portaaljagers, zijn kamikazes, de ministerren
+      // en elke kogel die nog onderweg is. Daarna een korte adempauze en de
+      // volgende komt op.
+      this.toonGroot('','');
+      try{ this.paradeKaal(e); }catch(q){}
+      try{ this.veldLeeg(); }catch(q){}
+      try{ this.jamWeg(); }catch(q){}
+      try{ this.portaalWeg(); }catch(q){}
+      if(e.bb){ this.bbVrij(e.bb); e.bb=null; }
+      if(e.romp){ e.romp.visible=false; e.romp=null; }
+      e.live=false; e.parade=0;
+      P.e=null; P.pauze=PARADE_TUSSEN; },
+
+    // ---- het zetje dat een truc nodig heeft, meteen bij het opkomen ----
+    paradeDoe:function(e,truc){
+      const T=TYPE[e.tp]||{};
+      // IEDEREEN krijgt een kleine treffer, zodat je zijn uitwijksprong ziet.
+      // Een kleine hit, niet genoeg om hem te slopen (hij heeft 999999 kracht).
+      try{ this.raak(e,1,e.p.x,e.p.y,e.p.z); }catch(q){}
+      e.wijker=1; e.wijkCd=0;
+      try{ this.wijkNu(e); }catch(q){}
+      // en hij valt METEEN aan. GEMETEN: 13 van de 17 jagers vuurden niet binnen
+      // hun budget, want een schip doorloopt eerst 'nader' en dan 'wacht' — en
+      // dat wachten duurt vijf seconden. Het spel heeft daar al een vlag voor
+      // (e.direct, gebruikt door de portaalschepen), dus die zetten we hier.
+      e.direct=1; e.cd=0.35; e.bT=0.3;
+      // Sjoerd: "iedereen mag schieten hoor, ik ben dan toch onsterfelijk."
+      // e.direct alleen was een loterij: of een schip binnen zijn budget vuurde
+      // hing af van inBeeld() — draaide hij net buiten je kijkhoek van 72 graden,
+      // dan sloeg hij zijn schot over (gemeten: ongeveer een schip per parade).
+      // Dus krijgt iedereen zijn salvo HIER, bij het opkomen, als hij nog recht
+      // voor je staat. Zijn eigen vuurklok loopt daarna gewoon door.
+      // En het VUURBUDGET even vullen. Dat is een pot die met 1,5 + 0,3 x level
+      // per seconde volloopt en waar elk schot uit betaald wordt. Het EERSTE
+      // schip van de parade kwam op terwijl die pot nog bijna leeg was, en sloeg
+      // zijn schot dus over (gemeten: WASP, het eerste schip, 1 op 3 keer).
+      this.beurt=Math.max(this.beurt||0,6);
+      try{ this.spuw(e,(TYPE[e.tp]&&TYPE[e.tp].sal)||1,0.06); }catch(q){}
+      switch(truc){
+        case 'jam':
+          // zijn cirkel: één puls, meteen, met de beeldvervorming erbij
+          try{ this.jamPuls(e); }catch(q){}
+          e.jamT=1e9;                                   // en niet meer dan een
+          break;
+        case 'moeder':
+          // het krachtveld staat, de vier jagers komen eruit
+          e.moedF=1; e.moedT=0.4;
+          break;
+        case 'kapen':
+          // hij moet iets te kapen HEBBEN: vier jagers om hem heen
+          this.paradeVoer(e,4);
+          break;
+        case 'portal':
+          e.portT=PORT_NA;                              // meteen open
+          break;
+        case 'yoyo':
+          // BLUE SPINE: zijn eigen hoge boog omhoog en terug
+          try{ this.yoyoStart(e); }catch(q){}
+          break;
+        case 'slinger':
+          // GHOST WING: zijn slingerende zoekraketten
+          try{ this.wingSlinger(e); }catch(q){}
+          break;
+        case 'werper':
+          // Sjoerd: "komt er dan ook een of meerdere vliegtuig in beeld vliegen
+          // die hij dan een shield kan geven? Mooi als je ze aan ziet komen
+          // vliegen zonder, en dan zap. Shield!"
+          // Dus komen er TWEE jagers van ver aanvliegen, kaal. Zijn bereik is
+          // 60 m (WERP_BEREIK), dus zetten we ze daar net buiten: ze moeten
+          // eerst dichterbij komen. Zijn eerste zap komt als de eerste binnen
+          // bereik is, de tweede halverwege (zie PARADE_TR2).
+          // GEMETEN per tiende seconde: ze beginnen op 75 m, lopen eerst nog
+          // iets op naar 88 m en komen pas vanaf 2,1 s binnen zijn bereik van
+          // 60 m; op 2,4 s zijn ze op 45 m en op 3,1 s op 5 tot 23 m. Een zap op
+          // 1,6 s viel dus in het niets. Nu de eerste op 2,2 s en de tweede op
+          // 2,9 s — beide ruim binnen bereik, en daarna nog ruim een seconde om
+          // de twee schilden te zien staan.
+          // DRIE aanvliegers, niet twee: ze vliegen hun eigen route en niet
+          // allemaal langs hem heen (gemeten: de een komt op 23 m, de ander
+          // blijft op 60 tot 67 m hangen, net buiten bereik). Met drie landt er
+          // bijna altijd meer dan een zap, en zie je er in elk geval een.
+          this.paradeVoer(e,3,74);
+          e.werpT=2.2;
+          break;
+        case 'ster':
+          break;                                        // die gaat later kapot
+        default: break; }
+    },
+
+    // ---- en het zetje halverwege ----
+    paradeDoe2:function(e,truc){
+      if(truc==='ster'||truc==='splijt'){
+        // de STERFORT uiteen in zijn vijf sterren, de splitser in twee helften
+        e.hp=1; try{ this.knalDood(e); }catch(q){} }
+      else if(truc==='kapen'){
+        // vier gekaapt: nu als kamikaze op je af
+        try{ this.kamiStart&&this.kamiStart(e); }catch(q){} }
+      else if(truc==='werper'){
+        // tweede zap, voor het tweede vliegtuig
+        e.werpT=0; }
+      else if(truc==='zwier'){
+        // AZURE PLATE is het ENIGE schip dat baan() helemaal overslaat: hij doet
+        // zijn zwier-patroon en gaat met een 'continue' de lus uit, en in
+        // plaatZwier staat geen vuurcode. Hij vuurt dus NERGENS in het spel.
+        // Daarom krijgt hij hier een tweede salvo, midden in zijn zwier.
+        try{ this.spuw(e,(TYPE[e.tp]&&TYPE[e.tp].sal)||1,0.06); }catch(q){} }
+    },
+
+    // Een paar kleine jagers bij een schip zetten: de HAULER heeft ze nodig om
+    // te kapen, AMBER RING om er een schild naartoe te gooien.
+    // 'af' is hoe ver ze beginnen. Vlakbij (18 m) voor de HAULER, want die moet
+    // ze kunnen pakken; ver (74 m) voor AMBER RING, zodat je ze ziet aankomen.
+    paradeVoer:function(e,n,af){
+      af=af||18;
+      const kl=[];
+      for(let t=0;t<TYPE.length;t++){ const q=TYPE[t];
+        if(q&&q.prof!=='baas'&&q.br<=8) kl.push(t); }
+      if(!kl.length) return;
+      // De spreiding is VAST, niet in verhouding tot 'af'. GEMETEN: met een
+      // zijwaartse spreiding van 45% van de afstand stond het tweede vliegtuig
+      // 33 m naast de lijn, vloog het op 65 tot 96 m van AMBER RING langs en
+      // bleef het dus altijd buiten zijn bereik van 60 m — de tweede zap miste.
+      // Nu komen ze allemaal vlak achter hem vandaan en vliegen ze langs hem heen.
+      for(let i=0;i<n;i++){
+        const hk=(i/Math.max(1,n))*6.283+0.6;
+        const v=this.spawn(kl[i%kl.length],{
+          x:e.p.x+Math.cos(hk)*11, y:e.p.y+Math.sin(hk)*5,
+          z:e.p.z-af, parade:1});
+        if(v){ v.parade=1; v.hp=v.hpM=9999; v.direct=1; v.cd=0.4; } }
+    },
 
     paradeEind:function(s){
       const P=this.par9;
