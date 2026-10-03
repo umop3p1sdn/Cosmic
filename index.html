@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.36';
+  const VERSIE='v15.37';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -3366,7 +3366,7 @@
       // reset() draait zowel bij terug-naar-menu als bij een nieuw spel.
       // v15.32 wisregel: de HUD stond uit tijdens de parade. Zonder dit begin
       // je een nieuw spel zonder kracht, munitie en combometer.
-      this.hudWeg(0); this.fel=null;
+      this.hudWeg(0); this.fel=null; this.naamNu=undefined; this.eindVast=null;
       this.ceT=0; this.vwT=0; this.comboTot=0; this.vwEl=0;
       ['#comboHoek','#ceGroep','#vwGroep'].forEach(function(id){
         const q=document.querySelector(id); if(q) q.setAttribute('visible',false); });
@@ -10978,7 +10978,19 @@
       if(m){ m.visible=true; m.renderOrder=24;
         if(m.material){ m.material.depthTest=false; m.material.depthWrite=false; } } },
 
+    // De parade en de felicitatie zetten hun tekst HIERLANGS, zodat toonGroot
+    // weet welke tekst er mag staan.
+    paradeTxt:function(txt,kl){ this.naamNu=txt; this.toonGroot(txt,kl); },
+
     toonGroot:function(txt,kl){
+      // v15.36: in de parade staat de NAAM van het schip in dit vlak, en dat
+      // moet zo blijven. Het spel roept toonGroot ook voor zijn eigen kreten —
+      // MISSILE STORM (raketStorm), de kreet van een zware baasaanval (Z.roep),
+      // FULL ASSAULT en !! WARNING !! — en die schepen draaien in de parade hun
+      // echte gedrag af, dus die kreten KUNNEN afgaan. In mijn meting gebeurde
+      // het niet, maar dat is geluk en geen ontwerp. Alleen de parade zelf mag
+      // hier dus schrijven, en die gaat via paradeTxt.
+      if((this.state==='parade'||this.state==='felic')&&txt!==this.naamNu) return;
       const e=document.querySelector('#hudC'); if(!e) return;
       e.setAttribute('value',txt); e.setAttribute('color',kl||'#ffb03a');
       // NIET DOEN: #hudC op depthTest:false met een hoge renderOrder zetten.
@@ -13896,6 +13908,14 @@
     // Drie regels van drie seconden, het veld leeg en niets wat je kan raken.
     // Daarna gaat de HUD uit en begint de parade.
     felicStart:function(){
+      // v15.36: ALLE EINDCIJFERS VASTZETTEN. GEMETEN: schiet je in de parade op
+      // de raketten van de langskomende schepen, dan tikken ze door — 6125
+      // punten en 3476 schoten in een parade. De eindtelling en het scorebord
+      // lezen die cijfers NA de parade, dus kon je er punten farmen, en
+      // TREFFERS PER 100 werd 19,5 in plaats van 155,4 (acht keer mis).
+      // Ze staan nu vast op de stand van het moment dat je het spel uitspeelde.
+      this.eindVast=this.eindVast||{p:this.punten,s:this.schoten,
+                                    g:this.gedood,b:this.beste};
       this.veldLeeg();
       try{ this.baasBalkUit(); }catch(q){}
       this.fel={i:-1,t:FELIC_T};
@@ -13904,16 +13924,16 @@
 
     felicTick:function(s){
       const F=this.fel;
-      if(!F){ this.hudWeg(1); this.toonGroot('',''); this.paradeStart(true); return; }
+      if(!F){ this.hudWeg(1); this.paradeTxt('',''); this.paradeStart(true); return; }
       F.t+=s;
       if(F.t>=FELIC_T){
         F.t=0; F.i++;
         if(F.i>=FELIC.length){
           this.fel=null;
           this.hudWeg(1);                              // "dan verdwijnt je hele Hud"
-          this.toonGroot('','');
+          this.paradeTxt('','');
           this.paradeStart(true); return; }
-        this.toonGroot(FELIC[F.i][0],FELIC[F.i][1]); }
+        this.paradeTxt(FELIC[F.i][0],FELIC[F.i][1]); }
       this.meldC=9;                                    // de regel mag niet wegvagen
       },
 
@@ -13973,7 +13993,10 @@
           this.hemelI=-1; } }                           // hemelZet mag hem later hernemen
       if(this.skyObjs) this.skyObjs.forEach(function(m){ m.visible=false; });
       this.state='parade'; window.PAUSED=false;
-      this.toonGroot('','');
+      // ook bij GAME OVER (daar komt geen felicitatie aan te pas)
+      this.eindVast=this.eindVast||{p:this.punten,s:this.schoten,
+                                    g:this.gedood,b:this.beste};
+      this.paradeTxt('','');
       SND.zeg(eind?'Sector cleared':'Hall of fame'); },
 
     // v15.33: alles weghalen wat een baas in een GEVECHT bij zich heeft.
@@ -14052,7 +14075,7 @@
         P.e=e; P.fase='truc'; P.t=0; P.gedaan=0;
         P.baas=it.baas?1:0;
         P.naam=(it.baas?(it.baas.naam+'   -   BOSS'):TYPE[it.tp].n);
-        this.toonGroot(P.naam,it.baas?'#ff8aa6':'#9fe4f5');
+        this.paradeTxt(P.naam,it.baas?'#ff8aa6':'#9fe4f5');
         // ---- hoe lang mag hij bezig zijn? ----
         const bn=it.baas?null:(TYPE[it.tp].basis||TYPE[it.tp].n);
         const tr=(bn&&PARADE_TR[bn])||null;
@@ -14089,7 +14112,7 @@
       // Alles weg: hijzelf, zijn portaaljagers, zijn kamikazes, de ministerren
       // en elke kogel die nog onderweg is. Daarna een korte adempauze en de
       // volgende komt op.
-      this.toonGroot('','');
+      this.paradeTxt('','');
       try{ this.paradeKaal(e); }catch(q){}
       try{ this.veldLeeg(); }catch(q){}
       try{ this.jamWeg(); }catch(q){}
@@ -14220,12 +14243,15 @@
     paradeEind:function(s){
       const P=this.par9;
       P.klaarT+=s;
+      // de eindcijfers terug naar de stand van voor de parade
+      if(this.eindVast){ this.punten=this.eindVast.p; this.schoten=this.eindVast.s;
+        this.gedood=this.eindVast.g; this.beste=this.eindVast.b; }
       // v15.26: HET ECHTE EINDE. Heb je het spel uitgespeeld, dan is de parade je
       // ereronde en komt daarna je naam — niet GAME OVER en terug naar het menu.
       if(P.eind){
         const ec=document.querySelector('#hudC');
         if(!ec||ec.getAttribute('value')!=='MISSION COMPLETE')
-          this.toonGroot('MISSION COMPLETE','#6cf08a');
+          this.paradeTxt('MISSION COMPLETE','#6cf08a');
         this.meldC=9;
         if(P.klaarT>2&&!P.naamGedaan){
           P.naamGedaan=1;
@@ -14234,7 +14260,7 @@
         return; }
       // GAME OVER is geen melding die wegvaagt: hij blijft staan tot je drukt.
       const gc=document.querySelector('#hudC');
-      if(!gc||gc.getAttribute('value')!=='GAME OVER') this.toonGroot('GAME OVER','#ffe45c');
+      if(!gc||gc.getAttribute('value')!=='GAME OVER') this.paradeTxt('GAME OVER','#ffe45c');
       this.meldC=9;
       if(P.klaarT>5&&!window.PARADEKLAAR){
         window.PARADEKLAAR=1;
