@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.37';
+  const VERSIE='v15.40';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1202,7 +1202,14 @@
   // Sjoerd v14.53: de stip in het midden van je beeld is weg — die hoort niet
   // in VR, je richt met je handen. Het element blijft bestaan (de code zet hem
   // op zichtbaar/onzichtbaar) maar is onzichtbaar gemaakt.
-  '      <a-ring id="richt" radius-inner="0.006" radius-outer="0.010" position="0 0 -1" visible="false"'+
+  // v15.38, Sjoerd: "op mobiel graag een puntje in het midden ivm menu
+  // bediening." Buiten VR mikt het menu met het MIDDEN VAN JE SCHERM —
+  // menuMik valt terug op de kijkrichting van de camera — en dan weet je zonder
+  // stip niet waar je op drukt. Hij was in v14.53 uitgezet omdat hij IN HET
+  // SPEL niet gewenst was; daarom staat hij nu alleen aan als er een menu of
+  // paneel open is (zie stipTick). radius-inner 0 maakt van de ring een gevuld
+  // rondje: een stip, geen ringetje.
+  '      <a-ring id="richt" radius-inner="0" radius-outer="0.0105" position="0 0 -1" visible="false"'+
   '              material="color:#35e8ff;shader:flat;opacity:0;transparent:true;depthWrite:false;depthTest:false"></a-ring>'+
   '    </a-camera>'+
   '    <a-entity id="leftHand" class="hand" meta-touch-controls="hand: left" oculus-touch-controls="hand: left">'+
@@ -1913,36 +1920,67 @@
   //   HAULER         4 kapen + KAMI_LAAD 3,0 + 4x KAMI_TUSSEN 1,0
   //   STERFORT       2 s staan + STER_ONQ 1,0 uitwaaieren + aanvliegen
   //   THE WHEEL      VELG_AAN 5,0 (alleen 'aan'; de hele cyclus zou 8 s kosten)
+  // de stip in het midden, buiten VR: bij welke panelen hij aan hoort te staan
+  // #menu staat er ook bij: in de WORLDS-kijker is het menu open terwijl de
+  // fase nog 'game' is (de pauzeknop klapt daar #wereld open), en dan moet je
+  // de plaatjes kunnen aanklikken.
+  const STIP_PANELEN=['#menu','#paneel','#eind','#naam'];
+  const STIP_DEK=0.9;           // hoe vol hij staat
   const PARADE_EXTRA=1.0;       // de seconde erbij die Sjoerd vroeg
-  const PARADE_TUSSEN=0.45;     // adempauze tussen twee schepen
+  const PARADE_TUSSEN=0.6;      // adempauze tussen twee schepen
+  // v15.39, Sjoerd: "de parade eindigt beetje raar." De laatste (de reus, 61 tot
+  // 89 graden breed) vulde je hele blik en 0,6 s later stond er MISSION
+  // COMPLETE. Nu eerst een lege hemel met vuurwerk, dan de tekst.
+  const PARADE_SLOT=1.8;        // lege hemel na de laatste, voor MISSION COMPLETE
   const PARADE_DICHTBIJ=18;     // zo dicht mag een klein schip komen
+  // v15.39, Sjoerd: "de vliegtuigen komen nu best snel en alles in 4 sec? Geef
+  // ze maar wat meer ruimte. 10 sec daar waar nodig. Stel er komen portals of
+  // shield of wat dan ook, dan kan het wat relaxer."
+  // Daarom staan de budgetten hieronder ruimer, en krijgt wie iets uitvoert de
+  // tijd om het af te maken in plaats van halverwege te verdwijnen.
+  // EN HET BELANGRIJKSTE: een schip vliegt zijn eigen baan, dus dreef het weg.
+  // GEMETEN over een hele parade: HALO stond 93% van zijn tijd BUITEN 45 graden
+  // van je kijkrichting, CYCLONE 77%, NEEDLE 74%, VENOM 68%; SCOUT dreef naar
+  // 130 m (drie graden groot) en de bazen naar 168 m. Daarom houdt de parade hem
+  // nu binnen een venster: hij mag bewegen, maar niet wegdrijven.
+  const PARADE_HOEK=26;         // zoveel graden mag hij van het midden af staan
+  const PARADE_REK=1.25;        // en zo veel verder dan zijn eigen plek
+  const PARADE_TERUG=6.0;       // hoe hard hij terugglijdt (per seconde)
+  // FOUTKLASSE UIT HET WERKBLAD: "een grens zonder marge laat dingen er precies
+  // tegenaan plakken — gebruik hysterese." Met alleen een harde grens zat een
+  // schip GEMETEN 58% van zijn tijd tegen de rand (WASP 90%, SENTINEL 94%): het
+  // gleed langs een onzichtbare muur. Daarom wordt hij naar BINNEN de grens
+  // teruggebracht, niet tot op de grens — dan heeft hij weer ruimte om te
+  // vliegen voordat hij hem opnieuw raakt.
+  const PARADE_BINNEN=0.6;      // hoe diep binnen de grens hij wordt teruggezet
   // wie geen eigen truc heeft: de sprong (0,55) PLUS zijn eerste schot, zodat
   // je ook van een gewone jager iets ziet gebeuren
-  const PARADE_WIJK_T=1.7;
-  const PARADE_BAAS_T=3.0;      // een baas komt KAAL langs (Sjoerds keuze)
+  const PARADE_WIJK_T=2.5;
+  const PARADE_BAAS_T=6.0;      // een baas komt KAAL langs (Sjoerds keuze)
   // welk schip doet wat, en hoe lang fase 2 dan duurt (zonder de extra seconde)
   const PARADE_TR={
-    'JAMMER':  ['jam',    4.2],
-    'TITAN':   ['moeder', 4.4],
-    'HAULER':  ['kapen',  8.0],
-    'WRAITH':  ['yoyo',   2.8],
-    'BULWARK': ['ster',   5.6],
-    'FIGHTER': ['portal', 3.6],
-    'SHRIKE':  ['portal', 3.6],
-    'HEAVY':   ['portal', 3.6],
-    'WATCHER': ['kruis',  3.6],
-    'BOMBER':  ['salvo',  2.6],
-    'SENTINEL':['kanon',  2.6],
-    'ORACLE':  ['werper', 4.6],
-    'INFERNO': ['slinger',3.0],
-    'SPINNER': ['raket',  2.6],
-    'CYCLONE': ['klok',   3.0],
-    'BASILISK':['zwier',  3.0],
-    'HALO':    ['golf',   2.6],
-    'NOVA':    ['zwaar',  2.4]
+    'HAULER':  ['kapen', 10.0],   // vier kapen, laden, en vier keer lanceren
+    'TITAN':   ['moeder', 7.0],   // veld aan, dan zijn vier jagers eruit
+    'NIGHTBLADE':['geest',7.2],   // zijn hele spookcyclus: 2,4 + 0,8 + 2,6 + 1,2
+    'BULWARK': ['ster',   7.0],   // staan, uiteen, en de sterren komen aan
+    'ORACLE':  ['werper', 7.0],   // drie jagers komen aan en krijgen hun schild
+    'JAMMER':  ['jam',    6.5],   // puls onderweg plus de vervorming
+    'FIGHTER': ['portal', 6.0],
+    'SHRIKE':  ['portal', 6.0],
+    'HEAVY':   ['portal', 6.0],
+    'WATCHER': ['kruis',  5.0],
+    'WRAITH':  ['yoyo',   4.5],
+    'BOMBER':  ['salvo',  4.5],
+    'SENTINEL':['kanon',  4.5],
+    'INFERNO': ['slinger',4.5],
+    'SPINNER': ['raket',  4.5],
+    'CYCLONE': ['klok',   4.5],
+    'BASILISK':['zwier',  4.5],
+    'HALO':    ['golf',   4.5],
+    'NOVA':    ['zwaar',  4.5]
   };
   // en welke truc halverwege een tweede zetje nodig heeft, en wanneer
-  const PARADE_TR2={ 'ster':2.0, 'kapen':4.0, 'zwier':1.4, 'werper':2.9 };
+  const PARADE_TR2={ 'ster':2.6, 'kapen':4.5, 'zwier':2.0, 'werper':2.9 };
   const PARADE_VER_T=2.0;       // (niet meer gebruikt sinds v15.26)
   // Sjoerd v15.26: "ze komen op een rail langs. Ze mogen wel vrij vliegen, 1 voor
   // 1. Ze mogen 4 sec in beeld ongeveer, hun ding doen en weer door."
@@ -3366,7 +3404,7 @@
       // reset() draait zowel bij terug-naar-menu als bij een nieuw spel.
       // v15.32 wisregel: de HUD stond uit tijdens de parade. Zonder dit begin
       // je een nieuw spel zonder kracht, munitie en combometer.
-      this.hudWeg(0); this.fel=null; this.naamNu=undefined; this.eindVast=null;
+      this.hudWeg(0); this.fel=null; this.naamNu=undefined; this.eindVast=null; this.stipAan=undefined;
       this.ceT=0; this.vwT=0; this.comboTot=0; this.vwEl=0;
       ['#comboHoek','#ceGroep','#vwGroep'].forEach(function(id){
         const q=document.querySelector(id); if(q) q.setAttribute('visible',false); });
@@ -10980,6 +11018,26 @@
 
     // De parade en de felicitatie zetten hun tekst HIERLANGS, zodat toonGroot
     // weet welke tekst er mag staan.
+    // ---- DE STIP IN HET MIDDEN (Sjoerd v15.38) ----
+    // "Op mobiel graag een puntje in het midden ivm menu bediening."
+    // Aan als: NIET in VR (daar mik je met je handen en heb je laserlijnen) EN
+    // er staat een menu of paneel open. Dus niet tijdens het spelen zelf — die
+    // stip is in v14.53 met opzet weggehaald.
+    stipTick:function(){
+      // niet elke beurt drie attributen uitlezen; zes keer per seconde is zat
+      if((this.stipT=(this.stipT||0)-1)>0) return; this.stipT=12;
+      const r=document.querySelector('#richt'); if(!r) return;
+      let open=(window.PHASE==='menu');
+      if(!open) for(let i=0;i<STIP_PANELEN.length;i++){
+        const e=document.querySelector(STIP_PANELEN[i]);
+        if(e&&e.getAttribute('visible')!==false){ open=true; break; } }
+      const aan=!window.INVR&&open;
+      if(aan===this.stipAan) return;
+      this.stipAan=aan;
+      r.setAttribute('visible',aan);
+      r.setAttribute('material','color:#35e8ff;shader:flat;opacity:'+
+        (aan?STIP_DEK:0)+';transparent:true;depthWrite:false;depthTest:false'); },
+
     paradeTxt:function(txt,kl){ this.naamNu=txt; this.toonGroot(txt,kl); },
 
     toonGroot:function(txt,kl){
@@ -11344,6 +11402,9 @@
     // =====================================================
     tick:function(t,dt){ if(this.dead) return; try{
       const sEcht=Math.min(0.08,(dt||16)/1000);
+      // HELEMAAL VOORAAN, want de beurt slaat hieronder drie keer af: in het
+      // menu, op pauze en in het spel. De stip moet in alle drie kloppen.
+      this.stipTick();
       // DE UITLEG zet de wereld bijna stil, maar de les zelf loopt op sEcht.
       // 's' was een const — die overschrijven gaf 'Assignment to constant
       // variable' en dan strandde de hele beurt (gemeten).
@@ -14049,6 +14110,8 @@
       // Zijn truc bepaalt hoe lang fase 2 duurt; die tijden staan in PARADE_TR.
       if(!P.e){
         if(P.pauze>0){ P.pauze-=s; return; }
+        // de laatste is weg: eerst even een lege hemel, dan het slot
+        if(P.i+1>=P.lijst.length&&!P.slot){ P.slot=1; P.pauze=PARADE_SLOT; return; }
         P.i++;
         if(P.i>=P.lijst.length){ this.paradeEind(s); return; }
         const it=P.lijst[P.i];
@@ -14069,8 +14132,17 @@
         e.parade=1;
         e.hp=e.hpM=999999;                              // hij hoort niet te sneuvelen
         e.rol=0;
+        // v15.39: NU is zijn echte breedte bekend (e.bw wordt in spawn gezet, na
+        // zijn plaatje). De schatting hierboven gebruikte voor ELKE baas 60 m,
+        // en dat zette TITAN PRIME (134 m breed) net zo ver weg als de kleinste.
+        const dE=Math.max(PARADE_DICHTBIJ,
+                 Math.min(PARADE_VERMAX,Math.max(e.bw||8,(e.bh||8)*0.8)*1.5+8));
+        const hk1=Math.atan2(sx-this.kop.x,this.kop.z-sz);
+        e.p.set(this.kop.x+Math.sin(hk1)*dE,this.kop.y,this.kop.z-Math.cos(hk1)*dE);
         // een kolos houdt zijn kop op ooghoogte; zijn romp hangt eronder
         if(e.bh>40) e.p.y=this.kop.y-e.bh*0.30;
+        // zijn PLEK onthouden: daar hoort hij te blijven rondhangen
+        P.d=dE;
         if(e.bb){ e.bb.m.position.copy(e.p); e.bb.m.lookAt(this.kop.x,e.p.y,this.kop.z); }
         P.e=e; P.fase='truc'; P.t=0; P.gedaan=0;
         P.baas=it.baas?1:0;
@@ -14093,17 +14165,68 @@
         // sommige trucs hebben halverwege een tweede zetje nodig
         if(!P.gedaan&&P.t>=(PARADE_TR2[P.truc]||1e9)){ P.gedaan=1;
           this.paradeDoe2(e,P.truc); }
-        // hij mag rondvliegen, maar niet uit beeld raken: raakt hij te ver of
-        // komt hij achter je, dan zetten we hem terug op zijn plek.
-        if(e.live){
-          const dAf=e.p.distanceTo(this.kop);
-          const bw=Math.max(8,e.bw||8);
-          const ver=Math.max(PARADE_VERMAX,bw*1.5+8)*1.6;
-          const vz=this.kop.z-e.p.z;
-          if(dAf>ver||vz<bw*0.5){
-            const hk=(Math.random()*2-1)*0.5;
-            const d1=Math.max(PARADE_DICHTBIJ,Math.min(PARADE_VERMAX,bw*1.5+8));
-            e.p.set(this.kop.x+Math.sin(hk)*d1,e.p.y,this.kop.z-Math.cos(hk)*d1);
+        // ---- HIJ BLIJFT IN BEELD ----
+        // Hij vliegt zijn eigen baan, en dat mag: dat is wat het levend maakt.
+        // Maar hij mag niet WEGDRIJVEN. GEMETEN zonder deze rem: HALO stond 93%
+        // van zijn tijd buiten 45 graden, SCOUT dreef naar 130 m en de bazen
+        // naar 168 m. Daarom glijdt hij terug naar zijn eigen plek zodra hij te
+        // ver of te schuin staat — glijden, niet verspringen, anders schokt hij.
+        if(e.live&&P.d){
+          // Terugglijden was niet genoeg: GEMETEN stond LANCE daarmee nog 61%
+          // van zijn tijd buiten 45 graden en dreef hij naar 185 m, want
+          // baasBaan sprint harder dan de rem (3% van het gat per beeldje).
+          // Dus een HARDE GRENS: zijn richting en afstand worden elk beeldje in
+          // het venster geduwd. Binnen dat venster beweegt hij helemaal vrij;
+          // wil hij eruit, dan glijdt hij langs de rand. Dat leest rustig —
+          // veel rustiger dan een schip dat je kwijtraakt.
+          const u=this.PV1||(this.PV1=new THREE.Vector3());
+          u.subVectors(e.p,this.kop);
+          const dAf=Math.max(0.001,u.length());
+          u.multiplyScalar(1/dAf);
+          const kd=this.PV2||(this.PV2=new THREE.Vector3());
+          if(this.kijkD) kd.copy(this.kijkD); else kd.set(0,0,-1);
+          const cosMax=Math.cos(PARADE_HOEK*Math.PI/180);
+          const dMax=P.d*PARADE_REK, dMin=Math.max(10,P.d*0.55);
+          const dot=u.dot(kd);
+          const hkNu0=Math.acos(Math.max(-1,Math.min(1,dot)));
+          const hkIn0=PARADE_HOEK*PARADE_BINNEN*Math.PI/180;
+          // HYSTERESE ALS TOESTAND, niet als kracht. Een lerp alleen vond een
+          // evenwicht precies op de rand (zijn eigen baan duwt naar buiten, de
+          // rem trekt naar binnen) — gemeten zat hij er dan nog 56% van de tijd
+          // tegenaan. Nu: raakt hij de grens, dan wordt hij teruggehaald TOT HIJ
+          // GOED BINNEN IS, en daarna weer helemaal vrijgelaten.
+          if(dot<cosMax||dAf>dMax||dAf<dMin) P.terug=1;
+          else if(P.terug&&hkNu0<hkIn0*1.05&&dAf<=P.d*1.03) P.terug=0;
+          if(P.terug){
+            // de dwarsrichting van zijn plek ten opzichte van je kijkrichting
+            const q=this.PV3||(this.PV3=new THREE.Vector3());
+            q.copy(u).addScaledVector(kd,-dot);
+            if(q.lengthSq()<1e-6){ q.set(1,0,0).addScaledVector(kd,-kd.x); }
+            q.normalize();
+            // DOEL: binnen de grens, niet op de grens (hysterese)
+            const hkIn=PARADE_HOEK*PARADE_BINNEN*Math.PI/180;
+            const uIn=this.PV4||(this.PV4=new THREE.Vector3());
+            const hkNu=Math.acos(Math.max(-1,Math.min(1,dot)));
+            const hkDoel=Math.min(hkNu,hkIn);
+            uIn.copy(kd).multiplyScalar(Math.cos(hkDoel))
+               .addScaledVector(q,Math.sin(hkDoel)).normalize();
+            const dDoel=Math.min(Math.max(dAf,P.d*0.8),P.d);
+            const doel=this.PV5||(this.PV5=new THREE.Vector3());
+            doel.copy(this.kop).addScaledVector(uIn,dDoel);
+            e.p.lerp(doel,Math.min(1,s*PARADE_TERUG));
+            // en een HARDE grens als vangnet, zodat hij er nooit uit kan
+            u.subVectors(e.p,this.kop);
+            const d2=Math.max(0.001,u.length()); u.multiplyScalar(1/d2);
+            const dot2=u.dot(kd);
+            if(dot2<cosMax){
+              q.copy(u).addScaledVector(kd,-dot2);
+              if(q.lengthSq()<1e-6) q.set(1,0,0).addScaledVector(kd,-kd.x);
+              q.normalize();
+              u.copy(kd).multiplyScalar(cosMax)
+               .addScaledVector(q,Math.sqrt(Math.max(0,1-cosMax*cosMax))).normalize();
+              e.p.copy(this.kop).addScaledVector(u,Math.min(dMax,Math.max(dMin,d2))); }
+            else if(d2>dMax||d2<dMin){
+              e.p.copy(this.kop).addScaledVector(u,Math.min(dMax,Math.max(dMin,d2))); }
             if(e.bb) e.bb.m.position.copy(e.p); } }
         if(P.t>=P.duur){ P.fase='weg'; P.t=0; }
         return; }
@@ -14190,8 +14313,13 @@
           // allemaal langs hem heen (gemeten: de een komt op 23 m, de ander
           // blijft op 60 tot 67 m hangen, net buiten bereik). Met drie landt er
           // bijna altijd meer dan een zap, en zie je er in elk geval een.
-          this.paradeVoer(e,3,74);
-          e.werpT=2.2;
+          // 52 m, niet 74: zijn bereik is 60 m (WERP_BEREIK), dus vanaf 74 m
+          // zijn ze de eerste twee seconden nog buiten bereik en daarna meteen
+          // weer voorbij. GEMETEN over negen parades: ongeveer een op negen
+          // keer landde er geen enkele zap. Van 52 m zijn ze meteen in bereik
+          // en blijf je ze nog ruim zien aankomen.
+          this.paradeVoer(e,3,52);
+          e.werpT=1.1;
           break;
         case 'ster':
           break;                                        // die gaat later kapot
