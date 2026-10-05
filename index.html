@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.42';
+  const VERSIE='v15.43';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1928,6 +1928,7 @@
   const STIP_DEK=0.9;           // hoe vol hij staat
   const PARADE_EXTRA=1.0;       // de seconde erbij die Sjoerd vroeg
   const PARADE_TUSSEN=0.6;      // adempauze tussen twee schepen
+  const PARADE_PLAATWACHT=4.0;  // zo lang wacht de parade op een baasplaat (v15.42)
   // v15.39, Sjoerd: "de parade eindigt beetje raar." De laatste (de reus, 61 tot
   // 89 graden breed) vulde je hele blik en 0,6 s later stond er MISSION
   // COMPLETE. Nu eerst een lege hemel met vuurwerk, dan de tekst.
@@ -11091,6 +11092,51 @@
       r.setAttribute('material','color:#35e8ff;shader:flat;opacity:'+
         (aan?STIP_DEK:0)+';transparent:true;depthWrite:false;depthTest:false'); },
 
+    // ---- DE PLAAT VAN EEN PARADEBAAS (v15.42) ----
+    // Sjoerd: "Warden, Lance, Wheel, enz enz. Allemaal onzichtbaar in parade."
+    // GEVONDEN: rondeOpruimen geeft na elke ronde de baasplaten vrij die dat
+    // level niet nodig heeft — losLaten() doet dispose() en zet t.image op null.
+    // Speel je het spel uit, dan zit alleen de plaat van de EINDBAAS nog in het
+    // geheugen. De andere twaalf bazen komen in de parade dus op met een
+    // materiaal waarvan de kaart leeg is, en dat tekent niets: onzichtbaar.
+    // Precies dezelfde fout als de zwarte hemel in v15.33, en met dezelfde
+    // oorzaak: de parade gaat ervan uit dat alles nog in het geheugen zit.
+    // MIJN TEST ZAG HET NIET omdat die alle dertien platen vasthield. Nu geeft
+    // de test ze eerst vrij, zoals het spel doet (zie paradezicht.js).
+    // Alles tegelijk inladen kan niet — dertien baasplaten is te veel geheugen
+    // voor de bril, daarom worden ze juist vrijgegeven. Dus: de plaat van de
+    // volgende baas wordt opgehaald terwijl de vorige nog bezig is, en na zijn
+    // beurt weer vrijgegeven. Nooit meer dan een paar tegelijk.
+    baasPlaatIn:function(B){
+      if(!B) return true;
+      const D=(B.delen&&B.delen.length)?B.delen:(B.tex?[B.tex]:[]);
+      let mist=0; const self=this;
+      for(let i=0;i<D.length;i++){ const t=D[i];
+        if(!t||!t.__naam) continue;
+        if(t.image&&t.image.width) continue;          // staat al klaar
+        mist++;
+        if(t.__plaatBezig) continue;                  // wordt al opgehaald
+        const info=KAART.bazen.filter(function(x){ return x.naam===t.__naam; })[0];
+        if(!info) continue;                           // niet terug te halen
+        const nm=t.__naam;
+        t.__plaatBezig=1;
+        artLaad(info.url,function(tx){
+          t.__plaatBezig=0;
+          if(tx){ tx.__naam=nm; tx.__lijst=info.lijst; self.baasVervang(nm,tx); } }); }
+      return mist===0; },
+
+    baasPlaatUit:function(B){
+      if(!B) return;
+      // de baas van DIT level houden we: rondeLaden heeft hem net nodig gehad
+      let eigen=null; try{ eigen=this.baasKeus(this.level); }catch(q){}
+      if(B===eigen) return;
+      const D=(B.delen&&B.delen.length)?B.delen:(B.tex?[B.tex]:[]);
+      for(let i=0;i<D.length;i++){ const t=D[i];
+        if(!t||!t.image||t.__vast||!t.__naam||t.__plaatBezig) continue;
+        // alleen vrijgeven wat terug te halen is
+        if(!KAART.bazen.some(function(x){ return x.naam===t.__naam; })) continue;
+        this.losLaten(t); } },
+
     paradeTxt:function(txt,kl){ this.naamNu=txt; this.toonGroot(txt,kl);
       // v15.41: toonGroot zet er een vervalklok van 9 s op — logisch voor een
       // melding, maar een paradenaam hoort te staan zolang het schip er staat.
@@ -14182,6 +14228,18 @@
         P.i++;
         if(P.i>=P.lijst.length){ this.paradeEind(s); return; }
         const it=P.lijst[P.i];
+        // v15.42: eerst zijn PLAAT. Zonder plaat komt hij onzichtbaar op (zie
+        // baasPlaatIn). Normaal staat hij er al — hij is tijdens de vorige beurt
+        // opgehaald — maar duurt dat langer, dan wachten we even. Niet eeuwig:
+        // lukt het niet (geen verbinding, plaat niet in KAART), dan gaat de
+        // parade na PARADE_PLAATWACHT door. Een hangende parade is erger dan een
+        // baas zonder plaatje.
+        if(it.baas&&!this.baasPlaatIn(it.baas)){
+          P.wachtP=(P.wachtP||0)+s;
+          if(P.wachtP<PARADE_PLAATWACHT){ P.i--; return; } }
+        P.wachtP=0;
+        // en meteen de plaat van de VOLGENDE baas ophalen, zodat die klaarstaat
+        { const nx=P.lijst[P.i+1]; if(nx&&nx.baas) this.baasPlaatIn(nx.baas); }
         let e=null;
         // ---- 1. SPAWNEN, recht voor je neus en op zijn maat ----
         // Een kolos moet verder weg staan om heel in beeld te passen; een jager
@@ -14326,6 +14384,12 @@
       if(e.bb){ this.bbVrij(e.bb); e.bb=null; }
       if(e.romp){ e.romp.visible=false; e.romp=null; }
       e.live=false; e.parade=0;
+      // v15.42: zijn plaat weer vrijgeven — dertien baasplaten tegelijk in het
+      // geheugen is precies wat rondeOpruimen voorkomt. En die van de volgende
+      // baas nu ophalen, dan staat hij klaar als zijn beurt komt.
+      if(P.baas&&P.lijst[P.i]&&P.lijst[P.i].baas)
+        try{ this.baasPlaatUit(P.lijst[P.i].baas); }catch(q){}
+      { const nx=P.lijst[P.i+1]; if(nx&&nx.baas) try{ this.baasPlaatIn(nx.baas); }catch(q){} }
       P.e=null; P.pauze=PARADE_TUSSEN; },
 
     // ---- het zetje dat een truc nodig heeft, meteen bij het opkomen ----
