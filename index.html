@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.44';
+  const VERSIE='v15.45';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2026,7 +2026,6 @@
   // Vanaf welke doorzichtigheid een pixel nog wordt getekend. Te laag laat een
   // donker randje staan om uitgeknipte plaatjes.
   const RANDDREMPEL=0.42;
-  const VLEK_N=48;              // hoeveel schroeivlekken er tegelijk kunnen zijn
   // Hoe hard rook naar achteren wegwaait ten opzichte van het schip dat hem
   // maakt. 1 = precies stilstaan in de ruimte terwijl het schip doorvliegt.
   const ROOKWAAI=0.85;
@@ -2042,7 +2041,6 @@
   // Sjoerd: "rook mag een klein stapje groter en meer aanwezig, niet overkill."
   // Schaal 0,20 → 0,26, ondergrens 1,35 → 1,7.
   const BRANDSCHAAL=0.30, BRANDMIN=1.9;   // Sjoerd: nog een klein stapje (was 0,26 / 1,7)
-  const VALROOK=0.40;           // seconden tussen twee pluimen van een wrak
   // Hoe hard een neerstortend wrak draait, per manier van vallen.
   // Het neerstorten: versnelling omlaag, hoe hij kantelt, hoe lang, hoe diep.
   const VALVERSNEL=8.5, VALKANTEL=0.55, VALDUUR=5.0, VALDIEP=45;
@@ -2231,7 +2229,7 @@
   const GEN_HP=180, GEN_AF=0.75, GEN_VOOR=6, GEN_MAAT=2.6, GEN_TERUG=10;
   // HALO's drie vliegende bollen: hoeveel, hun kracht, hoe ver ze om je heen
   // cirkelen, hoe snel, hoe hoog ze golven, hun maat, en hoe lang hij openligt.
-  const SERA_N=3, SERA_HP=260, SERA_R=85, SERA_RV=30, SERA_SNEL=0.55;
+  const SERA_HP=260, SERA_R=85, SERA_RV=30, SERA_SNEL=0.55;
   const SERA_HOOG=16, SERA_MAAT=3.2, SERA_OPEN=4;
   // Het gedeelde schildspel van de laatste drie bazen: kracht per doelwit, hoe
   // groot ze zijn, en hoe lang het schild valt als ze allemaal kapot zijn.
@@ -2250,7 +2248,7 @@
   // lang een schaduw leeft, hoe hard ze wegvliegen, en zijn wachttijd.
   // De vier van de ninja: hoe ver de rij van hem vandaan staat, en hoe ver de
   // vier ONDERLING — die overlapten elkaar op 16 m, want de baas is breder.
-  const NINJA_VER=60, NINJA_TUS=85, NINJA_LEEF=2.0, NINJA_WEG=1.6, NINJA_SNEL=30;
+  const NINJA_TUS=85, NINJA_LEEF=2.0, NINJA_WEG=1.6, NINJA_SNEL=30;
   const NINJA_ORDE=[3,1,3,0,2];   // Sjoerds volgorde: 4e, 2e, 4e, 1e, 3e plek
   const VUUR_VLAK=9;            // hoe steil een schip van onderaf mag schieten
   const NINJA_CD=5, NINJA_RAKHP=50;
@@ -2269,6 +2267,8 @@
   const OOG_WISSEL=4.0;         // THE EYES: om de hoeveel seconden het open oog wisselt
   const OOG_UITEEN=88;          // hoe ver de drie ogen uit elkaar staan (ze zijn 60 m breed)
   const HALO_DRAAI=0.5;       // hoe snel HALO's opening rondwandelt (rad/s)
+  // BLIJFT STAAN: hoort bij openStart, dat is afgebouwd maar nooit aangezet.
+  // Niet opruimen als 'dood' - zonder deze knop kan de opening niet aan.
   const ZWB_MIN=6, ZWB_MAX=18, ZWB_ELK=12;   // AXLE's zwerm
   const WERP_ELK=2.5, WERP_BEREIK=60, WERP_MAXBR=12, WERP_SEG=14, WERP_DUUR=0.35;
   const WERP_DIK=0.42;          // v14.42: een dikke straal i.p.v. een haarlijn
@@ -2446,7 +2446,7 @@
   const SALVO_N=7, SALVO_KLEIN=6, SALVO_WAAIER=0.75, WAAIERKRACHT=2.6;
   // Trager dan gewoon vuur — je moet ze zien aankomen — maar met een strakke
   // bocht, net als jouw eigen salvo.
-  const SALVO_SNEL=19, SALVO_DRAAI=4.2;
+  const SALVO_DRAAI=4.2;
   // STERFORT gaat bij zijn dood uiteen in vijf zoekende sterren.
   // STER_WACHT (0,55 s) is er in v15.32 uit: de uitwaaiertijd heet nu
   // STER_SPAT en loopt gelijk met de onsterfelijkheid. Eén knop, geen twee.
@@ -2481,11 +2481,6 @@
   const KRUIS_N=6;              // zoveel arrows in beeld
   const STER_MAAT=3.4;          // v15.15: hoe groot een ministerretje is
   const KRUIS_PAUZE=1.6;        // seconden tussen twee arrows die het kruis uitstuurt
-  const KRUIS_ACHTER=0.14;      // hoeveel elke arrow achterloopt: groter = meer rits
-  const KRUIS_MINY=2.0;         // ze duiken nooit onder deze hoogte
-  const KRUIS_SP=26;            // hoe snel ze de slang volgen
-  const KRUIS_WIJD=55, KRUIS_WIJD2=13;   // hoe wijd de bochten zijn (zij / hoogte)
-  const KRUIS_YMIN=2, KRUIS_YMAX=26;     // ...en tussen welke hoogtes ze blijven
   const KRUIS_HP=90;            // eigen kracht: veel lager dan een los BLUE ARROW
   const KRUIS_TRAAG=0.115;      // hoe snel de slang zelf voortkronkelt
   // GHOST WING: slingerende zoekraketten, ruime bochten van 30 m.
@@ -2540,7 +2535,7 @@
   const WIJZER_MIS=14;
   // De gloeiende kop op elk vijandelijk schot — het vangnet dat garandeert dat je
   // altijd iets ziet vliegen, ook als een plaatje niet goed uitpakt.
-  const KOP_ELK=0.05, KOP_MAAT=2.6;
+  const KOP_MAAT=2.6;
   // DE COMBO (Sjoerd v14.60): binnen COMBO_TIJD de volgende kill en je teller
   // loopt door. Je punten gaan MAAL die teller, tot COMBO_MAX.
   // Sjoerd v14.63: "de combiteller gaat niet hoger dan 20." Dat was mijn grens,
@@ -2610,7 +2605,6 @@
   const SPIR_ELK=5.0, SPIR_SPRINT=2.2, SPIR_SNEL=34;
   const SPIR_MAX_N=12;          // vanaf level 8 vuurt hij er twaalf
   const SPIR_WIJD=0.62;         // hoe wijd de bloem opengaat
-  const SPOOK_FLITS=0.30;       // hoe lang hij oplicht als je hem raakt
   const SPOOK_FASE1=0.66, SPOOK_FASE2=0.33;   // bij welk deel kracht hij gaat branden
   // De golven in zijn camouflage bij een treffer.
   const CAMO_N=14, CAMO_TIJD=0.42, CAMO_MAAT=5.0;
@@ -2637,7 +2631,6 @@
     'TITAN PRIME':{vorm:'regen',   n:6, meer:2,sp:15, draai:3.2, dmg:6, groot:1.2, neus:1, kl:0xff4060, roep:'ANNIHILATION'},
     _:            {vorm:'golf',    n:6, meer:2, sp:14, draai:2.6, dmg:6, groot:1.0, neus:0, kl:0xff4030, roep:'HUNTERS'}
   };
-  const JACHT_ELK=3;            // om de hoeveel schoten hij zijn jacht inzet
   // De VIERDE aanval: weinig maar zware zoekers. Traag genoeg om te zien
   // aankomen, hard genoeg om te voelen als je er één doorlaat.
   const ZWAAR={
@@ -2657,8 +2650,6 @@
     'TITAN PRIME':{n:4,meer:3,sp:11,draai:2.4,hp:10,dmg:16,groot:2.2,spreid:0.46,na:0.20,kl:0xff4060,roep:'TITAN FIST',splijt:5},
     _:            {n:2,meer:1,sp:10,draai:1.6,hp:8, dmg:14,groot:1.9,spreid:0.30,na:0.35,kl:0xff3020,roep:'HEAVY'}
   };
-  const ZWAAR_ELK=5;            // om de hoeveel schoten de zware salvo komt
-  const SPEC_ELK=8;             // en zijn eigen specialiteit
   // Hoeveel rust er ná een aanval is. Zonder rust wordt het een brij; mét rust
   // kun je zijn raketten opruimen en dan pas de volgende vorm aan.
   const RUST_NA=4.2;
@@ -2897,7 +2888,6 @@
     {wit:12,n1:18,n2:18,kl1:0xfff2c0,kl2:0xffb03a, rook:6, ring:2, duur:1.3},
     {wit:14,n1:22,n2:26,kl1:0xfff2c0,kl2:0xffb03a, rook:9, ring:3, duur:1.7}
   ];
-  const RAKETDMG=85;            // het maximum, trap 3 (was 50)
   const RAKETBLAST=13;          // meter (was 25: halveren, v13.90)
   const RINGEN=6, RINGPT=44, RINGTIJD=0.42;
   const RING_DICHT=0.45;        // hoe snel de ring van THE WHEEL naar binnen klapt
@@ -3484,12 +3474,7 @@
       if(h.id==='touchHand')  return this.wep[this.prim]||this.wep[this.spec];
       if(h.id==='touchHand2') return this.wep[this.spec]||this.wep[this.prim];
       return this.wep[h.id]||this.wep[this.spec]; },
-    isPrim:function(h){
-      if(h.id==='touchHand') return true;
-      if(h.id==='touchHand2') return false;
-      return h.id===this.prim; },
 
-    // ---- sprite-plek pakken en het juiste atlasvak instellen ----
     bbPak:function(cel){
       for(let i=0;i<this.bb.length;i++){ const b=this.bb[i]; if(!b.vrij) continue;
         b.vrij=false; this.bbCel(b,cel); b.m.visible=true;
@@ -4991,47 +4976,28 @@
     // In plaats van een tweede tekening leggen we donkere vlekken OP het schip,
     // op plekken waar echt romp zit — nooit in een gat of naast de vleugel. Zo
     // ziet elk schip er beschadigd uit zonder dat er een plaatje bij hoeft.
-    schroei:function(e,f){
-      if(!e.bb||!e.bb.m) return;
-      if(!this.vlek){
-        this.vlek=[];
-        // EEN ZACHTE VLEK, geen vierkant. Een vlak met alleen een kleur is een
-        // zwart blok; met een ronde vervaging eromheen wordt het een schroeiplek.
-        const c=document.createElement('canvas'); c.width=64; c.height=64;
-        const g2=c.getContext('2d');
-        const gr=g2.createRadialGradient(32,32,2,32,32,31);
-        gr.addColorStop(0,'rgba(20,10,4,0.95)');
-        gr.addColorStop(0.45,'rgba(30,16,8,0.55)');
-        gr.addColorStop(1,'rgba(30,16,8,0)');
-        g2.fillStyle=gr; g2.fillRect(0,0,64,64);
-        const tx=new THREE.CanvasTexture(c); tx.needsUpdate=true;
-        const g=new THREE.PlaneGeometry(1,1);
-        for(let i=0;i<VLEK_N;i++){
-          const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:tx,
-            transparent:true,opacity:0,depthWrite:false,depthTest:false,
-            side:THREE.DoubleSide}));
-          m.renderOrder=6; m.visible=false; m.frustumCulled=false;
-          this.par.add(m); this.vlek.push({m:m,live:false,e:null}); } }
-      // waar zit romp? die plekken zijn al gemeten voor het vuur
-      const P=e.plaat, plek=(P&&P.vuur&&P.vuur[e.rij])?P.vuur[e.rij]:null;
-      const n=(f>=2)?3:1;
-      for(let k=0;k<n;k++){
-        const V=this.vlek.find(function(q){ return !q.live; });
-        if(!V) return;
-        // een plek op de romp, of anders het midden met wat spreiding
-        let ox,oy;
-        if(plek&&plek.length){ const p=plek[(k+e.cel)%plek.length];
-          ox=p.x*0.9; oy=p.y*0.9; }
-        else { ox=(Math.random()-0.5)*0.34; oy=(Math.random()-0.5)*0.30; }
-        V.live=true; V.e=e; V.ox=ox; V.oy=oy;
-        V.gr=e.sc*(0.16+Math.random()*0.14)*(f>=2?1.5:1);
-        V.m.visible=true;
-        V.m.material.opacity=(f>=2)?0.82:0.62;
-        V.m.material.color.setHex((f>=2)?0x0a0503:0x241208); } },
+    // ---- OPGERUIMD IN v15.45 ----
+    // Deze zes functies stonden nog in het bestand maar werden nergens meer
+    // aangeroepen. Het zijn geen onafgemaakte plannen: het zijn de lijken van
+    // fouten die al opgelost zijn. Niet terugzetten.
+    //   schroei    zette drie bijna zwarte vlekken van twee meter op een schip
+    //              van vijf, dekking 82%, die meevlogen. Dat WAS de dikke
+    //              zwarte pluim die Sjoerd zag. losSchade (vuur, rook,
+    //              brokstukken) doet het nu voor elk schip.
+    //   losVal     lag bovenop doodBaan en overschreef juist de rotatie en de
+    //              val die daar al goed waren. doodBaan doet het weer voor
+    //              iedereen, met een eigen kant en tempo per wrak.
+    //   kruisBaan  de slangbaan van IRON CROSS. Sjoerd: "maak de vliegtuigen
+    //   kruisVolg  los, laat ze als normale vliegtuigen vliegen." Het kruis
+    //              stuurt ze alleen nog UIT; daarna staan ze op zichzelf.
+    //   tutStop    de tutorial eindigt via tutKlaar, en afbreken loopt via
+    //              naarMenu plus de wisregel in reset.
+    //   isPrim     vervangen door de prim/spec-velden die reset zet.
+    // WEL blijven staan (afgebouwd werk dat nooit is aangezet, Sjoerds keuze):
+    // openStart (de opening) en baasZwerm/sigCombo/sigZwerm/zwermMag
+    // (FULL ASSAULT / DOUBLE STRIKE).
 
-    // DE SCHEERVLUCHT. Sjoerd: "grote die je vaak moet raken mogen best even
-    // dicht langs mij vliegen: versnellen, en voor mijn neus langs, op mooie
-    // afstand zodat je ze mooi kan zien." Geeft true zolang hij scheert.
+
     scheerTick:function(e,s){
       const T=TYPE[e.tp];
       // BLACK RAVEN scheert NIET meer langs je heen: die vlucht trok hem tot op
@@ -5104,29 +5070,7 @@
         e.vp.copy(e.p); } },
 
     // De vlekken meelaten bewegen met hun schip, en opruimen als het weg is.
-    vlekTick:function(){
-      if(!this.vlek) return;
-      const eye=this.kop;
-      for(let i=0;i<this.vlek.length;i++){ const V=this.vlek[i];
-        if(!V.live) continue;
-        const e=V.e;
-        if(!e||!e.live||e.dood2||!e.bb||!e.bb.m.visible){
-          V.live=false; V.m.visible=false; V.e=null; continue; }
-        // op het schip plakken: zijn breedte en hoogte in, dan meedraaien
-        V.m.position.set(e.p.x+V.ox*e.bw, e.p.y+V.oy*e.bh, e.p.z);
-        V.m.lookAt(eye);
-        V.m.rotation.z=(e.bb.m.rotation.z||0);
-        V.m.scale.setScalar(V.gr);
-        if(e.bb.m.material&&e.bb.m.material.opacity<0.95)
-          V.m.material.opacity=Math.min(V.m.material.opacity,e.bb.m.material.opacity); } },
 
-    // ---- HET RODE SCHILD (Sjoerds ontwerp) ----
-    // LET OP: deze bollen heten e.genBol, NIET e.gen — dat laatste is al het
-    // generatienummer van de splitser (BLUE SPINE). Daar liep het spel op vast:
-    // genWeg deed forEach op een getal. Zelfde soort fout als a.tp vs tp.
-    // Een breekbaar schild met eigen kracht. Je schoten ketsen af met rode
-    // vonken tot het breekt; dan een knal, en daarna is het schip zelf kwetsbaar.
-    // Het komt NIET terug — anders dan het krachtveld van het moederschip.
     schildAan:function(e,hp){
       e.schild=hp; e.schildM=hp;
       if(!e.schildM3){
@@ -5763,29 +5707,7 @@
     // Een los schip stort TUIMELEND neer: hij kantelt om zijn as en valt omlaag,
     // met vuur en rook achter zich aan. Mooier dan uit elkaar spatten in stukjes
     // die van een andere tekening lijken te komen.
-    losVal:function(e,s){
-      e.valR=(e.valR||0)+s*(e.valRs||2.2);
-      e.valV=(e.valV||0)+s*13;                       // hij valt steeds sneller
-      e.p.y-=e.valV*s;
-      e.p.z+=s*6;                                    // en zakt naar je toe weg
-      if(e.bb&&e.bb.m){
-        e.bb.m.rotation.z=e.valR;
-        e.bb.m.material.opacity=Math.max(0,1-(e.doodT||0)*0.35); }
-      // GEMETEN: hij maakte 38 vonken en 29 rookpluimen in twee seconden, en die
-      // vielen met hem mee — dat zag Sjoerd als "rokende brokstukken". Nu een
-      // rustige sliert: één pluim per vier tienden, en vuur alleen af en toe.
-      e.valT=(e.valT||0)-s;
-      if(e.valT<=0){ e.valT=VALROOK;
-        const wv=this.RWV||(this.RWV=new THREE.Vector3());
-        wv.set(0,-(e.valV||0)*0.5,7);
-        this.rook(e.p.x,e.p.y,e.p.z,true,1.5,1.6,0,wv);
-        if(Math.random()<0.45)
-          this.vonk(e.p.x,e.p.y,e.p.z,0xff8a3d,1,e.sc*0.2,0.35); } },
 
-    // ELK SCHIP ZIJN EIGEN MATERIAAL. Ze deelden er één per soort, dus zodra er
-    // eentje neerstortte en vervaagde, werden ALLE schepen van die soort
-    // doorzichtig — dat zag Sjoerd in level 1. De textuur blijft wel gedeeld,
-    // dus het kost bijna niets.
     losMatEigen:function(tex){
       const b=this.losMat(tex);
       const m=b.clone();
@@ -9107,35 +9029,6 @@
     //
     // De slang is één BAAN waar alle arrows overheen schuiven, elk met een eigen
     // afstand erop. Zo blijven ze netjes achter elkaar zonder overlap.
-    kruisBaan:function(e,u){
-      // u loopt van 0 (bij het moederschip) tot 1 (langs jou) en terug.
-      // Grote sinusbochten in twee richtingen, met verschillende perioden —
-      // dat geeft de onregelmatige kronkel van een slang.
-      const B=this.tmpK||(this.tmpK=new THREE.Vector3());
-      const heen=this.tmpK2||(this.tmpK2=new THREE.Vector3());
-      // de lijn van het moederschip naar een punt vlak langs je hoofd
-      heen.copy(this.kop).sub(e.p);
-      const lang=heen.length(); heen.normalize();
-      // een vaste zijwaartse en verticale as om de bochten op te zetten
-      const zij=this.tmpK3||(this.tmpK3=new THREE.Vector3());
-      zij.set(-heen.z,0,heen.x).normalize();
-      // het pad loopt heen (0..1) en terug (1..2)
-      const t=(u<=1)?u:(2-u);
-      const af=lang*(0.10+t*1.05);
-      const g1=Math.sin(u*6.283*1.35)*KRUIS_WIJD;
-      const g2=Math.sin(u*6.283*0.85+1.1)*KRUIS_WIJD2;
-      const g3=Math.cos(u*6.283*1.05+0.4)*KRUIS_WIJD*0.55;
-      B.copy(e.p).addScaledVector(heen,af)
-        .addScaledVector(zij,g1+((u>1)?-26:26))
-        .add(this.tmpK4||(this.tmpK4=new THREE.Vector3()));
-      // Sjoerd v14.94: "de vliegtuigen in een treintje kunnen niet kapot."
-      // GEMETEN: hun verticale uitslag was 31 m terwijl het moederschip op 4-9 m
-      // hangt — ze doken tot 30 m ONDER je, buiten beeld, en daar kun je niet op
-      // richten. Nu blijven ze tussen KRUIS_YMIN en KRUIS_YMAX, dus altijd in
-      // beeld en altijd te raken.
-      let yy=e.p.y+g2*1.1+g3*0.5;
-      B.y=Math.max(KRUIS_YMIN,Math.min(KRUIS_YMAX,yy));
-      return B; },
 
     kruisTick:function(e,s){
       if(!e.kruis){ e.kruis=[]; e.kruisU=0; }
@@ -9172,30 +9065,6 @@
     },
 
     // een arrow die aan een kruis hangt volgt de slang
-    kruisVolg:function(a,s){
-      const e=a.kruisVan;
-      // valt het moederschip, dan storten zijn arrows mee neer. kruisTick draait
-      // dan niet meer, dus dat moet HIER gebeuren (gemeten: ze bleven vliegen).
-      if(!e||!e.live||e.dood||e.dood2){
-        a.kruisVan=null;
-        if(!a.dood&&!a.dood2){ this.raak(a,99999,a.p.x,a.p.y,a.p.z); }
-        return false; }
-      // Sjoerd v14.82: "die slang van vliegtuigen is 1 grote vijand geworden,
-      // graag een rits van LOSSE vliegtuigen." Elke arrow had zijn EIGEN klok
-      // die apart opliep, dus schoven ze als één blok mee. Nu lezen ze allemaal
-      // de klok van het moederschip en zit ieder op zijn eigen vaste achterstand
-      // — dat maakt er een echte rits van.
-      const u=(e.kruisU-(a.kruisI*KRUIS_ACHTER)+4)%2;
-      const doel=this.kruisBaan(e,u);
-      // er naartoe schuiven in plaats van springen: dat vliegt vloeiend
-      const naar=this.tmp.copy(doel).sub(a.p);
-      const d=naar.length();
-      if(d>0.01){ naar.multiplyScalar(1/d);
-        a.p.addScaledVector(naar,Math.min(d,KRUIS_SP*s)); }
-      if(a.bb&&a.bb.m) a.bb.m.position.copy(a.p);
-      // hij kijkt de kant op waar hij heen gaat
-      if(a.bb&&a.bb.m&&d>0.3) a.bb.m.rotation.z=Math.atan2(naar.x,-naar.z)*0.4;
-      return true; },
 
     sigJagers:function(e,twee){
       const n=twee?6:3;
@@ -9765,7 +9634,7 @@
       if(!e.bb||!e.bb.m||!e.bb.m.material||!e.bb.m.material.map) return;
       // Een LOS schip is één mooie tekening; er brokjes uit knippen ziet er raar
       // uit, want die stukjes komen van een plaat die niet in vakken is verdeeld.
-      // Hij tuimelt in plaats daarvan omlaag — zie losVal.
+      // Hij tuimelt in plaats daarvan omlaag — dat doet doodBaan, voor elk schip.
       if(e.los) return;
       // Sjoerd ziet nog grote brokstukken: die komen van BAZEN. Die zijn niet
       // 'los' en niet 'reus', maar hebben wel een plaat van één schip — dus
@@ -11249,15 +11118,7 @@
       this.plan=[]; this.gi=0; this.rij=[]; this.veldMax=99;
       this.tutStap(); },
 
-    tutStop:function(){
-      window.TUT=0; this.tutFase=0; this.tutI=0;
-      const e=document.querySelector('#tutTxt');
-      if(e){ e.setAttribute('value',''); e.setAttribute('visible',false); }
-      this.dozen.forEach(function(D){ D.live=false; D.g.visible=false; });
-      this.enemies.forEach(function(e){ if(e.live){ e.live=false;
-        if(e.bb){ this.bbVrij(e.bb); e.bb=null; } } },this); },
 
-    // een nieuwe stap beginnen: de doos neerzetten
     tutStap:function(){
       const S2=TUT[this.tutI]; if(!S2){ this.tutKlaar(); return; }
       // de vorige stap helemaal opruimen: neerstortende schepen bleven anders
@@ -12384,7 +12245,7 @@
       this.ringTick(s); this.sigRijTick(s); this.wijzerTickD(s);
       this.camoTick(s);
       this.stap='effecten'; this.baasWaarschuwing(s); this.comboTick(s); this.portaalTick(s); this.flareTick(s);
-      this.jamPulsTick(s); this.storingTick(s); this.flareLokAlles(); this.bliksTick(s); this.straalTick(s); this.bomTick(s); this.balTick(s); this.vlekTick();
+      this.jamPulsTick(s); this.storingTick(s); this.flareLokAlles(); this.bliksTick(s); this.straalTick(s); this.bomTick(s); this.balTick(s);
       // ---- rook: drijft op, dijt uit en vervaagt ----
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(!R.live) continue;
         R.life-=s/Math.max(0.3,R.leven);
