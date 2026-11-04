@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.43';
+  const VERSIE='v15.44';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1988,7 +1988,6 @@
   };
   // en welke truc halverwege een tweede zetje nodig heeft, en wanneer
   const PARADE_TR2={ 'ster':2.6, 'kapen':4.5, 'zwier':2.0, 'werper':2.9 };
-  const PARADE_VER_T=2.0;       // (niet meer gebruikt sinds v15.26)
   // Sjoerd v15.26: "ze komen op een rail langs. Ze mogen wel vrij vliegen, 1 voor
   // 1. Ze mogen 4 sec in beeld ongeveer, hun ding doen en weer door."
   // Sjoerd v15.27: "tijdens de parade vuurwerk tussendoor, met meer kleur dan
@@ -7453,6 +7452,23 @@
         // undefined, niet 0: zo weet baasBaan dat dit zijn EERSTE dansbeurt is
         // en neemt hij zijn hoogte aan in plaats van hem erbij op te tellen.
         e.baanY=0; e.baanY0=undefined;
+        // v15.44 DE OPSTARTKLOKKEN. Veel routines beginnen met
+        // 'if(e.X===undefined)' of 'if(!e.X)' om zich eenmalig op te zetten.
+        // Stond zo'n vlag niet in deze wisregel, dan erfde een hergebruikt slot
+        // hem van zijn voorganger en sloeg de opzet over — met de klok van dat
+        // vorige schip. Zo begon een AZURE PLATE halverwege zijn zwier en kon
+        // een schip in zijn eerste beeldje al vuren.
+        // GEVONDEN met eerstekeer.py: 49 van deze vlaggen, 20 stonden hier niet.
+        // De MESH-verwijzingen (kooi, schildM3, velgM3, openM3, genBol) blijven
+        // met opzet staan: die worden hergebruikt, en op null zetten zou ze in
+        // de scene laten hangen. Hun zichtbaarheid en hun waarde worden elders
+        // in deze wisregel al teruggezet.
+        e.pzT=undefined; e.mgT=undefined; e.whT=undefined; e.whS=undefined;
+        e.cnT=undefined; e.cnB=undefined; e.velgT=undefined; e.vuurX=undefined;
+        e.wielT=undefined; e.wielR=undefined; e.wielDr=undefined;
+        e.flipT=undefined; e.knalT=undefined; e.brT2=undefined;
+        e.hkAs=undefined; e.hkRest=0; e.hkTeken=1; e.hkPauze=0;
+        e.kruis=null; e.kruisU=0; e.kruisPauze=0;
         e.intro=(T.prof==='baas')?1:0; e.ip=0; e.it=0; e.iv=null; e.izij=0;
         e.route=(opt&&opt.route)||null; e.rp=(opt&&opt.rp)||0; e.rv=null;
         e.rs=(opt&&opt.rs)||1; e.rm=(opt&&opt.rm)||1; e.rondjes=0;
@@ -11783,7 +11799,25 @@
           if(!e.live||!e.bb) continue;
           // Wrakken vallen hier ook onder: die draaien wel weg, maar mogen ook
           // niet zo plat komen te staan dat je hun zijkant ziet.
-          if(e.rolT>0||e.klimT>0||e.yoT>0||e.ssT>0||e.herpakT>0||e.klokR){
+          // v15.44 Sjoerd: "check de vliegtuigen die omklappen op de randen."
+          // GEMETEN over elf levels: 128 keer klapte een schip TER PLEKKE om —
+          // zijn plaatje stond ineens achterstevoren en sprong dan in één
+          // beeldje terug (van -0,29 naar +1,00 'recht naar mij'), tot 107
+          // graden in één stap. Meer dan de helft gebeurde tijdens de ROLAANVAL.
+          // DE OORZAAK: de rolaanval zette rotation.z NA een draai naar je toe
+          // (rotation.y). Dat zijn Euler-hoeken in XYZ-volgorde, dus bij een
+          // schip dat opzij hangt werkt die z-draai niet om de kijklijn maar om
+          // zijn eigen as — en dan kantelt zijn plaat weg van je, tot hij er
+          // met zijn rug naartoe staat. Daarom stond de rolaanval in de lijst
+          // hieronder: hij werd overgeslagen en mocht zelf rommelen.
+          // Een rolaanval is een rol om de LIJN NAAR JOU. Dus hoort hij juist
+          // WEL in de lookAt-route hieronder: eerst recht naar je toe, dan
+          // roteren om die as. Dan blijft zijn plaatje altijd naar je gekeerd,
+          // ook halverwege de rol, en hoeft er na de rol niets terug te
+          // springen (de rol eindigt op 361 graden, dus praktisch rechtop).
+          // De andere kunstjes blijven er wel buiten: die draaien hun schip met
+          // opzet door de ruimte, dat is geen rol om de kijkas.
+          if(e.klimT>0||e.yoT>0||e.ssT>0||e.herpakT>0||e.klokR){
             // v15.02: onthouden hoe hij er tijdens het kunstje bij hing, zodat
             // hij daarna vloeiend terugdraait in plaats van in één klap
             e.naKunst=NAKUNST_T;
@@ -11819,6 +11853,11 @@
             let bank=m.rotation.z;
             bank=Math.atan2(Math.sin(bank),Math.cos(bank));
             if(bank>Math.PI/2) bank-=Math.PI; else if(bank<-Math.PI/2) bank+=Math.PI;
+            // v15.44: TIJDENS DE ROLAANVAL de volle slag, niet teruggeklapt
+            // naar 90 graden. Dit is een rol om de kijkas, dus hier hoort hij
+            // juist wel helemaal rond te gaan — en nu om de GOEDE as, zodat
+            // zijn plaatje de hele rol naar je toe blijft staan.
+            if(e.rolT>0) bank=(e.rol||0)+(e.rolA||0);
             D.rotateZ(bank);
             // Elke beurt EXACT recht naar je toe. Een 'vloeiend terugdraaien'
             // begon elke beurt opnieuw vanaf de stand die eerdere code net had
