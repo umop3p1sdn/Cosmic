@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.45';
+  const VERSIE='v15.46';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2544,6 +2544,17 @@
   const RAK_PT=15, RAK_PT_ZW=40;   // punten voor een neergeschoten vijandelijke raket
   const COMBO_VUUR=5, COMBO_HEET=18;   // vanaf welke combo het vuur komt, en hoe snel het heet wordt
   const PANO_DRIFT=0;           // v14.93: de hemel draait NIET meer (naad bleef achter je)
+  // v15.46: hoe dicht de hemelplaat bij de pool komt, in graden.
+  // Dit getal is NIET gekozen maar uitgerekend. Het spel legt elke plaat als
+  // een 2:1 venster op de bol (zie repeat.x/repeat.y bij de pano). Bij 2:1 is
+  // een ronde planeet overal precies rond als de verticale rek gelijk is aan
+  // de horizontale knijping. Die eis komt uit op 2*atan(e^(-pi/2)) = 23,5 graden.
+  // (Eerst schreef ik e^(-pi) en kwam ik op 4,95 graden uit; de meting ving dat:
+  //  de verhouding stond toen overal op 0,50 in plaats van 1,00 - een factor 2.)
+  // Groter maken mag: dan wordt een planeet bovenin minder groot, maar wordt
+  // hij weer iets peervormig. Kleiner maken maakt het smeerkapje recht boven
+  // je kleiner, maar een planeet bovenin groter.
+  const HEMEL_KAP=2*Math.atan(Math.exp(-Math.PI/2))*180/Math.PI;   // 23,5
   const WIJK_TERUG=32;          // verder dan dit opzij? dan wijkt hij naar het MIDDEN
   const HEMELVERSIE=2;          // v14.90: 6 en 9 los, gewoon op volgorde
   const BW_KNIP=11, BW_POP=0.5, BW_AANVAL=2.0;   // knippertempo, de klap, en hoe lang ATTACK! blijft
@@ -3139,6 +3150,28 @@
       // v14.96: de uitrekking van v14.95 is eruit — Sjoerd vond het niet mooi.
       // De plaat ligt weer gewoon over de bol, zoals het altijd was.
       this.hemel=new THREE.Mesh(new THREE.SphereGeometry(300,96,56),sterMat);
+      // ---- DE PLAAT RECHT OP DE BOL (v15.46) ----
+      // Sjoerd: "nu buigt de bovenste/midden plaat naar boven. Als er een
+      // planeet ergens zweeft trekt hij hem boven in krom als een peer. Kun je
+      // de kaarten later laten buigen of zo?"
+      // GEVONDEN: three.js legt een plaat van pool tot pool over de bol, met de
+      // beeldhoogte recht verdeeld over de hoogtehoek. Daardoor wordt elke
+      // beeldrij horizontaal samengeknepen met sin(hoogtehoek), terwijl hij
+      // verticaal zijn maat houdt. GEMETEN breedte/hoogte van een ronde planeet:
+      //   op ooghoogte  1,00 rond        op 27 graden  0,45
+      //   op 14 graden  0,25             op  4 graden  0,06  (een streep)
+      // Later laten buigen helpt maar half: ook in een smallere band blijft die
+      // samenknijping. Dus doen we het anders: waar de plaat horizontaal wordt
+      // samengeknepen, rekken we hem met DEZELFDE factor verticaal uit. Dan
+      // verandert er niets meer van vorm - een cirkel blijft een cirkel, overal.
+      // Dat is de kaartprojectie van Mercator, precies waarvoor die bestaat.
+      // De prijs is MAAT in plaats van VORM: een planeet die je bovenin tekent
+      // wordt tot 2,3x groter. Dat ziet er goed uit (hij komt dichterbij als je
+      // omhoog kijkt) en het is in elk geval geen peer.
+      // De bovenste en onderste beeldrij vullen de kapjes recht boven en recht
+      // onder je. Op jouw platen is dat sterrenlucht, dus dat valt niet op -
+      // raak met een planeet niet de ALLERbovenste rand van de plaat.
+      this.hemelUV(this.hemel,HEMEL_KAP);
       this.hemel.renderOrder=-20; this.par.add(this.hemel);
       this.skyObjs=[];
       window.ART.nieuw=function(){ self.artVernieuw(); };
@@ -4133,6 +4166,40 @@
         if(deel>=1){ this.par.remove(P.m); this.jampulsen.splice(i,1); } } },
 
     // het beeld: ruisbanden die over je scherm schuiven
+    // ---- DE VLAKKEN VOOR JE OOG, OP PAUZE (v15.46) ----
+    // Sjoerd: "score invullen en bord werkt nog steeds niet goed. Na dood gaan
+    // quit kan ik geen score vast leggen."
+    // GEVONDEN: doodgaan zet window.PAUSED aan, en de beurt slaat dan af bij
+    // `if(window.PAUSED){ ... return; }` — maar de drie vlakken die VOOR je oog
+    // hangen worden pas NA die regel afgebouwd. Ze bleven dus staan zoals ze op
+    // het moment van je dood stonden:
+    //   #hurt    het rode floers. Hangt op 31 cm, 2,6 bij 2,6 m, depthTest uit,
+    //            renderOrder 999 — hij dekt ALLES af, ook het paneel, het
+    //            naamscherm en het scorebord. Een dodelijke treffer zet hem op
+    //            0,50 tot 0,75 (rood = min(0,75, rood + schade x 0,020)) en
+    //            alleen CONTINUE zette hem terug op nul. Koos je GIVE UP om je
+    //            score op te slaan, dan deed niemand dat: je vulde je naam in
+    //            achter een rood gordijn, en het bord stond er ook achter.
+    //   #flits   de witte klap van een bom, tot 0,85 dekking.
+    //   #storing de ruisbanden van de jammer, mét een scheve HUD.
+    // Nu dooft het rood ook op pauze gewoon uit, en gaan de witte klap en de
+    // ruis meteen weg — je moet het paneel kunnen lezen.
+    roodTick:function(s){
+      this.rood=Math.max(0,this.rood-s*1.5);
+      const hv=document.querySelector('#hurt');
+      if(hv) hv.setAttribute('material','color:#ff2030;opacity:'+this.rood.toFixed(3)+
+        ';transparent:true;shader:flat;depthWrite:false;depthTest:false'); },
+
+    schermVrij:function(s){
+      if(this.rood>0) this.roodTick(s);
+      if(this.pauzeSchoon) return;          // de rest hoeft maar één keer
+      this.pauzeSchoon=1;
+      const F=document.querySelector('#flits');
+      if(F) F.setAttribute('material',
+        'color:#ffffff;shader:flat;opacity:0;transparent:true;depthTest:false');
+      this.storing=0;
+      try{ this.storingTick(s); }catch(q){} },
+
     storingTick:function(s){
       const el=document.querySelector('#storing'); if(!el) return;
       if(!(this.storing>0)){
@@ -11446,7 +11513,8 @@
       this.musTick(s);                      // ook tijdens het spelen blijven proberen
       // de lesklok van de uitleg loopt WEL door tijdens de pauze — anders blijft
       // het tweede scherm eeuwig staan, want de les pauzeert het spel zelf
-      if(window.PAUSED){ this.overTick(s); wijzerTick(); return; }
+      if(window.PAUSED){ this.schermVrij(s); this.overTick(s); wijzerTick(); return; }
+      this.pauzeSchoon=0;                   // weer aan het spelen: opnieuw opruimen mag
       // DE UITLEG: de beurt draait gewoon door — je kunt rondkijken, mikken en
       // schieten — maar de vijanden en de klok staan stil. Zo raakt hij niet in
       // de knoop met het pauzemenu, dat zijn eigen window.PAUSED houdt.
@@ -11499,10 +11567,7 @@
         const e=document.querySelector('#hudW'); if(e) e.setAttribute('value',''); } }
       if(this.meldC>0){ this.meldC-=s; if(this.meldC<=0){
         const e=document.querySelector('#hudC'); if(e) e.setAttribute('value',''); } }
-      if(this.rood>0){ this.rood=Math.max(0,this.rood-s*1.5);
-        const hv=document.querySelector('#hurt');
-        if(hv) hv.setAttribute('material','color:#ff2030;opacity:'+this.rood.toFixed(3)+
-          ';transparent:true;shader:flat;depthWrite:false;depthTest:false'); }
+      if(this.rood>0) this.roodTick(s);
       // (de oude 2-seconden-regel is weg: comboTick houdt de klok nu bij, en
       //  deze regel brak de combo al na 2 s terwijl er 4 hoort te staan)
       if(this.blastT>0){ this.blastT-=s;
@@ -13313,6 +13378,27 @@
       for(let i=0;i<this.skyObjs.length;i++){
         const o=this.skyObjs[i]; if(!o) continue;
         o.visible=!!(this.wProp&&this.wProp[i]); } },
+
+    hemelUV:function(mesh,kapGr){
+      // Zet de beeldhoogte (uv.y) zo op de bol dat de verticale rek overal
+      // gelijk is aan de horizontale knijping. kapGr is hoe dicht de plaat bij
+      // de pool komt; wat daarboven zit krijgt de bovenste beeldrij.
+      try{
+        const g=mesh.geometry, uv=g.attributes.uv, pos=g.attributes.position;
+        if(!uv||!pos) return;
+        const R=mesh.geometry.parameters?mesh.geometry.parameters.radius:300;
+        const t0=Math.max(0.02,kapGr*Math.PI/180);
+        const k2=-2*Math.log(Math.tan(t0/2));          // de schaal die daarbij hoort
+        for(let i=0;i<uv.count;i++){
+          const y=Math.max(-1,Math.min(1,pos.getY(i)/R));
+          const th=Math.acos(y);                       // 0 = recht boven, PI = recht onder
+          let v;
+          if(th<=t0) v=1;                              // het kapje boven
+          else if(th>=Math.PI-t0) v=0;                 // en onder
+          else v=0.5-Math.log(Math.tan(th/2))/k2;
+          uv.setY(i,Math.max(0,Math.min(1,v))); }
+        uv.needsUpdate=true;
+      }catch(e){} },
 
     hemelZet:function(){
       if(!this.hemels||!this.hemels.length) return;
