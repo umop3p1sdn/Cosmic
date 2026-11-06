@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.51';
+  const VERSIE='v15.52';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2059,6 +2059,9 @@
   // graden) en in hoeveel seconden hij daar komt.
   const VALDRAAI_MAX=0.52, VALDRAAI_T=2.0, VALROL_MAX=1.0;   // was 0,785: te plat
   const KLAPKANS=0.55;          // kans dat een wrak ontploft in plaats van wegzakt
+  // v15.52: wie door de ELECTRO of de LASER valt ontploft altijd, en binnen
+  // zoveel seconden. Nul mag: dan knalt hij vrijwel meteen.
+  const STRAAL_KNAL=2.0;
   const STORTMAX=40;            // hoeveel wrakken er tegelijk mogen neerstorten
   // Hoe hard schepen vliegen in de eerste levels: level 1 op 62 procent,
   // oplopend tot vol vanaf level 4.
@@ -6007,6 +6010,7 @@
         if(L.geraakt[sl]) continue;
         L.geraakt[sl]=1;
         this.raak(e,(L.up?1.5:1)*L.dmg,e.p.x,e.p.y,e.p.z);
+        this.straalDood(e);                              // v15.52: lasertreffer = klap
         if(L.brand&&e.live) e.brand=Math.max(e.brand||0,L.brand);
         this.vonk(e.p.x,e.p.y,e.p.z,WCOL[3],7,7,0.4); }
       // en vijandelijk vuur dat de lijn kruist gaat er ook aan
@@ -6453,6 +6457,7 @@
           used[T.indexOf(cur)]=1; pts.push(cur.p.clone());
           const kracht=ET.dmg*(1+k*ZAPGROEI);
           this.raak(cur,kracht,cur.p.x,cur.p.y,cur.p.z);
+          this.straalDood(cur);                          // v15.52: bliksem = klap
           this.zapInslag(cur.p,ET,k);
           let nb=null, nd=ZAPSPRONG*ZAPSPRONG;
           for(let i=0;i<T.length;i++){ if(used[i]||!T[i].live) continue;
@@ -7092,6 +7097,21 @@
       e.drol=(Math.random()-0.5)*3.5;
       SND.hit(e.p.x*0.02,1); },
 
+    // ---- WIE DOOR EEN STRAALWAPEN VALT, ONTPLOFT (v15.52) ----
+    // Markeren moet HIER, bij de treffer, en niet door valKlap/valTijd zelf te
+    // zetten: doodBaan rolt die twee in zijn eerste beurt opnieuw (binnen
+    // 'if(!e.valDir)'), dus had mijn waarde daar geen seconde geleefd. Dezelfde
+    // volgorde-val als eerder met B.draai en B.streep. doodBaan leest snelKnal.
+    straalDood:function(e){
+      if(!e||!e.live) return;
+      // Alleen een NEERSTORTEND WRAK (e.dood). Een baas sterft via e.dood2 met
+      // zijn eigen ondergang van vijf seconden, en doodBaan draait voor hem
+      // niet (regel ~10602) - dus zou snelKnal daar nooit gelezen worden. Ik
+      // zet hem er toch niet op: anders kapt een regelwijziging daar straks
+      // ongemerkt de ondergang van elke baas af tot nul à twee seconden.
+      if(!e.dood) return;
+      e.snelKnal=1; },
+
     // ---- de vier seconden zelf ----
     doodBaan:function(e,s){
       e.doodT+=s;
@@ -7117,9 +7137,21 @@
         // horizon — net buiten je blik in een bril. Ondergrens omhoog zodat je
         // elke val ziet: 35 tot 70 m.
         e.valEind=VALDIEP*(0.78+Math.random()*0.77);
-        e.valKlap=(Math.random()<KLAPKANS)?1:0;
-        // en WANNEER hij ontploft verschilt ook: tussen 2,2 en 6 seconden
-        e.valTijd=2.2+Math.random()*3.8; }
+        // v15.52 EEN STRAALWAPEN SLAAT HARDER TOE.
+        // Sjoerd: "bij bliksem graag dat ze allemaal wel uiteindelijk
+        // ontploffen, alleen meer storten is niet zo mooi. Beetje random of het
+        // 0-2 sec zijn." En: "bij laser vallen ze ook beetje flauw, zelfde
+        // destructie." Klopt: de electro en de laser hebben geen inslagknal
+        // zoals een raket, dus zag je bij een ketting van tien alleen wrakken
+        // wegzakken - 45% van hen ontplofte helemaal niet, en de rest pas na
+        // 2,2 tot 6 seconden ver onder je. Wie door die twee wapens valt
+        // ontploft nu ALTIJD, en binnen nul tot twee seconden, zodat de klappen
+        // over elkaar heen ratelen in plaats van samen te vallen.
+        if(e.snelKnal){ e.valKlap=1; e.valTijd=Math.random()*STRAAL_KNAL; }
+        else {
+          e.valKlap=(Math.random()<KLAPKANS)?1:0;
+          // en WANNEER hij ontploft verschilt ook: tussen 2,2 en 6 seconden
+          e.valTijd=2.2+Math.random()*3.8; } }
       e.valV+=s*(e.valVersnel||VALVERSNEL);
       e.p.addScaledVector(e.valDir,e.valSn*s);
       e.p.y-=e.valV*s;
@@ -7799,7 +7831,12 @@
         // die loopt slaat de baanfunctie over, dus een hergebruikt schip stond
         // stil. geestT liet hem in de verkeerde fase beginnen, rol gaf een scheve
         // stand, en veld liet een krachtveld om een gewoon schip staan.
+        // v15.52: snelKnal, valKlap en valEind erbij. De eerste twee worden in
+        // doodBaan wel opnieuw gezet, maar alleen binnen 'if(!e.valDir)' — en
+        // een schip dat twee keer sterft zonder dat valDir gewist raakt, erfde
+        // ze. In de wisregel is het sluitend.
         e.springRust=0; e.geestT=0; e.rol=0; e.valDir=null; e.valV=0; e.valRot=0; e.valTijd=0; e.valRolA=0; e.valNu=0;
+        e.snelKnal=0; e.valKlap=0; e.valEind=0;
         e.broedCd=0; e.broedUit=0; e.broedDir=null; e.broed=0; e.valDraai=undefined;
         e.rakOp=0; e.rakWijkT=0; e.ssT=0; e.ssCd=0; e.duikRolCd=0;
         e.ufoT=undefined; e.ufoDoel=null; e.ufoRust=0; e.ufoWegCd=0; e.ufoZij=0;
@@ -8804,7 +8841,8 @@
           if(!e2.live||e2.dood||e2.dood2) continue;
           const af2=e2.p.distanceTo(p);
           if(af2>st+e2.r) continue;
-          this.raak(e2,ET.dmg*0.8,p.x,p.y,p.z); }
+          this.raak(e2,ET.dmg*0.8,p.x,p.y,p.z);
+          this.straalDood(e2); }                         // ook wat in de straal meegaat
         for(let a=0;a<KET_LUS;a++) if(!this.vijTreffer(p,9,st*0.7)) break; } },
 
     // ---- WEGDUIKEN ALS JE MIKT (Sjoerds ontwerp) ----
