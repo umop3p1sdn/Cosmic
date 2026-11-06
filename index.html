@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.46';
+  const VERSIE='v15.47';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1728,36 +1728,40 @@
   //    hb = hoe hoog hij deint   aanval = wat hij daar doet
   // ======================================================================
   const DANS={
+    // v15.47: elke baas had hier precies dezelfde eerste stap, tot op het
+    // woord DISENGAGING - dertien keer hetzelfde begin. De beweging mag
+    // hetzelfde blijven (hij trekt zich na zijn intro even terug), maar het
+    // WOORD is nu van hem.
     // statig slagschip: ver naar achter voor de zware zet, dan traag naar voren
     'DREADNOUGHT':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:168,hb:27,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:168,hb:27,aanval:'jacht', zeg:'STANDING OFF'},
       {t:6.5,d:186,v:1.3,zw:0.16,zb:81,hb:10, aanval:'zwaar', zeg:'TARGETING'},
       {t:5.0,d:104, v:1.1,zw:0.24,zb:62,hb:11, aanval:'sig',   zeg:''},
       {t:4.0,d:72, v:1.8,zw:0.40,zb:33,hb:8, aanval:'kort',  zeg:'CLOSING IN'},
       {t:4.5,d:134, v:1.6,zw:0.20,zb:76,hb:10, aanval:'niets', zeg:'FALLING BACK'} ],
     // beukt langzaam maar onverstoorbaar naar voren; hoe dichterbij, hoe erger
     'IRONCLAD':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:126,hb:27,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:126,hb:27,aanval:'jacht', zeg:'HULL DOWN'},
       {t:7.0,d:186,v:0.8,zw:0.10,zb:36,hb:6, aanval:'zwaar', zeg:'SIEGE MODE'},
       {t:6.0,d:91, v:0.9,zw:0.12,zb:28,hb:6, aanval:'sig',   zeg:''},
       {t:5.5,d:72, v:1.0,zw:0.14,zb:18,hb:5, aanval:'kort',  zeg:'BREACHING'},
       {t:4.0,d:140,v:1.4,zw:0.10,zb:39,hb:8, aanval:'niets', zeg:''} ],
     // zware knallers van ver; komt nooit echt dichtbij
     'WARDEN':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:168,hb:27,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:168,hb:27,aanval:'jacht', zeg:'RANGE OPEN'},
       {t:7.5,d:186,v:1.2,zw:0.14,zb:91,hb:10, aanval:'zwaar', zeg:'HEAVY LOCK'},
       {t:5.0,d:122, v:1.1,zw:0.22,zb:72,hb:11, aanval:'sig',   zeg:''},
       {t:5.0,d:186,v:1.2,zw:0.18,zb:81,hb:10, aanval:'jacht', zeg:''} ],
     // schiet vooruit, staat stil, vuurt één strakke streep, trekt terug
     'LANCE':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:168,hb:27,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:168,hb:27,aanval:'jacht', zeg:'DRAWING BACK'},
       {t:3.0,d:72, v:2.6,zw:0.10,zb:19,hb:5, aanval:'sig',   zeg:'LANCE READY'},
       {t:2.5,d:72, v:0.2,zw:0.05,zb:9,hb:3, aanval:'kort',  zeg:''},
       {t:5.0,d:186,v:2.2,zw:0.24,zb:72,hb:11, aanval:'zwaar', zeg:'REPOSITIONING'},
       {t:3.5,d:126, v:1.4,zw:0.30,zb:57,hb:10, aanval:'niets', zeg:''} ],
     // cirkelt om je heen op vaste afstand, altijd in beweging
     'THE WHEEL':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'SPINNING UP'},
       {t:7.0,d:118, v:1.1,zw:0.62,zb:52,hb:14,aanval:'sig',   zeg:''},
       {t:5.0,d:186,v:1.2,zw:0.48,zb:60,hb:12,aanval:'zwaar', zeg:'WHEEL TURNS'},
       {t:4.5,d:81, v:1.5,zw:0.85,zb:34,hb:16,aanval:'kort',  zeg:''} ],
@@ -1767,37 +1771,41 @@
     // in ALLE stappen op 105-158, terwijl elke andere baas na zijn eerste zwaai
     // terugzakt naar 20-90. Hij flankeert nog steeds, maar komt nu ook terug.
     'RAVEN':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:150,hb:27,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:150,hb:27,aanval:'jacht', zeg:'TAKING WING'},
       {t:4.0,d:134, v:2.2,zw:0.70,zb:62,hb:20,aanval:'niets', zeg:'FLANKING'},
       {t:3.5,d:72, v:2.4,zw:0.90,zb:34,hb:23,aanval:'kort',  zeg:''},
       {t:6.0,d:186,v:1.8,zw:0.34,zb:78,hb:17,aanval:'zwaar', zeg:'TALON'},
-      {t:4.0,d:98, v:2.0,zw:0.75,zb:45,hb:22,aanval:'jacht', zeg:''} ],
+      // v15.47: deze stap was 'jacht' - en daardoor had RAVEN NERGENS een
+      // 'sig'-stap. Zijn eigen aanval (sigOmtrek) kwam dus in het hele spel
+      // nooit voorbij. Nu wel. Een jachtsalvo wordt ervoor ingeruild, dus hij
+      // valt niet vaker aan - hij valt anders aan.
+      {t:4.0,d:98, v:2.0,zw:0.75,zb:45,hb:22,aanval:'sig',   zeg:'OMEN'} ],
     // drie ogen: trekken ver terug, draaien om elkaar heen, vuren om beurten
     // Sjoerd: "de drie ogen moeten verder uit elkaar, ze overlappen bijna. Ook
     // verder weg — wel binnen schietbereik." GEMETEN: ze stonden 39-52 m uit
     // elkaar terwijl elk oog 60 m breed is, op 72 m van je af. Nu blijven ze
     // op 130-195 m en dansen ze veel breder (zb).
     'THE EYES':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:95,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:95,hb:16,aanval:'jacht', zeg:'EYES OPEN'},
       {t:6.0,d:186,v:1.4,zw:0.90,zb:80,hb:18,aanval:'zwaar', zeg:'THE EYES ALIGN'},
       {t:5.0,d:158,v:1.2,zw:1.20,zb:72,hb:22,aanval:'sig',   zeg:''},
       {t:4.0,d:150,v:1.6,zw:1.50,zb:66,hb:26,aanval:'kort',  zeg:'GAZE'} ],
     // stampt heen en weer, breed en zwaar
     'THE WALKER':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:168,hb:27,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:168,hb:27,aanval:'jacht', zeg:'STEPPING BACK'},
       {t:6.0,d:145,v:1.0,zw:0.26,zb:134,hb:8, aanval:'zwaar', zeg:'HEAVY STEPS'},
       {t:5.5,d:86, v:1.2,zw:0.34,zb:115,hb:8, aanval:'sig',   zeg:''},
       {t:4.0,d:72, v:1.6,zw:0.44,zb:72,hb:6, aanval:'kort',  zeg:'STOMP'} ],
     // kruipt om je heen, valt uit en trekt terug
     'ARACHNID':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'RETREATING'},
       {t:5.0,d:122, v:1.3,zw:0.55,zb:50,hb:10,aanval:'sig',   zeg:''},
       {t:3.0,d:72, v:2.8,zw:0.30,zb:16,hb:6, aanval:'kort',  zeg:'POUNCE'},
       {t:6.5,d:186,v:1.6,zw:0.40,zb:44,hb:12,aanval:'zwaar', zeg:'VENOM'},
       {t:4.0,d:104, v:1.4,zw:0.60,zb:46,hb:11,aanval:'jacht', zeg:''} ],
     // zweeft hoog, daalt neer, stijgt weer op
     'AEGIS':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:168,hb:27,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:168,hb:27,aanval:'jacht', zeg:'CLIMBING'},
       {t:6.0,d:186,v:1.2,zw:0.30,zb:67,hb:40,aanval:'zwaar', zeg:'ASCENDING'},
       {t:5.0,d:111, v:1.3,zw:0.40,zb:57,hb:34,aanval:'sig',   zeg:''},
       {t:4.0,d:72, v:1.7,zw:0.50,zb:43,hb:27,aanval:'kort',  zeg:'DESCENT'} ],
@@ -1805,7 +1813,7 @@
     // LONGSHIP is een lang station: hij schuift als een muur voorbij, traag maar
     // over grote breedte, in plaats van op een plek te wiebelen (was zb 10-18).
     'LONGSHIP':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'CHARGING'},
       {t:7.0,d:150,v:0.5,zw:0.20,zb:90,hb:8, aanval:'sig',   zeg:''},
       {t:5.5,d:186,v:0.7,zw:0.16,zb:75,hb:6, aanval:'zwaar', zeg:'OVERCHARGE'},
       {t:5.5,d:125,v:0.6,zw:0.28,zb:105,hb:10,aanval:'kort',  zeg:''} ],
@@ -1814,14 +1822,16 @@
     // dicht bij zonder erdoorheen te vliegen. Hij stond eerder vrijwel stil
     // (zb 12-28); nu 60-110.
     'AXLE':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:70, hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:70, hb:16,aanval:'jacht', zeg:'AXLE ONLINE'},
       {t:7.0,d:170,v:1.0,zw:0.30,zb:95, hb:14,aanval:'zwaar', zeg:'MARKED'},
-      {t:5.0,d:125,v:1.5,zw:0.55,zb:110,hb:18,aanval:'jacht', zeg:''},
+      // v15.47: ook AXLE had geen 'sig'-stap, dus riep hij nooit zijn jagers
+      // (sigJagers). Deze jacht-stap wordt zijn eigen zet; ingeruild, niet erbij.
+      {t:5.0,d:125,v:1.5,zw:0.55,zb:110,hb:18,aanval:'sig',   zeg:'SCRAMBLE'},
       {t:3.5,d:100,v:2.4,zw:0.80,zb:75, hb:12,aanval:'kort',  zeg:'EXECUTION'},
       {t:4.0,d:150,v:1.8,zw:0.35,zb:88, hb:10,aanval:'niets', zeg:''} ],
     // de eindbaas: alle bewegingen, in wisselende volgorde
     'TITAN PRIME':[
-      {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'DISENGAGING'},
+      {t:4.0,d:195,v:3.4,zw:0.22,zb:70,hb:16,aanval:'jacht', zeg:'TITAN STIRS'},
       {t:6.0,d:186,v:1.4,zw:0.24,zb:40,hb:10,aanval:'zwaar', zeg:'TITAN AWAKENS'},
       {t:4.5,d:104, v:1.8,zw:0.50,zb:34,hb:12,aanval:'sig',   zeg:''},
       {t:3.5,d:72, v:2.4,zw:0.70,zb:20,hb:8, aanval:'kort',  zeg:'CRUSH'},
@@ -2475,6 +2485,55 @@
   const STER_HP=5;              // zo makkelijk gaan ze kapot
   const STER_SLING=7.5;         // hoe wijd ze slingeren op weg naar je toe
   const STER_SLINGF=1.7;        // en hoe snel die slinger heen en weer gaat
+
+  // ---- ELK PROFIEL ZIJN EIGEN SCHOT (v15.47) ----
+  // Sjoerd: "zie je bij sommige vijanden nog iets wat het mooier beter
+  // persoonlijker in aanval of manier kan? Nu echt heel cheap de meeste."
+  // GEMETEN: 32 scheepstypen met 15 verschillende VLIEGprofielen - hoe ze
+  // vliegen is dus al persoonlijk. Maar het SCHOT werd gekozen op BREEDTE:
+  //   smaller dan 10 -> 'streep',  16 of breder -> 'zoeker',  ertussen 'raket'.
+  // Drie schoten voor tweeendertig schepen. En WELKE van de zeven raketsoorten
+  // je kreeg hing af van e.tp % 7 - de PLEK IN DE TABEL. Dus een sluiper kon
+  // de raket van een boogschutter vuren, puur door waar hij stond.
+  // Nu hoort het schot bij het KARAKTER: wie als een sluiper vliegt schiet ook
+  // als een sluiper. Alles hieronder bestond al in de kogelcode (streep, boog,
+  // wieg/wiegW, zoek/draai, cluster, schuw, slaper, zwaar, groot2) - er is geen
+  // nieuwe kogelnatuur nodig, alleen de juiste toewijzing.
+  // HET AANTAL schoten blijft zoals het was: dat staat in sal per scheepstype
+  // en wordt uit hetzelfde gedeelde vuurbudget betaald. Het level wordt dus
+  // niet zwaarder, alleen herkenbaarder.
+  //   sp    maal zijn gewone snelheid        spr   hoe los hij mikt
+  //   hp    hoe vaak je hem moet raken       boog  hoe hard hij naar beneden valt
+  //   wiegW hoe wijd hij slingert (m)        wiegF hoe snel die slinger gaat
+  const VUUR_PROF={
+    // de jagers: korte, snelle, droge streepjes - elk met een eigen hand
+    strafer : {streep:1, sp:2.6, spr:0.015, hp:1},   // SCOUT, REAPER: scherp gemikt
+    duiker  : {streep:1, sp:3.0, spr:0.030, hp:1},   // VIPER, LANCER: een zweepslag
+    yoyo    : {streep:1, sp:2.4, spr:0.050, hp:1},   // SHRIKE
+    formatie: {streep:1, sp:2.1, spr:0.000, hp:1},   // FIGHTER, RAZOR: salvo als een lijn
+    scissors: {streep:1, sp:2.0, spr:0.260, hp:1},   // NEEDLE, VENOM: een kruisend paar
+    // de sluipers: traag, fel en recht op je af - je ziet hem aankomen
+    sluiper : {streep:1, sp:1.20, spr:0.008, hp:2},  // WASP, WEAVER, NIGHTBLADE
+    // de cirkelaars en de rol: hun schot slingert mee met hun eigen draai
+    cirkel  : {wiegW:9,  wiegF:1.5, sp:1.00, hp:3},  // SAUCER, HEAVY, SPINNER, HALO
+    barrel  : {wiegW:6,  wiegF:2.8, sp:1.10, hp:3},  // CYCLONE: een spiraal
+    // van boven naar beneden
+    immel   : {boog:0.16, sp:1.15, hp:3, zwaar:1},   // FALCON, NOVA: valt op je neer
+    kruiper : {boog:0.34, sp:0.85, hp:4, zwaar:1, groot2:1.3},  // BOMBER, INFERNO, ORACLE, SENTINEL, BULWARK
+    // de zware drijvers: zoekend en taai
+    drijver : {zoek:1, draai:1.5, sp:0.78, hp:5, zwaar:1},      // WATCHER, HAULER, BASILISK, TITAN
+    // en de bijzondere
+    moeder  : {cluster:5, sp:0.85, hp:3, zwaar:1},   // BROOD: valt uiteen in vijven
+    splitser: {schuw:1, zoek:1, draai:1.4, sp:0.95, hp:3},      // WRAITH: wijkt uit je vizier
+    // DE JAMMER stoort, hij jaagt niet. Zonder eigen regel viel hij terug op
+    // die van een strafer en vuurde hij ineens snelle streepjes - gemeten.
+    // Nu een traag, slingerend stoorschot dat bij zijn ruis past.
+    jammer  : {wiegW:14, wiegF:0.9, sp:0.60, hp:3, zwaar:1},
+    // en de terugval voor een profiel dat hier niet staat: een gewone raket
+    // zonder karakter. NIET die van een jager, want dan verandert een nieuw
+    // scheepstype per ongeluk in een snelle schutter.
+    gewoon  : {sp:1.0, hp:3} };
+
   // IRON CROSS stuurt BLUE ARROWS in een treintje (Sjoerd v14.78): zes in beeld,
   // achter elkaar, kronkelend als een slang door de ruimte. Bochten van 40 tot
   // 70 m wijd. Valt er een uit, dan sluit er een nieuwe aan bij het moederschip.
@@ -2672,6 +2731,44 @@
   // waren dan al 9 seconden werk — te veel voor één cyclus.
   const DANS_ZWAAR=3, DANS_ZW_HP=30, DANS_ZW_DMG=30, DANS_ZW_SNEL=13;
   const DANS_KORT=7;    // liever weinig en raak dan veel en nutteloos
+
+  // ---- DE KORTE BARRAGE, PER BAAS (v15.47) ----
+  // Sjoerd: "bazen ook mooiere aanvallen. En graag persoonlijke trekjes. Nu
+  // echt heel cheap de meeste."
+  // GEMETEN over de dertien dansen, 59 stappen bij elkaar:
+  //   zijn EIGEN aanval (sig)            11 stappen   19%
+  //   het jachtsalvo  - al per baas      18 stappen   31%
+  //   de zware zet    - al per baas      13 stappen   22%
+  //   de KORTE barrage                   12 stappen   20%
+  //   niets                               5 stappen    8%
+  // Zijn zware zet en zijn jachtsalvo verschillen dus al per baas (ZWAAR en
+  // JACHT), maar de korte barrage was voor ALLE dertien precies hetzelfde: een
+  // ring van zeven schoten, oranje, met de kreet 'BARRAGE'. En stap 0 is bij
+  // alle dertien identiek, tot op het woord DISENGAGING.
+  // Dus de helft van een bazengevecht was generiek of leeg.
+  // Hieronder krijgt de korte barrage dezelfde behandeling als de andere twee:
+  // EVENVEEL schoten, maar zijn eigen vorm, kleur, snelheid en kreet. Dat maakt
+  // hem persoonlijker zonder hem zwaarder te maken, en dat is hier belangrijk:
+  // baasschoten komen NIET uit het gedeelde vuurbudget, dus vaker aanvallen
+  // zou wel echt zwaarder zijn.
+  //   vorm   hoe de schoten over je beeld verdeeld staan
+  //   sp     snelheid      kl kleur      roep wat hij erbij roept
+  const KORT={
+    'DREADNOUGHT':{vorm:'hark',    sp:26, kl:0xff3020, roep:'BROADSIDE'},
+    'IRONCLAD'   :{vorm:'muur',    sp:22, kl:0xc0c8d0, roep:'BREACHING'},
+    'WARDEN'     :{vorm:'regen',   sp:24, kl:0xff2020, roep:'MORTAR'},
+    'LANCE'      :{vorm:'speer',   sp:34, kl:0xcfe8ff, roep:'PIERCE'},
+    'THE WHEEL'  :{vorm:'ring',    sp:26, kl:0xffd030, roep:'SPOKES'},
+    'RAVEN'      :{vorm:'tweeboog',sp:30, kl:0xc060ff, roep:'PINCER'},
+    'THE EYES'   :{vorm:'kruis',   sp:25, kl:0x60ff90, roep:'CROSSFIRE'},
+    'THE WALKER' :{vorm:'stamp',   sp:21, kl:0xff8a30, roep:'STOMP'},
+    'ARACHNID'   :{vorm:'web',     sp:28, kl:0x90ff40, roep:'WEB'},
+    'AEGIS'      :{vorm:'gordijn', sp:24, kl:0x9fe4f5, roep:'CURTAIN'},
+    'LONGSHIP'   :{vorm:'spiraal', sp:27, kl:0x40e0ff, roep:'COIL'},
+    'AXLE'       :{vorm:'schaar',  sp:32, kl:0xff2050, roep:'SHEARS'},
+    'TITAN PRIME':{vorm:'ring',    sp:30, kl:0xffa020, roep:'CRUSH'},
+    _            :{vorm:'ring',    sp:26, kl:0xff7a30, roep:'BARRAGE'} };
+
   // Na hoeveel seconden vrije vlucht een baasschot alsnog gaat zoeken, en hoe
   // strak het dan bijdraait. Zo bereikt ALLES wat een baas afvuurt je uiteindelijk.
   const LAATZOEK=1.8, LAATDRAAI=1.5;
@@ -2806,16 +2903,28 @@
   // Sjoerds indeling. Bij trap 4 en 7 gaat er een raket AF maar wordt de klap
   // groter: minder totale schade, meer diameter. Dat is een ruil, geen terugval —
   // tegen een groep is het beter, tegen één schip slechter.
+  // v15.47 Sjoerd: "mijn raketten die mss splitsen van 2 naar 4 ipv meteen 4
+  // schieten." Precies dat: vanaf trap 6 vuurt hij de HELFT af, en elke raket
+  // EEN uit de buis, die onderweg in vijf uiteenvalt.
+  // De aantallen zijn EXACT gelijk gehouden: trap 6 en 8 gaven vijf inslagen en
+  // geven er nog steeds vijf. Eerst had ik 2 x 3 = 6 staan en dat was een
+  // stille versterking van 20% - gemeten en teruggedraaid.
+  // (2 die er 4 worden kan ook, maar dat is een inslag MINDER dan nu.)
+  //   n      hoeveel er uit de buis komen
+  //   splijt in hoeveel stukken elk daarvan onderweg uiteenvalt (1 = niet)
+  //   ex     explosietrap (1, 2 of 3)
   const RAKTRAP=[
-    {n:1,ex:1},   // trap 1: één raket, kleine klap
-    {n:2,ex:1},   // trap 2
-    {n:5,ex:1},   // trap 3
-    {n:2,ex:2},   // trap 4: minder raketten, grotere diameter
-    {n:3,ex:2},   // trap 5
-    {n:5,ex:2},   // trap 6
-    {n:3,ex:3},   // trap 7: weer een stap in diameter
-    {n:5,ex:3}    // trap 8: het maximum — big boom
+    {n:1,ex:1,splijt:1},   // trap 1: één raket, kleine klap
+    {n:2,ex:1,splijt:1},   // trap 2
+    {n:5,ex:1,splijt:1},   // trap 3
+    {n:2,ex:2,splijt:1},   // trap 4: minder raketten, grotere diameter
+    {n:3,ex:2,splijt:1},   // trap 5
+    {n:1,ex:2,splijt:5},   // trap 6: EEN uit de buis, valt uiteen in vijf
+    {n:3,ex:3,splijt:1},   // trap 7: weer een stap in diameter
+    {n:1,ex:3,splijt:5}    // trap 8: ook een die er vijf worden, grootste klap
   ];
+  const RAK_SPLIJT_T=0.42;      // na hoeveel seconden hij uiteenvalt
+  const RAK_SPLIJT_WIJD=0.55;   // hoe breed de stukken uitwaaieren
   // schade en straal per explosietrap
   // Sjoerd: "geen overkill aan raketten, maar dan goede homing die meer schade
   // kunnen hebben." Schade per trap omhoog; de aantallen blijven zoals ze zijn.
@@ -3295,11 +3404,17 @@
         const gloed=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
           new THREE.MeshBasicMaterial({color:0xc07dff,transparent:true,opacity:0,
             depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));
-        kern.renderOrder=8; gloed.renderOrder=7;
-        kern.visible=false; gloed.visible=false;
-        kern.frustumCulled=false; gloed.frustumCulled=false;
-        this.par.add(gloed); this.par.add(kern);
-        this.zapSeg.push({k:kern,g:gloed}); }
+        // v15.47 Sjoerd: "bliksem met wat extra lagen in kleur." Een DERDE,
+        // bredere halo die pas bij de hogere trappen aangaat. Zo zie je aan je
+        // bliksem hoe sterk hij is, zonder de getallen te lezen.
+        const halo=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
+          new THREE.MeshBasicMaterial({color:0x5a2fd0,transparent:true,opacity:0,
+            depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));
+        kern.renderOrder=8; gloed.renderOrder=7; halo.renderOrder=6;
+        kern.visible=false; gloed.visible=false; halo.visible=false;
+        kern.frustumCulled=false; gloed.frustumCulled=false; halo.frustumCulled=false;
+        this.par.add(halo); this.par.add(gloed); this.par.add(kern);
+        this.zapSeg.push({k:kern,g:gloed,h:halo}); }
 
       // ---- dozen ----
       this.dozen=[];
@@ -6108,7 +6223,9 @@
             (k===0)?0:(1.4+Math.random()*1.0),
             k*(6.283/Math.max(1,n-1))+Math.random()*0.4);
           // elke raket onthoudt zijn eigen kracht, zodat de klap erbij past
-          if(R){ R.ex=T.ex; } } }
+          if(R){ R.ex=T.ex;
+            // v15.47: hoeveel stukken, en wanneer. splijt 1 = hij splijt niet.
+            if(T.splijt>1){ R.splijtN=T.splijt; R.splijtT=RAK_SPLIJT_T; } } } }
 
       else if(W.t===2){ SND.gun(this.dir.x*0.9,2);
         // DE ACHT TRAPPEN VAN DE SHOTGUN. Sjoerds ontwerp: begint als gewone
@@ -6185,7 +6302,7 @@
           for(let i=0;i<T.length;i++){ if(used[i]||!T[i].live) continue;
             const d2=T[i].p.distanceToSquared(cur.p); if(d2<nd){ nd=d2; nb=T[i]; } }
           cur=nb; }
-        this.zap(pts,pts.length-1);
+        this.zap(pts,pts.length-1,lv);
         if(pts.length>4) this.toonMelding('CHAIN  x'+(pts.length-1),'#c07dff');
         SND.kill(this.dir.x*0.5,1.2);
         if(pts.length>1) W.mag[4]=Math.max(0,(W.mag[4]||0)-1); }
@@ -6210,10 +6327,30 @@
       for(let i=0;i<this.rockets.length;i++){ const R=this.rockets[i]; if(R.live) continue;
         R.o.copy(o); R.dir.copy(d); R.d=0; R.tot=0; R.live=true; R.zoek=null; R.leef=0; R.oud=0;
         R.rad=rad; R.ph=ph||0; R.swarm=swarm||0; R.ex=1; R.hagel=0;
+        // v15.47 WISREGEL: zonder deze twee erft een hergebruikte raket de
+        // splijting van zijn voorganger en valt een gewone raket van trap 1
+        // ineens uiteen. Dezelfde val als bij de schepen.
+        R.splijtN=0; R.splijtT=0;
         R.m.position.copy(o); R.m.visible=true; R.m.scale.set(1.6,1.6,1); return R; }
       return null; },
 
-    zap:function(pts,sprongen){ const a=this.zapG.attributes.position;
+    // ---- DE BLIKSEM IN LAGEN (v15.47) ----
+    // Sjoerd: "bliksem met wat extra lagen in kleur."
+    // trap 1-3: kern wit-blauw + paarse gloed, dun        (twee lagen)
+    // trap 4-6: + een bredere diep-paarse halo erachter    (drie lagen)
+    // trap 7-8: kern wordt witheet, halo breder en feller
+    // De SCHADE verandert hier niet: dit is alleen wat je ziet. De trappen zelf
+    // staan in ZAPTRAP en die heb ik niet aangeraakt.
+    zapLagen:function(lv){
+      const t=Math.max(1,Math.min(8,lv||1));
+      return { kern:  (t>=7)?0xffffff:((t>=4)?0xdff0ff:0xbfe6ff),
+               gloed: (t>=7)?0xe0a0ff:((t>=4)?0xc07dff:0x9f6ae0),
+               halo:  (t>=7)?0x7a3cff:0x5a2fd0,
+               haloBr:(t>=7)?4.6:((t>=4)?3.2:0),      // 0 = die laag blijft uit
+               haloDek:(t>=7)?0.42:0.26,
+               kernBr:(t>=7)?0.85:((t>=4)?0.70:0.55) }; },
+
+    zap:function(pts,sprongen,lv){ const a=this.zapG.attributes.position;
       const n=Math.min(20,pts.length);
       for(let i=0;i<20;i++){ const p=pts[Math.min(i,n-1)];
         a.setXYZ(i,p.x,p.y,p.z); }
@@ -6223,18 +6360,31 @@
       // elke schakel als een vlak tussen twee punten
       const A=this.ZA||(this.ZA=new THREE.Vector3());
       const B=this.ZB||(this.ZB=new THREE.Vector3());
+      const LG=this.zapLagen(lv);
       for(let i=0;i<this.zapSeg.length;i++){ const S2=this.zapSeg[i];
-        if(i>=n-1){ S2.k.visible=false; S2.g.visible=false; continue; }
+        if(i>=n-1){ S2.k.visible=false; S2.g.visible=false;
+                    if(S2.h) S2.h.visible=false; continue; }
         A.copy(pts[i]); B.copy(pts[i+1]);
         const len=A.distanceTo(B);
-        if(len<0.01){ S2.k.visible=false; S2.g.visible=false; continue; }
+        if(len<0.01){ S2.k.visible=false; S2.g.visible=false;
+                      if(S2.h) S2.h.visible=false; continue; }
         B.sub(A).multiplyScalar(1/len);
         // hoe verder in de ketting, hoe dikker de flits
         const gr=1+Math.min(2.2,i*ZAPGROEI*1.6);
-        this.richtQuad(S2.k,this.ZA.clone().addScaledVector(B,len*0.5),B,len*1.08,0.55*gr);
-        this.richtQuad(S2.g,this.ZA.clone().addScaledVector(B,len*0.5),B,len*1.08,1.7*gr);
+        const mid=this.ZA.clone().addScaledVector(B,len*0.5);
+        this.richtQuad(S2.k,mid,B,len*1.08,LG.kernBr*gr);
+        this.richtQuad(S2.g,mid,B,len*1.08,1.7*gr);
+        S2.k.material.color.setHex(LG.kern);
+        S2.g.material.color.setHex(LG.gloed);
         S2.k.material.opacity=1.0; S2.g.material.opacity=0.55;
-        S2.k.visible=true; S2.g.visible=true; } },
+        S2.k.visible=true; S2.g.visible=true;
+        // de derde laag: alleen vanaf trap 4
+        if(S2.h){
+          if(LG.haloBr>0){
+            this.richtQuad(S2.h,mid,B,len*1.08,LG.haloBr*gr);
+            S2.h.material.color.setHex(LG.halo);
+            S2.h.material.opacity=LG.haloDek; S2.h.visible=true; }
+          else S2.h.visible=false; } } },
 
     ultimate:function(h){
       if(window.PHASE!=='game'||window.PAUSED) return;
@@ -7703,8 +7853,9 @@
       //   groot en traag -> een zware raket die je zoekt
       //   daartussenin   -> gewone raketten, af en toe eentje die meebuigt
       const Tb=TYPE[e.tp]||{};
-      const breed=Tb.br||8;
-      const soort=(breed<=9)?'streep':((breed>=16)?'zoeker':'raket');
+      // v15.47: niet meer op breedte, maar op zijn vliegprofiel - zie VUUR_PROF
+      const PF=VUUR_PROF[Tb.prof]||VUUR_PROF.gewoon;
+      const spreid=(PF.spr!==undefined)?PF.spr:(spr||0.06);
       // Vuurt een vijand meer dan één raket, dan moeten die NIET hetzelfde doen.
       // Sjoerd zag twee verschillende koppen die precies dezelfde baan vlogen.
       for(let k=0;k<(n||1);k++){
@@ -7722,53 +7873,41 @@
             B.hp=zw?REUSRAKHP:GROOTRAKHP;
             B.zwaar=1; B.zoek=1; B.draai=1.6;
             B.sp*=0.86; B.dmg=(B.dmg||5)*1.6; B.groot2=zw?3.0:2.2; }
-          B.zoek=0; B.streep=0; B.boog=0; B.wieg=0;
-          if(soort==='streep'){
-            // een jager vuurt lichtstrepen: snel, dun, en ze buigen niet
-            B.streep=1; B.sp*=2.3; B.hp=1; B.zwaar=0; }
-          else if(soort==='zoeker'){
-            // Alleen de trage kolossen sturen zoekend vuur, en nooit allemaal
-            // tegelijk — anders komt de hele lucht op je af.
-            // een kolos doet het af en toe groots: het uitwaaierende salvo
-            if(e.bw>=20&&this.zoekers()<5&&Math.random()<0.40){
-              this.salvoBarrage(e,SALVO_KLEIN); return; }
-            if(this.zoekers()<ZOEKMAX&&Math.random()<ZOEKKANS){
-              B.zoek=1; B.sp*=0.72; B.hp=Math.max(B.hp,3); B.zwaar=1; }
-            else B.sp*=0.9; }
-          else {
-            // ELK SCHEEPSTYPE ZIJN EIGEN RAKET. Niet het toeval bepaalt of een
-            // schot slingert, maar wie hem afvuurt — dan leer je een vijand
-            // herkennen aan wat hij stuurt. Alle raketten van hetzelfde schip
-            // doen hetzelfde, en vliegen even snel.
-            // ZEVEN RAKETSOORTEN, vast per scheepstype. Alleen bij gewone
-            // vijanden: de bazen houden hun eigen aanvallen.
-            const st=e.tp%7;
-            if(st===0){ /* recht en snel */ }
-            else if(st===1){                            // ONTWIJKER
-              // na elke treffer zwenkt hij hard opzij: twee keer pakken dus
-              B.ontwijk=1; B.duikT=0; B.hp=Math.max(B.hp,3);
-              B.zoek=1; B.draai=1.3; B.sp*=0.88; B.zwaar=1; }
-            else if(st===2){ B.boog=0.26; B.sp*=0.92; }  // BOOGSCHUTTER
-            else if(st===3){                            // CLUSTERBOM
-              // wacht je te lang, dan heb je vijf doelen in plaats van één
-              B.cluster=5; B.hp=Math.max(B.hp,2); B.sp*=0.85; B.zwaar=1; }
-            else if(st===4){                            // SCHUWE
-              // wijkt één keer uit zodra je vizier op hem staat
-              B.schuw=1; B.schuwOp=0; B.zoek=1; B.draai=1.4; B.sp*=0.9; }
-            else if(st===5){                            // SLAPER
-              // traag en onschuldig, en dan opeens niet meer
-              B.slaper=1; B.sp*=0.45; B.zoek=1; B.draai=1.1; }
-            else if(this.zoekers()<ZOEKMAX){            // ZOEKER
-              B.zoek=1; B.draai=1.5; B.sp*=0.9; }
-          }
+          B.zoek=0; B.streep=0; B.boog=0; B.wieg=0; B.wiegW=0; B.wiegF=0;
+          B.cluster=0; B.schuw=0; B.schuwOp=0; B.slaper=0;
+          // WANNEER HOUDT HIJ ZIJN ZWARE RAKET? Eerst nam ik hiervoor de
+          // BREEDTE (13 of meer), maar dat slokt het karakter van tien schepen
+          // op: REAPER is 19 breed en vuurde daardoor als een kolos een raket
+          // van 26 treffers, terwijl hij een strafer is die juist een snelle
+          // streep hoort te trekken. GEMETEN: 10 van de 30 schepen verloren zo
+          // hun eigen hand.
+          // Het gaat om het SCHOT, niet om het schip: een breed schip mag best
+          // een dun streepje vuren - het is zijn romp die groot is. Dus houdt
+          // alleen wie van NATURE zwaar vuurt zijn zware raket, plus de echte
+          // reuzen (19+), want die moet je zien aankomen.
+          const kolos=(e.bw>=GROOTBR)&&(!PF.streep||e.bw>=REUSBR+6);
+          // EEN KOLOS doet het af en toe groots: het uitwaaierende salvo.
+          // Stond eerst achter 'breedte 16 of meer'; nu gewoon achter zijn maat.
+          // LET OP: deze kogel is hierboven al op live gezet. Zonder hem weer
+          // vrij te geven bleef er eentje achter die nooit een richting kreeg
+          // en dus met de richting van zijn VOORGANGER wegvloog.
+          if(e.bw>=20&&this.zoekers()<5&&Math.random()<0.40){
+            B.live=false;
+            this.salvoBarrage(e,SALVO_KLEIN); return; }
           B.dir.copy(eye).sub(e.p).normalize();
-          B.dir.x+=(Math.random()-0.5)*(spr||0.06);
-          B.dir.y+=(Math.random()-0.5)*(spr||0.06);
+          B.dir.x+=(Math.random()-0.5)*spreid;
+          B.dir.y+=(Math.random()-0.5)*spreid;
           B.dir.normalize();
           // EERST schoonmaken, DAN pas zijn lichaam pakken. Andersom wiste deze
           // regel het lichaam dat er net was toegewezen — vandaar dat vijandelijke
           // raketten platte plaatjes bleven én de voorraad lichamen leegliep.
-          B.buis=null; B.m.visible=!(this.kopVak&&this.kopVak.length); B.waaier=0; B.draai=0;
+          // v15.47: B.draai=0 stond hier en wiste de draaisnelheid die het
+          // profiel hierboven net had gezet - GEMETEN 'zoekt 0.0' bij elf
+          // schepen. Dezelfde ordeningsval als bij de schilden in v15.34: een
+          // waarde zetten vóór de regel die hem schoonmaakt. Nu bewaren we hem.
+          const draai0=B.draai;
+          B.buis=null; B.m.visible=!(this.kopVak&&this.kopVak.length); B.waaier=0;
+          B.draai=draai0||0;
           // met Sjoerds koppen hoeft het platte plaatje er niet te zijn
           if(this.kopVak&&this.kopVak.length) B.m.visible=false;
           // DE VLIEGSTIJL WISSEN. Die werd alleen in het baasvuur gezet en
@@ -7795,6 +7934,34 @@
           // onderweg drie vallen.
           if(n===1&&e.bw>=15&&Math.random()<0.5&&!B.cluster&&!B.slaper){
             B.moeder=3; B.moedT=MOEDER_ELK; B.hp=Math.max(B.hp,3); B.zwaar=1; }
+          // ---- EN NU ZIJN EIGEN HAND (v15.47) ----
+          // DIT STAAT HIER MET OPZET, helemaal achteraan. Eerst stond het
+          // bovenaan, en toen wiste de wisregel hierboven (B.streep=0,
+          // B.boog=0, B.wieg=0, B.cluster=0, B.schuw=0) het meteen weer uit:
+          // GEMETEN schoot SCOUT nog steeds een gewone raket in plaats van
+          // een streep, en SHRIKE een zoeker van 26 treffers.
+          // Het is dezelfde les als bij de schilden in v15.34 en bij de
+          // paradecorrectie: een waarde die ergens anders schoongemaakt
+          // wordt, moet NA die schoonmaak gezet worden.
+          // EEN KOLOS HOUDT ZIJN ZWARE RAKET. Die moet je zien aankomen en
+          // twintig keer raken (Sjoerds eis uit v13.4x); daar gaat geen profiel
+          // overheen. Hij krijgt wel de BEWEGING van zijn profiel mee, niet het
+          // lichte streepje van een jager.
+          if(PF.streep&&!kolos){ B.streep=1; B.zwaar=0; }
+          if(PF.boog) B.boog=PF.boog;
+          if(PF.wiegW){ B.wieg=1; B.wiegW=PF.wiegW; B.wiegF=PF.wiegF||1.4;
+                        B.wf=Math.random()*6.283; }
+          if(PF.cluster) B.cluster=PF.cluster;
+          if(PF.schuw){ B.schuw=1; B.schuwOp=0; }
+          // zoekend vuur blijft gerantsoeneerd: anders komt de hele lucht op je af
+          if(PF.zoek&&this.zoekers()<ZOEKMAX){ B.zoek=1; B.draai=PF.draai||1.4; }
+          // en een kolos blijft zoeken, ook als zijn profiel dat niet vraagt
+          else if(kolos&&!B.streep&&this.zoekers()<ZOEKMAX&&Math.random()<ZOEKKANS){
+            B.zoek=1; B.draai=1.6; }
+          if(PF.zwaar||kolos) B.zwaar=1;
+          if(PF.hp) B.hp=kolos?Math.max(B.hp,PF.hp):Math.max(1,PF.hp);
+          if(PF.groot2&&!B.streep&&!kolos) B.groot2=PF.groot2;
+          if(PF.sp) B.sp*=PF.sp;
           this.laatsteB=B;
           // KOLOM 4 (het oude projectielplaatje van de vlootplaat) wordt NIET
           // meer gebruikt. Sjoerds eigen raketkoppen zijn de raket.
@@ -9219,13 +9386,32 @@
 
     // Een korte barrage: veel, maar zwak en zo kapot. Bedoeld om je te laten
     // schieten terwijl hij dichtbij is, niet om je te overspoelen.
+    // v15.47: evenveel schoten als eerst, maar in ZIJN vorm. Zie de tabel KORT.
     dansKort:function(e,twee){
+      const K=KORT[e.baasNaam]||KORT._;
       const n=DANS_KORT+(twee?4:0);
       for(let i=0;i<n;i++){
+        const u=(n>1)?(i/(n-1)):0.5;        // 0..1 over het salvo
         const hk=(i/n)*6.283;
-        this.sigSchot(e,this.sigRicht(e,Math.cos(hk)*0.55,Math.sin(hk)*0.45),
-          {soort:1,sp:26,hp:1,dmg:5,groot:0.8,neus:0,kleur:0xff7a30}); }
-      this.toonMelding('BARRAGE','#ff8a30'); },
+        let zij=0, op=0;
+        switch(K.vorm){
+          case 'hark':    zij=(u-0.5)*1.30; op=0.04*Math.sin(u*6.283); break;
+          case 'muur':    zij=(u-0.5)*0.40; op=(u-0.5)*0.40; break;
+          case 'regen':   zij=(u-0.5)*1.00; op=0.42-u*0.10; break;
+          case 'speer':   zij=(u-0.5)*0.12; op=(u-0.5)*0.90; break;
+          case 'tweeboog':{ const z=(i%2)?1:-1; const q=Math.floor(i/2)/Math.max(1,(n-1)/2);
+                            zij=z*(0.30+q*0.55); op=(q-0.5)*0.45; } break;
+          case 'kruis':   if(i%2){ zij=(u-0.5)*1.10; op=0; } else { zij=0; op=(u-0.5)*0.95; } break;
+          case 'stamp':   { const groep=Math.floor(u*3)/2;      // drie klappen, laag naar hoog
+                            zij=((i%3)-1)*0.28; op=-0.30+groep*0.60; } break;
+          case 'web':     { const z=(i%2)?1:-1; zij=z*u*0.85; op=(u-0.5)*0.85*z; } break;
+          case 'gordijn': zij=(u-0.5)*0.22; op=0.45-u*0.95; break;
+          case 'spiraal': zij=Math.cos(hk*1.6)*u*0.80; op=Math.sin(hk*1.6)*u*0.65; break;
+          case 'schaar':  { const z=(i%2)?1:-1; zij=z*(0.75-u*0.70); op=z*(u-0.5)*0.50; } break;
+          default:        zij=Math.cos(hk)*0.55; op=Math.sin(hk)*0.45; }
+        this.sigSchot(e,this.sigRicht(e,zij,op),
+          {soort:1,sp:K.sp,hp:1,dmg:5,groot:0.8,neus:0,kleur:K.kl}); }
+      this.toonMelding(K.roep,'#'+('00000'+(K.kl||0xff8a30).toString(16)).slice(-6)); },
 
     sigJacht:function(e,twee){
       const soort=JACHT[e.baasNaam]||JACHT._;
@@ -11585,7 +11771,10 @@
           if(!S2.k.visible) continue;
           S2.k.material.opacity=k*fl;
           S2.g.material.opacity=k*0.55;
-          if(this.zapT<=0){ S2.k.visible=false; S2.g.visible=false; } } }
+          // v15.47: de derde laag mee laten doven, anders blijft die hangen
+          if(S2.h&&S2.h.visible) S2.h.material.opacity=k*0.30;
+          if(this.zapT<=0){ S2.k.visible=false; S2.g.visible=false;
+                            if(S2.h) S2.h.visible=false; } } }
       if(this.zuigT>0){ this.zuigT-=s;
         const k=Math.min(1,this.zuigT/0.6);
         const puls=1+Math.sin(this.T*9)*0.06;
@@ -11930,6 +12119,29 @@
             if(this.enemies[a].live&&!this.enemies[a].dood2){ er=true; break; }
           if(er) R.leef=(R.leef||0)+s; else R.leef=Math.max(0,(R.leef||0)-s*0.5); }
         R.oud=(R.oud||0)+s;
+        // ---- SPLIJTEN (v15.47) ----
+        // Hij valt onderweg uiteen in zijn stukken: elk stuk krijgt zijn eigen
+        // kant, dezelfde explosietrap, en zoekt daarna zelf verder. Het aantal
+        // inslagen blijft gelijk aan wat trap 6 en 8 vroeger meteen afvuurden -
+        // je ziet het nu alleen gebeuren.
+        if(R.splijtN>1&&R.splijtT>0){
+          R.splijtT-=s;
+          if(R.splijtT<=0){
+            const nS=R.splijtN; R.splijtN=0; R.splijtT=0;
+            const p0=R.m.position.clone();
+            this.vonk(p0.x,p0.y,p0.z,0xffd24a,5,4,0.35);
+            for(let q=1;q<nS;q++){
+              const dd=R.dir.clone();
+              const hk=(q/(nS-1))*6.283;
+              // opzij EN omhoog uiteen, zodat ze echt uit elkaar gaan
+              dd.x+=Math.cos(hk)*RAK_SPLIJT_WIJD;
+              dd.y+=Math.sin(hk)*RAK_SPLIJT_WIJD*0.7;
+              dd.normalize();
+              const R2=this.raket(p0,dd,R.rad,1.0+Math.random()*0.8,Math.random()*6.283);
+              if(R2){ R2.ex=R.ex; R2.splijtN=0; R2.splijtT=0;
+                      R2.leef=R.leef; R2.oud=R.oud; } }
+            // en de oorspronkelijke gaat gewoon door, als eerste stuk
+            R.dir.x+=(Math.random()-0.5)*0.10; R.dir.normalize(); } }
         if(R.leef>RAKET_LEEF||R.oud>RAK_MAX){
           this.vonk(R.m.position.x,R.m.position.y,R.m.position.z,0xff8a3d,3,3,0.4);
           R.live=false; R.m.visible=false; continue; }
