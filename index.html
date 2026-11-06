@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.48';
+  const VERSIE='v15.49';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2914,17 +2914,34 @@
   //   splijt in hoeveel stukken elk daarvan onderweg uiteenvalt (1 = niet)
   //   ex     explosietrap (1, 2 of 3)
   const RAKTRAP=[
-    {n:1,ex:1,splijt:1},   // trap 1: één raket, kleine klap
-    {n:2,ex:1,splijt:1},   // trap 2
-    {n:5,ex:1,splijt:1},   // trap 3
-    {n:2,ex:2,splijt:1},   // trap 4: minder raketten, grotere diameter
-    {n:3,ex:2,splijt:1},   // trap 5
-    {n:1,ex:2,splijt:5},   // trap 6: EEN uit de buis, valt uiteen in vijf
-    {n:3,ex:3,splijt:1},   // trap 7: weer een stap in diameter
-    {n:1,ex:3,splijt:5}    // trap 8: ook een die er vijf worden, grootste klap
+    {n:1,ex:1,splijt:1,sp:1.00},   // trap 1: één raket, kleine klap
+    {n:2,ex:1,splijt:1,sp:1.00},   // trap 2
+    {n:5,ex:1,splijt:1,sp:1.05},   // trap 3
+    {n:2,ex:2,splijt:1,sp:1.10},   // trap 4: minder raketten, grotere diameter
+    {n:3,ex:2,splijt:1,sp:1.16},   // trap 5
+    {n:1,ex:2,splijt:5,sp:1.24},   // trap 6: EEN uit de buis, valt uiteen in vijf
+    {n:3,ex:3,splijt:1,sp:1.32},   // trap 7: weer een stap in diameter
+    {n:1,ex:3,splijt:5,sp:1.40}    // trap 8: ook een die er vijf worden, grootste klap
   ];
   const RAK_SPLIJT_T=0.42;      // na hoeveel seconden hij uiteenvalt
   const RAK_SPLIJT_WIJD=0.55;   // hoe breed de stukken uitwaaieren
+  const RAK_SP=78;              // zijn gewone vaart (was een los getal in de lus)
+  // ---- DE SOFTWARE-UPDATE (v15.49) ----
+  // Sjoerd: "mss 50/50 als hij moet kiezen tussen flare of doel. Dat hij een
+  // flare kan ontwijken. Dat de raket dan een rode flits om hem heen krijgt dat
+  // hij soort software update krijgt en naar de vijand vliegt met top speed!
+  // Komt hij dicht bij een flare en in eens pow! Red flash en go!"
+  // Nu hapt een raket ALTIJD als hij binnen 34 m van een brandende flare komt
+  // (75 m bij een hete). Dat is alles of niets. Vanaf nu gooit hij er een munt
+  // op: kop hij hapt, munt hij ziet er dwars door heen - rode flits, en dan met
+  // top speed naar het toestel.
+  // EERLIJK GEHOUDEN: zo'n opgewaardeerde raket is SNELLER maar draait ook
+  // MINDER scherp, dus hij kan er nog naast schieten. Zonder dat zou het puur
+  // een verzwakking van de flares zijn.
+  const RAK_UPD_KANS=0.5;       // de munt: de helft hapt niet
+  const RAK_UPD_SP=1.55;        // en gaat dan zo veel sneller
+  const RAK_UPD_DRAAI=0.62;     // maar draait zo veel minder scherp
+  const RAK_UPD_FLITS=0.30;     // zo lang gloeit hij rood op
   // schade en straal per explosietrap
   // Sjoerd: "geen overkill aan raketten, maar dan goede homing die meer schade
   // kunnen hebben." Schade per trap omhoog; de aantallen blijven zoals ze zijn.
@@ -4860,6 +4877,18 @@
         for(let k=0;k<this.flares.length;k++){ const F=this.flares[k];
           if(!F.live) continue;
           if(F.p.distanceTo(R.m.position)<(F.heet?FLARE_HAP*2.2:FLARE_HAP)){
+            // v15.49: de munt. Eén keer per raket - wie zijn update heeft gehad
+            // laat zich daarna door geen enkele flare meer voor de gek houden.
+            if(R.upd===undefined) R.upd=(Math.random()<RAK_UPD_KANS)?0:1;
+            if(R.upd){
+              // POW. Rode flits om hem heen en vol gas naar zijn toestel.
+              if(!R.updT){
+                R.updT=RAK_UPD_FLITS;
+                const q=R.m.position;
+                this.vonk(q.x,q.y,q.z,0xff2020,14,9,0.5);
+                this.vonk(q.x,q.y,q.z,0xffffff,6,13,0.28);
+                try{ SND.hit(0,0.5); }catch(z){} }
+              break; }                           // en hij negeert deze flare
             R.zoek=null; R.flareLok=1;
             this.vonk(R.m.position.x,R.m.position.y,R.m.position.z,0xfff2c0,3,2,0.3);
             break; } } } },
@@ -6266,7 +6295,7 @@
             (k===0)?0:(1.4+Math.random()*1.0),
             k*(6.283/Math.max(1,n-1))+Math.random()*0.4);
           // elke raket onthoudt zijn eigen kracht, zodat de klap erbij past
-          if(R){ R.ex=T.ex;
+          if(R){ R.ex=T.ex; R.spF=T.sp||1;
             // v15.47: hoeveel stukken, en wanneer. splijt 1 = hij splijt niet.
             if(T.splijt>1){ R.splijtN=T.splijt; R.splijtT=RAK_SPLIJT_T; } } } }
 
@@ -6374,6 +6403,10 @@
         // splijting van zijn voorganger en valt een gewone raket van trap 1
         // ineens uiteen. Dezelfde val als bij de schepen.
         R.splijtN=0; R.splijtT=0;
+        // v15.49 ook in de wisregel: anders erft een nieuwe raket de update en
+        // de trapsnelheid van zijn voorganger, en vliegt een raket van trap 1
+        // ineens met top speed rond.
+        R.spF=1; R.upd=undefined; R.updT=0; R.tr2=0; R.flareLok=0;
         R.m.position.copy(o); R.m.visible=true; R.m.scale.set(1.6,1.6,1); return R; }
       return null; },
 
@@ -12182,7 +12215,11 @@
               dd.normalize();
               const R2=this.raket(p0,dd,R.rad,1.0+Math.random()*0.8,Math.random()*6.283);
               if(R2){ R2.ex=R.ex; R2.splijtN=0; R2.splijtT=0;
-                      R2.leef=R.leef; R2.oud=R.oud; } }
+                      R2.leef=R.leef; R2.oud=R.oud;
+                      // v15.49: de stukken houden de vaart van hun trap en de
+                      // update van hun moederraket. Zonder dit vielen ze terug
+                      // op de gewone vaart en konden ze alsnog op een flare happen.
+                      R2.spF=R.spF; R2.upd=R.upd; } }
             // en de oorspronkelijke gaat gewoon door, als eerste stuk
             R.dir.x+=(Math.random()-0.5)*0.10; R.dir.normalize(); } }
         if(R.leef>RAKET_LEEF||R.oud>RAK_MAX){
@@ -12216,7 +12253,8 @@
               R.live=false; R.m.visible=false; } }
           else R.flareLok=0; }
         if(R.zoek&&R.zoek.live){ v.subVectors(R.zoek.p,R.m.position).normalize();
-          const k=(R.tot<R.swarm)?0.6:5.0;
+          // v15.49: na zijn update gaat hij harder maar draait hij minder scherp
+          const k=((R.tot<R.swarm)?0.6:5.0)*(R.upd?RAK_UPD_DRAAI:1);
           R.dir.lerp(v,Math.min(1,k*s)).normalize();
           R.wacht=0; }
         else {
@@ -12232,8 +12270,17 @@
         if(R.tot<R.swarm){ R.dir.x+=Math.cos(R.ph+R.tot*9)*1.6*s;
           R.dir.y+=Math.sin(R.ph+R.tot*9)*1.6*s; R.dir.normalize(); }
         // wachtende raketten vliegen rustiger rond
+        // v15.49: zijn vaart hangt nu af van de TRAP waarmee hij is afgevuurd
+        // (trap 1 gewoon, trap 8 veertig procent sneller) en van zijn update.
         R.m.position.addScaledVector(R.dir,
-          ((R.wacht>0.2)?34:((R.tot<R.swarm)?46:78))*s);
+          ((R.wacht>0.2)?34:((R.tot<R.swarm)?46:
+            (RAK_SP*(R.spF||1)*(R.upd?RAK_UPD_SP:1))))*s);
+        // de rode gloed na zijn update even laten staan
+        if(R.updT>0){ R.updT-=s;
+          const q=R.m.position;
+          if(R.tr2===undefined||R.tr2<=0){ R.tr2=0.045;
+            this.vonk(q.x,q.y,q.z,0xff3020,2,4,0.22,true); }
+          else R.tr2-=s; }
         R.m.lookAt(eye); R.m.scale.setScalar(1.7+Math.sin(R.tot*30)*0.25);
         R.tr=(R.tr||0)-s;
         if(R.tr<=0){ R.tr=0.07;
