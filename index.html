@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.52';
+  const VERSIE='v15.53';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -205,6 +205,28 @@
   const SFXT={};
   function sfxOk(max){ const n=performance.now(); SFXT.q=(SFXT.q||[]).filter(function(t){ return n-t<100; });
     if(SFXT.q.length>=max*2) return false; SFXT.q.push(n); return true; }
+  // ---- ELKE KNAL ANDERS (v15.53) ----
+  // Sjoerd: "ontploffingen / knal niet allemaal zelfde volume. In het echt is
+  // ook elke knal anders. Mss goed tegen over load."
+  // Dat laatste klopt, en harder dan je denkt: op de uitgang staat een
+  // begrenzer (ratio 20, release 0,25 s). Twaalf klappen van exact dezelfde
+  // sterkte en hoogte duwen die samen in de knie, en dan pompt ALLES mee - ook
+  // de muziek. Daarom krijgt elke klap nu zijn eigen sterkte, toonhoogte en
+  // lengte, en wordt hij zachter naarmate er net meer klappen waren.
+  const KNALQ=[];
+  function knalVorm(){
+    const n=performance.now();
+    while(KNALQ.length&&n-KNALQ[0]>220) KNALQ.shift();
+    const druk=KNALQ.length;
+    KNALQ.push(n);
+    // hoogstens halveren: anders hoor je de laatste van een rij niet meer
+    const duik=Math.max(0.5,1/Math.sqrt(1+druk*0.45));
+    // 0,68 tot 1,32: GEMIDDELD precies 1,00, zodat een losse klap net zo hard
+    // blijft als voorheen. Met 0,62-1,26 kwam het gemiddelde op 0,94 uit en
+    // werd het hele spel stilletjes zeven procent zachter.
+    return { vol:Math.max(0.22,(0.68+Math.random()*0.64)*duik),
+             toon:0.86+Math.random()*0.30,
+             lang:0.88+Math.random()*0.26 }; }
   function initSFX(){ if(SFX) return SFX; const a=AC();
     SFX=a.createGain(); SFX.gain.value=0.9; SFX.connect(LIM);
     const fas=a.createBiquadFilter(); fas.type='allpass'; fas.frequency.value=800;
@@ -257,13 +279,15 @@
   // Een ontploffing is geen zuivere toon. Drie lagen over elkaar: de klap die je
   // in je borst voelt, een korte scheur van ruis, en een lage nagalm die uitrolt.
   function boomSnd(p,zwaar){ if(!sfxOk(4)) return; const a=AC(), t=a.currentTime;
-    const gr=zwaar?1.5:1;                                   // grote schepen dreunen zwaarder
+    // v15.53: zijn eigen sterkte, hoogte en lengte (zie knalVorm hierboven)
+    const V=knalVorm();
+    const gr=(zwaar?1.5:1)*V.lang;                          // grote schepen dreunen zwaarder
     // 1. de dreun zelf, dieper en langer dan eerst
     const o=a.createOscillator(), g=a.createGain();
     o.type='sine';
-    o.frequency.setValueAtTime(150*(zwaar?0.8:1),t);
-    o.frequency.exponentialRampToValueAtTime(26,t+0.34*gr);
-    g.gain.setValueAtTime(0.46,t);
+    o.frequency.setValueAtTime(150*(zwaar?0.8:1)*V.toon,t);
+    o.frequency.exponentialRampToValueAtTime(26*V.toon,t+0.34*gr);
+    g.gain.setValueAtTime(0.46*V.vol,t);
     g.gain.exponentialRampToValueAtTime(0.001,t+0.42*gr);
     o.connect(g); naar(g,p); o.start(t); o.stop(t+0.44*gr);
     // 2. de scheur: ruis die meteen wegvalt — dat geeft de klap zijn rand
@@ -276,17 +300,17 @@
       f.frequency.setValueAtTime(1800,t);
       f.frequency.exponentialRampToValueAtTime(180,t+0.28*gr);
       const g2=a.createGain();
-      g2.gain.setValueAtTime(0.34,t);
+      g2.gain.setValueAtTime(0.34*V.vol,t);
       g2.gain.exponentialRampToValueAtTime(0.001,t+0.32*gr);
       s.connect(f).connect(g2); naar(g2,p); s.start(t); s.stop(t+0.32*gr);
     }catch(e){}
     // 3. de nagalm: een diepe toon die er nog even onder blijft hangen
     const o3=a.createOscillator(), g3=a.createGain();
     o3.type='triangle';
-    o3.frequency.setValueAtTime(58,t+0.02);
-    o3.frequency.exponentialRampToValueAtTime(19,t+0.55*gr);
+    o3.frequency.setValueAtTime(58*V.toon,t+0.02);
+    o3.frequency.exponentialRampToValueAtTime(19*V.toon,t+0.55*gr);
     g3.gain.setValueAtTime(0.0001,t);
-    g3.gain.exponentialRampToValueAtTime(0.20,t+0.05);
+    g3.gain.exponentialRampToValueAtTime(Math.max(0.004,0.20*V.vol),t+0.05);
     g3.gain.exponentialRampToValueAtTime(0.001,t+0.60*gr);
     o3.connect(g3); naar(g3,p); o3.start(t); o3.stop(t+0.62*gr); }
 
