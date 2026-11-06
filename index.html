@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.49';
+  const VERSIE='v15.50';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2383,6 +2383,16 @@
   const WEG_VER=190;            // meter bij je vandaan
   // Hoeveel sterker de bliksem wordt bij elke oversprong (0,38 = +38% per sprong).
   const ZAPGROEI=0.38;
+  // v15.50 DE VORM VAN DE BLIKSEM. ZAP_SEG_MAX is het budget: zoveel schakels
+  // mag de hele flits kosten, ook bij een ketting van veertien schepen. Zonder
+  // dat budget zou trap 8 er ruim tachtig willen.
+  // WAT HET ECHT KOST, gemeten in het drukste geval: 54 kern + 54 gloed + 11
+  // halo = 115 doorzichtige vlakken, 0,3 seconde per schot, tegen 33 in
+  // v15.49. Mijn eerste commentaar hier suggereerde dat het budget onder de
+  // tachtig bleef; dat is het niet, want één schakel is twee vlakken. Voelt de
+  // bril dit, dan is dit het getal om te verlagen: 36 brengt de piek op ~80.
+  const ZAP_SEG_MAX=54;
+  const ZAPDUUR=0.30;           // zo lang blijft de flits staan (was 0,22)
   // Hoe ruim de bliksem zelf mikt en hoe ver hij overspringt.
   const ZAPBEREIK=150;          // meter vooruit
   const ZAPKEGEL=0.16;          // breedte van de kegel (0,16 = ruim 9 graden)
@@ -2941,7 +2951,8 @@
   const RAK_UPD_KANS=0.5;       // de munt: de helft hapt niet
   const RAK_UPD_SP=1.55;        // en gaat dan zo veel sneller
   const RAK_UPD_DRAAI=0.62;     // maar draait zo veel minder scherp
-  const RAK_UPD_FLITS=0.30;     // zo lang gloeit hij rood op
+  const RAK_UPD_FLITS=0.55;     // zo lang gloeit hij rood op (v15.50: was 0.30,
+                                // te kort om op te vallen bij 120 m/s)
   // schade en straal per explosietrap
   // Sjoerd: "geen overkill aan raketten, maar dan goede homing die meer schade
   // kunnen hebben." Schade per trap omhoog; de aantallen blijven zoals ze zijn.
@@ -3418,14 +3429,18 @@
 
       // ---- bliksem (electro) ----
       this.zapG=new THREE.BufferGeometry();
-      this.zapG.setAttribute('position',new THREE.BufferAttribute(new Float32Array(3*40),3));
+      // v15.50: deze draad had 40 punten, ruim toen hij alleen door de schepen
+      // zelf liep (hoogstens 15). Nu loopt hij langs elk KNIKPUNT en zijn er
+      // tot 55 nodig; op trap 7 stopte de witte kern halverwege de ketting
+      // terwijl de vlakken doorliepen. Precies op de trappen die mooier moesten.
+      this.zapG.setAttribute('position',new THREE.BufferAttribute(new Float32Array(3*(ZAP_SEG_MAX+1)),3));
       // Bliksem was één dun paars lijntje. Nu een dikke witte kern met een
       // paarse gloed eromheen, opgebouwd uit vlakken zodat de dikte ook echt
       // zichtbaar is — een lijn blijft op de meeste kaarten één pixel breed.
       this.zapL=new THREE.Line(this.zapG,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0,depthWrite:false}));
       this.zapL.frustumCulled=false; this.par.add(this.zapL); this.zapT=0;
       this.zapSeg=[];                                  // de schakels van de flits
-      for(let i=0;i<19;i++){
+      for(let i=0;i<ZAP_SEG_MAX;i++){
         const kern=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
           new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,
             depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));
@@ -3593,6 +3608,7 @@
       // Dezelfde val als het rode floers in v15.46: de vlag wordt gewist
       // (W.laz=null) maar het beeld blijft.
       try{ this.lazUit(); }catch(q){}
+      try{ this.zapUit(); }catch(q){}
       window.TUT=0; this.tutFase=0; this.tutI=0; this.tutT=0; this.tutVrij=0;
       { const tt=document.querySelector('#tutTxt');
         if(tt){ tt.setAttribute('value',''); tt.setAttribute('visible',false); } }
@@ -4347,7 +4363,30 @@
       if(F) F.setAttribute('material',
         'color:#ffffff;shader:flat;opacity:0;transparent:true;depthTest:false');
       this.storing=0;
-      try{ this.storingTick(s); }catch(q){} },
+      try{ this.storingTick(s); }catch(q){}
+      // v15.50 DE HELE FAMILIE. Alles wat HIERONDER in de beurt uitdooft komt
+      // bij pauze nooit aan de beurt, want deze afslag doet 'return'. Dat was
+      // het rode gordijn (v15.46) en de laserbalk (v15.49), en ik ben nagegaan
+      // wat er nog meer achter die afslag staat. Dit zijn ze alle vier:
+      //   - de bliksem van de electro  (zapT)
+      //   - de lichtbol van elke klap  (blastT) -> die bevroor dus bij bijna
+      //     ELKE dood, want knal() loopt bij iedere explosie
+      //   - de zuigring                (zuigT)
+      //   - de laserbalk die nog aan staat
+      // reset() ruimde ze al op, maar dat gebeurt pas als je naar het menu
+      // gaat — op het doodscherm zelf stonden ze stil in de lucht.
+      try{ this.zapUit(); }catch(q){}
+      this.blastT=0; if(this.blast) this.blast.visible=false;
+      this.zuigT=0;  if(this.zuig)  this.zuig.visible=false;
+      try{ for(const hid in this.wep){ const W=this.wep[hid];
+        if(W&&W.laz){ W.laz=null; this.lazUit(hid); } } }catch(q){} },
+
+    // de bliksem in één keer weghalen
+    zapUit:function(){
+      this.zapT=0; this.zapHer=0; this.zapPts=null;
+      if(this.zapL) this.zapL.material.opacity=0;
+      if(this.zapSeg) for(let i=0;i<this.zapSeg.length;i++){ const S2=this.zapSeg[i];
+        S2.k.visible=false; S2.g.visible=false; if(S2.h) S2.h.visible=false; } },
 
     storingTick:function(s){
       const el=document.querySelector('#storing'); if(!el) return;
@@ -4472,11 +4511,14 @@
     wielTick:function(e,s){
       if(e.wielA===undefined){ e.wielA=Math.atan2(e.p.x-this.kop.x,-(e.p.z-this.kop.z));
         e.wielR=WIEL_R; e.wielDr=(Math.random()<0.5?-1:1); e.wielT=0; }
-      // de scheervlucht en de flares: eigen aanroep, want de gewone zitten
-      // verderop in de lus en deze routine doet 'return' daarvóór
-      if(e.flareCd>0) e.flareCd-=s;
-      this.flareUit(e);
-      if(e.flareWeg>0){ e.flareWeg-=s; e.p.addScaledVector(e.flareDir,FLARE_WEGV*0.4*s); }
+      // v15.50 HIER STOND EEN DUBBELE AANROEP. Het commentaar luidde: "eigen
+      // aanroep, want de gewone zitten verderop in de lus en deze routine doet
+      // 'return' daarvóór." Dat was niet waar: wielTick wordt aangeroepen
+      // ZONDER return (regel ~10458), dus liep de lus gewoon door en kwam THE
+      // WHEEL óók langs de gewone regels. GEMETEN: 2 aanroepen per beurt,
+      // 12.960 in 6.480 beurten. Zolang flareCd nergens werd gelezen viel dat
+      // niet op; met mijn nieuwe controle erop telde hij zijn wachttijd twee
+      // keer zo snel af. De gewone lus doet dit alles al.
       // geen scheervlucht voor THE WHEEL: met 60 m breedte vliegt hij dan door je heen
       e.wielT+=s;
       // langzaam van straal wisselen, zodat de ronde niet steeds dezelfde is
@@ -4788,6 +4830,14 @@
       // THE WHEEL gooit ALTIJD flares (Sjoerd): raketten werken op hem niet.
       const altijd=(e.baasNaam==='THE WHEEL');
       if(!this.flares||(!e.heeftFlare&&!altijd)) return false;
+      // v15.50 DE WACHTTIJD HEEFT NOOIT GEWERKT. e.flareCd werd hieronder wel
+      // gezet en op twee plekken netjes afgeteld, maar NERGENS gecontroleerd.
+      // Een vliegtuig met flares gooide er dus ELKE BEURT acht uit zolang er
+      // een raket op hem af kwam — 72 worpen per seconde. Gemeten: 10.906
+      // worpen in vijftien minuten spel, waar het er een paar honderd hadden
+      // moeten zijn. Daardoor was het nooit één duidelijk moment om naar te
+      // kijken, maar een onafgebroken sliert.
+      if(e.flareCd>0) return false;
       // Sjoerd: "het is het mooist als hij alleen is of met z'n tweeën, dan zie
       // je het ook gebeuren." In een drukke golf gaat het gebaar verloren.
       let inBeeld=0;
@@ -4805,7 +4855,12 @@
       let R=null;
       const rv=this.FRV||(this.FRV=new THREE.Vector3());
       for(let i=0;i<this.rockets.length;i++){ const q=this.rockets[i];
-        if(!q.live||q.flareLok) continue;
+        // v15.50 ook raketten die hun update al hebben gehad overslaan. Die
+        // laten zich tóch niet meer foppen, en zolang zo'n stijfkop in de lucht
+        // hing bleven ALLE vliegtuigen hun flares aan hem verspillen: van de
+        // 10.906 worpen pakte er maar 2% nog een raket. Nu kiest het vliegtuig
+        // een raket die hij nog kán foppen, of hij houdt zijn flares.
+        if(!q.live||q.flareLok||q.upd===1) continue;
         const d=q.m.position.distanceTo(e.p);
         if(d>(altijd?FLARE_WIEL_AF:FLARE_AF)) continue;
         // komt hij deze kant op? (richting raket vs richting naar het schip)
@@ -4815,9 +4870,14 @@
       // hij heeft ze nu gebruikt: pas weer na zijn eigen wachttijd.
       // THE WHEEL heeft geen wachttijd: elke raket, elke keer.
       e.flareCd=altijd?FLARE_WIEL_CD:FLARE_CD;
-      // de richting waar de raket vandaan komt
-      const naar=this.FL||(this.FL=new THREE.Vector3());
-      naar.subVectors(e.p,R.m.position).normalize();
+      // De richting waar de raket vandaan komt.
+      // v15.50: dit was this.FL, één hergebruikte tijdelijke vector — maar de
+      // acht sigNa-lussen hieronder lezen hem tot 0,63 s LATER. Gooit een
+      // tweede vliegtuig binnen dat venster flares (mag: tot 8 schepen in
+      // beeld, en een ult stuurt 25 raketten tegelijk), dan vlogen de
+      // resterende flares van het eerste toestel ineens de kant van het tweede
+      // op. Nu een eigen vector per worp.
+      const naar=new THREE.Vector3().subVectors(e.p,R.m.position).normalize();
       // ÉÉN VOOR ÉÉN eruit, zoals op de echte beelden — niet als één wolk.
       const self=this;
       for(let n=0;n<FLARE_N;n++){
@@ -4837,10 +4897,41 @@
       // en hij trekt weg, tegen de raket in, met een versnelling
       e.flareWeg=FLARE_WEG;
       e.flareDir=new THREE.Vector3(naar.x,naar.y*0.3,naar.z).normalize();
-      // de raket verliest zijn doel en pakt een flare
-      R.zoek=null; R.flareLok=1;
+      // De raket verliest zijn doel en pakt een flare — TENZIJ hij zich niet
+      // laat foppen. De flares gaan er dan wél uit (het vliegtuig weet niet
+      // wat voor raket het is) maar de raket houdt zijn doel en zet door.
+      if(this.rakFopt(R)){ R.zoek=null; R.flareLok=1; }
       this.vonk(e.p.x,e.p.y,e.p.z,0xfff2c0,6,4,0.4);
       return true; },
+
+    // ---- DE MUNT: laat deze raket zich foppen? (v15.50) ----
+    // SJOERDS BUG: "ik zie mijn raketten niet echt de flare ontwijken."
+    // GEVONDEN: in v15.49 zat de munt alléén in flareLokAlles — de lus voor een
+    // raket die toevallig langs een al brandende flare komt. Het NORMALE geval
+    // is flareUit: het vliegtuig ziet de raket aankomen en zette hem daar
+    // meteen vast (R.zoek=null; R.flareLok=1) zonder iets te vragen. En
+    // flareLokAlles slaat raketten met flareLok juist over. Dus werd er in het
+    // echte spel vrijwel nooit getost: elke worp ving de raket, honderd procent.
+    // Nu vragen BEIDE wegen het hier, op één plek.
+    rakFopt:function(R){
+      if(R.upd===undefined) R.upd=(Math.random()<RAK_UPD_KANS)?0:1;
+      if(!R.upd) return true;                        // ja, hij hapt in de flare
+      // NEE — software update. Rode flits om hem heen en vol gas naar zijn doel.
+      // Eén keer per raket: daarna laat hij zich door geen enkele flare meer
+      // voor de gek houden, zonder er nog een flits bij te doen.
+      if(!R.updG){ R.updG=1; R.updT=RAK_UPD_FLITS;
+        const q=R.m.position;
+        this.vonk(q.x,q.y,q.z,0xffffff,8,15,0.26);
+        this.vonk(q.x,q.y,q.z,0xff2418,18,10,0.55);
+        this.vonk(q.x,q.y,q.z,0xff6a30,10,6,0.42);
+        // v15.50: geen schokRing hier. Die schaalt altijd op RAKETBLAST, dus
+        // was hij net zo groot als een echte inslag — dan lijkt het of je raket
+        // ontploft in plaats van doorzet. De kleur- en maatsprong van zijn
+        // eigen vlam is de flits.
+        // En het geluid mee laten pannen met WAAR hij is; het stond hard op 0,
+        // dus kwam de update uit het midden van je hoofd.
+        try{ SND.hit(q.x*0.02,0.55); }catch(z){} }
+      return false; },
 
     flareTick:function(s){
       if(!this.flares) return;
@@ -4873,22 +4964,15 @@
       for(let i=0;i<this.flares.length;i++) if(this.flares[i].live){ brandt=true; break; }
       if(!brandt) return;
       for(let i=0;i<this.rockets.length;i++){ const R=this.rockets[i];
-        if(!R.live||R.flareLok) continue;
+        // upd===1 erbij (v15.50): zonder dat werd er voor diezelfde stijfkop
+        // elke beurt opnieuw getost zolang hij langs een brandende flare vloog.
+        // 72.861 keer in vijftien minuten, voor een keuze die al vastlag.
+        if(!R.live||R.flareLok||R.upd===1) continue;
         for(let k=0;k<this.flares.length;k++){ const F=this.flares[k];
           if(!F.live) continue;
           if(F.p.distanceTo(R.m.position)<(F.heet?FLARE_HAP*2.2:FLARE_HAP)){
-            // v15.49: de munt. Eén keer per raket - wie zijn update heeft gehad
-            // laat zich daarna door geen enkele flare meer voor de gek houden.
-            if(R.upd===undefined) R.upd=(Math.random()<RAK_UPD_KANS)?0:1;
-            if(R.upd){
-              // POW. Rode flits om hem heen en vol gas naar zijn toestel.
-              if(!R.updT){
-                R.updT=RAK_UPD_FLITS;
-                const q=R.m.position;
-                this.vonk(q.x,q.y,q.z,0xff2020,14,9,0.5);
-                this.vonk(q.x,q.y,q.z,0xffffff,6,13,0.28);
-                try{ SND.hit(0,0.5); }catch(z){} }
-              break; }                           // en hij negeert deze flare
+            // dezelfde munt als in flareUit, uit één bron (v15.50)
+            if(!this.rakFopt(R)) break;          // hij negeert deze flare
             R.zoek=null; R.flareLok=1;
             this.vonk(R.m.position.x,R.m.position.y,R.m.position.z,0xfff2c0,3,2,0.3);
             break; } } } },
@@ -6406,7 +6490,16 @@
         // v15.49 ook in de wisregel: anders erft een nieuwe raket de update en
         // de trapsnelheid van zijn voorganger, en vliegt een raket van trap 1
         // ineens met top speed rond.
-        R.spF=1; R.upd=undefined; R.updT=0; R.tr2=0; R.flareLok=0;
+        // v15.50 ook updG erbij, én de KLEUR terug naar oranje: ging een raket
+        // dood terwijl zijn rode flits nog liep, dan begon de volgende uit die
+        // plek van de voorraad witheet en dik aan zijn vlucht.
+        R.spF=1; R.upd=undefined; R.updT=0; R.updG=0; R.tr2=0; R.flareLok=0;
+        R.m.material.color.setHex(0xff8a3d);
+        // v15.50 deze drie stonden er nooit in. R.wachtT telt op en ging mee
+        // naar de volgende raket uit dezelfde plek: dan gaat de grens
+        // 'R.tot-R.wachtT>RAK_LEEF' niet meer af en leeft hij door tot de harde
+        // bovengrens hem pakt. Zelfde discipline als de rest van deze wisregel.
+        R.wacht=0; R.wachtT=0; R.tr=0;
         R.m.position.copy(o); R.m.visible=true; R.m.scale.set(1.6,1.6,1); return R; }
       return null; },
 
@@ -6426,40 +6519,120 @@
                haloDek:(t>=7)?0.42:0.26,
                kernBr:(t>=7)?0.85:((t>=4)?0.70:0.55) }; },
 
-    zap:function(pts,sprongen,lv){ const a=this.zapG.attributes.position;
+    // ---- DE VORM VAN DE BLIKSEM PER TRAP (v15.50) ----
+    // Sjoerd: "graag mijn electro ook mooie bliksem van maken. Net als hoe de
+    // ufo zijn schepen shield geeft. Mooie bliksem die langzaam upgradet in
+    // vorm en stijl."
+    // WAAROM HIJ ER ZO SLAP UITZAG: de ketting liep in KAARSRECHTE lijnen van
+    // je hand naar schip naar schip. Er zat geen enkele knik in. De rode
+    // schildstraal van AMBER RING ziet er wél als bliksem uit, en het enige
+    // verschil is dat elke sprong daar in knikpunten is opgedeeld
+    // (bliksemStraal, WERP_SEG). Dat doet de electro nu ook — en de knik groeit
+    // mee met je trap: trap 1 een strak dun draadje, trap 8 een brede
+    // witgloeiende flits met doodlopende zijtakken.
+    zapVorm:function(lv){
+      const t=Math.max(1,Math.min(8,lv||1));
+      return { knik:[  2,   2,   3,   3,   4,   4,   5,   5][t-1],  // knikpunten per sprong
+               jit: [0.30,0.40,0.55,0.70,0.85,1.00,1.20,1.45][t-1], // hoe ver hij uitknikt (m)
+               tak: [  0,   0,   0,   1,   1,   2,   3,   4][t-1] }; }, // zijtakken
+
+    zap:function(pts,sprongen,lv){
+      // de knikpunten bewaren, zodat hij halverwege nog één keer kan knetteren
+      this.zapPts=pts; this.zapLv=lv;
+      // v15.50 EERST BOUWEN, DAN AANZETTEN. Zette ik de dekking en de klok
+      // eerst, dan toonde een afgebroken bouw (pts korter dan 2) de flits van
+      // het VORIGE schot nog eens 0,3 seconde op volle sterkte.
+      this.zapBouw(pts,lv);
+      this.zapL.material.opacity=0.95; this.zapT=ZAPDUUR;
+      this.zapHer=ZAPDUUR*0.52; },
+
+    zapBouw:function(pts,lv){
+      const V=this.zapVorm(lv);
       const n=Math.min(20,pts.length);
-      for(let i=0;i<20;i++){ const p=pts[Math.min(i,n-1)];
-        a.setXYZ(i,p.x,p.y,p.z); }
-      a.needsUpdate=true;
-      this.zapG.setDrawRange(0,n);
-      this.zapL.material.opacity=0.95; this.zapT=0.22;
-      // elke schakel als een vlak tussen twee punten
+      if(n<2) return;
+      const hops=n-1;
+      // HET BUDGET. Bij een lange ketting knikt hij minder scherp, anders
+      // tekenen we voor één druk op de knop honderden vlakken.
+      const knik=Math.max(1,Math.min(V.knik,Math.floor(ZAP_SEG_MAX/hops)-1));
+      const seg=[];
+      const jp=[pts[0]];                         // alle knikpunten, voor de draad
+      const d=this.ZD||(this.ZD=new THREE.Vector3());
+      const zj=this.ZJ||(this.ZJ=new THREE.Vector3());
+      for(let h=0;h<hops;h++){
+        const A0=pts[h], B0=pts[h+1];
+        d.subVectors(B0,A0);
+        const len=d.length()||0.01;
+        // niet verder uitknikken dan een vijfde van de sprong: op korte
+        // sprongen zou de flits anders om het schip heen gaan slingeren
+        const zij=Math.min(V.jit,len*0.22);
+        let vorig=A0;
+        for(let i=1;i<=knik+1;i++){
+          let P;
+          if(i===knik+1) P=B0;                   // het schip zelf: niet verzetten
+          else { const k=i/(knik+1);
+            P=new THREE.Vector3(A0.x+d.x*k,A0.y+d.y*k,A0.z+d.z*k);
+            P.x+=(Math.random()-0.5)*zij*2;
+            P.y+=(Math.random()-0.5)*zij*2;
+            P.z+=(Math.random()-0.5)*zij*2; }
+          seg.push({a:vorig,b:P,h:h,tak:0});
+          if(jp.length<=ZAP_SEG_MAX) jp.push(P);
+          vorig=P; } }
+      // ZIJTAKKEN: korte doodlopende vonkarmen die van de flits af schieten.
+      // Dit is het duidelijkste verschil tussen een lage en een hoge trap.
+      for(let t2=0;t2<V.tak&&seg.length<=ZAP_SEG_MAX-2;t2++){
+        const s0=seg[Math.floor(Math.random()*seg.length)];
+        if(!s0||s0.tak) continue;
+        const L2=V.jit*(1.6+Math.random()*1.4);
+        zj.set(Math.random()-0.5,Math.random()-0.5,Math.random()-0.5).normalize();
+        const m1=s0.b.clone().addScaledVector(zj,L2*0.6);
+        zj.set(Math.random()-0.5,Math.random()-0.5,Math.random()-0.5).normalize();
+        const m2=m1.clone().addScaledVector(zj,L2*0.5);
+        seg.push({a:s0.b,b:m1,h:s0.h,tak:1});
+        seg.push({a:m1,  b:m2,h:s0.h,tak:1}); }
+      // de dunne draad erbinnen volgt nu óók de knikken
+      { const a=this.zapG.attributes.position;
+        const m=Math.min(ZAP_SEG_MAX+1,jp.length);
+        for(let i=0;i<ZAP_SEG_MAX+1;i++){ const p=jp[Math.min(i,m-1)];
+          a.setXYZ(i,p.x,p.y,p.z); }
+        a.needsUpdate=true; this.zapG.setDrawRange(0,m); }
+      // ---- en nu de vlakken ----
       const A=this.ZA||(this.ZA=new THREE.Vector3());
       const B=this.ZB||(this.ZB=new THREE.Vector3());
+      const M=this.ZM||(this.ZM=new THREE.Vector3());
       const LG=this.zapLagen(lv);
       for(let i=0;i<this.zapSeg.length;i++){ const S2=this.zapSeg[i];
-        if(i>=n-1){ S2.k.visible=false; S2.g.visible=false;
-                    if(S2.h) S2.h.visible=false; continue; }
-        A.copy(pts[i]); B.copy(pts[i+1]);
-        const len=A.distanceTo(B);
-        if(len<0.01){ S2.k.visible=false; S2.g.visible=false;
-                      if(S2.h) S2.h.visible=false; continue; }
-        B.sub(A).multiplyScalar(1/len);
-        // hoe verder in de ketting, hoe dikker de flits
-        const gr=1+Math.min(2.2,i*ZAPGROEI*1.6);
-        const mid=this.ZA.clone().addScaledVector(B,len*0.5);
-        this.richtQuad(S2.k,mid,B,len*1.08,LG.kernBr*gr);
-        this.richtQuad(S2.g,mid,B,len*1.08,1.7*gr);
-        S2.k.material.color.setHex(LG.kern);
-        S2.g.material.color.setHex(LG.gloed);
-        S2.k.material.opacity=1.0; S2.g.material.opacity=0.55;
-        S2.k.visible=true; S2.g.visible=true;
-        // de derde laag: alleen vanaf trap 4
+        const sg=seg[i];
+        let aan=false;
+        if(sg){ A.copy(sg.a); B.copy(sg.b);
+          const len=A.distanceTo(B);
+          if(len>=0.01){
+            B.sub(A).multiplyScalar(1/len);
+            // hoe verder in de ketting, hoe dikker; een zijtak is dunner
+            const gr=(1+Math.min(2.2,sg.h*ZAPGROEI*1.6))*(sg.tak?0.45:1);
+            M.copy(A).addScaledVector(B,len*0.5);
+            this.richtQuad(S2.k,M,B,len*1.12,LG.kernBr*gr);
+            this.richtQuad(S2.g,M,B,len*1.12,1.7*gr);
+            S2.k.material.color.setHex(LG.kern);
+            S2.g.material.color.setHex(LG.gloed);
+            S2.k.material.opacity=1.0; S2.g.material.opacity=0.55;
+            S2.k.visible=true; S2.g.visible=true; aan=true; } }
+        if(!aan){ S2.k.visible=false; S2.g.visible=false; }
+        // DE DERDE LAAG, vanaf trap 4: een brede zachte gloed, maar PER SPRONG
+        // en kaarsrecht — niet per knik. Zo ligt er een wijde waas om een
+        // scherpe gekartelde kern, precies zoals bliksem op een foto staat.
+        // En het kost veertien vlakken in plaats van vierenvijftig.
         if(S2.h){
-          if(LG.haloBr>0){
-            this.richtQuad(S2.h,mid,B,len*1.08,LG.haloBr*gr);
-            S2.h.material.color.setHex(LG.halo);
-            S2.h.material.opacity=LG.haloDek; S2.h.visible=true; }
+          if(LG.haloBr>0&&i<hops){
+            A.copy(pts[i]); B.copy(pts[i+1]);
+            const l2=A.distanceTo(B);
+            if(l2>=0.01){
+              B.sub(A).multiplyScalar(1/l2);
+              M.copy(A).addScaledVector(B,l2*0.5);
+              const gr2=1+Math.min(2.2,i*ZAPGROEI*1.6);
+              this.richtQuad(S2.h,M,B,l2*1.02,LG.haloBr*gr2);
+              S2.h.material.color.setHex(LG.halo);
+              S2.h.material.opacity=LG.haloDek; S2.h.visible=true; }
+            else S2.h.visible=false; }
           else S2.h.visible=false; } } },
 
     ultimate:function(h){
@@ -11839,7 +12012,12 @@
         this.blast.lookAt(eye);
         if(this.blastT<=0) this.blast.visible=false; }
       if(this.zapT>0){ this.zapT-=s;
-        const k=Math.max(0,this.zapT/0.22);
+        const k=Math.max(0,this.zapT/ZAPDUUR);
+        // v15.50 HALVERWEGE NOG EENS KNETTEREN: dezelfde sprongen, nieuwe
+        // knikken. Daarmee leeft de flits in plaats van 0,3 seconde stil te
+        // staan — dat stilstaan was het tweede waarom hij nep aanvoelde.
+        if(this.zapHer>0&&this.zapT<=this.zapHer){ this.zapHer=0;
+          if(this.zapPts) try{ this.zapBouw(this.zapPts,this.zapLv); }catch(q){} }
         this.zapL.material.opacity=k;
         // de witte kern flikkert, de gloed dooft rustig
         const fl=0.75+Math.random()*0.25;
@@ -12205,7 +12383,20 @@
           if(R.splijtT<=0){
             const nS=R.splijtN; R.splijtN=0; R.splijtT=0;
             const p0=R.m.position.clone();
-            this.vonk(p0.x,p0.y,p0.z,0xffd24a,5,4,0.35);
+            // v15.50 Sjoerd: "ook bij de splitsing van 1 naar meer raketten een
+            // kleine boem maken." De bus springt open: korte witte flits, een
+            // gele pof, een scheut rook en een klein schokringetje. GEEN schade
+            // en geen schokgolf — die zou de balans verzetten, en de stukken
+            // doen hun werk zelf verderop.
+            this.vonk(p0.x,p0.y,p0.z,0xffffff,8,11,0.2);
+            this.vonk(p0.x,p0.y,p0.z,0xffd24a,15,6,0.45);
+            this.vonk(p0.x,p0.y,p0.z,0xff8a3d,10,4,0.6);
+            this.rook(p0.x,p0.y,p0.z,false,0.8,1.0);
+            this.knal(p0,2.2);
+            // geen schokRing: die is net zo groot als een echte inslag.
+            // En SND.boom(...,false): met 'true' kreeg deze kleine boem de
+            // volle zware dreun van een rakettreffer.
+            try{ SND.boom(p0.x*0.02,false); }catch(z){}
             for(let q=1;q<nS;q++){
               const dd=R.dir.clone();
               const hk=(q/(nS-1))*6.283;
@@ -12275,13 +12466,23 @@
         R.m.position.addScaledVector(R.dir,
           ((R.wacht>0.2)?34:((R.tot<R.swarm)?46:
             (RAK_SP*(R.spF||1)*(R.upd?RAK_UPD_SP:1))))*s);
-        // de rode gloed na zijn update even laten staan
-        if(R.updT>0){ R.updT-=s;
-          const q=R.m.position;
-          if(R.tr2===undefined||R.tr2<=0){ R.tr2=0.045;
-            this.vonk(q.x,q.y,q.z,0xff3020,2,4,0.22,true); }
-          else R.tr2-=s; }
         R.m.lookAt(eye); R.m.scale.setScalar(1.7+Math.sin(R.tot*30)*0.25);
+        // v15.50 DE RODE FLITS ZIT NU OP DE RAKET ZELF.
+        // In v15.49 waren het losse vonken op de plek van de knal. Die BLIJVEN
+        // daar hangen terwijl de raket met 120 m/s doorvliegt — je zag dus een
+        // pofje achter je in de verte en niets óm de raket heen. Nu gloeit zijn
+        // eigen vlam witheet op, wordt hij bijna drie keer zo dik en zakt hij
+        // terug naar rood: die flits reist met hem mee. Sjoerd: "een rode flits
+        // om hem heen, dat hij een software update krijgt."
+        if(R.updT>0){ R.updT-=s;
+          const k=Math.max(0,R.updT/RAK_UPD_FLITS);
+          R.m.scale.multiplyScalar(1+1.8*k);
+          R.m.material.color.setHex((k>0.62)?0xffffff:0xff2418);
+          const q=R.m.position;
+          if(R.tr2===undefined||R.tr2<=0){ R.tr2=0.028;
+            this.vonk(q.x,q.y,q.z,0xff2418,3,5,0.3,true); }
+          else R.tr2-=s;
+          if(R.updT<=0) R.m.material.color.setHex(0xff8a3d); }
         R.tr=(R.tr||0)-s;
         if(R.tr<=0){ R.tr=0.07;
           this.vonk(R.m.position.x,R.m.position.y,R.m.position.z,0xff8a3d,1,1.2,0.28,true); }
