@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.50';
+  const VERSIE='v15.51';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -14493,7 +14493,14 @@
       if(!aan) return;
       document.querySelector('#pTitel').setAttribute('value',titel);
       { const q2=document.querySelector('#quitTxt');
-        if(q2&&!(this.over||this.klaar)) q2.setAttribute('value','QUIT TO MENU'); }
+        // v15.51 Sjoerd: "bij quit kan ik niet mijn score noteren."
+        // GEMETEN in een echte browser met de straal van het spel: doodgaan ->
+        // GIVE UP -> naamscherm -> SAVE werkt helemaal. Maar pauzeer je MIDDEN
+        // in het spel en kies je QUIT, dan ging je recht naar het menu en was
+        // een run van 491.200 punten weg. Je kon je score dus alleen vastleggen
+        // door dood te gaan. Nu bewaart quit hem ook, en de knop zegt dat.
+        if(q2&&!(this.over||this.klaar))
+          q2.setAttribute('value',(this.punten>0)?'QUIT  -  SAVE SCORE':'QUIT TO MENU'); }
       document.querySelector('#pInfo').setAttribute('value',info||'');
       document.querySelector('#goTxt').setAttribute('value',knop||'RESUME'); },
 
@@ -15922,8 +15929,10 @@
     kl('#btnQuit',function(){
       const rg=document.querySelector('#rig');
       const c=rg&&rg.components&&rg.components.cosmic;
-      // alleen na GAME OVER je naam vragen; bij pauze gewoon terug
-      if(c&&(c.over||c.klaar)) naamOpen(true);
+      // v15.51: niet meer alleen na GAME OVER. Heb je punten, dan vraagt quit
+      // ook om je naam — anders kon je een goede run alleen bewaren door je te
+      // laten doodschieten. Zonder punten (net begonnen, tutorial) gewoon terug.
+      if(c&&(c.over||c.klaar||c.punten>0)) naamOpen(true);
       else naarMenu(); });
     kl('#btnTrack',function(){ AC(); if(!PLAY.length) return; SND.volgende(); });
     handKleur(); toonScores(); toonVoortgang(); }
