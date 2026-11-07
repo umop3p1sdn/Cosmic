@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.54';
+  const VERSIE='v15.55';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2209,6 +2209,16 @@
   const UFO_POOT=78, UFO_HOOG=26, UFO_SNEL=78, UFO_MAXTIJD=1.9;   // v14.21: ruimere Z
   const UFO_RUST=1.1, UFO_RUSTV=0.9, UFO_RUST0=1.5, UFO_MINAF=45, UFO_MAXAF=125;
   const UFO_WEGKANS=0.22, UFO_WEGCD=7, UFO_WEGAF=60, UFO_VUURSNEL=1.4;
+  // v15.55 BINNEN JE BLIK. Sjoerd: "lijkt erop dat baas 3 soms bijna
+  // omklapt, en soms rechts in de hoek blijft hangen." Baas 3 is LANCE, en die
+  // vliegt de Z-sprints van AMBER RING. Elke sprint gaat 78 m HAAKS op de lijn
+  // naar jou, en de enige grens was een afstand (45 tot 125 m) - een bolschil
+  // om je heen. Met poten van zo'n 50 graden en een willekeurige lengte is dat
+  // een dronkemanswandeling om je heen. GEMETEN: in 6 van 20 runs stond LANCE
+  // op x=130, z=+22 - tachtig graden rechts en ACHTER je. Daar klapte hij om
+  // (zie baasKantel) en daar 'hing' hij, net zichtbaar in je ooghoek.
+  // Nu blijft elk sprintdoel binnen deze hoek links of rechts van recht vooruit.
+  const UFO_BOOG=40*Math.PI/180;
   // Zijn schild: 350 kracht, 5 s aan / 5 s uit, en wat eraf is blijft eraf.
   const RS_HP=175, RS_AAN=5, RS_UIT=3, RS_HULPKANS=0.35, RS_HULPN=2, RS_HULPMAX=4;   // Sjoerd: 5 s aan, 3 s af
   // LANCE als dubbelprofiel-baas: een zwaarder schild, en hoe vaak een treffer
@@ -2836,6 +2846,7 @@
   // De BAAN van elke baas: 0 heen en weer · 1 liggende acht · 2 cirkel ·
   // 3 schokken (stilhangen en dan opzij schieten) · 4 duiken · 5 wiegen met tik.
   // puls = hoeveel zijn tempo golft, zodat hij niet als een metronoom beweegt.
+  const BAAN_TEMPO_MIN=0.15;    // v15.55: zo traag mag een baas op zijn traagst - nooit nul
   const BAAN={
     'DREADNOUGHT':{vorm:5,puls:0.5,pulsS:0.7},  'WARDEN':    {vorm:0,puls:0.3,pulsS:0.5},
     'LANCE':      {vorm:3,puls:1.1,pulsS:1.3},  'THE WHEEL': {vorm:2,puls:0.4,pulsS:0.9},
@@ -3022,15 +3033,18 @@
   // zie je nauwelijks. Nu zit er een felle kern in die van 0,30 naar 0,62 van de
   // straaldikte gaat: trap 1 is een dun lijntje, trap 8 een balk met een
   // witgloeiend hart. De SCHADE is niet aangeraakt.
+  // v15.55 SCHADE MAAL TWEE (Sjoerd), en dat hoort ook zo: de balk staat nu
+  // stil op de plek waar je schoot in plaats van met je hand mee te zwaaien,
+  // en hij deelt nog maar op EEN moment uit. Je raakt er dus minder mee.
   const LASTRAP=[
-    {tel:1,dmg:40,  sz:0.95,brand:0,  duur:0.22, kern:0.30},  // trap 1
-    {tel:1,dmg:60,  sz:0.95,brand:0,  duur:0.24, kern:0.34},  // trap 2
-    {tel:1,dmg:75,  sz:1.02,brand:0,  duur:0.26, kern:0.39},  // trap 3
-    {tel:2,dmg:65,  sz:1.02,brand:0,  duur:0.26, kern:0.43},  // trap 4: twee stralen
-    {tel:2,dmg:95,  sz:1.10,brand:0,  duur:0.28, kern:0.48},  // trap 5
-    {tel:2,dmg:105, sz:1.16,brand:9,  duur:0.30, kern:0.52},  // trap 6: hij zet in BRAND
-    {tel:2,dmg:145, sz:1.22,brand:14, duur:0.32, kern:0.57},  // trap 7
-    {tel:3,dmg:155, sz:1.35,brand:20, duur:0.34, kern:0.62}   // trap 8
+    {tel:1,dmg:80,  sz:0.95,brand:0,  duur:0.22, kern:0.30},  // trap 1
+    {tel:1,dmg:120, sz:0.95,brand:0,  duur:0.24, kern:0.34},  // trap 2
+    {tel:1,dmg:150, sz:1.02,brand:0,  duur:0.26, kern:0.39},  // trap 3
+    {tel:2,dmg:130, sz:1.02,brand:0,  duur:0.26, kern:0.43},  // trap 4: twee stralen
+    {tel:2,dmg:190, sz:1.10,brand:0,  duur:0.28, kern:0.48},  // trap 5
+    {tel:2,dmg:210, sz:1.16,brand:9,  duur:0.30, kern:0.52},  // trap 6: hij zet in BRAND
+    {tel:2,dmg:290, sz:1.22,brand:14, duur:0.32, kern:0.57},  // trap 7
+    {tel:3,dmg:310, sz:1.35,brand:20, duur:0.34, kern:0.62}   // trap 8
   ];
   // De shotgun blijft hagel: recht vooruit, geen zoeken, geen explosies. Hij
   // groeit door meer en zwaardere korrels, en door een strakkere kegel.
@@ -4570,6 +4584,17 @@
     // dan stil om te vuren, en schiet weer weg — maar telkens onder een andere
     // hoek, zodat het pad een zigzag wordt. De sprints zijn zo snel dat je hem
     // bijna niet kunt volgen. Bij een treffer springt hij soms zestig meter weg.
+    // een doel binnen je blik houden: zelfde afstand, maar hoogstens UFO_BOOG
+    // links of rechts van recht vooruit (je kijkt langs -z)
+    binnenBlik:function(v){
+      const vx=v.x-this.kop.x, vz=v.z-this.kop.z;
+      const r=Math.max(UFO_MINAF,Math.sqrt(vx*vx+vz*vz));
+      let hk=Math.atan2(vx,-vz);                    // 0 = vooruit, + = rechts
+      if(hk>UFO_BOOG) hk=UFO_BOOG; else if(hk<-UFO_BOOG) hk=-UFO_BOOG;
+      v.x=this.kop.x+Math.sin(hk)*r;
+      v.z=this.kop.z-Math.cos(hk)*r;
+      return v; },
+
     ufoTick:function(e,s){
       // eerst de klok
       if(e.ufoT===undefined){ e.ufoT=0; e.ufoRust=UFO_RUST0; e.ufoDoel=null; }
@@ -4599,6 +4624,7 @@
         const d=e.ufoDoel.distanceTo(this.kop);
         if(d<UFO_MINAF) e.ufoDoel.addScaledVector(naar,-(UFO_MINAF-d));
         if(d>UFO_MAXAF) e.ufoDoel.addScaledVector(naar,(d-UFO_MAXAF));
+        this.binnenBlik(e.ufoDoel);
         e.ufoT=0; }
       // de sprint zelf: heel snel, met een korte aanloop en afremming
       e.ufoT+=s;
@@ -4747,6 +4773,7 @@
         .addScaledVector(t,zij*UFO_WEGAF)
         .addScaledVector(naar,-(Math.random()*20));
       e.ufoDoel.y+=(Math.random()-0.5)*14;
+      this.binnenBlik(e.ufoDoel);                         // v15.55: ook deze sprong
       e.ufoT=0; e.ufoRust=0;
       this.vonk(e.p.x,e.p.y,e.p.z,0xffd06a,6,e.sc*0.4,0.4); },
 
@@ -6017,7 +6044,14 @@
         const lv2=Math.max(1,Math.min(8,L.lv||1));
         K.material.color.setHex((lv2>=7)?0xffffff:((lv2>=4)?0xeafaff:0xcfeeff));
         K.material.opacity=Math.min(1,0.45+f*0.55+lv2*0.02); }
-      // WIE RAAKT HIJ? afstand van elk schip tot de lijn
+      // WIE RAAKT HIJ? Afstand van elk schip tot de lijn.
+      // v15.55 ÉÉN TREFFERMOMENT: alleen in de eerste beurt. Daarvoor liep
+      // deze scan elke beurt door, dus pikte de balk ook alles op dat er in de
+      // 0,22 tot 0,34 seconde daarna nog doorheen vloog. Sjoerd: "graag 1 hit
+      // moment." De balk blijft wel staan en doven - alleen hij deelt niet
+      // meer uit nadat hij geland is.
+      if(L.gedaan) return;
+      L.gedaan=1;
       const raakDik=LAZ_RAAK*L.sz+(L.tel-1)*LAZ_EXTRA;
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
         if(!e.live||e.dood||e.dood2) continue;
@@ -6031,7 +6065,7 @@
         if(L.geraakt[sl]) continue;
         L.geraakt[sl]=1;
         this.raak(e,(L.up?1.5:1)*L.dmg,e.p.x,e.p.y,e.p.z);
-        this.straalDood(e);                              // v15.52: lasertreffer = klap
+        this.straalDood(e,true);                         // laser: meteen af
         if(L.brand&&e.live) e.brand=Math.max(e.brand||0,L.brand);
         this.vonk(e.p.x,e.p.y,e.p.z,WCOL[3],7,7,0.4); }
       // en vijandelijk vuur dat de lijn kruist gaat er ook aan
@@ -6442,8 +6476,14 @@
         // en op het eind zetten zijn treffers het doel in BRAND — schade die
         // doorloopt nadat de straal al weg is.
         const LT=LASTRAP[Math.min(LASTRAP.length-1,Math.max(0,lv-1))];
+        // v15.55 Sjoerd: "de laser graag 1 hit moment en laten staan waar je
+        // schiet. En daar verdwijnt hij ook. Nu kun je laser als een
+        // lightsaber besturen." Klopt: de beurt las elke frame opnieuw waar je
+        // hand stond, dus zwaaide de balk met je mee en raakte alles wat je
+        // onderweg kruiste. Nu leggen we stand en richting HIER vast, één keer.
         W.laz={t:0, duur:LT.duur, tel:LT.tel, up:W.up?1:0, aan:0, geraakt:{},
-               dmg:LT.dmg, brand:LT.brand, sz:LT.sz, kern:LT.kern||0.3, lv:lv};
+               dmg:LT.dmg, brand:LT.brand, sz:LT.sz, kern:LT.kern||0.3, lv:lv,
+               o:this.ori.clone(), d:this.dir.clone().normalize(), gedaan:0};
         SND.boom(this.dir.x*0.3); }
 
       else if(W.t===4){ SND.gun(this.dir.x*0.4,4);
@@ -6470,20 +6510,35 @@
         // inslag, dan een echte explosie met diameter. Zelfde opbouw als de
         // raketwerper, maar met de ketting als eigen karakter.
         const ET=ZAPTRAP[Math.min(ZAPTRAP.length-1,Math.max(0,lv-1))];
-        const used={}, pts=[this.ori.clone()], max=Math.min(14,ET.n*(W.up?2:1));
+        const used=new Set(), pts=[this.ori.clone()], max=Math.min(14,ET.n*(W.up?2:1));
         this.zapRaak=[];                                 // v15.54: wie de klap meeneemt
+        // v15.55 Sjoerd: "de neerdalende vliegtuigen kan je ook laten
+        // ontploffen met bliksem." Een neerstortend wrak staat NIET in
+        // doelen() - dat is de lijst levende schepen - dus sprong de ketting
+        // er altijd overheen. Nu mag hij er wel naartoe overspringen. Het
+        // EERSTE doel blijft een levend schip, anders verspil je je hele
+        // ketting aan puin. raak() op een wrak zet hem meteen af, en dat
+        // levert ook nog de valbonus van 35% op.
+        const WRAK=[];
+        for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
+          if(e.live&&e.dood&&!e.dood2) WRAK.push(e); }
         let cur=T[bi];
         // Elke oversprong laadt de flits verder op: de tiende treffer doet ruim
         // vier keer zoveel als de eerste. Zo beloont een lange ketting zichzelf.
         for(let k=0;k<max&&cur;k++){
-          used[T.indexOf(cur)]=1; pts.push(cur.p.clone());
+          used.add(cur); pts.push(cur.p.clone());
           const kracht=ET.dmg*(1+k*ZAPGROEI);
           this.raak(cur,kracht,cur.p.x,cur.p.y,cur.p.z);
           this.straalDood(cur);                          // v15.52: bliksem = klap
           this.zapInslag(cur.p,ET,k);
           let nb=null, nd=ZAPSPRONG*ZAPSPRONG;
-          for(let i=0;i<T.length;i++){ if(used[i]||!T[i].live) continue;
-            const d2=T[i].p.distanceToSquared(cur.p); if(d2<nd){ nd=d2; nb=T[i]; } }
+          for(let i=0;i<T.length;i++){ const q=T[i];
+            if(used.has(q)||!q.live) continue;
+            const d2=q.p.distanceToSquared(cur.p); if(d2<nd){ nd=d2; nb=q; } }
+          // en de neerstortende wrakken mogen ook meedoen als oversprong
+          for(let i=0;i<WRAK.length;i++){ const q=WRAK[i];
+            if(used.has(q)||!q.live||q.dood2) continue;
+            const d2=q.p.distanceToSquared(cur.p); if(d2<nd){ nd=d2; nb=q; } }
           cur=nb; }
         this.zap(pts,pts.length-1,lv);
         if(pts.length>4) this.toonMelding('CHAIN  x'+(pts.length-1),'#c07dff');
@@ -7140,7 +7195,7 @@
     // zetten: doodBaan rolt die twee in zijn eerste beurt opnieuw (binnen
     // 'if(!e.valDir)'), dus had mijn waarde daar geen seconde geleefd. Dezelfde
     // volgorde-val als eerder met B.draai en B.streep. doodBaan leest snelKnal.
-    straalDood:function(e){
+    straalDood:function(e,nu){
       if(!e||!e.live) return;
       // Alleen een NEERSTORTEND WRAK (e.dood). Een baas sterft via e.dood2 met
       // zijn eigen ondergang van vijf seconden, en doodBaan draait voor hem
@@ -7148,7 +7203,12 @@
       // zet hem er toch niet op: anders kapt een regelwijziging daar straks
       // ongemerkt de ondergang van elke baas af tot nul à twee seconden.
       if(!e.dood) return;
-      e.snelKnal=1; },
+      e.snelKnal=1;
+      // v15.55 Sjoerd: "door laser schip kapot? Meteen ontploffen. Niet laten
+      // neerstorten." valNu laat doodBaan hem in zijn eerste beurt al afgaan,
+      // dus hij stort geen meter. De bliksem houdt wel zijn nul tot twee
+      // seconden - daar wilde je juist dat ze over elkaar heen ratelen.
+      if(nu){ e.valKlap=1; e.valNu=1; } },
 
     // ---- de vier seconden zelf ----
     doodBaan:function(e,s){
@@ -8468,7 +8528,18 @@
       // krijgt daarom zijn eigen figuur, en zijn tempo golft: soms schiet hij
       // een stuk door, dan hangt hij weer bijna stil.
       const BB=(BAAN[e.baasNaam]||BAAN._);
-      const tempo=1+BB.puls*Math.sin(e.fase2*BB.pulsS);   // versnellen en inhouden
+      // v15.55 NOOIT HELEMAAL STIL. Het tempo hangt af van zijn EIGEN fase,
+      // dus df/dt = 1 + puls*sin(pulsS*f). Is puls groter dan 1, dan heeft dat
+      // een punt waar het tempo precies nul is - en dat punt is STABIEL: net
+      // ervoor loopt de fase ernaartoe, net erna terug. Daar bleef de baas dus
+      // voor altijd hangen. RAVEN (puls 1,3) liep vast op f=2,51, waar
+      // sin(f)=+0,59: rechts. Sjoerd: "soms rechts in de hoek blijft hangen."
+      // ARACHNID (1,2) zou op dezelfde manier rechts vastlopen. De bedoeling
+      // stond er al: "dan hangt hij weer BIJNA stil" - dus een bodem.
+      // (Ik heb ook een eigen klok voor dit tempo geprobeerd, los van de fase.
+      // GEMETEN: dat maakte het slechter - RAVEN weer 17,8 s in de hoek, tegen
+      // 0,0 s met alleen deze bodem. Dus alleen de bodem.)
+      const tempo=Math.max(BAAN_TEMPO_MIN,1+BB.puls*Math.sin(e.fase2*BB.pulsS));
       e.fase2+=e.zw*s*(tempo-1);                          // bovenop de gewone hoek
       const f=e.fase2;
       let bx=Math.sin(f)*e.zb, by=0;
@@ -8518,6 +8589,17 @@
       // de rol zelf loopt in de beurtlus (één plek), hier alleen de kanteling
       if(e.rolT>0&&!(e.ssT>0)&&!(e.herpakT>0)){ if(e.bb) e.bb.m.rotation.z=e.rol+(e.rolA||0); }
       else if(e.bb&&!e.dood&&!e.dood2&&!(e.ssT>0)&&!(e.herpakT>0)&&!(e.klimT>0)&&!(e.yoT>0)){
+        // v15.55 DE OMGEKLAPTE SCHRIJFWIJZE EERST TERUGZETTEN. Kijkt een plaat
+        // meer dan 90 graden opzij, dan schrijft three.js zijn draaiing als
+        // (180, y, 180) in plaats van (0, 180-y, 0) - precies dezelfde stand.
+        // Maar de regel hieronder overschrijft z met de kanteling, en dan
+        // blijft die 180 in x staan: de plaat staat ONDERSTEBOVEN. Gemeten bij
+        // LANCE achter je: (180, -80, 0). Dit is het vangnet; binnenBlik zorgt
+        // dat het bij de sprintende bazen niet eens meer voorkomt.
+        { const r=e.bb.m.rotation;
+          if(Math.abs(r.x)>Math.PI/2)
+            r.set(r.x-Math.sign(r.x)*Math.PI, Math.sign(r.y||1)*Math.PI-r.y,
+                  r.z-Math.sign(r.z||1)*Math.PI); }
         const rm=Math.max(0,HELLING_MAX-Math.abs(e.bb.m.rotation.y)*HELLING_KRIMP);
         let rz=e.rol||0;
         if(rz>rm) rz=rm; else if(rz<-rm) rz=-rm;
@@ -12128,13 +12210,12 @@
         // vliegt. Dat scheelt 57 kogelobjecten per schot.
         const L=W.laz;
         L.t+=s;
-        H.object3D.getWorldPosition(this.ori); H.object3D.getWorldQuaternion(this.q);
-        this.dir.set(0,-0.7071,-0.7071).applyQuaternion(this.q).normalize();
-        { const mk=(H&&H.id&&window.AIM2&&window.AIM2[H.id])||window.AIM;
-          if(mk) this.dir.copy(mk).normalize(); }
-        if(!L.aan){ L.aan=1; SND.laz(this.dir.x*0.5,1,4); }
-        // de balk tekenen en wie hem raakt schade geven
-        this.lazLijn(hid,this.ori,this.dir,L,s);
+        // v15.55 NIET MEER MEEDRAAIEN MET JE HAND. Hier stond het uitlezen van
+        // de handstand per beurt; daardoor bestuurde je de balk als een
+        // lightsaber. Hij staat nu op de plek en in de richting van het moment
+        // dat je schoot, en dooft daar ook uit.
+        if(!L.aan){ L.aan=1; SND.laz(L.d.x*0.5,1,4); }
+        this.lazLijn(hid,L.o,L.d,L,s);
         if(L.t>=L.duur){ this.lazUit(hid); W.laz=null; }
         if(L.k>=L.n) W.laz=null; }
 
