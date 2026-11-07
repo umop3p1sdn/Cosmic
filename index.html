@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.53';
+  const VERSIE='v15.54';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2410,15 +2410,18 @@
   const WEG_VER=190;            // meter bij je vandaan
   // Hoeveel sterker de bliksem wordt bij elke oversprong (0,38 = +38% per sprong).
   const ZAPGROEI=0.38;
-  // v15.50 DE VORM VAN DE BLIKSEM. ZAP_SEG_MAX is het budget: zoveel schakels
-  // mag de hele flits kosten, ook bij een ketting van veertien schepen. Zonder
-  // dat budget zou trap 8 er ruim tachtig willen.
-  // WAT HET ECHT KOST, gemeten in het drukste geval: 54 kern + 54 gloed + 11
-  // halo = 115 doorzichtige vlakken, 0,3 seconde per schot, tegen 33 in
-  // v15.49. Mijn eerste commentaar hier suggereerde dat het budget onder de
-  // tachtig bleef; dat is het niet, want één schakel is twee vlakken. Voelt de
-  // bril dit, dan is dit het getal om te verlagen: 36 brengt de piek op ~80.
-  const ZAP_SEG_MAX=54;
+  // v15.54 HET BUDGET VAN DE BLIKSEM. Zoveel schakels mag de hele flits
+  // kosten, ook met veertien schepen eraan. Elke schakel is nu één BUISJE
+  // (cilinder, vijf zijden, open uiteinden) in plaats van twee of drie platte
+  // vlakken, dus is de piek 54 tekenopdrachten tegen 115 in v15.53.
+  // Voelt de bril het toch, dan is dit het getal om te verlagen.
+  // 72 en niet 54: alle doelen een tak geven EN fijn knikken past niet in 54
+  // schakels, en dan werd trap 8 juist grover. Een buisje is één tekenopdracht
+  // tegen twee of drie vlakken, dus 72 buisjes is nog altijd ruim minder werk
+  // dan de 117 vlakken van v15.53.
+  const ZAP_SEG_MAX=72;
+  const ZAP_DOOD=2;             // dode zijtakken, op elke trap even weinig
+  const ZAP_START=0.9;          // zoveel meter vóór je hand begint de flits
   const ZAPDUUR=0.30;           // zo lang blijft de flits staan (was 0,22)
   // Hoe ruim de bliksem zelf mikt en hoe ver hij overspringt.
   const ZAPBEREIK=150;          // meter vooruit
@@ -3454,37 +3457,33 @@
         m.renderOrder=5; return m; },{life:0,leven:1,vx:0,vy:0,vz:0,sz:1});
       prog(58,'ARMS');
 
-      // ---- bliksem (electro) ----
-      this.zapG=new THREE.BufferGeometry();
-      // v15.50: deze draad had 40 punten, ruim toen hij alleen door de schepen
-      // zelf liep (hoogstens 15). Nu loopt hij langs elk KNIKPUNT en zijn er
-      // tot 55 nodig; op trap 7 stopte de witte kern halverwege de ketting
-      // terwijl de vlakken doorliepen. Precies op de trappen die mooier moesten.
-      this.zapG.setAttribute('position',new THREE.BufferAttribute(new Float32Array(3*(ZAP_SEG_MAX+1)),3));
-      // Bliksem was één dun paars lijntje. Nu een dikke witte kern met een
-      // paarse gloed eromheen, opgebouwd uit vlakken zodat de dikte ook echt
-      // zichtbaar is — een lijn blijft op de meeste kaarten één pixel breed.
-      this.zapL=new THREE.Line(this.zapG,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0,depthWrite:false}));
-      this.zapL.frustumCulled=false; this.par.add(this.zapL); this.zapT=0;
-      this.zapSeg=[];                                  // de schakels van de flits
+      // ---- BLIKSEM (ELECTRO) — v15.54 OPNIEUW, NU ALS DE UFO-STRAAL ----
+      // Sjoerd: "de bliksem van ons vind ik niet zo heel mooi, kan je die maken
+      // zoals van de UFO? Die lijkt ook meer op een bliksem."
+      // Hij heeft gelijk, en het verschil is niet subtiel. De schildstraal van
+      // AMBER RING (bliksemStraal) bestaat uit MASSIEVE BUISJES: dertien
+      // cilinders op een rij, dik 0,42, één hete kleur, additief. Die zien er
+      // van elke hoek uit als een flits.
+      // De electro bestond uit PLATTE VLAKKEN die altijd naar je toe draaien,
+      // met drie kleurlagen over elkaar. Dat zijn linten, geen bliksem - en
+      // drie lagen per schakel kostten 115 tekenopdrachten. Eén buisje per
+      // schakel is er 54: mooier EN lichter.
+      // De dunne lijn (zapL/zapG) en zapLagen zijn hiermee vervallen; een
+      // haarlijn in een massief buisje zie je niet.
+      this.zapSeg=[];
       for(let i=0;i<ZAP_SEG_MAX;i++){
-        const kern=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
+        // openEnded: de dekseltjes zie je nooit en ze kosten de helft van de
+        // driehoeken. Vijf zijden is op deze dikte niet van zes te onderscheiden.
+        const m=new THREE.Mesh(new THREE.CylinderGeometry(1,1,1,5,1,true),
+          // FrontSide en niet DoubleSide: een buisje waar je IN kijkt tekent
+          // anders zijn binnenkant over je hele beeld. Zie de startafstand
+          // hieronder - de eerste schakel begint vlak bij je hoofd.
           new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,
-            depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));
-        const gloed=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
-          new THREE.MeshBasicMaterial({color:0xc07dff,transparent:true,opacity:0,
-            depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));
-        // v15.47 Sjoerd: "bliksem met wat extra lagen in kleur." Een DERDE,
-        // bredere halo die pas bij de hogere trappen aangaat. Zo zie je aan je
-        // bliksem hoe sterk hij is, zonder de getallen te lezen.
-        const halo=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
-          new THREE.MeshBasicMaterial({color:0x5a2fd0,transparent:true,opacity:0,
-            depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));
-        kern.renderOrder=8; gloed.renderOrder=7; halo.renderOrder=6;
-        kern.visible=false; gloed.visible=false; halo.visible=false;
-        kern.frustumCulled=false; gloed.frustumCulled=false; halo.frustumCulled=false;
-        this.par.add(halo); this.par.add(gloed); this.par.add(kern);
-        this.zapSeg.push({k:kern,g:gloed,h:halo}); }
+            depthWrite:false,side:THREE.FrontSide,blending:THREE.AdditiveBlending}));
+        m.renderOrder=8; m.visible=false; m.frustumCulled=false;
+        this.par.add(m); this.zapSeg.push(m); }
+      this.zapT=0;
+
 
       // ---- dozen ----
       this.dozen=[];
@@ -4411,9 +4410,7 @@
     // de bliksem in één keer weghalen
     zapUit:function(){
       this.zapT=0; this.zapHer=0; this.zapPts=null;
-      if(this.zapL) this.zapL.material.opacity=0;
-      if(this.zapSeg) for(let i=0;i<this.zapSeg.length;i++){ const S2=this.zapSeg[i];
-        S2.k.visible=false; S2.g.visible=false; if(S2.h) S2.h.visible=false; } },
+      this.zapAlles(); },
 
     storingTick:function(s){
       const el=document.querySelector('#storing'); if(!el) return;
@@ -6474,6 +6471,7 @@
         // raketwerper, maar met de ketting als eigen karakter.
         const ET=ZAPTRAP[Math.min(ZAPTRAP.length-1,Math.max(0,lv-1))];
         const used={}, pts=[this.ori.clone()], max=Math.min(14,ET.n*(W.up?2:1));
+        this.zapRaak=[];                                 // v15.54: wie de klap meeneemt
         let cur=T[bi];
         // Elke oversprong laadt de flits verder op: de tiende treffer doet ruim
         // vier keer zoveel als de eerste. Zo beloont een lange ketting zichzelf.
@@ -6539,130 +6537,146 @@
     // trap 7-8: kern wordt witheet, halo breder en feller
     // De SCHADE verandert hier niet: dit is alleen wat je ziet. De trappen zelf
     // staan in ZAPTRAP en die heb ik niet aangeraakt.
-    zapLagen:function(lv){
-      const t=Math.max(1,Math.min(8,lv||1));
-      return { kern:  (t>=7)?0xffffff:((t>=4)?0xdff0ff:0xbfe6ff),
-               gloed: (t>=7)?0xe0a0ff:((t>=4)?0xc07dff:0x9f6ae0),
-               halo:  (t>=7)?0x7a3cff:0x5a2fd0,
-               haloBr:(t>=7)?4.6:((t>=4)?3.2:0),      // 0 = die laag blijft uit
-               haloDek:(t>=7)?0.42:0.26,
-               kernBr:(t>=7)?0.85:((t>=4)?0.70:0.55) }; },
-
-    // ---- DE VORM VAN DE BLIKSEM PER TRAP (v15.50) ----
-    // Sjoerd: "graag mijn electro ook mooie bliksem van maken. Net als hoe de
-    // ufo zijn schepen shield geeft. Mooie bliksem die langzaam upgradet in
-    // vorm en stijl."
-    // WAAROM HIJ ER ZO SLAP UITZAG: de ketting liep in KAARSRECHTE lijnen van
-    // je hand naar schip naar schip. Er zat geen enkele knik in. De rode
-    // schildstraal van AMBER RING ziet er wél als bliksem uit, en het enige
-    // verschil is dat elke sprong daar in knikpunten is opgedeeld
-    // (bliksemStraal, WERP_SEG). Dat doet de electro nu ook — en de knik groeit
-    // mee met je trap: trap 1 een strak dun draadje, trap 8 een brede
-    // witgloeiende flits met doodlopende zijtakken.
+    // ---- DE VORM VAN DE BLIKSEM PER TRAP (v15.54) ----
+    // Sjoerd: "kan je die maken zoals van de UFO? Die lijkt ook meer op een
+    // bliksem. Mss ook niet als een ketting, maar soms ook van 1 splitsen naar
+    // andere." Gekozen: een BOOM met een paar dode zijtakken, overal even
+    // weinig. De drie kleurlagen zijn vervallen - de UFO-straal heeft er een
+    // en die ziet er juist goed uit. De trap zit nu in de dikte, de kleur en
+    // hoe fijn hij knikt.
     zapVorm:function(lv){
       const t=Math.max(1,Math.min(8,lv||1));
-      return { knik:[  2,   2,   3,   3,   4,   4,   5,   5][t-1],  // knikpunten per sprong
-               jit: [0.30,0.40,0.55,0.70,0.85,1.00,1.20,1.45][t-1], // hoe ver hij uitknikt (m)
-               tak: [  0,   0,   0,   1,   1,   2,   3,   4][t-1] }; }, // zijtakken
+      return { knik:[   3,    3,    4,    4,    5,    5,    6,    6][t-1],
+               jit: [0.55, 0.70, 0.90, 1.10, 1.30, 1.50, 1.75, 2.00][t-1],
+               dik: [0.16, 0.19, 0.22, 0.26, 0.30, 0.34, 0.39, 0.45][t-1],
+               kl:  [0x9fd8ff,0xaee0ff,0xc8e8ff,0xd8eeff,
+                     0xe6f4ff,0xf2f8ff,0xffffff,0xfff2ff][t-1] }; },
 
     zap:function(pts,sprongen,lv){
-      // de knikpunten bewaren, zodat hij halverwege nog één keer kan knetteren
+      // de punten bewaren, zodat hij halverwege nog één keer kan knetteren
       this.zapPts=pts; this.zapLv=lv;
-      // v15.50 EERST BOUWEN, DAN AANZETTEN. Zette ik de dekking en de klok
-      // eerst, dan toonde een afgebroken bouw (pts korter dan 2) de flits van
-      // het VORIGE schot nog eens 0,3 seconde op volle sterkte.
+      // EERST BOUWEN, DAN AANZETTEN: zette ik de klok eerst, dan toonde een
+      // afgebroken bouw de flits van het vorige schot nog eens op volle sterkte.
       this.zapBouw(pts,lv);
-      this.zapL.material.opacity=0.95; this.zapT=ZAPDUUR;
+      this.zapT=ZAPDUUR;
       this.zapHer=ZAPDUUR*0.52; },
 
     zapBouw:function(pts,lv){
       const V=this.zapVorm(lv);
       const n=Math.min(20,pts.length);
-      if(n<2) return;
-      const hops=n-1;
-      // HET BUDGET. Bij een lange ketting knikt hij minder scherp, anders
-      // tekenen we voor één druk op de knop honderden vlakken.
-      const knik=Math.max(1,Math.min(V.knik,Math.floor(ZAP_SEG_MAX/hops)-1));
-      const seg=[];
-      const jp=[pts[0]];                         // alle knikpunten, voor de draad
-      const d=this.ZD||(this.ZD=new THREE.Vector3());
-      const zj=this.ZJ||(this.ZJ=new THREE.Vector3());
-      for(let h=0;h<hops;h++){
-        const A0=pts[h], B0=pts[h+1];
+      if(n<2){ this.zapAlles(); return; }
+      // de schepen die de klap in de straal meenam krijgen ook een tak, maar
+      // niet als er al een tak van de ketting bij hen eindigt
+      const extra=[];
+      if(this.zapRaak) for(let q=0;q<this.zapRaak.length;q++){ const P=this.zapRaak[q];
+        let dubbel=false;
+        for(let i=1;i<n;i++) if(pts[i].distanceToSquared(P)<0.36){ dubbel=true; break; }
+        for(let i=0;i<extra.length;i++) if(extra[i].distanceToSquared(P)<0.36){ dubbel=true; break; }
+        if(!dubbel&&extra.length<14) extra.push(P); }
+      const doelen=(n-1)+extra.length;
+      // HET BUDGET. Vier schakels blijven vrij voor de twee dode zijtakken.
+      const knik=Math.max(1,Math.min(V.knik,Math.floor((ZAP_SEG_MAX-4)/doelen)-1));
+      const seg=[], knopen=[];
+      const oog=this.kop||(this.ZK||(this.ZK=new THREE.Vector3(0,1.6,0)));
+      const d =this.ZD||(this.ZD=new THREE.Vector3());
+      const u =this.ZU||(this.ZU=new THREE.Vector3());
+      const w =this.ZW||(this.ZW=new THREE.Vector3());
+      const e2=this.ZE||(this.ZE=new THREE.Vector3());
+      // één flits van A naar B, in knikpunten opgedeeld
+      const boog=function(A0,B0,kn,jit,dood,stam){
         d.subVectors(B0,A0);
         const len=d.length()||0.01;
-        // niet verder uitknikken dan een vijfde van de sprong: op korte
-        // sprongen zou de flits anders om het schip heen gaan slingeren
-        const zij=Math.min(V.jit,len*0.22);
+        d.multiplyScalar(1/len);
+        // DE KNIK DWARS OP JE BLIK. De vorige versie knikte in alle drie de
+        // richtingen, dus ging een derde van de uitwijking de diepte in - en
+        // dat is juist de richting die je niet ziet. Nu staat de grootste
+        // uitwijking haaks op je kijkrichting en blijft er een beetje voor de
+        // diepte over, zodat het geen platte slinger wordt.
+        e2.subVectors(A0,oog);
+        u.crossVectors(d,e2);
+        if(u.lengthSq()<1e-8) u.set(1,0,0); else u.normalize();
+        w.crossVectors(d,u).normalize();
+        const zij=Math.min(jit,len*0.30);
         let vorig=A0;
-        for(let i=1;i<=knik+1;i++){
+        for(let i=1;i<=kn+1;i++){
           let P;
-          if(i===knik+1) P=B0;                   // het schip zelf: niet verzetten
-          else { const k=i/(knik+1);
-            P=new THREE.Vector3(A0.x+d.x*k,A0.y+d.y*k,A0.z+d.z*k);
-            P.x+=(Math.random()-0.5)*zij*2;
-            P.y+=(Math.random()-0.5)*zij*2;
-            P.z+=(Math.random()-0.5)*zij*2; }
-          seg.push({a:vorig,b:P,h:h,tak:0});
-          if(jp.length<=ZAP_SEG_MAX) jp.push(P);
-          vorig=P; } }
-      // ZIJTAKKEN: korte doodlopende vonkarmen die van de flits af schieten.
-      // Dit is het duidelijkste verschil tussen een lage en een hoge trap.
-      for(let t2=0;t2<V.tak&&seg.length<=ZAP_SEG_MAX-2;t2++){
-        const s0=seg[Math.floor(Math.random()*seg.length)];
-        if(!s0||s0.tak) continue;
-        const L2=V.jit*(1.6+Math.random()*1.4);
-        zj.set(Math.random()-0.5,Math.random()-0.5,Math.random()-0.5).normalize();
-        const m1=s0.b.clone().addScaledVector(zj,L2*0.6);
-        zj.set(Math.random()-0.5,Math.random()-0.5,Math.random()-0.5).normalize();
-        const m2=m1.clone().addScaledVector(zj,L2*0.5);
-        seg.push({a:s0.b,b:m1,h:s0.h,tak:1});
-        seg.push({a:m1,  b:m2,h:s0.h,tak:1}); }
-      // de dunne draad erbinnen volgt nu óók de knikken
-      { const a=this.zapG.attributes.position;
-        const m=Math.min(ZAP_SEG_MAX+1,jp.length);
-        for(let i=0;i<ZAP_SEG_MAX+1;i++){ const p=jp[Math.min(i,m-1)];
-          a.setXYZ(i,p.x,p.y,p.z); }
-        a.needsUpdate=true; this.zapG.setDrawRange(0,m); }
-      // ---- en nu de vlakken ----
-      const A=this.ZA||(this.ZA=new THREE.Vector3());
-      const B=this.ZB||(this.ZB=new THREE.Vector3());
-      const M=this.ZM||(this.ZM=new THREE.Vector3());
-      const LG=this.zapLagen(lv);
-      for(let i=0;i<this.zapSeg.length;i++){ const S2=this.zapSeg[i];
+          if(i===kn+1) P=B0;                       // het schip zelf: niet verzetten
+          else { const k=i/(kn+1);
+            P=new THREE.Vector3(A0.x+d.x*len*k,A0.y+d.y*len*k,A0.z+d.z*len*k);
+            P.addScaledVector(u,(Math.random()-0.5)*2*zij);
+            P.addScaledVector(w,(Math.random()-0.5)*2*zij*0.45); }
+          // DE DIKTE LOOPT OP. Op trap 8 is een buisje 0,45 breed, en zo'n
+          // buis vlak bij je oog vult je halve beeld met een witte plaat -
+          // gezien op de foto. Nu groeit de stam van een kwart naar vol over
+          // zijn eerste derde, takken zijn dunner dan de stam en een dode
+          // zijtak is het dunst. Dat is ook hoe bliksem er echt uitziet.
+          const kf=i/(kn+1);
+          const f=dood?0.45:(stam?Math.min(1,0.25+kf*2.4):0.72);
+          seg.push({a:vorig,b:P,dood:dood?1:0,f:f});
+          if(!dood&&i<=kn) knopen.push(P);         // hier mag straks een tak af
+          vorig=P; } };
+      // DE STAM: van je hand naar het eerste (dichtstbijzijnde) schip.
+      // Maar NIET vanaf je hand zelf: de mond van het eerste buisje lag dan op
+      // zeven centimeter van je oog en dan kijk je er van binnenuit in. Dat
+      // waste in de bril je hele beeld wit. De UFO-straal heeft dat nooit,
+      // want die loopt tussen twee schepen. Dus begint de flits een eindje
+      // vooruit; in beeld komt hij nog steeds uit je hand.
+      { const A0=pts[0].clone();
+        const r0=new THREE.Vector3().subVectors(pts[1],A0);
+        const l0=r0.length()||1;
+        A0.addScaledVector(r0, Math.min(0.45, ZAP_START/l0));
+        boog(A0,pts[1],knik,V.jit,false,true); }
+      knopen.push(pts[1]);
+      // DE TAKKEN: elk volgend schip takt af van het knikpunt dat er het
+      // dichtst bij ligt. Daarmee splitst de flits waar hij toch al langs komt,
+      // in plaats van netjes van schip naar schip te hangen.
+      for(let i=2;i<n;i++){
+        const B0=pts[i];
+        let best=knopen[0], bd=1e9;
+        for(let q=0;q<knopen.length;q++){
+          const dd=knopen[q].distanceToSquared(B0);
+          if(dd<bd){ bd=dd; best=knopen[q]; } }
+        boog(best,B0,knik,V.jit,false);
+        knopen.push(B0); }
+      // en dezelfde behandeling voor wie de klap meenam
+      for(let i=0;i<extra.length;i++){
+        const B0=extra[i];
+        let best=knopen[0], bd=1e9;
+        for(let q=0;q<knopen.length;q++){
+          const dd=knopen[q].distanceToSquared(B0);
+          if(dd<bd){ bd=dd; best=knopen[q]; } }
+        boog(best,B0,knik,V.jit,false);
+        knopen.push(B0); }
+      // TWEE DODE ZIJTAKKEN, op elke trap even weinig: korte vonkarmen die
+      // nergens op uitkomen, zoals bliksem die in de lucht doodloopt.
+      for(let t2=0;t2<ZAP_DOOD&&seg.length<=ZAP_SEG_MAX-2;t2++){
+        const k0=knopen[Math.floor(Math.random()*knopen.length)];
+        if(!k0) break;
+        u.set(Math.random()-0.5,Math.random()-0.5,Math.random()-0.5);
+        if(u.lengthSq()<1e-8) u.set(0,1,0); else u.normalize();
+        const eind=k0.clone().addScaledVector(u,V.jit*(2.2+Math.random()*1.8));
+        boog(k0,eind,1,V.jit*0.6,true); }
+      // ---- en nu de buisjes erover spannen, net als bliksemStraal ----
+      const mid=this.ZM||(this.ZM=new THREE.Vector3());
+      const ri =this.ZR||(this.ZR=new THREE.Vector3());
+      const op =this.ZO||(this.ZO=new THREE.Vector3(0,1,0));
+      for(let i=0;i<this.zapSeg.length;i++){ const m=this.zapSeg[i];
         const sg=seg[i];
-        let aan=false;
-        if(sg){ A.copy(sg.a); B.copy(sg.b);
-          const len=A.distanceTo(B);
-          if(len>=0.01){
-            B.sub(A).multiplyScalar(1/len);
-            // hoe verder in de ketting, hoe dikker; een zijtak is dunner
-            const gr=(1+Math.min(2.2,sg.h*ZAPGROEI*1.6))*(sg.tak?0.45:1);
-            M.copy(A).addScaledVector(B,len*0.5);
-            this.richtQuad(S2.k,M,B,len*1.12,LG.kernBr*gr);
-            this.richtQuad(S2.g,M,B,len*1.12,1.7*gr);
-            S2.k.material.color.setHex(LG.kern);
-            S2.g.material.color.setHex(LG.gloed);
-            S2.k.material.opacity=1.0; S2.g.material.opacity=0.55;
-            S2.k.visible=true; S2.g.visible=true; aan=true; } }
-        if(!aan){ S2.k.visible=false; S2.g.visible=false; }
-        // DE DERDE LAAG, vanaf trap 4: een brede zachte gloed, maar PER SPRONG
-        // en kaarsrecht — niet per knik. Zo ligt er een wijde waas om een
-        // scherpe gekartelde kern, precies zoals bliksem op een foto staat.
-        // En het kost veertien vlakken in plaats van vierenvijftig.
-        if(S2.h){
-          if(LG.haloBr>0&&i<hops){
-            A.copy(pts[i]); B.copy(pts[i+1]);
-            const l2=A.distanceTo(B);
-            if(l2>=0.01){
-              B.sub(A).multiplyScalar(1/l2);
-              M.copy(A).addScaledVector(B,l2*0.5);
-              const gr2=1+Math.min(2.2,i*ZAPGROEI*1.6);
-              this.richtQuad(S2.h,M,B,l2*1.02,LG.haloBr*gr2);
-              S2.h.material.color.setHex(LG.halo);
-              S2.h.material.opacity=LG.haloDek; S2.h.visible=true; }
-            else S2.h.visible=false; }
-          else S2.h.visible=false; } } },
+        if(!sg){ m.visible=false; continue; }
+        mid.addVectors(sg.a,sg.b).multiplyScalar(0.5);
+        ri.subVectors(sg.b,sg.a);
+        const len=ri.length()||0.01;
+        m.position.copy(mid);
+        m.quaternion.setFromUnitVectors(op,ri.normalize());
+        const dik=V.dik*(sg.f||1);
+        m.scale.set(dik,len*1.02,dik);
+        m.material.color.setHex(V.kl);
+        m.material.opacity=1;
+        m.visible=true; } },
+
+    // alle buisjes in één keer uit
+    zapAlles:function(){
+      if(this.zapSeg) for(let i=0;i<this.zapSeg.length;i++) this.zapSeg[i].visible=false; },
 
     ultimate:function(h){
       if(window.PHASE!=='game'||window.PAUSED) return;
@@ -8866,7 +8880,17 @@
           const af2=e2.p.distanceTo(p);
           if(af2>st+e2.r) continue;
           this.raak(e2,ET.dmg*0.8,p.x,p.y,p.z);
-          this.straalDood(e2); }                         // ook wat in de straal meegaat
+          this.straalDood(e2);                           // ook wat in de straal meegaat
+          // v15.54: en onthouden WAAR hij stond, zodat de bliksem er ook een
+          // tak naartoe gooit. GEMETEN in v15.53: op trap 7 kregen 7 van de 16
+          // geraakte schepen geen enkele flits te zien, op trap 8 vijf. Een
+          // derde van je schade landde dus zonder zichtbare oorzaak, en dat is
+          // precies waarom het wapen niet overtuigde.
+          // Ruim opschrijven en pas in zapBouw filteren. Met een krappe lijst
+          // (eerst 10) liep hij vol met schepen die al IN de ketting zaten -
+          // die vallen daar weg als dubbel, en de schepen die juist geen flits
+          // hadden kwamen er niet meer in.
+          if(this.zapRaak&&this.zapRaak.length<40) this.zapRaak.push(e2.p.clone()); }
         for(let a=0;a<KET_LUS;a++) if(!this.vijTreffer(p,9,st*0.7)) break; } },
 
     // ---- WEGDUIKEN ALS JE MIKT (Sjoerds ontwerp) ----
@@ -12080,17 +12104,12 @@
         // staan — dat stilstaan was het tweede waarom hij nep aanvoelde.
         if(this.zapHer>0&&this.zapT<=this.zapHer){ this.zapHer=0;
           if(this.zapPts) try{ this.zapBouw(this.zapPts,this.zapLv); }catch(q){} }
-        this.zapL.material.opacity=k;
-        // de witte kern flikkert, de gloed dooft rustig
-        const fl=0.75+Math.random()*0.25;
-        for(let i=0;i<this.zapSeg.length;i++){ const S2=this.zapSeg[i];
-          if(!S2.k.visible) continue;
-          S2.k.material.opacity=k*fl;
-          S2.g.material.opacity=k*0.55;
-          // v15.47: de derde laag mee laten doven, anders blijft die hangen
-          if(S2.h&&S2.h.visible) S2.h.material.opacity=k*0.30;
-          if(this.zapT<=0){ S2.k.visible=false; S2.g.visible=false;
-                            if(S2.h) S2.h.visible=false; } } }
+        // v15.54: één buisje per schakel, dat als geheel flikkert en dooft
+        const fl=0.78+Math.random()*0.22;
+        for(let i=0;i<this.zapSeg.length;i++){ const m=this.zapSeg[i];
+          if(!m.visible) continue;
+          m.material.opacity=k*fl;
+          if(this.zapT<=0) m.visible=false; } }
       if(this.zuigT>0){ this.zuigT-=s;
         const k=Math.min(1,this.zuigT/0.6);
         const puls=1+Math.sin(this.T*9)*0.06;
