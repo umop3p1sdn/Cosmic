@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.68';
+  const VERSIE='v15.69';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -8693,6 +8693,9 @@
       // portaaljagers — dus moet je onkwetsbaar zijn. Ook tijdens de
       // felicitatie, want daar sta je negen seconden stil.
       if(this.state==='parade'||this.state==='felic') return;
+      // v15.69 Sjoerd: "tutorial mag geen dmg doen." De lesvijanden schieten na de
+      // leestijd wel terug (zo zie je dat ze vuren), maar het kost je niets meer.
+      if(window.TUT||this.state==='tut'||this.state==='aftel') return;
       // v15.25: de kamikazes van de HAULER komen een per seconde binnen, en die
       // rustpauze van 0,6 s zou de tweede en derde inslag gratis maken. Alleen
       // een aanval die 'altijd' meegeeft mag er langs.
