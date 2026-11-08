@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.62';
+  const VERSIE='v15.63';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2451,6 +2451,14 @@
   // Van dichtbij (onder GEEST_DICHT) zie je hem altijd.
   const GEEST_ZICHT=2.4, GEEST_GLANS=0.8, GEEST_WEG=2.6, GEEST_TERUG=1.2;
   const GEEST_DICHT=45, GEEST_MIN=0.06;
+  // v15.63 THE EYES. Sjoerd: "Half doorzichtig is onzin, ik zie hem dus ik schiet
+  // hem. Weg is weg, met een mooie fade. Komt ergens anders terug, ook verder
+  // weg. Echt ver uit elkaar, ook van achter naar voor. Altijd één weg."
+  // Elk oog heeft een eigen ronde van OOG_RONDE s; ze lopen een derde verschoven,
+  // dus is er steeds precies één weg.
+  const OOG_RONDE=12, OOG_UIT=0.8, OOG_WEGT=3.2, OOG_IN=0.8;
+  const OOG_SNEL=24, OOG_AFMIN=80, OOG_AFMAX=135, OOG_HOEK=1.15, OOG_LAAG=-8, OOG_HOOG=30;
+  const OOG_APART=80;           // zo ver moeten de ogen minstens uit elkaar
   const OOG_ZICHT=6;            // v15.58 THE EYES: zo lang gewoon te zien, dan 4,6 s (bijna) weg
   // DE HERPAKKER: hoe lang hij tuimelt, hoeveel sneller hij daarna gaat, en de
   // wachttijd tot hij het opnieuw kan.
@@ -4728,6 +4736,63 @@
       else if(this.cam&&this.cam.object3D){ this.cam.object3D.getWorldDirection(v); v.negate(); }
       else v.set(0,0,-1);
       return v.normalize(); },
+
+    // ---- v15.63 THE EYES: vrij door de ruimte, en om de beurt echt weg ----
+    oogPlek:function(e,uit){
+      const ander=this.baasTrio?this.baasTrio.filter(function(b){ return b!==e&&b.live&&!b.dood2; }):[];
+      const v=new THREE.Vector3(); let best=null, bestA=-1;
+      for(let q=0;q<24;q++){
+        const a=(Math.random()*2-1)*OOG_HOEK, d=OOG_AFMIN+Math.random()*(OOG_AFMAX-OOG_AFMIN);
+        v.set(this.kop.x+Math.sin(a)*d,this.kop.y+OOG_LAAG+Math.random()*(OOG_HOOG-OOG_LAAG),this.kop.z-Math.cos(a)*d);
+        let mn=1e9;
+        for(let i=0;i<ander.length;i++){ const b=ander[i];
+          mn=Math.min(mn,v.distanceTo(b.oogP||b.p)); if(b.oogDoel) mn=Math.min(mn,v.distanceTo(b.oogDoel)); }
+        if(uit) mn=Math.min(mn,v.distanceTo(uit)+20);      // en niet waar hij net was
+        if(mn>bestA){ bestA=mn; best=v.clone(); }
+        if(mn>=OOG_APART*1.4) break; }
+      return best; },
+
+    oogVlieg:function(e,s){
+      if(!e.oogP){ e.oogP=e.p.clone(); e.oogV=new THREE.Vector3(); e.oogDoel=this.oogPlek(e);
+        e.oogT=(e.trioI||0)*OOG_RONDE/3; e.oogNa=6; }
+      // ---- de ronde: zichtbaar, fade uit, weg, fade in op een nieuwe plek ----
+      e.oogT+=s;
+      const t=e.oogT%OOG_RONDE;
+      let dek=1;
+      const nu=(t<OOG_UIT)?1:(t<OOG_UIT+OOG_WEGT)?2:(t<OOG_UIT+OOG_WEGT+OOG_IN)?3:0;
+      if(nu===1) dek=1-t/OOG_UIT;
+      else if(nu===2) dek=0;
+      else if(nu===3) dek=(t-OOG_UIT-OOG_WEGT)/OOG_IN;
+      if(nu===2&&e.oogFase!==2){                       // net weg: verhuizen
+        const p=this.oogPlek(e,e.oogP); e.oogP.copy(p); e.oogV.set(0,0,0); e.oogDoel=this.oogPlek(e); }
+      if(nu===1&&e.oogFase!==1) this.vonk(e.oogP.x,e.oogP.y,e.oogP.z,0x60ff90,14,e.bw*0.4,0.7);
+      if(nu===3&&e.oogFase!==3) this.vonk(e.oogP.x,e.oogP.y,e.oogP.z,0x60ff90,14,e.bw*0.4,0.7);
+      e.oogFase=nu;
+      e.oogWeg=(dek<0.5)?1:0;
+      if(e.oogWeg) e.bT=Math.max(e.bT||0,0.8), e.cd=Math.max(e.cd||0,0.8);
+      // ---- vliegen: naar een willekeurig punt, en weg van de anderen ----
+      e.oogNa-=s;
+      if(e.oogP.distanceTo(e.oogDoel)<12||e.oogNa<=0){ e.oogDoel=this.oogPlek(e); e.oogNa=5+Math.random()*5; }
+      const w=this.OW||(this.OW=new THREE.Vector3());
+      w.subVectors(e.oogDoel,e.oogP); const dd=w.length()||1; w.multiplyScalar(OOG_SNEL*this.baasSnel(e)/dd);
+      if(this.baasTrio) for(let i=0;i<this.baasTrio.length;i++){ const b=this.baasTrio[i];
+        if(b===e||!b.live||!b.oogP) continue;
+        const af=e.oogP.distanceTo(b.oogP);
+        if(af<OOG_APART){ const d2=this.OD||(this.OD=new THREE.Vector3());
+          d2.subVectors(e.oogP,b.oogP).normalize(); w.addScaledVector(d2,OOG_SNEL*(1-af/OOG_APART)*4); } }
+      e.oogV.lerp(w,Math.min(1,s*1.2));
+      e.oogP.addScaledVector(e.oogV,s);
+      // binnen bereik en nooit achter je
+      const r=this.OR||(this.OR=new THREE.Vector3());
+      r.subVectors(e.oogP,this.kop); const af=r.length();
+      if(af>OOG_AFMAX+8) e.oogP.copy(this.kop).addScaledVector(r,(OOG_AFMAX+8)/af);
+      if(af<OOG_AFMIN-25) e.oogP.copy(this.kop).addScaledVector(r,(OOG_AFMIN-25)/af);
+      if(e.oogP.z>this.kop.z-20) e.oogP.z=this.kop.z-20;
+      e.p.copy(e.oogP);
+      if(e.bb){ e.bb.m.position.copy(e.p);
+        if(e.bb.m.material){ e.bb.m.material.transparent=true; e.bb.m.material.opacity=dek; }
+        e.bb.m.visible=dek>0.01; }
+      return true; },
 
     wielPlek:function(e){
       const kijk=this.WK||(this.WK=new THREE.Vector3(0,0,-1));
@@ -7499,6 +7564,7 @@
       if(e.intro){ this.vonk(px||e.p.x,py||e.p.y,pz||e.p.z,0x9fe4f5,3,6,0.5); return; }
       if(e.pbWeg) return;                            // v15.58 LONGSHIP is door een portaal
       if(e.wielWeg>0) return;                        // v15.59 THE WHEEL is weg
+      if(e.oogWeg) return;                           // v15.63 een oog dat weg is
       // GEMETEN in echt spel: 10 van de 53 gedode schepen stortten neer, de rest
       // verdween meteen. Dit was de oorzaak: elke kogel die een WRAK nog raakte
       // liet hem verdwijnen — en je schiet natuurlijk door op wat je net raakte.
@@ -8467,7 +8533,7 @@
         // ze. In de wisregel is het sluitend.
         e.springRust=0; e.geestT=0; e.rol=0; e.valDir=null; e.valV=0; e.valRot=0; e.valTijd=0; e.valRolA=0; e.valNu=0;
         e.snelKnal=0; e.valKlap=0; e.valEind=0;
-        e.geenSchild=0; e.schildRust=0; e.spook=0; e.spookZ=0; e.spookGo=0; e.wielSpr=0; e.wielWeg=0; e.wielVer=0; e.wielYo=0;                 // v15.58
+        e.geenSchild=0; e.schildRust=0; e.spook=0; e.spookZ=0; e.spookGo=0; e.wielSpr=0; e.wielWeg=0; e.wielVer=0; e.wielYo=0; e.oogVrij=0; e.oogP=null; e.oogV=null; e.oogDoel=null; e.oogWeg=0; e.oogFase=0;                 // v15.58
         e.broedCd=0; e.broedUit=0; e.broedDir=null; e.broed=0; e.valDraai=undefined;
         e.rakOp=0; e.rakWijkT=0; e.ssT=0; e.ssCd=0; e.duikRolCd=0;
         e.ufoT=undefined; e.ufoDoel=null; e.ufoRust=0; e.ufoWegCd=0; e.ufoZij=0;
@@ -8687,7 +8753,8 @@
           // v15.58 geen krachtveld meer: RAVEN krijgt hulpschepen
           if(baasDef.naam==='RAVEN'){ e.hangar=1; e.moedF=0; e.moedT=MOEDER_AAN; e.geenSchild=1; }
           // v15.58 THE EYES: soms onzichtbaar. Elk oog op zijn eigen moment.
-          if(baasDef.naam==='THE EYES'){ e.geenSchild=1; e.spook=1; e.spookZ=OOG_ZICHT; }
+          // v15.63 geen half-doorzichtig meer: echt WEG, één oog tegelijk (oogVlieg)
+          if(baasDef.naam==='THE EYES'){ e.geenSchild=1; e.oogVrij=1; }
           // IRONCLAD: een ring van acht mijnen om hem heen (escorte in een kring)
           // De mijnen moeten RAAKBAAR zijn: ze staan in een kring om hem heen,
           // dus je schoten gaan er vaak langs. Ze zijn nu groter en zachter.
@@ -11370,7 +11437,8 @@
       else if(e.prof==='baas'){ if((e.vloot&&!e.dood2&&this.vlootTick(e,s))||
            (e.portBaas&&!e.dood2&&this.portBaasTick(e,s))){}
         else { if(!(e.dubbel&&(e.ufoDoel||e.herpakT>0))) this.baasBaan(e,s,naar,afst);
-        this.baasNiet2Dicht(e); } this.schildRustTick(e,s); }
+        this.baasNiet2Dicht(e); if(e.oogVrij&&!e.dood2) this.oogVlieg(e,s);
+          else if(e.oogVrij&&e.bb&&e.bb.m.material){ e.bb.m.material.opacity=1; e.bb.m.visible=true; } } this.schildRustTick(e,s); }
       else if(e.prof==='jammer'){ this.jamTick(e,s); }
       else if(e.prof==='haaks'){ this.haaksTick(e,s); }
       else if(e.prof==='duiker'){ this.profiel(e,s,naar,afst,sp);
