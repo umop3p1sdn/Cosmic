@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.69';
+  const VERSIE='v15.70';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -12733,7 +12733,7 @@
       this.tutFase=1; this.tutT=0;
       // de doos: bij de ult-stap geen doos maar meteen de vijanden
       if(S2.ult){ this.tutFase=3; this.tutT=0; this.tutVrij=0;
-        this.tutVijanden(S2); this.tutTekst(S2.les); return; }
+        this.tutVijanden(S2); this.tutTekst(S2.les+'\n\nWIPE OUT\nALL ENEMIES'); return; }
       // DE KNOPSTAP (Sjoerd v14.99): geen doos, gewoon vragen of je op je
       // duimknop drukt. Zodra je dat doet komen de vijanden en schiet je met je
       // mitrailleur. Eén keer, en goed.
@@ -12893,7 +12893,9 @@
       const S2=TUT[this.tutI];
       if(!S2||this.tutFase!==2||S2.k!==k) return;
       this.tutFase=3; this.tutT=0; this.tutVrij=0;
-      this.tutTekst(S2.les);
+      // v15.70 Sjoerd: "dat je de vijanden moet schieten in plaats van alleen je
+      // wapens kiezen. Engelse woorden." De les gaat pas door als ze neer zijn.
+      this.tutTekst(S2.les+'\n\nNOW SHOOT\nALL ENEMIES');
       this.tutVijanden(S2); },
 
     // ---- v15.64 OEFENVIJANDEN: steeds drie, ze schieten niet ----
@@ -12931,8 +12933,11 @@
           this.tutTekst(String(n));
           SND.zeg&&SND.zeg(['','One','Two','Three','Four','Five'][n]); }
         return; }
-      // GO
+      // GO - v15.70 Sjoerd: "alles reset na 5 sec aftellen, ook de score. En dan
+      // start het spel echt." Dus een volledig verse start: score, combo,
+      // kills, kracht, wapens, ults - precies zoals een nieuw spel zonder tutorial.
       this.aftelN=0;
+      this.reset();
       if(e){ e.setAttribute('color','#6cf08a'); }
       this.tutTekst('GO!'); SND.zeg&&SND.zeg('Go');
       this.state='wacht'; this.golfT=0.6;
