@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.71';
+  const VERSIE='v15.72';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2031,6 +2031,7 @@
   // en dan: "Then 10 to 0. Enjoy the parade." Met stem, net als het aftellen na de tutorial.
   const PARADE_TEL=10, PARADE_ENJOY=2.5;
   const TELWOORD=['Zero','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten'];
+  const PARADE_HP=250, PARADE_DOODT=1.2;   // v15.72 kracht in de parade, en hoe lang zijn klap duurt
   const PARADE_SLOT=1.8;        // lege hemel na de laatste, voor MISSION COMPLETE
   const PARADE_DICHTBIJ=34;     // zo dicht mag een klein schip komen (was 18)
   // v15.39, Sjoerd: "de vliegtuigen komen nu best snel en alles in 4 sec? Geef
@@ -8154,6 +8155,7 @@
         this.bbVrij(e.bb); e.bb=null; e.live=false; e.dood=0;
         if(TYPE[e.tp].prof==='baas'&&this.baas===e) this.baas=null; } },
     punt:function(e){
+      if(this.state==='parade') return;             // v15.72 de parade telt niet mee
       const T=TYPE[e.tp];
       // DE COMBO (Sjoerd v14.60): elke kill binnen COMBO_TIJD seconden na de
       // vorige telt door. Je punten worden MAAL je comboteller.
@@ -15823,7 +15825,8 @@
       B.forEach(function(b){ if(b.gedrag==='reus') L.push({baas:b,reus:1}); });
       this.par9={lijst:L, i:-1, e:null, fase:'leeg', t:0, klaarT:0, eind:!!eind,
                  pauze:0, truc:'', duur:0, gedaan:0, baas:0, naam:'',
-                 intro:eind?1:0, introT:0, kaart:-1};
+                 intro:eind?1:0, introT:0, kaart:-1,
+                 stand:{p:this.punten,u:this.ultPt,g:this.gedood,c:this.combo,b:this.beste}};
       // de achtergrond die geen enkel level gebruikt
       // v15.33, Sjoerd: "tegen zwarte achtergrond". OORZAAK: rondeOpruimen maakt
       // hemelplaten leeg (tex.image=null) om geheugen vrij te maken. hemelZet
@@ -15878,6 +15881,10 @@
 
     paradeTick:function(s){
       const P=this.par9; if(!P) return;
+      // v15.72 "parade telt niet op bij je score": alles wat je hier neerschiet
+      // wordt elke beurt teruggezet op de stand van het begin van de parade
+      if(P.stand){ this.punten=P.stand.p; this.ultPt=P.stand.u; this.gedood=P.stand.g;
+        this.combo=P.stand.c; this.beste=P.stand.b; }
       // ---- vuurwerk tussendoor (v15.27) ----
       P.vwT=(P.vwT||0)-s;
       if(P.vwT<=0){
@@ -15945,7 +15952,9 @@
         else e=this.spawn(it.tp,{x:sx,y:this.kop.y,z:sz,parade:1});
         if(!e){ P.pauze=0.1; return; }
         e.parade=1;
-        e.hp=e.hpM=999999;                              // hij hoort niet te sneuvelen
+        // v15.72 Sjoerd: "iedereen in de parade heeft 250 health en kan dus kapot.
+        // Dit versnelt de parade. Dood betekent volgende naam en vliegtuig."
+        e.hp=e.hpM=PARADE_HP;
         e.rol=0;
         // v15.39: NU is zijn echte breedte bekend (e.bw wordt in spawn gezet, na
         // zijn plaatje). De schatting hierboven gebruikte voor ELKE baas 60 m,
@@ -15978,7 +15987,8 @@
         P.e=e; P.fase='truc'; P.t=0; P.gedaan=0;
         P.baas=it.baas?1:0;
         P.naam=(it.baas?(it.baas.naam+'   -   BOSS'):TYPE[it.tp].n);
-        this.paradeTxt(P.naam,it.baas?'#ff8aa6':'#9fe4f5');
+        // v15.72 duidelijke kleuren (was zacht roze en lichtblauw: lastig te lezen)
+        this.paradeTxt(P.naam,it.baas?'#ff3b3b':'#ffe600');
         // ---- hoe lang mag hij bezig zijn? ----
         const bn=it.baas?null:(TYPE[it.tp].basis||TYPE[it.tp].n);
         const tr=(bn&&PARADE_TR[bn])||null;
@@ -15992,6 +16002,9 @@
       // Hier staat bewust niets: het spel zelf laat hem vuren, portalen openen,
       // kapen en jammen. Alleen wat een zetje nodig heeft krijgt dat in
       // paradeDoe/paradeDoe2, en jij krijgt geen schade (zie raakMij).
+      // v15.72 neergeschoten? Even zijn klap laten zien, dan meteen de volgende
+      if(P.fase==='truc'&&(e.dood||e.dood2||!e.live)){ P.fase='dood'; P.t=0; this.paradeTxt('',''); }
+      if(P.fase==='dood'){ if(P.t<PARADE_DOODT) return; P.fase='weg'; }
       if(P.fase==='truc'){
         // sommige trucs hebben halverwege een tweede zetje nodig
         if(!P.gedaan&&P.t>=(PARADE_TR2[P.truc]||1e9)){ P.gedaan=1;
