@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.70';
+  const VERSIE='v15.71';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1971,7 +1971,9 @@
     'LONGSHIP':   {s:0.60},
     'AXLE':       {s:0.64},
     'ARACHNID':   {s:0.72} };
-  const PARADE_VERMAX=105;      // en niet verder weg dan dit
+  // v15.71 Sjoerd: "parade wel iets verder weg, is ook veel te dichtbij."
+  const PARADE_VERMAX=140;      // en niet verder weg dan dit (was 105)
+  const PARADE_MAAL=2.3, PARADE_PLUS=16;   // afstand = maat x MAAL + PLUS (was 1,5 en 8)
   // De negen constanten van de VRIJ VLIEGENDE parade (v15.26-v15.33) zijn er in
   // v15.35 uit: snelheid, draaisnelheid, overhelling, aanvlieg- en wegvliegtijd,
   // startafstand en wegvliegafstand. Een schip verschijnt nu op zijn plek en
@@ -2022,8 +2024,15 @@
   // v15.39, Sjoerd: "de parade eindigt beetje raar." De laatste (de reus, 61 tot
   // 89 graden breed) vulde je hele blik en 0,6 s later stond er MISSION
   // COMPLETE. Nu eerst een lege hemel met vuurwerk, dan de tekst.
+  // v15.71 Sjoerd: "parade op het eind even inluiden: Game made by Sjoerd v Room,
+  // Music all free from copyright." Twee kaarten, elk zo lang in beeld.
+  const PARADE_INTRO=[['GAME MADE BY\nSJOERD V ROOM','#ffe45c'],['MUSIC\nALL FREE FROM COPYRIGHT','#9fe4f5']];
+  const PARADE_KAART=3.5;
+  // en dan: "Then 10 to 0. Enjoy the parade." Met stem, net als het aftellen na de tutorial.
+  const PARADE_TEL=10, PARADE_ENJOY=2.5;
+  const TELWOORD=['Zero','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten'];
   const PARADE_SLOT=1.8;        // lege hemel na de laatste, voor MISSION COMPLETE
-  const PARADE_DICHTBIJ=18;     // zo dicht mag een klein schip komen
+  const PARADE_DICHTBIJ=34;     // zo dicht mag een klein schip komen (was 18)
   // v15.39, Sjoerd: "de vliegtuigen komen nu best snel en alles in 4 sec? Geef
   // ze maar wat meer ruimte. 10 sec daar waar nodig. Stel er komen portals of
   // shield of wat dan ook, dan kan het wat relaxer."
@@ -15813,7 +15822,8 @@
       B.forEach(function(b){ if(b.gedrag!=='reus') L.push({baas:b}); });
       B.forEach(function(b){ if(b.gedrag==='reus') L.push({baas:b,reus:1}); });
       this.par9={lijst:L, i:-1, e:null, fase:'leeg', t:0, klaarT:0, eind:!!eind,
-                 pauze:0, truc:'', duur:0, gedaan:0, baas:0, naam:''};
+                 pauze:0, truc:'', duur:0, gedaan:0, baas:0, naam:'',
+                 intro:eind?1:0, introT:0, kaart:-1};
       // de achtergrond die geen enkel level gebruikt
       // v15.33, Sjoerd: "tegen zwarte achtergrond". OORZAAK: rondeOpruimen maakt
       // hemelplaten leeg (tex.image=null) om geheugen vrij te maken. hemelZet
@@ -15879,6 +15889,17 @@
                        this.kop.y+14+Math.random()*34,
                        this.kop.z-Math.cos(hk)*r); } }
 
+      // ---- v15.71 het inluiden: wie het maakte, de muziek, 10 tot 0, enjoy ----
+      if(P.intro>0){
+        P.introT+=s;
+        const t=P.introT, kaarten=PARADE_INTRO.length*PARADE_KAART, tel=PARADE_TEL+1;
+        let k, txt=null, kl='#ffe45c', zeg=null;
+        if(t<kaarten){ k=Math.floor(t/PARADE_KAART); txt=PARADE_INTRO[k][0]; kl=PARADE_INTRO[k][1]; }
+        else if(t<kaarten+tel){ const n=PARADE_TEL-Math.floor(t-kaarten); k=100+n; txt=String(n); zeg=TELWOORD[n]; }
+        else if(t<kaarten+tel+PARADE_ENJOY){ k=200; txt='ENJOY\nTHE PARADE'; kl='#6cf08a'; zeg='Enjoy the parade'; }
+        else { P.intro=0; this.paradeTxt('',''); return; }
+        if(k!==P.kaart){ P.kaart=k; this.paradeTxt(txt,kl); if(zeg&&SND.zeg) SND.zeg(zeg); }
+        return; }
       // ================= DE PARADE, v15.35 =================
       // Sjoerd: "kun je in de parade alle schepen hun ding laten doen? Spawn ze
       // recht voor mijn neus en geef ze 1 kleine hit, dan doen ze hun ontwijk
@@ -15915,7 +15936,7 @@
         // komt vlak voor je neus. Dezelfde maatregel als de oude parade, maar
         // nu is dat METEEN zijn plek in plaats van zijn eindpunt.
         const bw0=it.baas?60:(TYPE[it.tp].br||8);
-        const d0=Math.max(PARADE_DICHTBIJ,Math.min(PARADE_VERMAX,bw0*1.5+8));
+        const d0=Math.max(PARADE_DICHTBIJ,Math.min(PARADE_VERMAX,bw0*PARADE_MAAL+PARADE_PLUS));
         const hk0=(Math.random()*2-1)*0.5;              // een tikje opzij, niet precies in het midden
         const sx=this.kop.x+Math.sin(hk0)*d0;
         const sz=this.kop.z-Math.cos(hk0)*d0;
@@ -15930,7 +15951,7 @@
         // zijn plaatje). De schatting hierboven gebruikte voor ELKE baas 60 m,
         // en dat zette TITAN PRIME (134 m breed) net zo ver weg als de kleinste.
         const dE=Math.max(PARADE_DICHTBIJ,
-                 Math.min(PARADE_VERMAX,Math.max(e.bw||8,(e.bh||8)*0.8)*1.5+8));
+                 Math.min(PARADE_VERMAX,Math.max(e.bw||8,(e.bh||8)*0.8)*PARADE_MAAL+PARADE_PLUS));
         const hk1=Math.atan2(sx-this.kop.x,this.kop.z-sz);
         e.p.set(this.kop.x+Math.sin(hk1)*dE,this.kop.y,this.kop.z-Math.cos(hk1)*dE);
         // een kolos houdt zijn kop op ooghoogte; zijn romp hangt eronder
