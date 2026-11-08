@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.65';
+  const VERSIE='v15.66';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -5022,7 +5022,7 @@
     // met PORT_GROOT kans mag dat een grote zijn.
     portKies:function(){
       const lijst=NIVEAU[Math.max(0,Math.min(NIVEAU.length-1,this.level-1))]||[];
-      if(!lijst.length) return TYPE.findIndex(function(q){ return q&&q.n==='SCOUT'; });
+      if(!lijst.length) return TYPE.findIndex(function(q){ return q&&(q.basis||q.n)==='SCOUT'; });
       const groot=Math.random()<PORT_GROOT;
       const past=lijst.filter(function(tp){ const t=TYPE[tp];
         return t&&t.prof!=='baas'&&(groot?t.br>=14:t.br<14); });
@@ -5668,7 +5668,7 @@
       if(this.moedTpN===undefined){
         this.moedTpN=0;
         for(let t=0;t<TYPE.length;t++)
-          if(TYPE[t]&&TYPE[t].n==='RAZOR'){ this.moedTpN=t; break; } }
+          if(TYPE[t]&&(TYPE[t].basis||TYPE[t].n)==='RAZOR'){ this.moedTpN=t; break; } }
       return this.moedTpN; },
 
     // Vier jagers schieten in een flits vijftien meter van hun moederschip weg.
@@ -12809,7 +12809,12 @@
 
     // de vijanden van deze stap neerzetten
     tutVijanden:function(S2,hoev){
-      const tp=TYPE.findIndex(function(q){ return q&&q.n===S2.vij; });
+      // v15.66 OP DE OORSPRONKELIJKE NAAM zoeken. Met Sjoerds tekeningen erin
+      // heet SCOUT 'OLIVE HAWK', WASP 'GREY DART' enzovoort (zie .basis), dus
+      // vond q.n==='WASP' niets en kwamen er in de echte tutorial GEEN vijanden.
+      // In mijn testopstelling (zonder tekeningen) heten ze nog gewoon zo - daar
+      // zag ik het dus niet. Sjoerd: "ik zie geen oefenvijanden."
+      const tp=TYPE.findIndex(function(q){ return q&&(q.basis||q.n)===S2.vij; });
       if(tp<0) return;
       const aantal=(hoev===undefined)?S2.n:Math.max(0,hoev);
       for(let i=0;i<aantal;i++){
@@ -12896,7 +12901,7 @@
       this.oefenT=(this.oefenT===undefined?0.5:this.oefenT)-s;
       if(this.oefenT>0) return;
       this.oefenT=OEFEN_NA;
-      const tp=TYPE.findIndex(function(q){ return q&&q.n===OEFEN_TP; }); if(tp<0) return;
+      const tp=TYPE.findIndex(function(q){ return q&&(q.basis||q.n)===OEFEN_TP; }); if(tp<0) return;
       for(let k=0;k<OEFEN_N;k++){
         const e=this.spawn(tp,{x:(k-1)*14+(Math.random()-0.5)*4,y:this.kop.y+3+Math.random()*6,
           z:-48-Math.random()*16,stijl:'halte'});
