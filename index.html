@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.66';
+  const VERSIE='v15.67';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -3412,7 +3412,10 @@
   // DE TUTORIAL: hoe ver de doos begint, hoe snel hij komt, hoe zwart het
   // scherm staat, en hoe lang de rust tussen de stappen is.
   const TUT_DOOSAF=40, TUT_DOOSSNEL=3.5;   // de doos komt rustig aanvliegen
-  const TUT_HEMEL=0.12, TUT_FADE=1.2;      // hoe ver de hemel dimt, en hoe snel
+  // v15.67 Sjoerd: "beeld in tutorial bleef ook donker." GEMETEN: de hemel stond
+  // de hele tutorial op 12% (zo bedoeld, sinds v14.55). Na de tutorial ging hij
+  // wel netjes terug naar 100%. Nu dimt hij niet meer.
+  const TUT_HEMEL=1.0, TUT_FADE=1.2;       // (was 0,12) hoe ver de hemel dimt, en hoe snel
   const TUT_LEESTIJD=6.0;   // zo lang mag je rustig lezen en mikken voor ze terugvuren
   // TUT_LESMIN: hoe lang de les MINSTENS blijft staan voordat GOOD komt.
   // Sjoerd: "de tekst is te kort in beeld en gaat te snel over in Good."
