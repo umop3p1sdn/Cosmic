@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.56';
+  const VERSIE='v15.57';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1915,6 +1915,46 @@
   const SLEEP_GOLF=1.5, SLEEP_TEMPO=2.6, SLEEP_LAG=9.5;
   const SLEEP_LEVEL=1, SLEEP_GOLF_NR=3, SLEEP_NA=2.5;   // wanneer hij langskomt
   const BAAS_MAXAF=125;         // een baas komt nooit verder dan dit
+  // v15.57 EIGEN AFSTAND PER BAAS. Sjoerd: "ze staan ook allemaal op dezelfde
+  // afstand. Mss ook diverse afstanden." GEMETEN: DREADNOUGHT, WARDEN, LANCE,
+  // THE WHEEL en RAVEN vochten gemiddeld op 114 tot 132 m. De dansen willen
+  // tot 195 m, maar BAAS_MAXAF drukte ze allemaal plat op ~125.
+  // Twee eerdere afspraken bakenen de ruimte af: verder dan ~125 m kan je wapen
+  // er niet bij ("zorg dat bazen binnen bereik zitten"), en dichterbij dan
+  // MINAF_REUS ziet een grote tekening er grof uit ("nu zit hij in mijn face")
+  // - die ondergrenzen blijven gewoon gelden. Binnen 60-125 m is het verschil
+  // toch een factor twee: op 60 m lijkt hij twee keer zo groot.
+  // s = schaal op zijn dans bij volle kracht, e = schaal als hij bijna dood
+  // is (dan komt hij naar je toe), oog = per oog voor THE EYES.
+  // LANCE (eigen sprints) en TITAN PRIME (reus) houden hun eigen regeling.
+  // en nooit dichterbij dan dit, ook niet bij een uitval uit zijn dans.
+  // GEMETEN: zonder deze grens kwam IRONCLAD tot 37 m - precies het "in je
+  // face" waar Sjoerd eerder over klaagde.
+  const BAAS_MINAF=50;
+  const RAK_BOLRAAK=4.5;        // zo dicht bij een schildbol ontploft een raket
+  // de bliksem springt naar schildbollen binnen zoveel meter van een geraakt
+  // schip - net zo ver als zijn gewone oversprong (ZAPSPRONG). Met 30 m deed
+  // hij gemeten bijna niets: de bollen vliegen verder van hun baas af.
+  const ZAP_BOLAF=55;
+  const ZAP_BOLX=6;             // de bliksem doet zoveel keer meer op een schildbol
+  const BAAS_BLIK=55*Math.PI/180;  // een baas mag nooit breder worden dan dit deel van je blik
+  // en nooit verder dan dit. GEMETEN: hagel, laser en bliksem raken op 150 m
+  // en missen op 175 m. Op hun verste punt kwamen WARDEN tot 177, AEGIS 171,
+  // RAVEN 161 en DREADNOUGHT 153 m - dan miste je gewoon. Sjoerd: "bazen
+  // mogen echt wel ver vliegen, maar kunnen mijn kogels ze nog wel raken?"
+  const BAAS_MAXVER=145;
+  const BAAS_AF={
+    'DREADNOUGHT':{s:1.00,e:0.60},   // ver, en in zijn laatste deel schuift hij op je af
+    'WARDEN':     {s:0.76},          // midden
+    'THE WHEEL':  {s:0.56},          // dichtbij: een draaiende zaag
+    'RAVEN':      {s:1.00},          // ver weg, laat zijn jagers het werk doen
+    'IRONCLAD':   {s:0.52},          // dichtbij en log
+    'THE EYES':   {s:0.76, oog:[0.56,0.76,0.96]},  // elk oog op een eigen afstand
+    'THE WALKER': {s:1.00,e:0.52},   // loopt tijdens het gevecht naar je toe
+    'AEGIS':      {s:0.76},
+    'LONGSHIP':   {s:0.60},
+    'AXLE':       {s:0.64},
+    'ARACHNID':   {s:0.72} };
   const PARADE_VERMAX=105;      // en niet verder weg dan dit
   // De negen constanten van de VRIJ VLIEGENDE parade (v15.26-v15.33) zijn er in
   // v15.35 uit: snelheid, draaisnelheid, overhelling, aanvlieg- en wegvliegtijd,
@@ -2699,7 +2739,9 @@
   const ULT_RAK=25;             // v14.59: een ult is 25 raketten (was 50)
   // v15.32, Sjoerd: "de ults 20% minder snel in hoe snel ik ze krijg."
   // 12500 -> 15625 is precies 1/0,8: je verdient ze op 80% van de oude snelheid.
-  const ULT_PUNT=15625;         // was 12500
+  // v15.57 Sjoerd: "ults sparen echt te snel. Maak het 4x zo zwaar om ults te
+  // sparen." 15625 -> 62500 punten per ult (punten tellen nog steeds half mee).
+  const ULT_PUNT=62500;         // was 15625, daarvoor 12500
   const ULT_DOOF=700;           // milliseconden tussen twee ults
   // De straal-ult: dik, ver, en hij verdampt alles in zijn koker.
   // De demomelding: hoe hoog hij hangt en hoe gedempt hij is.
@@ -3238,6 +3280,12 @@
   const BAAS=30;
   const BROEDSEL=1;             // WASP: het broedsel van het moederschip
   const GOLVEN=10;              // per level; golf 11 is de baas
+  // v15.57 Sjoerd: "lvl 3 is wel heel kort, mogen wel meer waves per ronde."
+  // Level 1 en 2 kregen in v15.32 extra budget (langere golven); level 3 is het
+  // eerste level zonder, met zo'n 11 schepen per golf - daarna voelt hij kort.
+  // Per level een eigen aantal golven; wie hier niet staat houdt GOLVEN.
+  const GOLVEN_LV={3:14};
+  function golvenVan(L){ return GOLVEN_LV[L]||GOLVEN; }
   // welke soorten er in welk level meedoen (elk level acht soorten, vier ervan nieuw)
   // Zestien levels. Elk level houdt zes soorten van het vorige en krijgt er twee
   // nieuwe bij, oplopend van de kleinste naar de zwaarste. Zo zie je elke ronde
@@ -4274,6 +4322,43 @@
               this.vonk(g.p.x,g.p.y,g.p.z,0x6fd8ff,10,4,0.6); }
             this.schildAan(e,1e9); } } } },
 
+    // ---- ALLE SCHILDBOLLEN ALS ÉÉN LIJST (v15.57) ----
+    // Sjoerd: "niet alle wapens kunnen de ballen kapot maken van de shield", en
+    // "raketten blijven op de baas af vliegen, niet op de bollen". Er zijn drie
+    // soorten bollen (WARDEN's generatoren, IRONCLAD's mijnen, en de vliegende
+    // bollen van THE WALKER, AEGIS, LONGSHIP en AXLE), elk met hun eigen
+    // treffer. Kogels en de raketklap riepen er twee aan; de LASER en de
+    // BLIKSEM geen enkele. En raketten zoeken in de vijandenlijst, waar geen
+    // bol in staat. Ze hebben wel allemaal dezelfde vorm: {p, live, hp}.
+    bollen:function(){
+      const uit=[];
+      for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
+        if(!e.live||e.dood||e.dood2) continue;
+        if(e.genBol) for(let k=0;k<e.genBol.length;k++){ const g=e.genBol[k];
+          if(g.live) uit.push({o:g,e:e,soort:'gen'}); }
+        if(e.esc) for(let k=0;k<e.esc.length;k++){ const w=e.esc[k];
+          if(w.live&&w.m) uit.push({o:w,e:e,soort:'esc'}); }
+        if(e.doelen) for(let k=0;k<e.doelen.length;k++){ const g=e.doelen[k];
+          if(g.live) uit.push({o:g,e:e,soort:'doel'}); } }
+      return uit; },
+    bolRaak:function(B,dmg){
+      const q=B.o.p;
+      if(B.soort==='gen') return this.genTreffer(q,dmg);
+      if(B.soort==='esc') return this.escTreffer(q,dmg);
+      return this.doelTreffer(B.e,q.x,q.y,q.z,dmg); },
+    // waar een raket op af moet: zit een baas achter een schild met bollen,
+    // dan de dichtstbijzijnde bol in plaats van de baas zelf
+    rakDoel:function(e,vanaf){
+      if(!e||!(e.schild>0)) return e;
+      let best=null, bd=1e9;
+      const L=[e.genBol,e.esc,e.doelen];
+      for(let j=0;j<L.length;j++){ const A=L[j]; if(!A) continue;
+        for(let k=0;k<A.length;k++){ const o=A[k];
+          if(!o.live||(j===1&&!o.m)) continue;
+          const d=vanaf?o.p.distanceToSquared(vanaf):0;
+          if(d<bd){ bd=d; best=o; } } }
+      return best||e; },
+
     doelTreffer:function(e,px,py,pz,dmg){
       if(!e.doelen) return false;
       for(let i=0;i<e.doelen.length;i++){ const g=e.doelen[i];
@@ -4549,9 +4634,42 @@
       if(e.hwT<=0){ e.hwT=0; e.hkRest=0; }
       return true; },
 
+    // ---- NOOIT IN JE GEZICHT (v15.57) ----
+    // Een vaste ondergrens werkt niet voor elke baas: IRONCLAD is 60 m breed,
+    // dus op 36 m zat zijn rand op vijf meter van je gezicht. Daarom hangt de
+    // grens af van zijn grootte: hij mag nooit breder worden dan BAAS_BLIK
+    // graden van je blik. En dit geldt voor waar hij ECHT staat, niet alleen
+    // voor zijn doel - zo komt ook een uitval of aanval er niet doorheen.
+    // Alleen voor bazen met een eigen afstand (BAAS_AF); de rest is ongemoeid.
+    baasNiet2Dicht:function(e){
+      if(!e||!e.baasNaam||e.dood||e.dood2||e.intro) return;
+      const dx=e.p.x-this.kop.x, dy=e.p.y-this.kop.y, dz=e.p.z-this.kop.z;
+      const d=Math.sqrt(dx*dx+dy*dy+dz*dz);
+      if(d<0.001) return;
+      // BUITEN: voor ELKE baas, niet alleen die met een eigen afstand - ook
+      // WARDEN en RAVEN kwamen buiten bereik.
+      if(d>BAAS_MAXVER&&!e.reus){ const k2=BAAS_MAXVER/d;
+        e.p.set(this.kop.x+dx*k2, this.kop.y+dy*k2, this.kop.z+dz*k2);
+        if(e.vv<0) e.vv=0;                       // en zijn vaart naar buiten eraf
+        return; }
+      if(!BAAS_AF[e.baasNaam]) return;
+      const half=(e.bw||20)*0.5;
+      const grens=Math.max(BAAS_MINAF,half/Math.tan(BAAS_BLIK*0.5));
+      if(d>=grens) return;
+      const k=grens/d;
+      e.p.set(this.kop.x+dx*k, this.kop.y+dy*k, this.kop.z+dz*k);
+      // en zijn vaart naar binnen eraf. LET OP het teken: de aanvliegstap doet
+      // addScaledVector(naar, vv) en 'naar' wijst naar JOU, dus positief is
+      // naar binnen. (Eerst schreef ik vv<0 - dan remde ik juist zijn terugtrekken.)
+      if(e.vv>0) e.vv=0; },
+
+    wielSchaal:function(e){
+      const BA=e&&e.baasNaam&&BAAS_AF[e.baasNaam];
+      return (BA&&BA.s)?BA.s:1; },
+
     wielTick:function(e,s){
       if(e.wielA===undefined){ e.wielA=Math.atan2(e.p.x-this.kop.x,-(e.p.z-this.kop.z));
-        e.wielR=WIEL_R; e.wielDr=(Math.random()<0.5?-1:1); e.wielT=0; }
+        e.wielR=WIEL_R*this.wielSchaal(e); e.wielDr=(Math.random()<0.5?-1:1); e.wielT=0; }
       // v15.50 HIER STOND EEN DUBBELE AANROEP. Het commentaar luidde: "eigen
       // aanroep, want de gewone zitten verderop in de lus en deze routine doet
       // 'return' daarvóór." Dat was niet waar: wielTick wordt aangeroepen
@@ -4563,8 +4681,12 @@
       // geen scheervlucht voor THE WHEEL: met 60 m breedte vliegt hij dan door je heen
       e.wielT+=s;
       // langzaam van straal wisselen, zodat de ronde niet steeds dezelfde is
-      e.wielR+=(WIEL_R+Math.sin(e.wielT*0.23)*WIEL_RV-e.wielR)*Math.min(1,s*0.6);
-      if(e.wielR<WIEL_MINR) e.wielR=WIEL_MINR;
+      // v15.57: THE WHEEL vliegt zijn eigen cirkel en liep dus niet mee met
+      // BAAS_AF - gemeten bleef hij op 114 m. Nu schaalt zijn straal mee.
+      { const ws=this.wielSchaal(e);
+        e.wielR+=((WIEL_R+Math.sin(e.wielT*0.23)*WIEL_RV)*ws-e.wielR)*Math.min(1,s*0.6);
+        const ondergrens=Math.max(BAAS_MINAF,WIEL_MINR*ws);
+        if(e.wielR<ondergrens) e.wielR=ondergrens; }
       e.wielA+=e.wielDr*WIEL_HOEKSNEL*s;
       // BLIJF VÓÓR JE: de cirkel loopt van -WIEL_HOEK tot +WIEL_HOEK graden om
       // je heen en keert dan om. Anders vliegt hij achter je, waar hij als
@@ -6026,6 +6148,14 @@
           transparent:true,opacity:1,blending:THREE.AdditiveBlending,
           depthWrite:false,side:THREE.DoubleSide}));
         K.frustumCulled=false; K.renderOrder=(M.renderOrder||0)+1;
+        // v15.57 Sjoerd: "laser lijkt achter een baas te verdwijnen." Klopt: de
+        // balk had tekenvolgorde 0 en de vijandplaten 2. Doorzichtige dingen
+        // worden in die volgorde getekend, en de balk schrijft zelf geen
+        // diepte - dus werd de baas er DAARNA overheen geplakt, ook waar de
+        // balk vóór hem langs liep. Nu tekent de balk na de platen: vóór de
+        // baas zichtbaar, en pas echt achter hem verborgen (zijn plaat schrijft
+        // wel diepte). De bliksembuisjes stonden al op 8.
+        M.renderOrder=9; K.renderOrder=10;
         this.par.add(K); M.__kern=K;
         this.lazM[hid]=M; }
       // de balk neerleggen: van je hand tot waar hij eindigt
@@ -6071,6 +6201,18 @@
         this.straalDood(e,true);                         // laser: meteen af
         if(L.brand&&e.live) e.brand=Math.max(e.brand||0,L.brand);
         this.vonk(e.p.x,e.p.y,e.p.z,WCOL[3],7,7,0.4); }
+      // v15.57 EN DE SCHILDBOLLEN die de lijn kruist. Daarvoor ging de laser
+      // er dwars doorheen: raak() op de baas zelf telt alleen bollen vlak bij
+      // zijn midden, en de laser riep de andere twee soorten nooit aan.
+      { const BL=this.bollen();
+        for(let i=0;i<BL.length;i++){ const o=BL[i].o;
+          const rel=this.tmp.copy(o.p).sub(ori);
+          const langs=rel.dot(dir);
+          if(langs<1||langs>LASBEREIK) continue;
+          const af=Math.sqrt(Math.max(0,rel.lengthSq()-langs*langs));
+          if(af>raakDik+2.5) continue;
+          this.bolRaak(BL[i],(L.up?1.5:1)*L.dmg);
+          this.vonk(o.p.x,o.p.y,o.p.z,WCOL[3],6,5,0.35); } }
       // en vijandelijk vuur dat de lijn kruist gaat er ook aan
       for(let i=0;i<this.vij.length;i++){ const B=this.vij[i];
         if(!B.live) continue;
@@ -6515,6 +6657,7 @@
         const ET=ZAPTRAP[Math.min(ZAPTRAP.length-1,Math.max(0,lv-1))];
         const used=new Set(), pts=[this.ori.clone()], max=Math.min(14,ET.n*(W.up?2:1));
         this.zapRaak=[];                                 // v15.54: wie de klap meeneemt
+        this.zapSchot=(this.zapSchot||0)+1;              // v15.57: per schot elke bol één keer
         // v15.55 Sjoerd: "de neerdalende vliegtuigen kan je ook laten
         // ontploffen met bliksem." Een neerstortend wrak staat NIET in
         // doelen() - dat is de lijst levende schepen - dus sprong de ketting
@@ -6533,6 +6676,20 @@
           const kracht=ET.dmg*(1+k*ZAPGROEI);
           this.raak(cur,kracht,cur.p.x,cur.p.y,cur.p.z);
           this.straalDood(cur);                          // v15.52: bliksem = klap
+          // v15.57 EN DE SCHILDBOLLEN in de buurt van dit schip: de flits
+          // springt erheen (zapRaak tekent er een tak naartoe) en raakt ze.
+          // Daarvoor ging de bliksem er gewoon langs.
+          { const BL=this.bollen();
+            for(let q2=0;q2<BL.length;q2++){ const o=BL[q2].o;
+              if(o.p.distanceTo(cur.p)>ZAP_BOLAF) continue;
+              if(o.__zapSchot===this.zapSchot) continue;   // één keer per schot
+              o.__zapSchot=this.zapSchot;
+              // x6: de bliksem is op één doel zwak (zijn kracht is de ketting),
+              // dus deed hij gemeten 16 schade op WARDEN's bollen in vier
+              // schoten - zo'n 45 schoten per bol. Een generator is gevoelig
+              // voor stroom; zo liggen beide bollen er in ~4,5 s af.
+              this.bolRaak(BL[q2],kracht*ZAP_BOLX);
+              if(this.zapRaak&&this.zapRaak.length<40) this.zapRaak.push(o.p.clone()); } }
           this.zapInslag(cur.p,ET,k);
           let nb=null, nd=ZAPSPRONG*ZAPSPRONG;
           for(let i=0;i<T.length;i++){ const q=T[i];
@@ -7995,7 +8152,9 @@
         e.flipT=undefined; e.knalT=undefined; e.brT2=undefined;
         e.hkAs=undefined; e.hkRest=0; e.hkTeken=1; e.hkPauze=0;
         e.kruis=null; e.kruisU=0; e.kruisPauze=0;
-        e.intro=(T.prof==='baas')?1:0; e.ip=0; e.it=0; e.iv=null; e.izij=0;
+        // v15.57 Sjoerd: "geen intro rondjes meer bij bazen. Meteen fight."
+        // De intro liet hem eerst langs drie punten om je heen vliegen.
+        e.intro=0; e.ip=0; e.it=0; e.iv=null; e.izij=0;
         e.route=(opt&&opt.route)||null; e.rp=(opt&&opt.rp)||0; e.rv=null;
         e.rs=(opt&&opt.rs)||1; e.rm=(opt&&opt.rm)||1; e.rondjes=0;
         const P=this.plaatVoor(tp);
@@ -8475,6 +8634,14 @@
       // De dans wilde tot 195 m; kogels halen 150, de laser 170. Nu hoogstens
       // BAAS_MAXAF, zodat elk wapen bij hem komt.
       let doel=reus?REUSAFSTAND:(Math.min(e.dubbel?UFO_MAXAF*0.75:BAAS_MAXAF,F.d)+e.r*0.32);
+      // v15.57 zijn hele dans dichterbij of verder: de eigen uitvallen en
+      // terugtrekkers blijven, alleen het midden schuift. Zie BAAS_AF.
+      { const BA=(!reus&&!e.dubbel&&e.baasNaam)?BAAS_AF[e.baasNaam]:null;
+        if(BA){
+          const verlies=1-Math.max(0,Math.min(1,e.hp/(e.hpM||1)));
+          let sch=BA.s+(((BA.e!==undefined)?BA.e:BA.s)-BA.s)*verlies;
+          if(BA.oog&&e.trioI!==undefined&&e.trioI!==null&&BA.oog[e.trioI]!==undefined) sch=BA.oog[e.trioI];
+          doel=Math.max(BAAS_MINAF,doel*sch); } }
       // BLACK RAVEN is 18 m en viel dus onder 'groot', maar hij HOORT dichtbij:
       // Sjoerd wil zijn raketten kunnen raken om zijn combo vast te houden.
       // (Gemeten: hij bleef op 126-131 m hangen, ver buiten bereik.)
@@ -10806,7 +10973,8 @@
           e.bT=(e.bT||0)-s;
           if(e.bT<=0){ e.bT=((TYPE[e.tp].cd||3.4)+Math.random()*1.6)*VUURTEMPO;
             this.spuw(e,TYPE[e.tp].sal||1,0.06); } } }
-      else if(e.prof==='baas'){ if(!(e.dubbel&&(e.ufoDoel||e.herpakT>0))) this.baasBaan(e,s,naar,afst); }
+      else if(e.prof==='baas'){ if(!(e.dubbel&&(e.ufoDoel||e.herpakT>0))) this.baasBaan(e,s,naar,afst);
+        this.baasNiet2Dicht(e); }
       else if(e.prof==='jammer'){ this.jamTick(e,s); }
       else if(e.prof==='haaks'){ this.haaksTick(e,s); }
       else if(e.prof==='duiker'){ this.profiel(e,s,naar,afst,sp);
@@ -11236,14 +11404,14 @@
 
     nieuweGolf:function(){
       this.wave++;
-      if(this.wave>GOLVEN){ this.baasKomt(); return; }
+      if(this.wave>golvenVan(this.level)){ this.baasKomt(); return; }
       if(window.LOG) window.LOG('golf '+this.wave+' level '+this.level+
         '  schepen '+this.enemies.filter(function(q){return q.live;}).length+
         '  vuur '+this.vij.filter(function(q){return q.live;}).length);
       this.plan=this.golfPlan(this.wave);
       this.planT=0; this.rij=[]; this.veldMax=0; this.gi=0; this.groepT=0;
       for(let i=0;i<this.plan.length;i++) this.plan[i].uit=0;
-      this.toonMelding('LEVEL '+this.level+'   WAVE '+this.wave+' / '+GOLVEN,'#35e8ff');
+      this.toonMelding('LEVEL '+this.level+'   WAVE '+this.wave+' / '+golvenVan(this.level),'#35e8ff');
       // Vanaf level 4 hangt er in elke golf een spiraalwerper: taai, traag, en
       // hij spuwt om de vijf tellen acht spiralende zoekers. Hoogstens twee.
       // Hij hoort bij een golf, net als elke andere vijand: vanaf golf 3, en niet
@@ -11595,7 +11763,7 @@
         this.zaad=this.level*7919;
         if(!window.DEMO) bewaarVoortgang(this.level,this.punten,this.ults,this.contN);
         this.levelTxt='LEVEL '+this.level;
-        this.levelSub='WAVE 1 / '+GOLVEN;
+        this.levelSub='WAVE 1 / '+golvenVan(this.level);
         SND.zeg('Level '+this.level); }
       // zolang er nog iets binnenkomt blijft het zwart en staat de tijd stil
       if(this.wachtLaden&&this.rustT<=RUST_OP+0.05){ this.rustT=RUST_OP+0.05;
@@ -12584,7 +12752,7 @@
         if(!R.zoek||!R.zoek.live){ let bd=1e9, bz=null;
           for(let a=0;a<this.enemies.length;a++){ const e=this.enemies[a]; if(!e.live) continue;
             const d=e.p.distanceTo(R.m.position); if(d<bd){ bd=d; bz=e; } }
-          R.zoek=bz; }
+          R.zoek=this.rakDoel(bz,R.m.position); }   // v15.57: achter een schild op de bol
         const v=this.RV||(this.RV=new THREE.Vector3());
         // AFGELEID DOOR EEN FLARE: hij volgt de hete flare in plaats van het
         // schip, precies waar flares voor bedoeld zijn. Brandt die op, dan
@@ -12654,6 +12822,9 @@
         let bum=false;
         for(let a=0;a<this.enemies.length;a++){ const e=this.enemies[a]; if(!e.live) continue;
           if(e.p.distanceTo(R.m.position)<e.r+1.6){ bum=true; break; } }
+        // v15.57 en bij een schildbol: anders vloog hij er dwars doorheen
+        if(!bum&&R.zoek&&R.zoek.p&&R.zoek.hp!==undefined&&R.zoek.live&&
+           R.zoek.p.distanceTo(R.m.position)<RAK_BOLRAAK) bum=true;
         // Hij verdwijnt na een treffer, of als hij het na lang jagen niet redt.
         // Wachttijd zonder doel telde NIET mee — bedoeld zodat een salvo niet
         // oplost bij een golfwissel, maar zo leeft een raket zonder doel EEUWIG
@@ -12703,9 +12874,12 @@
               // vol in het midden, minder aan de rand
               const deel=1-Math.max(0,af-e.r)/straal;
               this.raak(e,dmg*Math.max(0.25,deel),P.x,P.y,P.z); }
-            // en de generatoren van WARDEN
-            for(let k2=0;k2<6;k2++) if(!this.genTreffer(P,dmg*0.6)) break;
-            for(let k2=0;k2<6;k2++) if(!this.escTreffer(P,dmg*0.6)) break;
+            // v15.57 ALLE SCHILDBOLLEN binnen de klap, alle drie de soorten. Was:
+            // alleen WARDEN's generatoren en IRONCLAD's mijnen, en alleen als de
+            // klap er bijna bovenop viel.
+            { const BL=this.bollen();
+              for(let k2=0;k2<BL.length;k2++)
+                if(BL[k2].o.p.distanceTo(P)<straal) this.bolRaak(BL[k2],dmg*0.6); }
             for(let k=0;k<KET_LUS;k++) if(!this.vijTreffer(P,9,straal*0.6)) break; }
           R.live=false; R.m.visible=false; } }
 
@@ -13074,7 +13248,10 @@
             const isReus=!!(keus&&keus.gedrag==='reus');
             this.baas=isReus
               ? this.spawn(BAAS,{x:0,z:-REUSAFSTAND,y:this.kop.y-260,baas:keus,hp:kr})
-              : this.spawn(BAAS,{x:zij*230,z:-70,y:this.kop.y+8,baas:keus,hp:kr*(weer?0.62:1)});
+              // v15.57: zonder intro begon hij hier 240 m opzij, buiten beeld en
+              // buiten bereik. Nu komt hij recht voor je binnen, op 140 m - waar
+              // elk wapen hem haalt - en vecht hij meteen.
+              : this.spawn(BAAS,{x:zij*18,z:-140,y:this.kop.y+8,baas:keus,hp:kr*(weer?0.62:1)});
             if(this.baas&&isReus){ this.baas.intro=0; this.baas.rijst=1; this.baas.rt=0;
               SND.alarm(); SND.zeg('Warning'); }
             if(this.baas){ this.baas.izij=-zij; this.baas.weer=weer;
@@ -13422,7 +13599,7 @@
 
       // ---- onderregel ----
       this.hudTekst('#mLv','LV '+this.level+'/'+LEVELS,GRZ,0.032,0.26,'hLv');
-      this.hudTekst('#mWave','WAVE '+Math.max(1,this.wave)+'/'+GOLVEN,GRZ,0.032,0.26,'hWave');
+      this.hudTekst('#mWave','WAVE '+Math.max(1,this.wave)+'/'+golvenVan(this.level),GRZ,0.032,0.26,'hWave');
       // de puntenteller flitst op als er een combo bij komt vliegen, en STAAT IN
       // BRAND na een combo van 100+ (Sjoerd v14.82)
       let sKl=(this.puntFlits>0)?'#ffe45c':GRZ, sGr=0.034;
@@ -15535,7 +15712,7 @@
         // de doofperiode, dan rekende de overgang uit dat hij nog moest gaan
         // doven — en werd het beeld eerst licht voordat het zwart werd.
         C.state='rust'; C.rustT=RUST_ZWART+RUST_OP; C.rustFase=1; C.wave=0;
-        C.levelTxt='LEVEL '+C.level; C.levelSub='WAVE 1 / '+GOLVEN;
+        C.levelTxt='LEVEL '+C.level; C.levelSub='WAVE 1 / '+golvenVan(C.level);
         C.lvlAan=false; C.levelTekst(true);
         const D=document.querySelector('#doek');
         if(D){ C.dekV=1;
@@ -15588,7 +15765,7 @@
     let techLv=1, techWv=1;
     const wvToon=function(){
       const t=document.querySelector('#wvTxt');
-      if(t) t.setAttribute('value',techWv>GOLVEN?'BOSS':('WAVE '+techWv)); };
+      if(t) t.setAttribute('value',techWv>golvenVan(techLv)?'BOSS':('WAVE '+techWv)); };
     // Het testpaneel EN het hoofdmenu stonden allebei aan: dan kijk je door de
     // ene knoppenrij heen naar de andere. Ze wisselen elkaar nu af.
     // LET OP: #tech zit BINNEN #menu. Het menu onzichtbaar maken nam dus het
@@ -15958,11 +16135,11 @@
     // levels heen in plaats van vast te lopen op 1 en BOSS.
     kl('#btnFaseA',function(){
       if(techWv>1) techWv--;
-      else if(techLv>1){ techLv--; techWv=GOLVEN+1; }
-      else techWv=GOLVEN+1;
+      else if(techLv>1){ techLv--; techWv=golvenVan(techLv)+1; }
+      else techWv=golvenVan(techLv)+1;
       wvToon(); lvToon(); });
     kl('#btnFaseB',function(){
-      if(techWv<=GOLVEN) techWv++;
+      if(techWv<=golvenVan(techLv)) techWv++;
       else if(techLv<LEVELS){ techLv++; techWv=1; }
       else techWv=1;
       wvToon(); lvToon(); });
