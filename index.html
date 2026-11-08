@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.60';
+  const VERSIE='v15.61';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -5570,6 +5570,12 @@
       const voor=(L>1)?NIVEAU[Math.min(NIVEAU.length-1,L-2)]:[];
       const mag=function(t){ const T=TYPE[t]; if(!T||T.prof==='baas') return false;
         const b=T.basis||T.n;
+        // v15.61 geen MOEDERSCHIP als hulp (GREY HAWK, prof 'moeder'): die houdt
+        // zijn eigen afstand aan - GEMETEN 185 m rechts, buiten bereik, 17 s stil -
+        // en werd dan teruggezet en schoot met 18.000 m/s door het beeld.
+        // Sjoerd: "blijft zijn hulpje rechts in beeld hangen, daarna gaat hij
+        // heel raar door het beeld heel snel."
+        if(T.prof==='moeder'||T.prof==='broed') return false;
         return HULP_NIET.indexOf(b)<0&&GEESTEN.indexOf(b)<0; };
       let n=nu.filter(function(t){ return voor.indexOf(t)<0&&mag(t); });
       if(!n.length) n=nu.filter(mag);
