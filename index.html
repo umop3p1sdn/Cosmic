@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.55';
+  const VERSIE='v15.56';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2692,7 +2692,10 @@
   const ULT_FLITS=0.9;          // hoe lang de ult-teller opgloeit
   const VAL_BONUS=0.35;         // een neerstortend schip levert nog eens 35% op
   const ULT_DEEL=0.5;           // v14.76: punten tellen half mee voor je volgende ult
-  const LAZ_DIK=0.30, LAZ_RAAK=1.6, LAZ_EXTRA=0.9;   // de laserbalk: dikte en trefbreedte
+  // v15.56 Sjoerd: "zou je de laser dunner kunnen maken, nu is hij
+  // overdreven dik." LAZ_DIK is ALLEEN beeld (0,30 -> 0,12); wat hij raakt
+  // hangt aan LAZ_RAAK en blijft gelijk, dus hij raakt niet slechter.
+  const LAZ_DIK=0.12, LAZ_RAAK=1.6, LAZ_EXTRA=0.9;   // de laserbalk: dikte en trefbreedte
   const ULT_RAK=25;             // v14.59: een ult is 25 raketten (was 50)
   // v15.32, Sjoerd: "de ults 20% minder snel in hoe snel ik ze krijg."
   // 12500 -> 15625 is precies 1/0,8: je verdient ze op 80% van de oude snelheid.
