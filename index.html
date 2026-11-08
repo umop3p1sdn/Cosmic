@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.59';
+  const VERSIE='v15.60';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1962,7 +1962,7 @@
   const BAAS_AF={
     'DREADNOUGHT':{s:1.00,e:0.60},   // ver, en in zijn laatste deel schuift hij op je af
     'WARDEN':     {s:0.76},          // midden
-    'THE WHEEL':  {s:0.56},          // dichtbij: een draaiende zaag
+    'THE WHEEL':  {s:0.95},          // v15.59 verder weg (was 0,56): dichtbij was te makkelijk
     'RAVEN':      {s:1.00},          // ver weg, laat zijn jagers het werk doen
     'IRONCLAD':   {s:0.52},          // dichtbij en log
     'THE EYES':   {s:0.76, oog:[0.56,0.76,0.96]},  // elk oog op een eigen afstand
@@ -2368,7 +2368,11 @@
   const WIEL_MINR=90;
   // v15.58 THE WHEEL TELEPORTEERT: om de zoveel tijd flitst hij weg en duikt
   // hij elders op zijn ronde weer op, een flink stuk verderop.
-  const WIEL_SPRONG=8, WIEL_SPRONGV=4, WIEL_WEG=0.7, WIEL_SPRMIN=0.8;
+  const WIEL_SPRONG=8, WIEL_SPRONGV=4, WIEL_WEG=1.0, WIEL_WEGV=2.0, WIEL_SPRMIN=0.8;
+  // v15.59 waar hij opduikt: tot 100 graden opzij (nooit achter je), 85-140 m,
+  // 18 m lager tot 32 m hoger, en BUITEN je blik (meer dan 55 graden ernaast)
+  const WIEL_SPRHOEK=1.75, WIEL_AFMIN=85, WIEL_AFMAX=140, WIEL_LAAG=-18, WIEL_HOOGX=32;
+  const WIEL_BLIK=55*Math.PI/180, WIEL_TERUG=0.06;
   const WIEL_HOEK=1.15;         // ~66 graden links en rechts: hij blijft vóór je
   const OOG_WISSEL=4.0;         // THE EYES: om de hoeveel seconden het open oog wisselt
   const OOG_UITEEN=88;          // hoe ver de drie ogen uit elkaar staan (ze zijn 60 m breed)
@@ -4712,6 +4716,36 @@
       const BA=e&&e.baasNaam&&BAAS_AF[e.baasNaam];
       return (BA&&BA.s)?BA.s:1; },
 
+    // v15.59 een nieuwe plek voor THE WHEEL: niet achter je, en liefst waar je niet kijkt
+    // WAAR KIJK JE HEEN? v15.60 GEMETEN in de echte browser: getWorldDirection
+    // op het #cam-element geeft (0,0,+1) - ACHTERUIT. Dat element is een groep,
+    // geen camera, en three.js geeft dan de +Z-as. Alleen de camera zelf geeft
+    // -Z. De nuke vloog daardoor achter je in plaats van waar je kijkt.
+    kijkRicht:function(v){
+      const c=this.cam&&this.cam.getObject3D&&this.cam.getObject3D('camera');
+      if(c) c.getWorldDirection(v);
+      else if(this.cam&&this.cam.object3D){ this.cam.object3D.getWorldDirection(v); v.negate(); }
+      else v.set(0,0,-1);
+      return v.normalize(); },
+
+    wielPlek:function(e){
+      const kijk=this.WK||(this.WK=new THREE.Vector3(0,0,-1));
+      this.kijkRicht(kijk);
+      const v=this.WPV||(this.WPV=new THREE.Vector3());
+      const ws=this.wielSchaal(e), basis=(WIEL_R)*ws;
+      let best=null, bestH=-1;
+      for(let q=0;q<30;q++){
+        const a=(Math.random()*2-1)*WIEL_SPRHOEK;
+        const r=WIEL_AFMIN+Math.random()*(WIEL_AFMAX-WIEL_AFMIN);
+        const y=WIEL_LAAG+Math.random()*(WIEL_HOOGX-WIEL_LAAG);
+        v.set(Math.sin(a)*r,8+y,-Math.cos(a)*r);
+        const hk=Math.acos(Math.max(-1,Math.min(1,v.clone().normalize().dot(kijk))));
+        if(hk>bestH){ bestH=hk; best={a:a,r:r,y:y}; }
+        if(hk>WIEL_BLIK) break; }
+      e.wielA=best.a; e.wielDr=(Math.random()<0.5?-1:1);
+      e.wielR=best.r; e.wielVer=best.r-basis; e.wielYo=best.y;
+      e.p.set(this.kop.x+Math.sin(best.a)*best.r,this.kop.y+8+best.y,this.kop.z-Math.cos(best.a)*best.r); },
+
     wielTick:function(e,s){
       if(e.wielA===undefined){ e.wielA=Math.atan2(e.p.x-this.kop.x,-(e.p.z-this.kop.z));
         e.wielR=WIEL_R*this.wielSchaal(e); e.wielDr=(Math.random()<0.5?-1:1); e.wielT=0; }
@@ -4729,16 +4763,21 @@
       // v15.57: THE WHEEL vliegt zijn eigen cirkel en liep dus niet mee met
       // BAAS_AF - gemeten bleef hij op 114 m. Nu schaalt zijn straal mee.
       { const ws=this.wielSchaal(e);
-        e.wielR+=((WIEL_R+Math.sin(e.wielT*0.23)*WIEL_RV)*ws-e.wielR)*Math.min(1,s*0.6);
+        e.wielVer=(e.wielVer||0)*(1-Math.min(1,s*WIEL_TERUG));      // v15.59 extra afstand na een sprong
+        e.wielYo=(e.wielYo||0)*(1-Math.min(1,s*WIEL_TERUG));        // en extra hoogte
+        e.wielR+=((WIEL_R+Math.sin(e.wielT*0.23)*WIEL_RV)*ws+e.wielVer-e.wielR)*Math.min(1,s*0.6);
         const ondergrens=Math.max(BAAS_MINAF,WIEL_MINR*ws);
         if(e.wielR<ondergrens) e.wielR=ondergrens; }
-      // ---- v15.58 DE SPRONG ----
+      // ---- v15.58 DE SPRONG (v15.59: 1-3 s weg, en hij duikt op waar je NIET kijkt) ----
+      // Sjoerd: "Waar hij komt mag overal behalve achter mij. Mag hoog of laag.
+      // Leukste is buiten mijn gezichtsveld, dus je moet zoeken!"
       if(e.wielSpr===undefined||e.wielSpr===0) e.wielSpr=WIEL_SPRONG+Math.random()*WIEL_SPRONGV;
       if(e.wielWeg>0){
         e.wielWeg-=s;
-        if(e.bb&&e.bb.m&&e.bb.m.material){ e.bb.m.material.transparent=true;
-          e.bb.m.material.opacity=e.wielWeg>0?0:1; }
+        if(e.bb&&e.bb.m&&e.bb.m.material){ e.bb.m.material.transparent=true; e.bb.m.material.opacity=0; }
         if(e.wielWeg<=0){
+          this.wielPlek(e);
+          if(e.bb){ e.bb.m.position.copy(e.p); if(e.bb.m.material) e.bb.m.material.opacity=1; }
           this.vonk(e.p.x,e.p.y,e.p.z,0x7fd8ff,18,e.bw*0.4,0.8);
           this.vonk(e.p.x,e.p.y,e.p.z,0xffffff,12,e.bw*0.25,0.5);
           this.schokRing(e.p); SND.zwiep&&SND.zwiep(e.p.x*0.02); }
@@ -4747,28 +4786,24 @@
       if(e.wielSpr<=0){
         e.wielSpr=WIEL_SPRONG+Math.random()*WIEL_SPRONGV;
         this.vonk(e.p.x,e.p.y,e.p.z,0x7fd8ff,18,e.bw*0.4,0.8);
-        this.schokRing(e.p);
-        // een nieuwe hoek, minstens WIEL_SPRMIN verderop, binnen zijn boog
-        let a=e.wielA;
-        for(let q=0;q<8&&Math.abs(a-e.wielA)<WIEL_SPRMIN;q++) a=(Math.random()*2-1)*WIEL_HOEK;
-        e.wielA=a; e.wielDr=(Math.random()<0.5?-1:1);
-        e.p.set(this.kop.x+Math.sin(a)*e.wielR,this.kop.y+8+Math.sin(e.wielT*0.5)*WIEL_HOOG,
-          this.kop.z-Math.cos(a)*e.wielR);
-        if(e.bb){ e.bb.m.position.copy(e.p); if(e.bb.m.material){ e.bb.m.material.transparent=true; e.bb.m.material.opacity=0; } }
-        e.wielWeg=WIEL_WEG;
+        this.schokRing(e.p); SND.zwiep&&SND.zwiep(e.p.x*0.02);
+        if(e.bb&&e.bb.m&&e.bb.m.material){ e.bb.m.material.transparent=true; e.bb.m.material.opacity=0; }
+        e.wielWeg=WIEL_WEG+Math.random()*WIEL_WEGV;
         return true; }
       e.wielA+=e.wielDr*WIEL_HOEKSNEL*s*this.baasSnel(e);
       // BLIJF VÓÓR JE: de cirkel loopt van -WIEL_HOEK tot +WIEL_HOEK graden om
       // je heen en keert dan om. Anders vliegt hij achter je, waar hij als
       // 'voorbij' wordt opgeruimd — daar bleef hij op 139 graden hangen.
-      if(e.wielA>WIEL_HOEK){ e.wielA=WIEL_HOEK; e.wielDr=-1; }
-      else if(e.wielA<-WIEL_HOEK){ e.wielA=-WIEL_HOEK; e.wielDr=1; }
+      // v15.59: na een sprong kan hij verder opzij staan (tot WIEL_SPRHOEK); dan
+      // niet terugknippen maar terugdraaien
+      if(e.wielA>WIEL_HOEK){ if(e.wielA>WIEL_SPRHOEK) e.wielA=WIEL_SPRHOEK; e.wielDr=-1; }
+      else if(e.wielA<-WIEL_HOEK){ if(e.wielA<-WIEL_SPRHOEK) e.wielA=-WIEL_SPRHOEK; e.wielDr=1; }
       // af en toe van draairichting wisselen: een lus
       else if(Math.random()<s*WIEL_KEERKANS) e.wielDr=-e.wielDr;
       const dx=Math.sin(e.wielA)*e.wielR, dz=-Math.cos(e.wielA)*e.wielR;
       const dy=Math.sin(e.wielT*0.5)*WIEL_HOOG;
       // niet springen: naar het doelpunt toe, met vaart
-      const tx=this.kop.x+dx, ty=this.kop.y+8+dy, tz=this.kop.z+dz;
+      const tx=this.kop.x+dx, ty=this.kop.y+8+dy+(e.wielYo||0), tz=this.kop.z+dz;
       const k=Math.min(1,s*WIEL_VOLG);
       e.p.x+=(tx-e.p.x)*k; e.p.y+=(ty-e.p.y)*k; e.p.z+=(tz-e.p.z)*k;
       if(e.bb) e.bb.m.position.copy(e.p);
@@ -7256,11 +7291,7 @@
         // dus de bal ontplofte onder in beeld. Nu vertrekt hij op ooghoogte en
         // vliegt hij recht vooruit waar je kijkt.
         const d0=this.KIJK||(this.KIJK=new THREE.Vector3());
-        if(this.cam&&this.cam.object3D){
-          // getWorldDirection geeft de kijkrichting al goed: recht vooruit
-          this.cam.object3D.getWorldDirection(d0); }
-        else d0.set(0,0,-1);
-        d0.normalize();
+        this.kijkRicht(d0);
         this.bomO=this.kop.clone();
         this.bomD=d0;
         this.bomT=BOM_VLUCHT;                 // hij vliegt eerst naar het midden
@@ -7453,6 +7484,7 @@
       if(e.dood2) return;                            // gaat al ten onder
       if(e.intro){ this.vonk(px||e.p.x,py||e.p.y,pz||e.p.z,0x9fe4f5,3,6,0.5); return; }
       if(e.pbWeg) return;                            // v15.58 LONGSHIP is door een portaal
+      if(e.wielWeg>0) return;                        // v15.59 THE WHEEL is weg
       // GEMETEN in echt spel: 10 van de 53 gedode schepen stortten neer, de rest
       // verdween meteen. Dit was de oorzaak: elke kogel die een WRAK nog raakte
       // liet hem verdwijnen — en je schiet natuurlijk door op wat je net raakte.
@@ -8421,7 +8453,7 @@
         // ze. In de wisregel is het sluitend.
         e.springRust=0; e.geestT=0; e.rol=0; e.valDir=null; e.valV=0; e.valRot=0; e.valTijd=0; e.valRolA=0; e.valNu=0;
         e.snelKnal=0; e.valKlap=0; e.valEind=0;
-        e.geenSchild=0; e.schildRust=0; e.spook=0; e.spookZ=0; e.spookGo=0; e.wielSpr=0; e.wielWeg=0;                 // v15.58
+        e.geenSchild=0; e.schildRust=0; e.spook=0; e.spookZ=0; e.spookGo=0; e.wielSpr=0; e.wielWeg=0; e.wielVer=0; e.wielYo=0;                 // v15.58
         e.broedCd=0; e.broedUit=0; e.broedDir=null; e.broed=0; e.valDraai=undefined;
         e.rakOp=0; e.rakWijkT=0; e.ssT=0; e.ssCd=0; e.duikRolCd=0;
         e.ufoT=undefined; e.ufoDoel=null; e.ufoRust=0; e.ufoWegCd=0; e.ufoZij=0;
@@ -9116,7 +9148,9 @@
       // beurt terug op zijn vliegstand, dus bleef hij rechtop hangen terwijl hij
       // viel. Nu alleen voor schepen die nog leven.
       else if(e.bb&&!e.dood&&!e.dood2&&!(e.ssT>0)&&!(e.herpakT>0)&&!(e.klimT>0)&&!(e.yoT>0)) e.bb.m.rotation.z=e.rol;
-      e.p.y=reus
+      // v15.60 THE WHEEL bepaalt zijn hoogte zelf (wielTick): deze regel zette
+      // hem elke beurt terug, dus kwam hij na een sprong nooit hoog of laag uit
+      if(!e.wiel) e.p.y=reus
         ? (this.kop.y-e.bh*0.34+Math.sin(e.t*0.13)*e.hb)   // hoofd blijft op ooghoogte
         : (this.kop.y+hoogte+Math.sin(e.t*0.33)*e.hb);
       const deel=e.hp/e.hpM;
