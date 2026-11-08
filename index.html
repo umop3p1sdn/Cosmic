@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.64';
+  const VERSIE='v15.65';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2515,6 +2515,7 @@
   // v15.64 AEGIS LAADT ZIJN LASER OP. In zijn midden groeit een fel punt;
   // schiet het kapot (LAAD_HP) en hij waggelt, anders vuurt hij en kost het je
   // LAAD_DMG. Daarna LAAD_RUST s en dan laadt hij opnieuw.
+  const LAAD_NASCHILD=4;        // v15.65 zo lang na het vallen van zijn schild begint hij
   const LAAD_EERST=6, LAAD_TIJD=6, LAAD_RUST=10, LAAD_HP=500, LAAD_DMG=20, LAAD_WAGGEL=1.6, LAAD_VOOR=6;
   const WACHT_N=4, WACHT_HP=0.6, WACHT_TERUG=16, WACHT_STRAAL=1.6, WACHT_RONDE=0.22;
   // De demo: hoe vaak hij van wapen mag wisselen, wanneer hij een groep ziet, en
@@ -6158,6 +6159,8 @@
       if(e.waggel>0){ e.waggel-=s; const k=e.waggel/LAAD_WAGGEL;
         e.p.x+=Math.sin(this.T*29)*9*k*s; e.p.y+=Math.cos(this.T*23)*6*k*s; }
       if(!L.live){
+        // v15.65 Sjoerd: "laser charging alleen als zijn shield weg is."
+        if(e.schild>0||!e.schildWeg){ e.laadT=Math.max(e.laadT,LAAD_NASCHILD); return; }
         e.laadT-=s;
         if(e.laadT<=0){ L.live=true; L.hp=LAAD_HP; L.t=0; L.m.visible=true;
           this.toonMelding&&this.toonMelding('LASER CHARGING','#ff5a8a');
