@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.58';
+  const VERSIE='v15.59';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1939,7 +1939,7 @@
   // Het schild kon al kapot, maar had 1e9 hp. Nu een echt getal: een deel van
   // zijn kracht. Bollen kapot blijft de snelle weg; met genoeg vuur breek je
   // het ook zo open, en dan blijft het SCHILD_RUST seconden weg.
-  const BAAS_SCHILD=0.30, SCHILD_RUST=8;
+  const BAAS_SCHILD=0.10, SCHILD_RUST=8;
   const RAK_BOLRAAK=4.5;        // zo dicht bij een schildbol ontploft een raket
   // de bliksem springt naar schildbollen binnen zoveel meter van een geraakt
   // schip - net zo ver als zijn gewone oversprong (ZAPSPRONG). Met 30 m deed
@@ -2800,7 +2800,9 @@
   // taaier. Vier treffers van een slingerende zoeker en je bent dood.
   // v15.32, Sjoerd: "eind bazen mogen wel 50% meer health." 2,0 -> 3,0.
   // Deze ene knop regelt zowel de elf levelbazen als de reus (6200 x BAAS_TAAI).
-  const BAAS_TAAI=3.0;          // was 2.0
+  // v15.59 Sjoerd: "alle bazen 3x zo veel kracht - nu kun je ze vaak blijven
+  // raken, dus zijn ze erg kwetsbaar."
+  const BAAS_TAAI=9.0;          // was 3.0 (en daarvoor 2.0)
   // De spiraalwerper: vanaf level 4, hoogstens twee tegelijk. Acht zoekers die
   // vanuit zijn midden naar buiten spreiden en spiralend op je af draaien.
   // In welke golven het spook kan opduiken. Alleen daar, en alleen als hij er
