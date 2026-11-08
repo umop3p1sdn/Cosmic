@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.61';
+  const VERSIE='v15.62';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1964,7 +1964,7 @@
     'WARDEN':     {s:0.76},          // midden
     'THE WHEEL':  {s:0.95},          // v15.59 verder weg (was 0,56): dichtbij was te makkelijk
     'RAVEN':      {s:1.00},          // ver weg, laat zijn jagers het werk doen
-    'IRONCLAD':   {s:0.52},          // dichtbij en log
+    'IRONCLAD':   {s:0.80},          // v15.62 verder weg (was 0,52): Sjoerd "veel te dichtbij"
     'THE EYES':   {s:0.76, oog:[0.56,0.76,0.96]},  // elk oog op een eigen afstand
     'THE WALKER': {s:1.00,e:0.52},   // loopt tijdens het gevecht naar je toe
     'AEGIS':      {s:0.76},
@@ -2489,6 +2489,7 @@
   // v15.58 AXLE VERMENIGVULDIGT ZICH. Hij wordt vier, maar één is de echte;
   // de andere drie hebben 1/8 van zijn kracht. Alle drie neer = hij splitst weer.
   const SPLIT_EERST=6, SPLIT_NA=5, KLOON_DEEL=1/8, KLOON_VUUR=3.2;
+  const WACHT_WIJD=40, WACHT_VOOR=28;   // v15.62 ring om IRONCLAD: wijder en voor hem
   const WACHT_N=4, WACHT_HP=0.6, WACHT_TERUG=16, WACHT_STRAAL=1.6, WACHT_RONDE=0.22;
   // De demo: hoe vaak hij van wapen mag wisselen, wanneer hij een groep ziet, en
   // wanneer het zo druk wordt dat hij zijn ult inzet.
@@ -5969,10 +5970,17 @@
         this.vonk(c.p.x,c.p.y,c.p.z,0x7fd8ff,14,c.bw*0.4,0.7); } },
 
     wachtVolg:function(j,s){
-      const e=j.wachtBaas, R=e.bw*0.5+22;
+      // v15.62 Sjoerd: "ze plakken op zijn shield, graag afstand van hem." De
+      // ring is nu veel wijder, en hangt een stuk VOOR hem (naar jou toe), zodat
+      // de wachters ook met de baas ver weg binnen bereik blijven.
+      const e=j.wachtBaas, R=e.bw*0.5+WACHT_WIJD;
       j.wachtA+=WACHT_RONDE*s;
-      const tx=e.p.x+Math.cos(j.wachtA)*R, ty=e.p.y+Math.sin(j.wachtA)*R*0.45,
-            tz=e.p.z+Math.sin(j.wachtA)*R*0.5;
+      const n=this.WN||(this.WN=new THREE.Vector3());
+      n.subVectors(this.kop,e.p); n.y=0; n.normalize();
+      const ca=Math.cos(j.wachtA), sa=Math.sin(j.wachtA);
+      const voor=WACHT_VOOR+sa*R*0.3;
+      const tx=e.p.x-n.z*ca*R+n.x*voor, ty=e.p.y+sa*R*0.5,
+            tz=e.p.z+n.x*ca*R+n.z*voor;
       const w=this.WV||(this.WV=new THREE.Vector3());
       w.set(tx-j.p.x,ty-j.p.y,tz-j.p.z);
       const d=w.length();
