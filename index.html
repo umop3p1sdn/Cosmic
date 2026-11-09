@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.73';
+  const VERSIE='v15.74';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -16979,12 +16979,21 @@
       location.href=location.origin+(p===location.pathname?'/VR/':p); });
     kl('#btnTech',function(){ techToon(true); lvToon(); });
     kl('#btnTechUit',function(){ techToon(false); });
-    kl('#btnLvMin',function(){ techLv=Math.max(1,techLv-1); lvToon(); wvToon(); });
+    // v15.74 Sjoerd: "in TEST kloppen niet elke level met boss. Lvl 3 heeft nu
+    // meer waves." De golf bleef staan bij een ander level: BOSS van level 2 is
+    // golf 11, en in level 3 (14 golven) was golf 11 dan gewoon WAVE 11. Nu
+    // blijft BOSS ook BOSS, en een golf past altijd binnen het nieuwe level.
+    const lvZet=function(n){
+      const wasBaas=techWv>golvenVan(techLv);
+      techLv=n;
+      if(techLv<=LEVELS) techWv=wasBaas?golvenVan(techLv)+1:Math.min(techWv,golvenVan(techLv));
+      lvToon(); wvToon(); };
+    kl('#btnLvMin',function(){ lvZet(Math.max(1,techLv-1)); });
     // Sjoerd v14.97: "test level select tot level 11, daarna is niet meer van
     // kracht." Klopte: de kiezer liep tot 17, maar 12 t/m 16 bestaan niet — die
     // gingen naar startSpel met een level dat er niet is. Nu 1 t/m 11, en 12 is
     // PARADE.
-    kl('#btnLvPlus',function(){ techLv=Math.min(LEVELS+1,techLv+1); lvToon(); });
+    kl('#btnLvPlus',function(){ lvZet(Math.min(LEVELS+1,techLv+1)); });
     const techStart=function(w,demo){
       techToon(false);
       if(techLv>LEVELS){ startSpel(!!demo,{l:1,w:0});
