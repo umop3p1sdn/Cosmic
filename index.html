@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.72';
+  const VERSIE='v15.73';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1725,8 +1725,9 @@
     // één keer, en goed: terug naar je mitrailleur met de duimknop
     {k:5, les:'MACHINE GUN', knop:1, vij:'WASP', n:4, spreid:1,
           vraag:'PRESS BUTTON ON TOP OF\nL OR R JOYSTICK'},
-    {k:2, les:'SHOTGUN\nFOR STRONGER, BIGGER',     vij:'BOMBER', n:1, dicht:1},
-    {k:3, les:'LASER\nFOR STRONGER, BIGGER',       vij:'WATCHER',n:1, ver:1},
+    // v15.73 Sjoerd: "in de tutorial alleen kleine schepen." (was BOMBER en WATCHER)
+    {k:2, les:'SHOTGUN\nCLOSE RANGE',              vij:'SCOUT',  n:3, dicht:1},
+    {k:3, les:'LASER\nLONG RANGE',                 vij:'RAZOR',  n:2, ver:1},
     {k:4, les:'USE ELECTRO\nFOR GROUPS',           vij:'WASP',   n:5, klont:1},
     {k:0, les:'USE YOUR ULT\nPRESS GRIP',           vij:'SCOUT',  n:8, spreid:1, ult:1}
   ];
