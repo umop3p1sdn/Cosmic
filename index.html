@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.76';
+  const VERSIE='v15.77';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1729,6 +1729,10 @@
     {k:2, les:'SHOTGUN\nCLOSE RANGE',              vij:'SCOUT',  n:3, dicht:1},
     {k:3, les:'LASER\nLONG RANGE',                 vij:'RAZOR',  n:2, ver:1},
     {k:4, les:'USE ELECTRO\nFOR GROUPS',           vij:'WASP',   n:5, klont:1},
+    // v15.77 DE COMBO-LES, na de wapens (dan heb je er meteen een paar) en voor de
+    // ult. Sjoerd: "combo-uitleg, met schieten en kogels die meetellen, de meter
+    // rechts, en hoe het puntensysteem zorgt voor extra ults. Minimaal 25 combo."
+    {k:-1, combo:1, les:'COMBO\nKILL AGAIN WITHIN 4 SECONDS', vij:'WASP', n:8},
     {k:0, les:'USE YOUR ULT\nPRESS GRIP',           vij:'SCOUT',  n:8, spreid:1, ult:1}
   ];
   const ROMPKL=[0x35e8ff,0xffe45c,0x6ce2a0,0xff3d81,0xffb03a,0xff6a3d,0x35e8ff,0x6ce2a0,
@@ -3444,6 +3448,9 @@
   // elke kubus die je pakt. Ze schieten niet. Elke keer een groepje van 3; zijn
   // ze kapot, dan komen er nieuwe." En daarna: TUTORIAL COMPLETE midden in beeld,
   // aftellen 5-4-3-2-1 met stem, dan begint het spel.
+  // v15.77 combo-les: zoveel moet je halen, zoveel doelen staan er steeds, en
+  // vanaf welke combo welke uitleg komt
+  const TCOMBO_DOEL=25, TCOMBO_N=8, TCOMBO_BIJ=0.35, TCOMBO_RING=2, TCOMBO_RAK=8, TCOMBO_ULT=16;
   const OEFEN_N=3, OEFEN_NA=1.5, OEFEN_TP='SCOUT', AFTEL_EERST=1.8;
   const TUT_LESMIN=4.5, TUT_NA=4.0, TUT_NAAR1=2.2, TUT_RUST=2.5, TUT_AMMO=30;
   const LES_TRAAG=0.004;        // tijdens de uitleg loopt de wereld bijna stil
@@ -8844,7 +8851,7 @@
         e.velgFx=0; e.openFx=0; e.blauwFx=0; e.velgFlits=0; e.blauwFlits=0;
         e.wiel=0; e.wielA=undefined; e.velgKapot=0; e.velgAan=0; e.velgRest=0;
         e.blauw=0; e.blauwM=0; e.blauwFlits=0;
-        if(e.doelen) this.doelWeg(e); e.doelT=0; e.doelSoort=null; e.klimT=0; e.klimCd=0; e.klimDuik=0; e.yoT=0; e.yoCd=0; e.flareCd=0; e.flareWeg=0; e.hangarJager=0; e.hulpJ=0; e.hulpI=0; e.wachtBaas=null; e.wachtAan=0; e.tutV=0; e.geenVuur=0; e.oefen=0; e.schildEens=0; e.schildWeg=0; e.laadBaas=0; e.laadT=0; e.waggel=0; e.hulpElk=0; e.hulpT=0; if(e.laad) this.laadUit(e); e.walker=0; e.walkVan=null; e.walkT=0; e.walkGolf=0; e.walkHulpT=0; e.kloon=0; e.kloonVan=null; e.kloonen=null; e.splits=0; e.splitT=0; e.portBaas=0; e.pbT=0; e.pbWeg=0; e.pbWacht=0; e.pbOpen=0; e.pbP=null; e.pbVast=0; e.vloot=0; e.vlootFase=null; e.vlootBaas=null; e.vlootVrij=0; e.vlootOff=null; e.wachtVloot=0; e.wachters=null; e.wachtOp=0; e.wachtT=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
+        if(e.doelen) this.doelWeg(e); e.doelT=0; e.doelSoort=null; e.klimT=0; e.klimCd=0; e.klimDuik=0; e.yoT=0; e.yoCd=0; e.flareCd=0; e.flareWeg=0; e.hangarJager=0; e.hulpJ=0; e.hulpI=0; e.wachtBaas=null; e.wachtAan=0; e.tutV=0; e.tcSchut=0; e.geenVuur=0; e.oefen=0; e.schildEens=0; e.schildWeg=0; e.laadBaas=0; e.laadT=0; e.waggel=0; e.hulpElk=0; e.hulpT=0; if(e.laad) this.laadUit(e); e.walker=0; e.walkVan=null; e.walkT=0; e.walkGolf=0; e.walkHulpT=0; e.kloon=0; e.kloonVan=null; e.kloonen=null; e.splits=0; e.splitT=0; e.portBaas=0; e.pbT=0; e.pbWeg=0; e.pbWacht=0; e.pbOpen=0; e.pbP=null; e.pbVast=0; e.vloot=0; e.vlootFase=null; e.vlootBaas=null; e.vlootVrij=0; e.vlootOff=null; e.wachtVloot=0; e.wachters=null; e.wachtOp=0; e.wachtT=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
         e.scheer=0; e.scheerCd=undefined; e.scheerT=0;
         e.vp=null; e.vRicht=null;   // de vliegrichting opnieuw meten
         if(e.veld){ e.veld.visible=false; e.veld=null; }
@@ -12784,12 +12791,13 @@
       if(S2.knop){ this.tutFase=2; this.tutT=0;
         this.tutTekst(S2.vraag||'PRESS WITH THUMB ON BUTTON\nL OR R'); return; }
       this.tutDoos(S2.k);
+      if(S2.combo){ this.tutTekst('SHOOT GREEN BOX\nAMMO FOR ALL WEAPONS'); return; }
       this.tutTekst('SHOOT '+(WKLEUR[S2.k]||'')+' BOX\n'+(WNAAM[S2.k]||'')); },
 
     tutDoos:function(k){
       for(let i=0;i<this.dozen.length;i++){ const D=this.dozen[i]; if(D.live) continue;
-        D.ult=0; D.ammo=0; D.k=k; D.uitleg=1; D.t=0;
-        const col=WCOL[k];
+        D.ult=0; D.ammo=(k<0)?1:0; D.k=k; D.uitleg=1; D.t=0;
+        const col=(k<0)?0x6ce2a0:WCOL[k];               // v15.77 k<0: de groene ammodoos
         D.kern.material.color.setHex(col); D.ring.material.color.setHex(col);
         D.gloed.material.color.setHex(col);
         // gewoon tekenen: er hangt geen doek meer voor
@@ -12908,6 +12916,7 @@
       this.oefenTick(s);
       const S2=TUT[this.tutI]; if(!S2){ this.tutKlaar(); return; }
       // fase 3: eerst mag je rustig lezen en mikken, DAARNA mogen ze terugvuren
+      if(this.tutFase===3&&S2.combo){ this.tutComboTick(S2,s); return; }
       if(this.tutFase===3){
         if(!this.tutVrij&&this.tutT>TUT_LEESTIJD){ this.tutVrij=1; this.tutVuurVrij(); }
         let leeft=0;
@@ -12926,6 +12935,10 @@
     // de doos is geraakt: nu het wapen kiezen
     tutPak:function(k){
       const S2=TUT[this.tutI]; if(!S2||S2.k!==k) return;
+      // v15.77 de combo-les: geen wapen kiezen, meteen de doelen
+      if(S2.combo){ this.tutFase=3; this.tutT=0; this.tutVrij=1;
+        this.combo=0; this.comboKlok=0; this.tcFase=0; this.tcBij=0; this.tcHad=0; this.tcRing=0;
+        this.tcTxt=S2.les; this.tcToon=-1; return; }
       this.tutFase=2; this.tutT=0;
       // Sjoerd v14.99: "vaak vermelden heeft geen zin, moet gewoon 1x goed."
       // De knopregel is een EIGEN stap geworden (zie TUT), niet meer onder elke
@@ -12941,6 +12954,50 @@
       // wapens kiezen. Engelse woorden." De les gaat pas door als ze neer zijn.
       this.tutTekst(S2.les+'\n\nNOW SHOOT\nALL ENEMIES');
       this.tutVijanden(S2); },
+
+    // ---- v15.77 DE COMBO-LES ----
+    tutComboTick:function(S2,s){
+      // steeds TCOMBO_N doelen; wat neer is komt snel terug, zodat je door kunt tellen
+      let n=0, schut=0;
+      for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
+        if(!e.live||!e.tutV||e.dood||e.dood2) continue;
+        if(e.p.distanceTo(this.kop)>110){ e.live=false; e.tutV=0; if(e.bb){ this.bbVrij(e.bb); e.bb=null; } continue; }
+        n++; if(e.tcSchut) schut++; }
+      this.tcBij-=s;
+      if(n<TCOMBO_N&&this.tcBij<=0){ this.tcBij=TCOMBO_BIJ;
+        const tp=TYPE.findIndex(function(q){ return q&&(q.basis||q.n)===S2.vij; });
+        if(tp>=0){ const e=this.spawn(tp,{x:(Math.random()-0.5)*40,y:this.kop.y+2+Math.random()*10,
+            z:-45-Math.random()*25,stijl:'halte'});
+          if(e){ e.tutV=1; e.cd=1e9; e.bT=1e9; e.geenVuur=1; } } }
+      // twee schutters vanaf TCOMBO_RAK: hun schoten kun je kapotschieten, en
+      // dat houdt je combo in leven (in de tutorial kost een treffer niets)
+      if(this.tcFase>=2&&schut<2){
+        const tp=TYPE.findIndex(function(q){ return q&&(q.basis||q.n)==='SCOUT'; });
+        if(tp>=0){ const e=this.spawn(tp,{x:(schut?16:-16),y:this.kop.y+6,z:-70,stijl:'halte'});
+          if(e){ e.tutV=1; e.tcSchut=1; e.geenVuur=0; e.cd=1.2; e.bT=0.8; } } }
+      const c=this.combo||0;
+      if(c>this.tcHad) this.tcHad=c;
+      // de uitleg loopt mee met hoe ver je bent
+      if(this.tcFase===0&&c>=TCOMBO_RING){ this.tcFase=1; this.tcRing=3;
+        this.tcTxt='THE RING ON THE RIGHT\n= TIME LEFT FOR\nYOUR NEXT KILL'; this.tcToon=-1; }
+      else if(this.tcFase===1&&c>=TCOMBO_RAK){ this.tcFase=2;
+        this.tcTxt='SHOOT ENEMY ROCKETS\nTHEY KEEP YOUR\nCOMBO ALIVE'; this.tcToon=-1; }
+      else if(this.tcFase===2&&c>=TCOMBO_ULT){ this.tcFase=3;
+        this.tcTxt='POINTS x COMBO\nEVERY 62,500 POINTS\n= EXTRA ULT'; this.tcToon=-1; }
+      // en altijd eronder: hoe ver je bent
+      if(c!==this.tcToon&&c<TCOMBO_DOEL){ this.tcToon=c;
+        this.tutTekst(this.tcTxt+'\n\nCOMBO '+c+' / '+TCOMBO_DOEL); }
+      // gebroken? opnieuw, de uitleg blijft staan
+      if(c===0&&this.tcHad>=2){ this.tcHad=0;
+        this.toonMelding('COMBO LOST - AGAIN!','#ff8a3d'); }
+      // de ring even laten kloppen, zodat je ziet welke het is
+      { const H=document.querySelector('#comboHoek');
+        if(H&&H.object3D){ if(this.tcRing>0){ this.tcRing-=s;
+            H.object3D.scale.setScalar(1+0.35*Math.abs(Math.sin(this.tcRing*7))); }
+          else if(H.object3D.scale.x!==1) H.object3D.scale.setScalar(1); } }
+      if(c>=TCOMBO_DOEL){
+        this.tutFase=4; this.tutT=0;
+        this.tutTekst('COMBO x'+c+'!\nGREAT'); SND.zeg&&SND.zeg('Great combo'); } },
 
     // ---- v15.64 OEFENVIJANDEN: steeds drie, ze schieten niet ----
     oefenTick:function(s){
