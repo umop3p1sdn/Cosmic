@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.75';
+  const VERSIE='v15.76';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2528,6 +2528,12 @@
   // LAAD_DMG. Daarna LAAD_RUST s en dan laadt hij opnieuw.
   const LAAD_NASCHILD=4;        // v15.65 zo lang na het vallen van zijn schild begint hij
   const LAAD_EERST=6, LAAD_TIJD=6, LAAD_RUST=10, LAAD_HP=500, LAAD_DMG=20, LAAD_WAGGEL=1.6, LAAD_VOOR=6;
+  // v15.76 DE VOORPOORT voor vijandelijke raketten (gezien vanuit jou, met
+  // 'voor' = waar het spel zich afspeelt, -z): zo ver opzij, zo hoog en zo laag
+  // mogen ze aankomen. Daarbuiten sturen ze eerst om; komen ze toch dichterbij
+  // dan POORT_SCHILD van buiten de ruimere SCHILD-hoeken, dan spatten ze uiteen.
+  const POORT_ZIJ=60, POORT_OP=28, POORT_NEER=-22;
+  const POORT_SCHILD=14, SCHILD_ZIJ=100, SCHILD_OP=50, SCHILD_NEER=-45;   // alleen het echt extreme
   const WACHT_N=4, WACHT_HP=0.6, WACHT_TERUG=16, WACHT_STRAAL=1.6, WACHT_RONDE=0.22;
   // De demo: hoe vaak hij van wapen mag wisselen, wanneer hij een groep ziet, en
   // wanneer het zo druk wordt dat hij zijn ult inzet.
@@ -6297,6 +6303,30 @@
 
     walkBolKlap:function(W){ W.live=false; W.m.visible=false; },
     walkBolWeg:function(){ if(this.walkB) this.walkB.forEach(function(W){ W.live=false; W.m.visible=false; }); },
+
+    // ---- v15.76 de voorpoort en het onzichtbare schild ----
+    // Geeft true en zet uit = een punt op de rand van de poort als q erbuiten staat.
+    poortPunt:function(q,eye,uit){
+      const rx=q.x-eye.x, ry=q.y-eye.y, rz=q.z-eye.z;
+      const hor=Math.sqrt(rx*rx+rz*rz)||0.001, d=Math.sqrt(hor*hor+ry*ry)||0.001;
+      const zij=Math.atan2(rx,-rz)*180/Math.PI, op=Math.atan2(ry,hor)*180/Math.PI;
+      const zM=Math.max(-POORT_ZIJ,Math.min(POORT_ZIJ,zij)), oM=Math.max(POORT_NEER,Math.min(POORT_OP,op));
+      if(zM===zij&&oM===op) return false;
+      const a=zM*Math.PI/180, b=oM*Math.PI/180, af=Math.max(22,d*0.85);
+      uit.set(eye.x+Math.sin(a)*Math.cos(b)*af, eye.y+Math.sin(b)*af, eye.z-Math.cos(a)*Math.cos(b)*af);
+      return true; },
+
+    poortSchild:function(B,kp,eye){
+      const q=kp.copy(B.o).addScaledVector(B.dir,B.d);
+      const rx=q.x-eye.x, ry=q.y-eye.y, rz=q.z-eye.z;
+      const hor=Math.sqrt(rx*rx+rz*rz), d=Math.sqrt(hor*hor+ry*ry);
+      if(d>POORT_SCHILD) return false;
+      const zij=Math.abs(Math.atan2(rx,-rz)*180/Math.PI), op=Math.atan2(ry,hor||0.001)*180/Math.PI;
+      if(zij<=SCHILD_ZIJ&&op<=SCHILD_OP&&op>=SCHILD_NEER) return false;
+      // alleen wat OP JE AF komt: een schot dat al langs je heen vliegt laten we gaan
+      if((-rx*B.dir.x-ry*B.dir.y-rz*B.dir.z)/(d||1)<0.5) return false;
+      this.vonk(q.x,q.y,q.z,0x9fe4f5,8,2.5,0.4);
+      this.vijVrij2(B); return true; },
 
     wachtVolg:function(j,s){
       // v15.62 Sjoerd: "ze plakken op zijn shield, graag afstand van hem." De
@@ -13738,6 +13768,9 @@
         if(B.onq>0) B.onq-=s;                         // v15.32: onsterfelijke ster
         B.d+=B.sp*s;
         if(B.boog){ B.dir.y-=B.boog*s; B.dir.normalize(); }   // buigt naar je toe
+        // v15.76 HET ONZICHTBARE SCHILD: wat toch van achter, van opzij of steil
+        // van boven of onder vlakbij komt, spat erop uiteen
+        if(this.poortSchild(B,kp,eye)) continue;
         if(B.zoek){
           // Draait langzaam bij, en laat je vlak voor je neus los: zo kun je hem
           // altijd nog ontwijken of kapotschieten. Zonder dat laatste is er geen
@@ -13812,6 +13845,12 @@
             naarMij.subVectors(eye,q);
             const tijd=Math.min(2.2,naarMij.length()/Math.max(6,B.sp));
             if(this.kopV) naarMij.addScaledVector(this.kopV,tijd*VOORUIT);
+            // v15.76 DE VOORPOORT. Sjoerd: "heel veel raketten komen nog via achter
+            // of een scherpe hoek boven of onder. Graag geen extreem lage / hoge /
+            // achter aanvallen." Staat hij buiten de poort (te ver opzij, achter,
+            // te hoog of te laag), dan stuurt hij eerst naar een punt OP de rand
+            // van de poort, en pas daarbinnen recht op je af.
+            if(this.poortPunt(q,eye,naarMij)) naarMij.sub(q);
             naarMij.normalize();
             // Een salvoraket draait veel strakker bij: hij moet na het uitwaaieren
             // in een boog terugkomen, niet rechtdoor de ruimte in vliegen.
