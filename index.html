@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.74';
+  const VERSIE='v15.75';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -10038,7 +10038,9 @@
 
     // Kort aankondigen: je moet een grote klap zien aankomen.
     sigMeld:function(e,tekst,kl){
-      this.toonMelding(tekst,kl||'#ff8a3d');
+      // v15.75 Sjoerd: "van elke baas wordt zijn aanval benoemd, vind ik
+      // overkill." De naam staat er niet meer; de flits en het alarm blijven,
+      // zodat je nog wel merkt DAT er iets aankomt.
       this.vonk(e.p.x,e.p.y,e.p.z,0xffd9a0,6,e.bw*0.25,0.7);
       SND.alarm&&SND.alarm(e.p.x*0.02); },
 
@@ -13259,6 +13261,12 @@
         // AZURE PLATE zwiert met jagerssnelheid heen en weer; die slaat zijn
         // gewone baan over
         if(bnK==='BASILISK'&&!e.dood&&!e.dood2){ this.plaatZwier(e,s); continue; }
+        // v15.75 TUTORIAL: zolang je de wapendoos nog moet schieten staan de
+        // oefenvijanden stil. Sjoerd: "steeds de vliegtuigen stil laten staan tot
+        // je de box pakt die je moet pakken. Als je die schiet gaat het weer verder."
+        if(window.TUT&&e.oefen&&this.tutFase===1&&!e.dood&&!e.dood2){
+          if(e.bb&&e.bb.m) e.bb.m.position.copy(e.p);
+          continue; }
         // v15.58 de vloot van DREADNOUGHT vliegt in formatie met hem mee
         if(e.vlootBaas&&!e.vlootVrij&&!e.dood&&!e.dood2){
           const B=e.vlootBaas;
@@ -14032,7 +14040,8 @@
       this.doosT-=s;
       // Sjoerd v14.44: wapens 1,2x zo vaak. Een doos kwam elke 26-36 s; nu
       // elke 22-30 s. De inhoud en de kansen erin blijven ongewijzigd.
-      if(this.doosT<=0){ this.doosT=(26+Math.random()*10)/(M().doos*DOOS_VAKER); this.doosSpawn(); }
+      // v15.75 in de tutorial geen losse dozen: alleen de doos die bij de les hoort
+      if(this.doosT<=0&&!window.TUT){ this.doosT=(26+Math.random()*10)/(M().doos*DOOS_VAKER); this.doosSpawn(); }
       for(let i=0;i<this.dozen.length;i++){ const D=this.dozen[i]; if(!D.live) continue;
         D.t+=s; D.p.z+=D.sp*s;
         D.g.position.copy(D.p);
