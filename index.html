@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.77';
+  const VERSIE='v15.78';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2396,6 +2396,7 @@
   // Niet opruimen als 'dood' - zonder deze knop kan de opening niet aan.
   const ZWB_MIN=6, ZWB_MAX=18, ZWB_ELK=12;   // AXLE's zwerm
   const WERP_ELK=2.5, WERP_BEREIK=60, WERP_MAXBR=12, WERP_SEG=14, WERP_DUUR=0.35;
+  const BLIKS_N=14;
   const WERP_DIK=0.42;          // v14.42: een dikke straal i.p.v. een haarlijn
   const SCHILDGOLF_VANAF=3, SCHILDGOLF_KANS=0.3;   // Sjoerd: vanaf level 3
   // De schildarena: twee werpers en drie groepen na elkaar, vanaf level 6.
@@ -2504,6 +2505,7 @@
   // v15.58 DREADNOUGHT EN ZIJN VLOOT. Sjoerd: "Komt van ver achter met een hele
   // vloot helpers naar je toe. Is zijn vloot kapot, dan vliegt hij snel weg en
   // komt hij terug aan de horizon met een nieuwe vloot. Je ziet ze al aankomen."
+  const BAAS1_HULP=16;          // v15.78 zo vaak krijgt DREADNOUGHT een paar hulpjes
   const VLOOT_N=7, VLOOT_VER=290, VLOOT_KOM=38, VLOOT_WEG=110, VLOOT_HP=0.7, VLOOT_AF=115;
   // v15.58 LONGSHIP DOOR DE PORTALEN. Hij verdwijnt, er gaan drie blauwe
   // portalen open: uit twee komen snelle kleintjes, uit de derde - iets later -
@@ -2831,6 +2833,10 @@
   // overdreven dik." LAZ_DIK is ALLEEN beeld (0,30 -> 0,12); wat hij raakt
   // hangt aan LAZ_RAAK en blijft gelijk, dus hij raakt niet slechter.
   const LAZ_DIK=0.12, LAZ_RAAK=1.6, LAZ_EXTRA=0.9;   // de laserbalk: dikte en trefbreedte
+  // v15.78 DE ULT-RAKETTEN ZIJN SPECIAAL. Sjoerd: rode gloed in de vlucht, rode
+  // vliegende sparkel-sterren, rode klap met rode vonken, 2x zo sterk, en 25%
+  // geeft een rode bliksem die twee schepen ver doorspringt.
+  const ULT_DMG=2, ULT_KANS=0.25, ULT_SPRONG=2, ULT_SPRAF=38, ULT_SPRDMG=0.6, ULT_KL=0xff2a3a;
   const ULT_RAK=25;             // v14.59: een ult is 25 raketten (was 50)
   // v15.32, Sjoerd: "de ults 20% minder snel in hoe snel ik ze krijg."
   // 12500 -> 15625 is precies 1/0,8: je verdient ze op 80% van de oude snelheid.
@@ -6244,6 +6250,34 @@
 
     laadUit:function(e){ const L=e.laad; if(!L) return; L.live=false; if(L.m) L.m.visible=false; },
 
+    // ---- v15.78 de klap van een ULT-raket: rood, en soms een rode bliksem ----
+    ultKlap:function(R,P,straal,dmg){
+      this.vonk(P.x,P.y,P.z,0xffffff,10,straal*0.30,0.5);
+      this.vonk(P.x,P.y,P.z,ULT_KL,26,straal*0.70,0.9);
+      this.vonk(P.x,P.y,P.z,0xff5a6a,18,straal*1.15,0.8);
+      this.vonk(P.x,P.y,P.z,0x9a0a1a,12,straal*1.6,0.7);
+      for(let k=0;k<4;k++){ const hk=k/4*6.283, af=straal*0.6;
+        this.rook(P.x+Math.cos(hk)*af,P.y+Math.sin(hk)*af*0.7,P.z,false,2.0,1.6); }
+      this.knal(P,straal*0.6);
+      this.schokRing(P); this.schokRing(P);
+      if(!R.ultBl) return;
+      // DE RODE BLIKSEM: vanaf de klap naar het dichtstbijzijnde schip, en van
+      // daar naar het volgende - ULT_SPRONG schepen ver
+      let van=P.clone(); const gehad=[];
+      for(let sp=0;sp<ULT_SPRONG;sp++){
+        let best=null, bd=ULT_SPRAF;
+        for(let a=0;a<this.enemies.length;a++){ const e=this.enemies[a];
+          if(!e.live||e.dood||e.dood2||e.parade||gehad.indexOf(e)>=0) continue;
+          const d=e.p.distanceTo(van); if(d<bd){ bd=d; best=e; } }
+        if(!best) break;
+        gehad.push(best);
+        this.bliksemStraal(van,best.p,ULT_KL,WERP_DIK*0.35);
+        this.raak(best,dmg*ULT_SPRDMG,best.p.x,best.p.y,best.p.z);
+        this.vonk(best.p.x,best.p.y,best.p.z,ULT_KL,10,4,0.5);
+        this.vonk(best.p.x,best.p.y,best.p.z,0xffffff,4,2,0.3);
+        van=best.p.clone(); }
+      if(gehad.length&&SND.zap) SND.zap(P.x*0.02); },
+
     walkBolUit:function(p){
       if(!this.walkB) this.walkB=[];
       let W=this.walkB.find(function(q){ return !q.live; });
@@ -6825,9 +6859,9 @@
     // HAARLIJN van één pixel, die in de bril nauwelijks te zien is. Nu een
     // ketting van korte balkjes met een gloed eromheen. Niet drukker: hetzelfde
     // aantal stralen, dezelfde tussenpozen, alleen dikker.
-    bliksemStraal:function(a,b,kl){
+    bliksemStraal:function(a,b,kl,dik){
       if(!this.bliks){ this.bliks=[];
-        for(let i=0;i<4;i++){
+        for(let i=0;i<BLIKS_N;i++){   // v15.78 was 4: de ult-raketten vuren er ook mee
           const grp=new THREE.Group(); grp.visible=false;
           const stuk=[];
           for(let q=0;q<WERP_SEG-1;q++){
@@ -6856,7 +6890,7 @@
         const len=ri.length()||0.01;
         m.position.copy(mid);
         m.quaternion.setFromUnitVectors(op,ri.normalize());
-        m.scale.set(WERP_DIK,len,WERP_DIK);
+        m.scale.set(dik||WERP_DIK,len,dik||WERP_DIK);
         m.material.color.setHex(kl); }
       L.m.visible=true; L.t=WERP_DUUR; },
 
@@ -7458,7 +7492,7 @@
     raket:function(o,d,rad,swarm,ph){
       for(let i=0;i<this.rockets.length;i++){ const R=this.rockets[i]; if(R.live) continue;
         R.o.copy(o); R.dir.copy(d); R.d=0; R.tot=0; R.live=true; R.zoek=null; R.leef=0; R.oud=0;
-        R.rad=rad; R.ph=ph||0; R.swarm=swarm||0; R.ex=1; R.hagel=0;
+        R.rad=rad; R.ph=ph||0; R.swarm=swarm||0; R.ex=1; R.hagel=0; R.ult=0; R.ultBl=0; R.ster=0;
         // v15.47 WISREGEL: zonder deze twee erft een hergebruikte raket de
         // splijting van zijn voorganger en valt een gewone raket van trap 1
         // ineens uiteen. Dezelfde val als bij de schepen.
@@ -7657,7 +7691,8 @@
           const R=this.raket(this.ori,dd,6.0,1.6+Math.random()*1.4,Math.random()*6.283);
           // De ult vuurt ALTIJD de zwaarste trap, ongeacht je wapenniveau —
           // dat is waar hij voor is.
-          if(R){ R.ex=3; if(T.length) R.zoek=T[k%T.length]; } }
+          if(R){ R.ex=3; R.ult=1; R.ultBl=(Math.random()<ULT_KANS)?1:0;
+            R.m.material.color.setHex(ULT_KL); if(T.length) R.zoek=T[k%T.length]; } }
         this.toonMelding('SALVO','#ff8a3d'); }
       else {                                                  // DE ATOOMBOM
         // Sjoerds ontwerp: een raket die naar het midden vliegt en daar
@@ -9047,14 +9082,17 @@
         if(baasDef){
           if(!(opt&&opt.parade)){
           if(baasDef.naam==='WARDEN') this.genStart(e);
-          if(baasDef.naam==='DREADNOUGHT'){ e.vloot=1; e.vlootFase='start'; }
+          // v15.78 Sjoerd: "baas 1 en 3 graag omwisselen van tactiek. Baas 1 gewoon
+          // fight, en af en toe hulp zodat hij wat weerstand biedt." LANCE (3) krijgt
+          // nu de vloot van de horizon.
+          if(baasDef.naam==='DREADNOUGHT'){ e.hulpElk=BAAS1_HULP; e.hulpT=8; }
           // LANCE (Sjoerd): "zijn moves werken niet goed. Geef hem hetzelfde
           // profiel als AMBER RING gecombineerd met BRONZE FANG — en laat hem
           // beide uitvoeren." Dus: Z-sprints, schild aan/uit zonder reset,
           // portalen met hulptroepen, wegsprong bij een treffer, EN de break
           // turn van de herpakker met de versnelling erna.
           // v15.58 geen schild meer: LANCE wordt de snelle (zie BAAS_SNEL)
-          if(baasDef.naam==='LANCE'){ e.dubbel=1; e.geenSchild=1; }
+          if(baasDef.naam==='LANCE'){ e.dubbel=1; e.geenSchild=1; e.vloot=1; e.vlootFase='start'; }
           // v15.58 geen gouden velg meer: THE WHEEL wordt de teleporteerder
           if(baasDef.naam==='THE WHEEL'){ e.wiel=1; e.geenSchild=1; }
           if(baasDef.naam==='LANCE') e.eigenVuur=null;
@@ -11621,7 +11659,8 @@
           // NIET tijdens het sterven: deze 'return' sloeg baasBaan over, en
           // daar zit baasSterft. LANCE bleef daardoor eeuwig sprinten met hp 0
           // en ging nooit weg (Sjoerd: "boss doesn't die and go away").
-          if(!e.dood2&&!(e.herpakT>0)&&this.ufoTick(e,s)) return; }
+          // v15.78 niet sprinten terwijl hij met zijn vloot aankomt of wegvliegt
+          if(!e.dood2&&!(e.herpakT>0)&&!(e.vloot&&e.vlootFase!=='vecht')&&this.ufoTick(e,s)) return; }
         if(e.ufoWegCd>0) e.ufoWegCd-=s;
         // v15.12: de rustpauzes van de inslagen tellen bij ELKE baas af, ook bij
         // eentje zonder velg (anders bleef de rem na één treffer voorgoed staan)
@@ -13752,9 +13791,19 @@
           if(R.tr2===undefined||R.tr2<=0){ R.tr2=0.028;
             this.vonk(q.x,q.y,q.z,0xff2418,3,5,0.3,true); }
           else R.tr2-=s;
-          if(R.updT<=0) R.m.material.color.setHex(0xff8a3d); }
+          if(R.updT<=0) R.m.material.color.setHex(R.ult?ULT_KL:0xff8a3d); }
+        // v15.78 een ULT-raket: rood, groter en flakkerend, met sterretjes erachter
+        if(R.ult){
+          R.m.scale.multiplyScalar(1.35+Math.random()*0.25);
+          if(!(R.updT>0)) R.m.material.color.setHex(Math.random()<0.18?0xffd0d8:ULT_KL);
+          R.ster=(R.ster||0)-s;
+          if(R.ster<=0){ R.ster=0.03;
+            const P=R.m.position;
+            this.vonk(P.x,P.y,P.z,ULT_KL,2,2.2,0.45,true);
+            if(Math.random()<0.5) this.vonk(P.x,P.y,P.z,0xffffff,1,1.6,0.3,true);
+            if(Math.random()<0.35) this.vonk(P.x,P.y,P.z,0xff6a80,1,3.2,0.6); } }
         R.tr=(R.tr||0)-s;
-        if(R.tr<=0){ R.tr=0.07;
+        if(R.tr<=0&&!R.ult){ R.tr=0.07;
           this.vonk(R.m.position.x,R.m.position.y,R.m.position.z,0xff8a3d,1,1.2,0.28,true); }
         let bum=false;
         for(let a=0;a<this.enemies.length;a++){ const e=this.enemies[a]; if(!e.live) continue;
@@ -13785,11 +13834,13 @@
             // kracht je hebt, en voelt de ruil bij trap 4 en 7 als winst.
             const tr=Math.min(3,Math.max(1,R.ex||1));
             const straal=EXSTRAAL[tr];
-            const dmg=EXDMG[tr];
+            const dmg=EXDMG[tr]*(R.ult?ULT_DMG:1);
             // Hagelraketjes ontploffen in een eigen kleur — koel blauwgroen in
             // plaats van het oranje van de raketwerper, zodat je meteen ziet
             // welk wapen er heeft ingeslagen.
             const V=R.hagel?EXHAGEL[tr]:EXVORM[tr];
+            if(R.ult) this.ultKlap(R,P,straal,dmg);
+            else {
             this.vonk(P.x,P.y,P.z,0xffffff,V.wit,straal*0.30,V.duur*0.9);
             this.vonk(P.x,P.y,P.z,V.kl1,V.n1,straal*0.60,V.duur);
             this.vonk(P.x,P.y,P.z,V.kl2,V.n2,straal*1.10,V.duur*0.9);
@@ -13804,7 +13855,7 @@
             // Sjoerd: al vanaf de lage trappen iets zichtbaars — een kleine
             // witte bal bij trap 1, een echte vuurbal daarboven.
             this.vuurBal(P,straal,tr);
-            for(let k=0;k<V.ring;k++) this.schokRing(P);
+            for(let k=0;k<V.ring;k++) this.schokRing(P); }
             for(let a=0;a<this.enemies.length;a++){ const e=this.enemies[a]; if(!e.live) continue;
               const af=e.p.distanceTo(P);
               if(af>straal+e.r) continue;
