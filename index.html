@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.80';
+  const VERSIE='v15.81';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1154,7 +1154,16 @@
   '      <a-text id="hudC" value="" align="center" color="#6cf08a" width="2.6" position="0 0.34 -1.3"></a-text>'+
   // De TUTORIAL-tekst hangt LAGER dan de gewone melding: Sjoerd moest omhoog
   // kijken om hem te lezen. Nu recht voor je, net onder de horizon.
-  '      <a-text id="tutTxt" value="" align="center" color="#ffe45c" width="2.4" position="0 0.02 -1.5" visible="false"></a-text>'+
+  // v15.81 Sjoerd: "alleen geel voor letters is niet zo mooi, check hoe ze het
+  // vaak doen." Wat Meta aanraadt: een donker paneel ERACHTER (contrast 4,5:1,
+  // geen puur zwart of wit: niet donkerder dan #1A1A1A, niet lichter dan
+  // #DADADA). Dus: donkerblauw-grijs paneel, kop in een accentkleur, de uitleg
+  // in zacht wit, en de knop-hint klein in goud.
+  '      <a-plane id="tutPaneel" visible="false" position="0 0.02 -1.53" width="1.6" height="0.4" material="color:#161b24;shader:flat;opacity:0.86;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-plane id="tutRand" visible="false" position="0 0.22 -1.525" width="1.6" height="0.007" material="color:#7fe3ff;shader:flat;opacity:0.9;transparent:true;depthWrite:false;depthTest:false"></a-plane>'+
+  '      <a-text id="tutTxt" value="" align="center" color="#7fe3ff" width="1.45" position="0 0 -1.5" visible="false"></a-text>'+
+  '      <a-text id="tutBody" value="" align="center" color="#dadada" width="1.2" position="0 0 -1.5" visible="false"></a-text>'+
+  '      <a-text id="tutHint" value="- PRESS ANY KEY -" align="center" color="#ffc94a" width="0.95" position="0 -0.1 -1.5" visible="false"></a-text>'+
   // DE COMBOMETER, linksonder in je blikveld. Opzet gebaseerd op hoe andere
   // shooters dit doen: een RING die leegloopt (zoveel tijd heb je nog voor de
   // volgende kill), een CIJFER dat opspringt bij elke verhoging, en kleuren die
@@ -3459,6 +3468,11 @@
   // vanaf welke combo welke uitleg komt
   const TCOMBO_DOEL=25, TCOMBO_N=8, TCOMBO_BIJ=0.35, TCOMBO_RING=2, TCOMBO_RAK=8, TCOMBO_ULT=16;
   const OEFEN_N=3, OEFEN_NA=1.5, OEFEN_TP='SCOUT', AFTEL_EERST=1.8;
+  const TUT_HUDUIT=['#mHull','#mHp','#mUltL','#mUlt','#mWap','#mWapLv','#mAmmo','#magA','#magB',
+    '#krachtB','#mLv','#mWave','#mScore','#mMeet','#hudW','#hudC','#comboHoek'];   // v15.81 in de tutorial uit
+  // v15.81 lettergrootte (breedte van het tekstvlak): Sjoerd "tekst is echt te
+  // groot, ik moet van omhoog tot beneden kijken". Kop was 2,4.
+  const TUT_KOPW=1.45, TUT_BODYW=1.2, TUT_HINTW=0.95;
   const TUT_LEESMIN=700, TUT_LEESDONKER=0.18;   // v15.80 leesstand: zo lang minstens (ms), zo donker
   const TUT_LESMIN=4.5, TUT_NA=4.0, TUT_NAAR1=2.2, TUT_RUST=2.5, TUT_AMMO=30;
   const LES_TRAAG=0.004;        // tijdens de uitleg loopt de wereld bijna stil
@@ -12924,10 +12938,63 @@
     // al alles. Bij tekst beeld even donker, alles staat stil, met onder PRESS
     // ANY KEY, en dan gaat het verder." lees=1 zet die leesstand aan.
     tutTekst:function(txt,lees){
-      const e=document.querySelector('#tutTxt');
-      if(lees&&window.TUT){ this.tutLees=1; this.tutLeesT=performance.now();
-        txt=txt+'\n\n- PRESS ANY KEY -'; }
-      if(e){ e.setAttribute('value',txt); e.setAttribute('visible',true); } },
+      if(lees&&window.TUT){ this.tutLees=1; this.tutLeesT=performance.now(); }
+      // v15.81 de eerste regel is de KOP (accentkleur), de rest de uitleg
+      const t=String(txt||''), i=t.indexOf('\n');
+      this.tutKop=(i<0)?t:t.slice(0,i);
+      this.tutRest=(i<0)?'':t.slice(i+1).replace(/^\n+/,'');
+      this.tutLayout(); },
+
+    // het paneel op maat: kop, uitleg en (in de leesstand) de knop-hint
+    tutLayout:function(){
+      const q=function(id){ return document.querySelector(id); };
+      const K=q('#tutTxt'), B=q('#tutBody'), H=q('#tutHint'), P=q('#tutPaneel'), R=q('#tutRand');
+      if(!K) return;
+      const kw=parseFloat(K.getAttribute('width'))||TUT_KOPW;
+      const kop=this.tutKop||'', rest=this.tutRest||'', hint=!!(this.tutLees&&window.TUT);
+      const nb=rest?rest.split('\n').length:0;
+      // v15.81 iets kleinere letters (Sjoerd), en precies midden in beeld
+      const lk=0.085*kw/2.4, lb=0.085*TUT_BODYW/2.4, lh=0.085*TUT_HINTW/2.4;
+      const Ht=lk+(nb?0.025+nb*lb:0)+(hint?0.035+lh:0)+0.07;
+      const y0=0, top=y0+Ht/2-0.035;
+      const ky=top-lk/2, by=ky-lk/2-0.025-nb*lb/2, hy=y0-Ht/2+0.035+lh/2;
+      let mk=0; kop.split('\n').forEach(function(l){ mk=Math.max(mk,l.length); });
+      let mb=0; rest.split('\n').forEach(function(l){ mb=Math.max(mb,l.length); });
+      const W=Math.min(1.6,Math.max(0.5,Math.max(mk*kw/40,mb*TUT_BODYW/40,hint?0.36:0)+0.16));
+      K.setAttribute('value',kop); K.setAttribute('position','0 '+ky.toFixed(3)+' -1.5'); K.setAttribute('visible',true);
+      if(B){ B.setAttribute('value',rest); B.setAttribute('position','0 '+by.toFixed(3)+' -1.5'); B.setAttribute('visible',nb>0); }
+      if(H){ H.setAttribute('position','0 '+hy.toFixed(3)+' -1.5'); H.setAttribute('visible',hint); }
+      if(P){ P.setAttribute('width',W.toFixed(3)); P.setAttribute('height',Ht.toFixed(3));
+        P.setAttribute('position','0 '+y0+' -1.53'); P.setAttribute('visible',true); }
+      if(R){ R.setAttribute('width',W.toFixed(3)); R.setAttribute('position','0 '+(y0+Ht/2).toFixed(3)+' -1.525');
+        R.setAttribute('visible',true); }
+      // tekenvolgorde: het paneel eerst, de letters erop
+      [[P,'mesh',70],[R,'mesh',71],[K,'text',72],[B,'text',72],[H,'text',72]].forEach(function(a){
+        const m=a[0]&&a[0].getObject3D&&a[0].getObject3D(a[1]); if(m) m.renderOrder=a[2]; }); },
+
+    // elke beurt: is de kop weg, dan ook het paneel; en in de tutorial geen
+    // vliegende scores door de tekst heen
+    tutPaneelSync:function(){
+      const K=document.querySelector('#tutTxt');
+      const aan=K&&K.getAttribute('visible')&&K.getAttribute('visible')!=='false'&&(K.getAttribute('value')||'')!=='';
+      ['#tutPaneel','#tutRand','#tutBody','#tutHint'].forEach(function(id){ const e=document.querySelector(id);
+        if(e&&!aan&&e.object3D&&e.object3D.visible) e.setAttribute('visible',false); });
+      if(window.TUT) ['#ceGroep','#vwGroep','#comboKreet'].forEach(function(id){ const e=document.querySelector(id);
+        if(e&&e.object3D&&e.object3D.visible) e.object3D.visible=false; });
+      // v15.81 Sjoerd: "ook als ik wapens pak staat die tekst over de les-tekst",
+      // en "tutorial even leeg beeld, HUD leeg, alleen wat nodig is voor de
+      // uitleg." In de tutorial staat dus de HUD uit; alleen de combometer mag
+      // in de combo-les. Wat we zo uitzetten zetten we na afloop terug aan.
+      if(!this.tutVerstopt) this.tutVerstopt=[];
+      const S2=window.TUT&&TUT[this.tutI];
+      const self=this;
+      TUT_HUDUIT.forEach(function(id){ const e=document.querySelector(id); if(!e||!e.object3D) return;
+        const mag=((id==='#comboHoek'||id==='#hudC')&&S2&&S2.combo&&self.tutFase===3);
+        if(window.TUT&&!mag){ if(e.object3D.visible){ e.object3D.visible=false;
+            if(self.tutVerstopt.indexOf(e)<0) self.tutVerstopt.push(e); } } });
+      if(!window.TUT&&this.tutVerstopt.length){
+        this.tutVerstopt.forEach(function(e){ if(e.object3D) e.object3D.visible=true; });
+        this.tutVerstopt=[]; } },
 
     // een knop tijdens de leesstand: weg met de stand. Geeft true als de knop
     // daarmee 'op' is (dan doet hij verder niets).
@@ -12935,9 +13002,7 @@
       if(!this.tutLees) return false;
       if(performance.now()-(this.tutLeesT||0)<TUT_LEESMIN) return true;   // niet per ongeluk meteen weg
       this.tutLees=0;
-      const e=document.querySelector('#tutTxt');
-      if(e){ const v=String(e.getAttribute('value')||'').replace(/\n\n- PRESS ANY KEY -$/,'');
-        e.setAttribute('value',v); }
+      this.tutLayout();                              // v15.81 de hint weg, paneel kleiner
       return true; },
 
     // de vijanden van deze stap neerzetten
@@ -13120,7 +13185,7 @@
       const self=this;
       this.sigNa(1.1,function(){ const e2=document.querySelector('#tutTxt');
         if(e2){ e2.setAttribute('value',''); e2.setAttribute('visible',false);
-          e2.setAttribute('width',2.4); e2.setAttribute('color','#ffe45c'); } }); },
+          e2.setAttribute('width',TUT_KOPW); e2.setAttribute('color','#7fe3ff'); } }); },
 
     tutKlaar:function(){
       window.TUT=0; this.tutFase=0; this.tutHemelOp=1;   // de hemel weer opzetten
@@ -14315,6 +14380,7 @@
         if(klaar){ this.state='wacht'; this.golfT=GOLF_NA; } }   // v15.79 was 1,8
 
       this.hud();
+      this.tutPaneelSync();
     }catch(e){
       // HIER LOOPT HET SPEL VAST. Eén fout in de hoofdlus zet dead=true en dan
       // beweegt er niets meer — precies wat Sjoerd zag. Nu belandt hij in het
