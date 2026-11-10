@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.81';
+  const VERSIE='v15.82';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -3473,7 +3473,10 @@
   // v15.81 lettergrootte (breedte van het tekstvlak): Sjoerd "tekst is echt te
   // groot, ik moet van omhoog tot beneden kijken". Kop was 2,4.
   const TUT_KOPW=1.45, TUT_BODYW=1.2, TUT_HINTW=0.95;
-  const TUT_LEESMIN=700, TUT_LEESDONKER=0.18;   // v15.80 leesstand: zo lang minstens (ms), zo donker
+  // v15.82 Sjoerd: "1 sec voor je hem kan doordrukken, anders druk je hem
+  // misschien per ongeluk door als je druk aan het schieten bent." (was 0,7 s)
+  const TUT_LOS=250;            // v15.82 zo lang moet de trekker los zijn geweest (ms)
+  const TUT_LEESMIN=1000, TUT_LEESDONKER=0.18;   // v15.80 leesstand: zo lang minstens (ms), zo donker
   const TUT_LESMIN=4.5, TUT_NA=4.0, TUT_NAAR1=2.2, TUT_RUST=2.5, TUT_AMMO=30;
   const LES_TRAAG=0.004;        // tijdens de uitleg loopt de wereld bijna stil
   //          -  raket shotgun laser electro mitrailleur
@@ -7328,7 +7331,13 @@
       return (r<<16)|(g<<8)|b; },
 
     fire:function(h){
-      if(window.TUT&&this.tutLeesKlik()) return;     // v15.80 de trekker haalt alleen de tekst weg
+      // v15.80 de trekker haalt alleen de tekst weg. v15.82: en alleen een VERSE
+      // druk - een ingehouden trekker vuurt elke beurt, en haalde de tekst dan
+      // na de wachttijd vanzelf weg terwijl je nog aan het schieten was.
+      if(window.TUT&&this.tutLees){ const nu=performance.now();
+        const vers=nu-(this.tutVuurLaatst||0)>TUT_LOS; this.tutVuurLaatst=nu;
+        if(vers) this.tutLeesKlik(); return; }
+      if(window.TUT) this.tutVuurLaatst=performance.now();
       // Tijdens de UITLEG mag je wél schieten: Sjoerd wil dat je in de pauze
       // rondkijkt, de doos zoekt en hem raakt — dat is juist de manier om verder
       // te gaan. Zonder deze uitzondering kun je de les nooit afmaken.
@@ -12951,7 +12960,10 @@
       const K=q('#tutTxt'), B=q('#tutBody'), H=q('#tutHint'), P=q('#tutPaneel'), R=q('#tutRand');
       if(!K) return;
       const kw=parseFloat(K.getAttribute('width'))||TUT_KOPW;
-      const kop=this.tutKop||'', rest=this.tutRest||'', hint=!!(this.tutLees&&window.TUT);
+      // v15.82 de knop-hint pas als drukken ook echt kan (na TUT_LEESMIN)
+      const hint=!!(this.tutLees&&window.TUT&&performance.now()-(this.tutLeesT||0)>=TUT_LEESMIN);
+      this.tutHintAan=hint;
+      const kop=this.tutKop||'', rest=this.tutRest||'';
       const nb=rest?rest.split('\n').length:0;
       // v15.81 iets kleinere letters (Sjoerd), en precies midden in beeld
       const lk=0.085*kw/2.4, lb=0.085*TUT_BODYW/2.4, lh=0.085*TUT_HINTW/2.4;
@@ -13040,6 +13052,7 @@
       this.tutHemel(window.TUT?(this.tutLees?TUT_LEESDONKER:TUT_HEMEL):1,sR*(this.tutLees?2.5:1));
       if(!window.TUT){ this.tutLees=0; return; }
       const s=this.tutLees?0:sR;                     // v15.80 de les-klok staat stil tijdens het lezen
+      if(this.tutLees&&!this.tutHintAan&&performance.now()-(this.tutLeesT||0)>=TUT_LEESMIN) this.tutLayout();
       this.tutT+=s;
       // de doos draait en zijn doelring pulseert — de gewone dozenlus draait
       // hier niet, want state staat op 'niets'
@@ -13083,7 +13096,10 @@
       // Sjoerd v14.99: "vaak vermelden heeft geen zin, moet gewoon 1x goed."
       // De knopregel is een EIGEN stap geworden (zie TUT), niet meer onder elke
       // doos. Zo leest het ook niet meer door de wapenmelding heen.
-      this.tutTekst('PRESS '+(WRICHT[k]||'')+'\nON L OR R JOYSTICK',1); },
+      // v15.82 Sjoerd: "ik mis de uitleg dat je wapens met dezelfde box upgraden.
+      // Kan in 1 zin." Eén keer, bij de eerste doos.
+      this.tutTekst('PRESS '+(WRICHT[k]||'')+'\nON L OR R JOYSTICK'+
+        (this.tutI===0?'\n\nSAME BOX AGAIN = WEAPON LV UP\n(MAX LV 8)':''),1); },
 
     // het wapen is gekozen: de vijanden komen
     tutKies:function(k){
