@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.87';
+  const VERSIE='v15.88';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2220,7 +2220,8 @@
   // v15.87 Sjoerd: "een bijna stilstaande volle explosie in slow motion is echt
   // gaaf. Als hij het grootst is mag hij nog trager tot slow motion voorbij is.
   // Zodat je beeld vol explosies is!" Op zijn grootst: nog eens maal BT_PIEK.
-  const BT_PIEK=0.06, VONK_N=420;  // vuurballen bij een raketinslag
+  const BT_PIEK=0.06, VONK_N=420;
+  const ZAP_BT=3.0;             // v15.88 zo lang blijft een bliksem staan in bullet time (echte tijd)  // vuurballen bij een raketinslag
   // Sjoerd: "kogels snel maken, instant hit, maar per seconde dezelfde schade."
   // Was 185: op 150 meter bijna een seconde onderweg. Nu zó snel dat een kogel
   // binnen één beurt aankomt. Schade per kogel en vuurtempo blijven gelijk,
@@ -7035,7 +7036,7 @@
         m.quaternion.setFromUnitVectors(op,ri.normalize());
         m.scale.set(dik||WERP_DIK,len,dik||WERP_DIK);
         m.material.color.setHex(kl); }
-      L.m.visible=true; L.t=WERP_DUUR; },
+      L.m.visible=true; L.bt=(this.btT>0)?1:0; L.t=L.bt?ZAP_BT:WERP_DUUR; L.t0=L.t; },   // v15.88 in bullet time 3 s
 
     // ---- DE LASERLIJN (Sjoerd v14.76) ----
     // Eén balk van je hand tot LASBEREIK. Alles wat er binnen LAZ_DIK meter
@@ -7155,11 +7156,11 @@
       if(hid&&this.lazM[hid]) uit(this.lazM[hid]);
       else for(const k in this.lazM) uit(this.lazM[k]); },
 
-    bliksTick:function(s){
+    bliksTick:function(s,sP){
       if(!this.bliks) return;
       for(let i=0;i<this.bliks.length;i++){ const L=this.bliks[i]; if(L.t<=0) continue;
-        L.t-=s;
-        const dek=Math.max(0,L.t/WERP_DUUR);
+        L.t-=(L.bt&&sP!==undefined)?sP:s;              // v15.88 de bullet-time-bliksem loopt op echte tijd
+        const dek=Math.max(0,L.t/(L.t0||WERP_DUUR));
         for(let q=0;q<L.stuk.length;q++) L.stuk[q].material.opacity=dek;
         if(L.t<=0) L.m.visible=false; } },
 
@@ -7699,8 +7700,11 @@
       // EERST BOUWEN, DAN AANZETTEN: zette ik de klok eerst, dan toonde een
       // afgebroken bouw de flits van het vorige schot nog eens op volle sterkte.
       this.zapBouw(pts,lv);
-      this.zapT=ZAPDUUR;
-      this.zapHer=ZAPDUUR*0.52; },
+      // v15.88 Sjoerd: "bliksem tijdens slow motion ook laten staan, langzaam weg.
+      // Dan zie je de bliksem en de explosie. Max 3 sec staan is prima."
+      this.zapDuur=(this.btT>0)?ZAP_BT:ZAPDUUR;
+      this.zapT=this.zapDuur;
+      this.zapHer=this.zapDuur*0.52; },
 
     zapBouw:function(pts,lv){
       const V=this.zapVorm(lv);
@@ -13581,7 +13585,7 @@
         this.blast.lookAt(eye);
         if(this.blastT<=0) this.blast.visible=false; }
       if(this.zapT>0){ this.zapT-=sP;
-        const k=Math.max(0,this.zapT/ZAPDUUR);
+        const k=Math.max(0,this.zapT/(this.zapDuur||ZAPDUUR));
         // v15.50 HALVERWEGE NOG EENS KNETTEREN: dezelfde sprongen, nieuwe
         // knikken. Daarmee leeft de flits in plaats van 0,3 seconde stil te
         // staan — dat stilstaan was het tweede waarom hij nep aanvoelde.
@@ -14426,7 +14430,7 @@
       this.ringTick(s); this.sigRijTick(s); this.wijzerTickD(s);
       this.camoTick(s);
       this.stap='effecten'; this.baasWaarschuwing(s); this.comboTick(s); this.portaalTick(s); this.walkBolTick(s); this.flareTick(s);
-      this.jamPulsTick(s); this.storingTick(s); this.flareLokAlles(); this.bliksTick(s); this.straalTick(s); this.bomTick(s); this.balTick(s);
+      this.jamPulsTick(s); this.storingTick(s); this.flareLokAlles(); this.bliksTick(s,sP); this.straalTick(s); this.bomTick(s); this.balTick(s);
       // ---- rook: drijft op, dijt uit en vervaagt ----
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(!R.live) continue;
         const sR=s*((this.btT>0&&R.life<0.6)?BT_PIEK:1);   // v15.87 ook de rook blijft hangen
