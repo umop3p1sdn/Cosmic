@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.79';
+  const VERSIE='v15.80';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -3459,6 +3459,7 @@
   // vanaf welke combo welke uitleg komt
   const TCOMBO_DOEL=25, TCOMBO_N=8, TCOMBO_BIJ=0.35, TCOMBO_RING=2, TCOMBO_RAK=8, TCOMBO_ULT=16;
   const OEFEN_N=3, OEFEN_NA=1.5, OEFEN_TP='SCOUT', AFTEL_EERST=1.8;
+  const TUT_LEESMIN=700, TUT_LEESDONKER=0.18;   // v15.80 leesstand: zo lang minstens (ms), zo donker
   const TUT_LESMIN=4.5, TUT_NA=4.0, TUT_NAAR1=2.2, TUT_RUST=2.5, TUT_AMMO=30;
   const LES_TRAAG=0.004;        // tijdens de uitleg loopt de wereld bijna stil
   //          -  raket shotgun laser electro mitrailleur
@@ -7235,6 +7236,7 @@
 
     // Rechtstreeks een wapen kiezen. Heb je het niet, dan verandert er niets.
     kiesWapen:function(h,w){
+      if(window.TUT&&this.tutLees){ if(this.tutLeesKlik()&&this.tutLees) return; }   // v15.80 weg + gewoon kiezen
       if(window.PHASE!=='game'||window.PAUSED) return;
       // Sjoerd v14.45: "beide handen werken hetzelfde, en dan krijg je dat
       // wapen wat je kiest." De hoofdhand zat vast op de mitrailleur; nu kiest
@@ -7262,6 +7264,7 @@
 
     wissel:function(h){
       if(window.PHASE!=='game'||window.PAUSED) return;
+      if(window.TUT&&this.tutLees){ this.tutLeesKlik(); if(this.tutLees) return; }
       const nu=Date.now(); if(nu-(this.wisDeb||0)<300) return; this.wisDeb=nu;
       if(window.LOG) window.LOG('wapenwissel');
       const W=this.wp(h), volg=[1,2,3,4,5];
@@ -7311,6 +7314,7 @@
       return (r<<16)|(g<<8)|b; },
 
     fire:function(h){
+      if(window.TUT&&this.tutLeesKlik()) return;     // v15.80 de trekker haalt alleen de tekst weg
       // Tijdens de UITLEG mag je wél schieten: Sjoerd wil dat je in de pauze
       // rondkijkt, de doos zoekt en hem raakt — dat is juist de manier om verder
       // te gaan. Zonder deze uitzondering kun je de les nooit afmaken.
@@ -7664,6 +7668,7 @@
 
     ultimate:function(h){
       if(window.PHASE!=='game'||window.PAUSED) return;
+      if(window.TUT&&this.tutLees){ this.tutLeesKlik(); if(this.tutLees) return; }
       // Zonder dovetijd vuurde één druk op de knop je hele voorraad leeg: de
       // greep meldt zichzelf meerdere keren per beurt.
       const nu=performance.now();
@@ -12805,6 +12810,7 @@
     //   4 'klaar' - alles opgeruimd, meteen door naar de volgende
     tutStart:function(){
       window.TUT=1; window.LES=0; this.doekDoel=0;   // geen zwart doek
+      this.tutLees=0;
       this.tutI=0; this.tutFase=0; this.tutT=0;
       // Sjoerd v14.56: "heel raar dat de tutorial in een level is waar druk
       // wordt geschoten, en voor ik het weet ben ik dood." Klopte: met
@@ -12836,15 +12842,15 @@
       this.tutFase=1; this.tutT=0;
       // de doos: bij de ult-stap geen doos maar meteen de vijanden
       if(S2.ult){ this.tutFase=3; this.tutT=0; this.tutVrij=0;
-        this.tutVijanden(S2); this.tutTekst(S2.les+'\n\nWIPE OUT\nALL ENEMIES'); return; }
+        this.tutVijanden(S2); this.tutTekst(S2.les+'\n\nWIPE OUT\nALL ENEMIES',1); return; }
       // DE KNOPSTAP (Sjoerd v14.99): geen doos, gewoon vragen of je op je
       // duimknop drukt. Zodra je dat doet komen de vijanden en schiet je met je
       // mitrailleur. Eén keer, en goed.
       if(S2.knop){ this.tutFase=2; this.tutT=0;
-        this.tutTekst(S2.vraag||'PRESS WITH THUMB ON BUTTON\nL OR R'); return; }
+        this.tutTekst(S2.vraag||'PRESS WITH THUMB ON BUTTON\nL OR R',1); return; }
       this.tutDoos(S2.k);
-      if(S2.combo){ this.tutTekst('SHOOT GREEN BOX\nAMMO FOR ALL WEAPONS'); return; }
-      this.tutTekst('SHOOT '+(WKLEUR[S2.k]||'')+' BOX\n'+(WNAAM[S2.k]||'')); },
+      if(S2.combo){ this.tutTekst('SHOOT GREEN BOX\nAMMO FOR ALL WEAPONS',1); return; }
+      this.tutTekst('SHOOT '+(WKLEUR[S2.k]||'')+' BOX\n'+(WNAAM[S2.k]||''),1); },
 
     tutDoos:function(k){
       for(let i=0;i<this.dozen.length;i++){ const D=this.dozen[i]; if(D.live) continue;
@@ -12914,9 +12920,25 @@
       // helemaal terug op 1? dan zijn we klaar met bijstellen
       if(naar>=1&&m.opacity>=0.999) this.tutHemelOp=0; },
 
-    tutTekst:function(txt){
+    // v15.80 Sjoerd: "de tutorial is vrij chaos: als er tekst staat beweegt ook
+    // al alles. Bij tekst beeld even donker, alles staat stil, met onder PRESS
+    // ANY KEY, en dan gaat het verder." lees=1 zet die leesstand aan.
+    tutTekst:function(txt,lees){
       const e=document.querySelector('#tutTxt');
+      if(lees&&window.TUT){ this.tutLees=1; this.tutLeesT=performance.now();
+        txt=txt+'\n\n- PRESS ANY KEY -'; }
       if(e){ e.setAttribute('value',txt); e.setAttribute('visible',true); } },
+
+    // een knop tijdens de leesstand: weg met de stand. Geeft true als de knop
+    // daarmee 'op' is (dan doet hij verder niets).
+    tutLeesKlik:function(){
+      if(!this.tutLees) return false;
+      if(performance.now()-(this.tutLeesT||0)<TUT_LEESMIN) return true;   // niet per ongeluk meteen weg
+      this.tutLees=0;
+      const e=document.querySelector('#tutTxt');
+      if(e){ const v=String(e.getAttribute('value')||'').replace(/\n\n- PRESS ANY KEY -$/,'');
+        e.setAttribute('value',v); }
+      return true; },
 
     // de vijanden van deze stap neerzetten
     tutVijanden:function(S2,hoev){
@@ -12949,16 +12971,17 @@
           const T2=TYPE[e.tp];
           e.cd=TUT_RUST; e.bT=TUT_RUST+Math.random()*1.5; } } },
 
-    tutTick:function(s){
-      this.tutHemel(window.TUT?TUT_HEMEL:1,s);
-      if(!window.TUT) return;
+    tutTick:function(sR){
+      this.tutHemel(window.TUT?(this.tutLees?TUT_LEESDONKER:TUT_HEMEL):1,sR*(this.tutLees?2.5:1));
+      if(!window.TUT){ this.tutLees=0; return; }
+      const s=this.tutLees?0:sR;                     // v15.80 de les-klok staat stil tijdens het lezen
       this.tutT+=s;
       // de doos draait en zijn doelring pulseert — de gewone dozenlus draait
       // hier niet, want state staat op 'niets'
       for(let i=0;i<this.dozen.length;i++){ const D=this.dozen[i];
         if(!D.live||!D.uitleg) continue;
-        D.t+=s;
-        D.kern.rotation.y+=s*1.6; D.kern.rotation.x+=s*0.9;
+        D.t+=sR;
+        D.kern.rotation.y+=sR*1.6; D.kern.rotation.x+=s*0.9;
         D.ring.rotation.x=D.t*1.2; D.ring.rotation.y=D.t*0.7;
         D.gloed.lookAt(this.kop);
         D.gloed.material.opacity=0.55+Math.sin(D.t*4)*0.2;
@@ -12995,7 +13018,7 @@
       // Sjoerd v14.99: "vaak vermelden heeft geen zin, moet gewoon 1x goed."
       // De knopregel is een EIGEN stap geworden (zie TUT), niet meer onder elke
       // doos. Zo leest het ook niet meer door de wapenmelding heen.
-      this.tutTekst('PRESS '+(WRICHT[k]||'')+'\nON L OR R JOYSTICK'); },
+      this.tutTekst('PRESS '+(WRICHT[k]||'')+'\nON L OR R JOYSTICK',1); },
 
     // het wapen is gekozen: de vijanden komen
     tutKies:function(k){
@@ -13004,7 +13027,7 @@
       this.tutFase=3; this.tutT=0; this.tutVrij=0;
       // v15.70 Sjoerd: "dat je de vijanden moet schieten in plaats van alleen je
       // wapens kiezen. Engelse woorden." De les gaat pas door als ze neer zijn.
-      this.tutTekst(S2.les+'\n\nNOW SHOOT\nALL ENEMIES');
+      this.tutTekst(S2.les+'\n\nNOW SHOOT\nALL ENEMIES',1);
       this.tutVijanden(S2); },
 
     // ---- v15.77 DE COMBO-LES ----
@@ -13037,8 +13060,8 @@
       else if(this.tcFase===2&&c>=TCOMBO_ULT){ this.tcFase=3;
         this.tcTxt='POINTS x COMBO\nEVERY 62,500 POINTS\n= EXTRA ULT'; this.tcToon=-1; }
       // en altijd eronder: hoe ver je bent
-      if(c!==this.tcToon&&c<TCOMBO_DOEL){ this.tcToon=c;
-        this.tutTekst(this.tcTxt+'\n\nCOMBO '+c+' / '+TCOMBO_DOEL); }
+      if(c!==this.tcToon&&c<TCOMBO_DOEL){ const nieuw=(this.tcToon===-1); this.tcToon=c;
+        this.tutTekst(this.tcTxt+'\n\nCOMBO '+c+' / '+TCOMBO_DOEL,nieuw?1:0); }
       // gebroken? opnieuw, de uitleg blijft staan
       if(c===0&&this.tcHad>=2){ this.tcHad=0;
         this.toonMelding('COMBO LOST - AGAIN!','#ff8a3d'); }
@@ -13203,7 +13226,7 @@
       // DE UITLEG zet de wereld bijna stil, maar de les zelf loopt op sEcht.
       // 's' was een const — die overschrijven gaf 'Assignment to constant
       // variable' en dan strandde de hele beurt (gemeten).
-      const s=(window.LES&&!window.TUT)?Math.min(sEcht,LES_TRAAG):sEcht;   // de tutorial loopt op volle snelheid
+      const s=(window.TUT&&this.tutLees)?0.0001:((window.LES&&!window.TUT)?Math.min(sEcht,LES_TRAAG):sEcht);   // v15.80 leesstand: alles stil
       // DE TUTORIAL tikt VOORAAN, vóór alle returns verderop — anders loopt hij
       // vast zodra de beurt ergens eerder afslaat (gemeten: tutT bleef op 0).
       if(window.PHASE==='game'&&(window.TUT||this.tutHemelOp)) this.tutTick(sEcht);
