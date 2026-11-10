@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.86';
+  const VERSIE='v15.87';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2216,7 +2216,11 @@
   const LVMAAT=0.052;           // hoogte van de niveautekst (was 0.034)
   const LOG_MAX=200;            // hoeveel regels het logboek bewaart
   const DOOS_MAX=260;           // hoeveel beurten de zwarte doos onthoudt
-  const BAL_N=6, BAL_TIJD=0.55;  // vuurballen bij een raketinslag
+  const BAL_N=24, BAL_TIJD=0.55;   // v15.86 meer: in bullet time blijven ze hangen
+  // v15.87 Sjoerd: "een bijna stilstaande volle explosie in slow motion is echt
+  // gaaf. Als hij het grootst is mag hij nog trager tot slow motion voorbij is.
+  // Zodat je beeld vol explosies is!" Op zijn grootst: nog eens maal BT_PIEK.
+  const BT_PIEK=0.06, VONK_N=420;  // vuurballen bij een raketinslag
   // Sjoerd: "kogels snel maken, instant hit, maar per seconde dezelfde schade."
   // Was 185: op 150 meter bijna een seconde onderweg. Nu zó snel dat een kogel
   // binnen één beurt aankomt. Schade per kogel en vuurtempo blijven gelijk,
@@ -3673,7 +3677,7 @@
         m.renderOrder=6; m.visible=false; return m; },
         {life:0,vx:0,vy:0,vz:0,rz:0,sz:1});
 
-      this.vonken=[]; this.vonkVrij=300; this.mkPool(this.vonken,300,function(){
+      this.vonken=[]; this.vonkVrij=VONK_N; this.mkPool(this.vonken,VONK_N,function(){
         const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
           new THREE.MeshBasicMaterial({map:self.GLOED,transparent:true,blending:THREE.AdditiveBlending,
             depthWrite:false,color:0xffffff}));
@@ -7925,7 +7929,8 @@
       if(!this.ballen) return;
       for(let i=0;i<this.ballen.length;i++){ const B=this.ballen[i];
         if(!B.live) continue;
-        B.t-=s;
+        const k0=1-B.t/(B.t0||BAL_TIJD);
+        B.t-=s*((this.btT>0&&k0>=0.42)?BT_PIEK:1);   // v15.87 op zijn grootst: blijft hangen
         if(B.t<=0){ B.live=false; B.m.visible=false; continue; }
         const k=1-B.t/(B.t0||BAL_TIJD);           // 0 net ontploft, 1 bijna weg
         // snel open, dan langzaam doven op de volle straal
@@ -8376,6 +8381,7 @@
             this.rook(e.p.x+Math.cos(hk)*e.sc*0.4,e.p.y,e.p.z+Math.sin(hk)*e.sc*0.4,
                       true,e.sc*0.5,2.2); }
           this.knal(e.p,e.sc*1.6); this.schokRing(e.p);
+          this.vuurBal(e.p,e.sc*1.1,3);                   // v15.87 een volle vuurbal
           this.effTempo=0;
           SND.boom(e.p.x*0.02,e.bw>=13); }
         // STERFORT GAAT UITEEN in vijf zoekende sterren (Sjoerd v14.78).
@@ -14423,8 +14429,9 @@
       this.jamPulsTick(s); this.storingTick(s); this.flareLokAlles(); this.bliksTick(s); this.straalTick(s); this.bomTick(s); this.balTick(s);
       // ---- rook: drijft op, dijt uit en vervaagt ----
       for(let i=0;i<this.rookP.length;i++){ const R=this.rookP[i]; if(!R.live) continue;
-        R.life-=s/Math.max(0.3,R.leven);
-        R.m.position.x+=R.vx*s; R.m.position.y+=R.vy*s; R.m.position.z+=R.vz*s;
+        const sR=s*((this.btT>0&&R.life<0.6)?BT_PIEK:1);   // v15.87 ook de rook blijft hangen
+        R.life-=sR/Math.max(0.3,R.leven);
+        R.m.position.x+=R.vx*sR; R.m.position.y+=R.vy*sR; R.m.position.z+=R.vz*sR;
         // BIJ DE BRON KLEIN, verderop breed. Hij begon meteen op volle maat en
         // bleef dan als een dikke pluim hangen; nu groeit hij uit terwijl hij
         // achterblijft, zoals een echte rooksliert.
@@ -14441,7 +14448,8 @@
       for(let i=0;i<this.vonken.length;i++){ const F=this.vonken[i]; if(!F.live) continue;
         // v15.27: een vuurwerkscherf dooft ruim twee keer zo langzaam, zodat je de
         // bol ziet openbloeien in plaats van knipperen
-        const sF=s*(F.tg||1);
+        let sF=s*(F.tg||1);
+        if(this.btT>0&&F.life<0.82) sF*=BT_PIEK;     // v15.87 vol open: blijft hangen
         F.life-=sF*(F.traag?0.75:1.7);
         F.m.position.x+=F.vx*sF; F.m.position.y+=F.vy*sF-4*sF*(1-F.life); F.m.position.z+=F.vz*sF;
         F.m.lookAt(eye);
