@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.78';
+  const VERSIE='v15.79';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2311,6 +2311,7 @@
   const BEGIN_REM=0.78;         // level 1-2: iets minder, niet half
   const BEGIN_MAX=20;           // en in level 1-2 nooit meer dan zoveel per golf (was 14)
   const RUST_GOLF=0.80;         // elke derde golf is iets rustiger
+  const GOLF_VOOR=2, GOLF_NA=0.4, GROEP_NA=0.3, COMBO_BEREIK=140;   // v15.79 golven strak achter elkaar
   const GOLF_DAK=17;            // level 3-4 rekent hiermee: *1.7
   const GOLF_BODEM=9;           // ...en minstens zoveel: geen halve golven
   // v15.32, Sjoerd: "lvl 1 + 2 iets meer vijanden per wave. Niet in 1x in beeld
@@ -8673,7 +8674,11 @@
           const m=q&&q.getObject3D&&q.getObject3D('mesh');
           if(m) m.renderOrder=COMBO_ORDE+i; }); }
       // de eigen klok telt af; op nul breekt de combo
-      if(this.comboKlok>0){ this.comboKlok-=s;
+      // v15.79 Sjoerd: "soms lijkt het of er pauze tussen de waves zit, dan
+      // doorbreekt het de combo." De klok staat stil zolang er NIETS binnen
+      // schootsafstand vliegt: dan kun je er ook niets aan doen.
+      if(this.comboKlok>0&&!this.iemandInBereik()) { }
+      else if(this.comboKlok>0){ this.comboKlok-=s;
         if(this.comboKlok<=0){ this.comboKlok=0;
           // Sjoerd v14.70: "na 50+ combo, als hij stopt, soort vuurwerk plus de
           // score." En v14.76: "ik mis als de combo niet binnen de 4 is, dat hij
@@ -12317,10 +12322,18 @@
 
     // ---- aanvallen loslaten op hun eigen tijdstip ----
     // groep voor groep: de volgende komt pas als de vorige is opgeruimd
+    // is er iets dat je NU kunt raken? (een schip binnen COMBO_BEREIK)
+    iemandInBereik:function(){
+      for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
+        if(e.live&&!e.dood&&!e.dood2&&!e.intro&&e.p.distanceTo(this.kop)<COMBO_BEREIK) return true; }
+      return false; },
+
     planTick:function(s,levend){
       if(!this.plan) return true;
       if(this.gi===undefined) this.gi=0;
-      if(this.gi>=this.plan.length) return (!this.rij.length&&levend===0);
+      // v15.79 STRAK OPVOLGEN: zijn de laatste schepen van de golf onderweg en
+      // vliegen er nog maar GOLF_VOOR rond, dan komt de volgende golf al aan
+      if(this.gi>=this.plan.length) return (!this.rij.length&&levend<=GOLF_VOOR);
       const a=this.plan[this.gi];
       if(!a.uit){ this.aanval(a); a.uit=1; this.groepT=0;
         // SAMEN BINNEN: groepen die in het plan vrijwel dezelfde starttijd
@@ -12345,7 +12358,7 @@
         if(this.groepT>SAMEN_NA){ this.gi++; this.groepT=0; return false; } }
       if(this.rij.length||levend>0){ if(!ruim) this.groepT=0; return false; }
       this.groepT=(this.groepT||0)+s;
-      if(this.groepT>0.9){ this.gi++; this.groepT=0;
+      if(this.groepT>GROEP_NA){ this.gi++; this.groepT=0;   // v15.79 was 0,9
         if(this.gi<this.plan.length) this.toonMelding('WAVE '+this.wave+'  -  GROUP '+(this.gi+1),'#8fd8ec'); }
       return false; },
 
@@ -14276,7 +14289,7 @@
         // een gevallen schip maakt plek voor de volgende uit dezelfde groep
         while(this.rij.length&&levend<this.veldMax){
           if(!this.spawnVorm(this.rij.shift())) break; levend++; }
-        if(klaar){ this.state='wacht'; this.golfT=1.8; } }
+        if(klaar){ this.state='wacht'; this.golfT=GOLF_NA; } }   // v15.79 was 1,8
 
       this.hud();
     }catch(e){
