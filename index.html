@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.83';
+  const VERSIE='v15.84';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -444,7 +444,28 @@
       let s=0; for(let i=1;i<7;i++) s+=ANAD[i];
       return (s/6)/255; }catch(e){ return 0; } }
 
-  window.SND={gun:gunSnd,hit:hitSnd,kill:killSnd,boom:boomSnd,alarm:alarmSnd,laz:lazSnd,
+  // v15.84 BULLET TIME: een diepe woosh (terug=omhoog) en een trage hartslag
+  function btWoosh(terug){ if(!sfxOk(6)) return; try{ const a=AC(), t=a.currentTime;
+    const n=Math.floor(a.sampleRate*1.1), buf=a.createBuffer(1,n,a.sampleRate), d=buf.getChannelData(0);
+    for(let i=0;i<n;i++){ const k=i/n; d[i]=(Math.random()*2-1)*Math.sin(Math.PI*k); }
+    const s=a.createBufferSource(); s.buffer=buf;
+    const f=a.createBiquadFilter(); f.type='lowpass'; f.Q.value=6;
+    f.frequency.setValueAtTime(terug?180:1400,t); f.frequency.exponentialRampToValueAtTime(terug?1400:160,t+1.0);
+    const g=a.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.55,t+0.25);
+    g.gain.exponentialRampToValueAtTime(0.001,t+1.1);
+    s.connect(f); f.connect(g); naar(g,0); s.start(t); s.stop(t+1.12);
+    const o=a.createOscillator(), g2=a.createGain(); o.type='sine';
+    o.frequency.setValueAtTime(terug?40:110,t); o.frequency.exponentialRampToValueAtTime(terug?110:36,t+0.9);
+    g2.gain.setValueAtTime(0.35,t); g2.gain.exponentialRampToValueAtTime(0.001,t+1.0);
+    o.connect(g2); naar(g2,0); o.start(t); o.stop(t+1.02); }catch(e){} }
+  function btHart(){ if(!sfxOk(6)) return; try{ const a=AC(), t=a.currentTime;
+    [0,0.22].forEach(function(dt,i){ const o=a.createOscillator(), g=a.createGain(); o.type='sine';
+      o.frequency.setValueAtTime(i?58:66,t+dt); o.frequency.exponentialRampToValueAtTime(34,t+dt+0.16);
+      g.gain.setValueAtTime(0.0001,t+dt); g.gain.exponentialRampToValueAtTime(i?0.32:0.45,t+dt+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001,t+dt+0.2);
+      o.connect(g); naar(g,0); o.start(t+dt); o.stop(t+dt+0.22); }); }catch(e){} }
+
+  window.SND={gun:gunSnd,hit:hitSnd,kill:killSnd,boom:boomSnd,alarm:alarmSnd,laz:lazSnd,btWoosh:btWoosh,btHart:btHart,
     ratel:ratelAan,zeg:zeg,AC:AC,initSFX:initSFX,drone:startDrone,wake:wakeAan,
     muziek:muziekStart,beat:beat,
     // Speelt er nog niets terwijl er wel nummers zijn? Dan alsnog beginnen.
@@ -2847,6 +2868,14 @@
   // vliegende sparkel-sterren, rode klap met rode vonken, 2x zo sterk, en 25%
   // geeft een rode bliksem die twee schepen ver doorspringt.
   const ULT_DMG=2, ULT_KANS=0.25, ULT_SPRONG=2, ULT_SPRAF=38, ULT_SPRDMG=0.6, ULT_KL=0xff2a3a;
+  // v15.84 BULLET TIME. Sjoerd: "bij elke 50 combo alles in slow motion
+  // behalve mijn schieten. Ze staan bijna stil, maar het beweegt net." Plus:
+  // het moet lijken of IK sneller ga - strepen, een gloed langs de rand, de
+  // wereld iets valer (ontploffingen blijven fel), woosh en hartslag, geen tekst.
+  const BT_ELK=50, BT_DUUR=8, BT_SNEL=0.12, BT_RAMP=0.5, BT_STREEP=1.0, BT_STREPEN=70;
+  const BT_GRIJS=0x9aa3ad, BT_HART=1.25;
+  // v15.84 MULTI-KILL met de laser: n kills in één schot = n x n in je combo
+  const MULTI_NAAM=['','','DOUBLE KILL','TRIPLE KILL','QUAD KILL','PENTA KILL'];
   const ULT_RAK=25;             // v14.59: een ult is 25 raketten (was 50)
   // v15.32, Sjoerd: "de ults 20% minder snel in hoe snel ik ze krijg."
   // 12500 -> 15625 is precies 1/0,8: je verdient ze op 80% van de oude snelheid.
@@ -3806,6 +3835,7 @@
       this.level=1; this.plan=null; this.planT=0; this.zaad=7919; this.beurt=0;
       this.rij=[]; this.veldMax=0; this.gi=0; this.groepT=0;
       this.baas=null; this.baasTrio=null; this.baasWeg=false; this.zwermBeurt=0; this.baasBalkUit();
+      this.btT=0; this.btStap=0; this.btF=1;      // v15.84 bullet time uit
       this.melding=0; this.meldC=0; this.wave=0; this.golfT=0; this.state='wacht';
       this.ults=M().ult; this.ultPt=0; this.combo=0; this.laatst=-9; this.beste=0;
       this.comboKlok=0; this.comboPt=0; this.comboPop=0;
@@ -6298,6 +6328,88 @@
         van=best.p.clone(); }
       if(gehad.length&&SND.zap) SND.zap(P.x*0.02); },
 
+    // ---- v15.84 MULTI-KILL ----
+    multiKill:function(n){
+      const extra=n*n-n;
+      this.combo+=extra; if(this.combo>this.beste) this.beste=this.combo;
+      this.comboKlok=COMBO_TIJD; this.comboPop=1;
+      this.toonMelding((MULTI_NAAM[n]||(n+'x KILL'))+'  +'+(n*n),'#ff3d81');
+      SND.zeg&&SND.zeg(n===2?'Double kill':(n===3?'Triple kill':'Multi kill'));
+      this.btCheck(); },
+
+    // ---- v15.84 BULLET TIME ----
+    btCheck:function(){
+      const stap=Math.floor((this.combo||0)/BT_ELK);
+      if(stap>(this.btStap||0)&&stap>=1&&!window.TUT&&this.state!=='parade'){ this.btStap=stap; this.btStart(); }
+      if((this.combo||0)<BT_ELK) this.btStap=Math.min(this.btStap||0,stap); },
+
+    btStart:function(){
+      this.btT=BT_DUUR; this.btHartT=0.2;
+      SND.btWoosh&&SND.btWoosh(false);
+      // DE STREPEN: sterren die uitrekken en langs je heen schieten
+      if(!this.btS){ this.btS=[];
+        const g=new THREE.BoxGeometry(1,1,1);
+        for(let i=0;i<BT_STREPEN;i++){
+          const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0xd8f0ff,transparent:true,opacity:0,
+            depthWrite:false,blending:THREE.AdditiveBlending}));
+          m.visible=false; m.frustumCulled=false; m.renderOrder=6; this.par.add(m);
+          this.btS.push({m:m,p:new THREE.Vector3(),v:new THREE.Vector3(),t:0,len:1}); } }
+      const kijk=this.kijkRicht(new THREE.Vector3());
+      const up=new THREE.Vector3(0,1,0), zij=new THREE.Vector3().crossVectors(kijk,up).normalize();
+      const op=new THREE.Vector3().crossVectors(zij,kijk).normalize();
+      for(let i=0;i<this.btS.length;i++){ const S=this.btS[i];
+        const a=Math.random()*6.283, hk=(0.10+Math.random()*0.9);      // niet recht door je gezicht
+        const dir=kijk.clone().addScaledVector(zij,Math.cos(a)*hk).addScaledVector(op,Math.sin(a)*hk*0.75).normalize();
+        S.p.copy(this.kop).addScaledVector(dir,25+Math.random()*60);
+        S.v.copy(dir).multiplyScalar(-(90+Math.random()*70));
+        S.t=-Math.random()*0.35; S.len=6+Math.random()*10;
+        S.m.visible=false; } },
+
+    // geeft de factor voor de wereld (1 = normaal) en speelt de beelden af
+    btTick:function(sE){
+      // de strepen lopen op echte tijd
+      if(this.btS) for(let i=0;i<this.btS.length;i++){ const S=this.btS[i];
+        if(S.t>BT_STREEP){ if(S.m.visible) S.m.visible=false; continue; }
+        if(!(this.btT>0)&&S.t<=0){ S.t=BT_STREEP+1; continue; }
+        S.t+=sE; if(S.t<0) continue;
+        S.p.addScaledVector(S.v,sE);
+        const k=S.t/BT_STREEP;
+        S.m.visible=true; S.m.position.copy(S.p);
+        S.m.lookAt(this.TP||(this.TP=new THREE.Vector3()).copy(S.p).add(S.v));
+        S.m.scale.set(0.06,0.06,S.len*(0.3+k*1.7));
+        S.m.material.opacity=Math.sin(Math.PI*Math.min(1,k))*0.85; }
+      // de rand-gloed (aan de camera vast)
+      if(!this.btRand&&this.cam&&this.cam.object3D){
+        const mat=new THREE.ShaderMaterial({transparent:true,depthWrite:false,depthTest:false,
+          blending:THREE.AdditiveBlending,uniforms:{op:{value:0},kl:{value:new THREE.Color(0x7fc8ff)}},
+          vertexShader:'varying vec2 vU; void main(){ vU=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+          fragmentShader:'uniform float op; uniform vec3 kl; varying vec2 vU; void main(){ float r=length(vU-0.5)*2.0; float a=smoothstep(0.42,1.0,r)*op; gl_FragColor=vec4(kl*a,a); }'});
+        const m=new THREE.Mesh(new THREE.PlaneGeometry(2.6,2.6),mat);
+        m.position.set(0,0,-0.9); m.renderOrder=200; m.frustumCulled=false; m.visible=false;
+        this.cam.object3D.add(m); this.btRand=m; }
+      if(!(this.btT>0)){ if(this.btF!==1){ this.btF=1; this.btKleur(false);
+          if(this.btRand) this.btRand.visible=false; } return 1; }
+      if(window.PAUSED) return this.btF||1;
+      this.btT-=sE;
+      const gedaan=BT_DUUR-this.btT;
+      const k=Math.max(0,Math.min(1,gedaan/BT_RAMP,this.btT/BT_RAMP));
+      this.btF=1-(1-BT_SNEL)*k;
+      if(this.btRand){ this.btRand.visible=true; this.btRand.material.uniforms.op.value=0.55*k; }
+      this.btKleur(true);
+      // de hartslag
+      this.btHartT-=sE; if(this.btHartT<=0&&this.btT>0.6){ this.btHartT=BT_HART; SND.btHart&&SND.btHart(); }
+      if(this.btT<=0){ this.btT=0; this.btF=1; this.btKleur(false);
+        if(this.btRand) this.btRand.visible=false; SND.btWoosh&&SND.btWoosh(true); return 1; }
+      return this.btF; },
+
+    // de wereld iets valer: de schepen grijzer; ontploffingen en jouw wapens blijven fel
+    btKleur:function(aan){
+      const kl=aan?BT_GRIJS:0xffffff;
+      for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
+        if(e.bb&&e.bb.m&&e.bb.m.material&&e.bb.m.material.color&&(aan||e.btGrijs)){
+          if(e.bb.m.material.color.getHex()!==kl) e.bb.m.material.color.setHex(kl);
+          e.btGrijs=aan?1:0; } } },
+
     walkBolUit:function(p){
       if(!this.walkB) this.walkB=[];
       let W=this.walkB.find(function(q){ return !q.live; });
@@ -6974,6 +7086,7 @@
       if(L.gedaan) return;
       L.gedaan=1;
       const raakDik=LAZ_RAAK*L.sz+(L.tel-1)*LAZ_EXTRA;
+      let nKill=0;
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
         if(!e.live||e.dood||e.dood2) continue;
         const rel=this.tmp.copy(e.p).sub(ori);
@@ -6986,6 +7099,7 @@
         if(L.geraakt[sl]) continue;
         L.geraakt[sl]=1;
         this.raak(e,(L.up?1.5:1)*L.dmg,e.p.x,e.p.y,e.p.z);
+        if(e.dood||e.dood2||!e.live) nKill++;            // v15.84 telt mee voor de multi-kill
         this.straalDood(e,true);                         // laser: meteen af
         if(L.brand&&e.live) e.brand=Math.max(e.brand||0,L.brand);
         this.vonk(e.p.x,e.p.y,e.p.z,WCOL[3],7,7,0.4); }
@@ -7001,6 +7115,10 @@
           if(af>raakDik+2.5) continue;
           this.bolRaak(BL[i],(L.up?1.5:1)*L.dmg);
           this.vonk(o.p.x,o.p.y,o.p.z,WCOL[3],6,5,0.35); } }
+      // v15.84 MULTI-KILL: Sjoerd "met laser kun je soms 2 of 3 in 1 shot. Dan
+      // double of triple kill bonus: 2 telt als 4 in je teller, 3 als 9."
+      // Elke kill gaf al +1, dus de bonus is n*n - n erbovenop.
+      if(nKill>=2) this.multiKill(nKill);
       // en vijandelijk vuur dat de lijn kruist gaat er ook aan
       for(let i=0;i<this.vij.length;i++){ const B=this.vij[i];
         if(!B.live) continue;
@@ -8267,6 +8385,7 @@
       // combotick — daardoor brak de combo al na 2 s en bleef de ring hangen
       // (gemeten). comboKlok telt zelf af en is niet van T afhankelijk.
       this.gedood++; this.combo++; this.comboKlok=COMBO_TIJD;
+      this.btCheck();
       if(this.combo>this.beste) this.beste=this.combo;
       const maal=Math.min(COMBO_MAX,this.combo);
       const bonus=T.pt*(maal-1);                      // x1 bij de eerste, x2 bij de tweede...
@@ -8706,7 +8825,7 @@
       // v15.79 Sjoerd: "soms lijkt het of er pauze tussen de waves zit, dan
       // doorbreekt het de combo." De klok staat stil zolang er NIETS binnen
       // schootsafstand vliegt: dan kun je er ook niets aan doen.
-      if(this.comboKlok>0&&!this.iemandInBereik()) { }
+      if(this.comboKlok>0&&(this.btT>0||!this.iemandInBereik())) { }
       else if(this.comboKlok>0){ this.comboKlok-=s;
         if(this.comboKlok<=0){ this.comboKlok=0;
           // Sjoerd v14.70: "na 50+ combo, als hij stopt, soort vuurwerk plus de
@@ -8920,7 +9039,7 @@
         e.velgFx=0; e.openFx=0; e.blauwFx=0; e.velgFlits=0; e.blauwFlits=0;
         e.wiel=0; e.wielA=undefined; e.velgKapot=0; e.velgAan=0; e.velgRest=0;
         e.blauw=0; e.blauwM=0; e.blauwFlits=0;
-        if(e.doelen) this.doelWeg(e); e.doelT=0; e.doelSoort=null; e.klimT=0; e.klimCd=0; e.klimDuik=0; e.yoT=0; e.yoCd=0; e.flareCd=0; e.flareWeg=0; e.hangarJager=0; e.hulpJ=0; e.hulpI=0; e.wachtBaas=null; e.wachtAan=0; e.tutV=0; e.tcSchut=0; e.geenVuur=0; e.oefen=0; e.schildEens=0; e.schildWeg=0; e.laadBaas=0; e.laadT=0; e.waggel=0; e.hulpElk=0; e.hulpT=0; if(e.laad) this.laadUit(e); e.walker=0; e.walkVan=null; e.walkT=0; e.walkGolf=0; e.walkHulpT=0; e.kloon=0; e.kloonVan=null; e.kloonen=null; e.splits=0; e.splitT=0; e.portBaas=0; e.pbT=0; e.pbWeg=0; e.pbWacht=0; e.pbOpen=0; e.pbP=null; e.pbVast=0; e.vloot=0; e.vlootFase=null; e.vlootBaas=null; e.vlootVrij=0; e.vlootOff=null; e.wachtVloot=0; e.wachters=null; e.wachtOp=0; e.wachtT=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
+        if(e.doelen) this.doelWeg(e); e.doelT=0; e.doelSoort=null; e.klimT=0; e.klimCd=0; e.klimDuik=0; e.yoT=0; e.yoCd=0; e.flareCd=0; e.flareWeg=0; e.hangarJager=0; e.hulpJ=0; e.hulpI=0; e.wachtBaas=null; e.wachtAan=0; e.btGrijs=0; e.tutV=0; e.tcSchut=0; e.geenVuur=0; e.oefen=0; e.schildEens=0; e.schildWeg=0; e.laadBaas=0; e.laadT=0; e.waggel=0; e.hulpElk=0; e.hulpT=0; if(e.laad) this.laadUit(e); e.walker=0; e.walkVan=null; e.walkT=0; e.walkGolf=0; e.walkHulpT=0; e.kloon=0; e.kloonVan=null; e.kloonen=null; e.splits=0; e.splitT=0; e.portBaas=0; e.pbT=0; e.pbWeg=0; e.pbWacht=0; e.pbOpen=0; e.pbP=null; e.pbVast=0; e.vloot=0; e.vlootFase=null; e.vlootBaas=null; e.vlootVrij=0; e.vlootOff=null; e.wachtVloot=0; e.wachters=null; e.wachtOp=0; e.wachtT=0; e.escMaat=0; e.escHp=0; e.ninja=0; e.ninjaCd=0; e.ninjaWeg=0; e.schaduw=0; e.eigenVuur=null;
         e.scheer=0; e.scheerCd=undefined; e.scheerT=0;
         e.vp=null; e.vRicht=null;   // de vliegrichting opnieuw meten
         if(e.veld){ e.veld.visible=false; e.veld=null; }
@@ -13315,7 +13434,10 @@
       // DE UITLEG zet de wereld bijna stil, maar de les zelf loopt op sEcht.
       // 's' was een const — die overschrijven gaf 'Assignment to constant
       // variable' en dan strandde de hele beurt (gemeten).
-      const s=(window.TUT&&this.tutLees)?0.0001:((window.LES&&!window.TUT)?Math.min(sEcht,LES_TRAAG):sEcht);   // v15.80 leesstand: alles stil
+      const sB=(window.TUT&&this.tutLees)?0.0001:((window.LES&&!window.TUT)?Math.min(sEcht,LES_TRAAG):sEcht);   // v15.80 leesstand: alles stil
+      // v15.84 BULLET TIME: de wereld (s) vertraagt, jouw wapens (sP) niet
+      const sP=sB;
+      const s=sB*this.btTick(sEcht);
       // DE TUTORIAL tikt VOORAAN, vóór alle returns verderop — anders loopt hij
       // vast zodra de beurt ergens eerder afslaat (gemeten: tutT bleef op 0).
       if(window.PHASE==='game'&&(window.TUT||this.tutHemelOp)) this.tutTick(sEcht);
@@ -13433,7 +13555,7 @@
         this.blast.material.opacity=k*0.95;
         this.blast.lookAt(eye);
         if(this.blastT<=0) this.blast.visible=false; }
-      if(this.zapT>0){ this.zapT-=s;
+      if(this.zapT>0){ this.zapT-=sP;
         const k=Math.max(0,this.zapT/ZAPDUUR);
         // v15.50 HALVERWEGE NOG EENS KNETTEREN: dezelfde sprongen, nieuwe
         // knikken. Daarmee leeft de flits in plaats van 0,3 seconde stil te
@@ -13463,13 +13585,13 @@
         // en treft alles wat hem kruist — ook wat er tijdens die tijd doorheen
         // vliegt. Dat scheelt 57 kogelobjecten per schot.
         const L=W.laz;
-        L.t+=s;
+        L.t+=sP;
         // v15.55 NIET MEER MEEDRAAIEN MET JE HAND. Hier stond het uitlezen van
         // de handstand per beurt; daardoor bestuurde je de balk als een
         // lightsaber. Hij staat nu op de plek en in de richting van het moment
         // dat je schoot, en dooft daar ook uit.
         if(!L.aan){ L.aan=1; SND.laz(L.d.x*0.5,1,4); }
-        this.lazLijn(hid,L.o,L.d,L,s);
+        this.lazLijn(hid,L.o,L.d,L,sP);
         if(L.t>=L.duur){ this.lazUit(hid); W.laz=null; }
         if(L.k>=L.n) W.laz=null; }
 
@@ -13717,6 +13839,7 @@
           if(Math.random()<0.5) this.rook(e.p.x,e.p.y,e.p.z,false,1.2,1.1); } }
 
       this.stap='kogels';
+      { const s=sP;                                  // v15.84 jouw kogels: volle snelheid
       // ---- eigen kogels ----
       for(let i=0;i<this.bolts.length;i++){ const B=this.bolts[i]; if(!B.live) continue;
         B.pd=B.d; B.d+=(B.sp||185)*s;
@@ -13788,7 +13911,9 @@
           B.live=false; B.m.visible=false; continue; }
         if(B.d>=B.md){ B.live=false; B.m.visible=false; } }
 
+      }
       this.stap='raketten';
+      { const s=sP;                                  // v15.84 jouw raketten ook
       // ---- raketten ----
       for(let i=0;i<this.rockets.length;i++){ const R=this.rockets[i]; if(!R.live) continue;
         R.tot+=s;
@@ -13996,6 +14121,7 @@
             for(let k=0;k<KET_LUS;k++) if(!this.vijTreffer(P,9,straal*0.6)) break; }
           R.live=false; R.m.visible=false; } }
 
+      }
       // ---- vijandelijke kogels ----
       for(let i=0;i<this.vij.length;i++){ const B=this.vij[i]; if(!B.live) continue;
         if(B.onq>0) B.onq-=s;                         // v15.32: onsterfelijke ster
