@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.84';
+  const VERSIE='v15.85';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2876,6 +2876,7 @@
   const BT_GRIJS=0x9aa3ad, BT_HART=1.25;
   // v15.84 MULTI-KILL met de laser: n kills in één schot = n x n in je combo
   const MULTI_NAAM=['','','DOUBLE KILL','TRIPLE KILL','QUAD KILL','PENTA KILL'];
+  const EXPL_TEMPO=0.6;         // v15.85 een scheepsklap speelt op 60% af
   const ULT_RAK=25;             // v14.59: een ult is 25 raketten (was 50)
   // v15.32, Sjoerd: "de ults 20% minder snel in hoe snel ik ze krijg."
   // 12500 -> 15625 is precies 1/0,8: je verdient ze op 80% van de oude snelheid.
@@ -8442,6 +8443,10 @@
       e.live=false; e.dood=0; e.hp=0;
       if(e.romp){ e.romp.visible=false; e.romp=null; }
       SND.kill(e.p.x*0.02,e.sc/7); SND.boom(e.p.x*0.02,e.bw>=16);
+      // v15.85 Sjoerd: "ontploffingen van de schepen mag iets langzamer, het is
+      // een mooie animatie om te zien. 60% van de huidige snelheid." Alles wat
+      // hieronder voor deze klap wordt aangemaakt speelt op EXPL_TEMPO af.
+      this.effTempo=EXPL_TEMPO;
       this.vonk(e.p.x,e.p.y,e.p.z,0xfff2c0,14,7,1.7);      // witte kern
       this.vonk(e.p.x,e.p.y,e.p.z,0xffb03a,22,15,1.5);     // oranje wolk
       this.vonk(e.p.x,e.p.y,e.p.z,0xff5a2a,16,22,1.1);     // rode scherven ver weg
@@ -8464,6 +8469,7 @@
         this.vonk(sx,sy,sz,0xffd070,5,7,0.9);              // wegspattend vuur
         this.vonk(sx,sy,sz,0x5a5a5a,4,5,2.4); }            // en zijn rookje
       this.knal(e.p,e.sc);
+      this.effTempo=0;
       this.bbVrij(e.bb); e.bb=null;
       if(TYPE[e.tp].prof==='baas'&&this.baas===e){ this.baas=null; } },
 
@@ -8509,7 +8515,7 @@
     knal:function(p,sc){                                   // korte lichtbol op de plek van de klap
       const K=this.blast; if(!K) return;
       K.visible=true; K.position.copy(p); K.material.opacity=0.95;
-      K.scale.setScalar(sc*0.35); this.blastT=0.45; this.blastS=sc; },
+      K.scale.setScalar(sc*0.35); this.blastT=0.45; this.blastS=sc; this.blastTg=this.effTempo||1; },
 
     // Rook is geen vonk: vonken worden OPTELLEND getekend en dan voegt zwart
     // niets toe — je zag dus nooit donkere rook, hoe donker ik hem ook maakte.
@@ -8550,7 +8556,7 @@
           // v15.27: een gewone vonk is GEEN vuurwerk. Zonder deze twee regels erft
           // hij de naspat en de trage dooftijd van een vuurwerkscherf die dit
           // deeltje eerder gebruikte — en dan spat elke explosie in het spel open.
-          F.na=0; F.traag=0;
+          F.na=0; F.traag=0; F.tg=this.effTempo||1;   // v15.85 eigen tempo (scheepsklap trager)
           break; } } },
 
     // ---- VUURWERK (Sjoerd v15.27) ----
@@ -8573,7 +8579,7 @@
           F.vx=Math.sin(ho)*Math.cos(hk)*v;
           F.vy=Math.cos(ho)*v;
           F.vz=Math.sin(ho)*Math.sin(hk)*v;
-          F.traag=traag?1:0;
+          F.traag=traag?1:0; F.tg=1;
           F.na=(diep>0)?(3+Math.floor(Math.random()*2)):0;
           F.naOp=0.42+Math.random()*0.22;               // wanneer hij openspat
           F.naK=col; F.naSp=spr*0.55; F.naSz=sz*0.6; F.naD=(diep||0)-1;
@@ -13549,7 +13555,7 @@
       if(this.rood>0) this.roodTick(s);
       // (de oude 2-seconden-regel is weg: comboTick houdt de klok nu bij, en
       //  deze regel brak de combo al na 2 s terwijl er 4 hoort te staan)
-      if(this.blastT>0){ this.blastT-=s;
+      if(this.blastT>0){ this.blastT-=s*(this.blastTg||1);
         const k=Math.max(0,this.blastT/0.45);
         this.blast.scale.setScalar((this.blastS||8)*(0.35+(1-k)*1.5));
         this.blast.material.opacity=k*0.95;
@@ -14421,8 +14427,9 @@
       for(let i=0;i<this.vonken.length;i++){ const F=this.vonken[i]; if(!F.live) continue;
         // v15.27: een vuurwerkscherf dooft ruim twee keer zo langzaam, zodat je de
         // bol ziet openbloeien in plaats van knipperen
-        F.life-=s*(F.traag?0.75:1.7);
-        F.m.position.x+=F.vx*s; F.m.position.y+=F.vy*s-4*s*(1-F.life); F.m.position.z+=F.vz*s;
+        const sF=s*(F.tg||1);
+        F.life-=sF*(F.traag?0.75:1.7);
+        F.m.position.x+=F.vx*sF; F.m.position.y+=F.vy*sF-4*sF*(1-F.life); F.m.position.z+=F.vz*sF;
         F.m.lookAt(eye);
         F.m.scale.setScalar(Math.max(0.01,F.sz*F.life*2.2));
         F.m.material.opacity=Math.max(0,F.life);
