@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.90';
+  const VERSIE='v15.91';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2183,7 +2183,9 @@
   // Hoe ver een wrak van je wegdraait tijdens de val (radialen; 0,785 = 45
   // graden) en in hoeveel seconden hij daar komt.
   const VALDRAAI_MAX=0.52, VALDRAAI_T=2.0, VALROL_MAX=1.0;   // was 0,785: te plat
-  const KLAPKANS=0.55;          // kans dat een wrak ontploft in plaats van wegzakt
+  // v15.91 Sjoerd: "niet iedereen ontploft, sommige verdwijnen gewoon." 45% zakte
+  // weg zonder klap. Nu ontploft elk wrak.
+  const KLAPKANS=1.0;           // kans dat een wrak ontploft in plaats van wegzakt (was 0,55)
   // v15.52: wie door de ELECTRO of de LASER valt ontploft altijd, en binnen
   // zoveel seconden. Nul mag: dan knalt hij vrijwel meteen.
   const STRAAL_KNAL=2.0;
@@ -7148,10 +7150,16 @@
       const raakDik=LAZ_RAAK*L.sz+(L.tel-1)*LAZ_EXTRA;
       let nKill=0;
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
-        if(!e.live||e.dood||e.dood2) continue;
+        if(!e.live||e.dood2) continue;
         const rel=this.tmp.copy(e.p).sub(ori);
         const langs=rel.dot(dir);
         if(langs<1||langs>LASBEREIK) continue;        // achter je of te ver
+        // v15.91 Sjoerd: "in slow motion kan ik geen neerstortende vliegtuigen
+        // raken met mijn laser." Een wrak werd overgeslagen. Nu: raak je hem,
+        // dan ontploft hij meteen (net als de bliksem dat al deed).
+        if(e.dood){ const af0=Math.sqrt(Math.max(0,rel.lengthSq()-langs*langs));
+          if(af0<=raakDik+e.r*0.85&&!e.valNu){ this.straalDood(e,true); this.vonk(e.p.x,e.p.y,e.p.z,WCOL[3],7,7,0.4); }
+          continue; }
         const af=Math.sqrt(Math.max(0,rel.lengthSq()-langs*langs));
         if(af>raakDik+e.r*0.85) continue;
         // één treffer per schip per schot
