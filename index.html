@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.93';
+  const VERSIE='v15.94';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2224,7 +2224,8 @@
   // gaaf. Als hij het grootst is mag hij nog trager tot slow motion voorbij is.
   // Zodat je beeld vol explosies is!" Op zijn grootst: nog eens maal BT_PIEK.
   const BT_PIEK=0.06, VONK_N=420;
-  const BAL_BT=0.6;             // v15.90 vuurbal en flits in bullet time: 60% van echte tijd, ze doven dus gewoon uit
+  const BAL_BT=0.6;
+  const BT_VOOR=2, BT_GOLFNA=0.2;   // v15.94 in bullet time: volgende golf bij 2 over, na 0,2 s             // v15.90 vuurbal en flits in bullet time: 60% van echte tijd, ze doven dus gewoon uit
   const ZAP_BT=3.0;
   const LAZ_NA=0.7, LAZ_NA_GEWOON=0.2, LAZ_GEESTEN=4;   // nagloeien: in bullet time, en gewoon
   // v15.89 de rode bullet-time-laser: dunner, en een kronkelende bliksem eromheen
@@ -12632,7 +12633,7 @@
       if(this.gi===undefined) this.gi=0;
       // v15.79 STRAK OPVOLGEN: zijn de laatste schepen van de golf onderweg en
       // vliegen er nog maar GOLF_VOOR rond, dan komt de volgende golf al aan
-      if(this.gi>=this.plan.length) return (!this.rij.length&&levend<=GOLF_VOOR);
+      if(this.gi>=this.plan.length) return (!this.rij.length&&levend<=(this.btT>0?BT_VOOR:GOLF_VOOR));
       const a=this.plan[this.gi];
       if(!a.uit){ this.aanval(a); a.uit=1; this.groepT=0;
         // SAMEN BINNEN: groepen die in het plan vrijwel dezelfde starttijd
@@ -14677,16 +14678,21 @@
           this.baasBalkUit(); this.levelKlaar(); } }
       else if(this.state==='tut'){ }          // de TUTORIAL zet zijn eigen vijanden
       else if(this.state==='aftel'){ this.aftelTick(s); }   // v15.64 5-4-3-2-1
-      else if(this.state==='wacht'){ this.golfT-=s; if(this.golfT<=0) this.nieuweGolf(); }
+      // v15.94 Sjoerd: "alles kapot in slow motion, spawn de volgende wave. Soms
+      // hangt er maar 1 of 2 vliegtuigen, dan heb je niets te doen." De
+      // golfklokken liepen op de bijna-stilstaande wereldtijd (12%), dus duurde
+      // het wachten tien keer zo lang. In bullet time lopen ze op ECHTE tijd, en
+      // komt de volgende golf al als er nog BT_VOOR schepen over zijn.
+      else if(this.state==='wacht'){ this.golfT-=(this.btT>0?sP:s); if(this.golfT<=0) this.nieuweGolf(); }
       else if(this.state==='vechten'){
-        const klaar=this.planTick(s,levend);
+        const klaar=this.planTick(this.btT>0?sP:s,levend);
         levend=0;                                     // opnieuw tellen: planTick heeft net gespawnd
         for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
           if(e.live&&!e.dood) levend++; }
         // een gevallen schip maakt plek voor de volgende uit dezelfde groep
         while(this.rij.length&&levend<this.veldMax){
           if(!this.spawnVorm(this.rij.shift())) break; levend++; }
-        if(klaar){ this.state='wacht'; this.golfT=GOLF_NA; } }   // v15.79 was 1,8
+        if(klaar){ this.state='wacht'; this.golfT=(this.btT>0)?BT_GOLFNA:GOLF_NA; } }   // v15.79 was 1,8
 
       this.hud();
       this.tutPaneelSync();
