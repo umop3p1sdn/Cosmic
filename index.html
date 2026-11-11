@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.88';
+  const VERSIE='v15.89';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2221,7 +2221,10 @@
   // gaaf. Als hij het grootst is mag hij nog trager tot slow motion voorbij is.
   // Zodat je beeld vol explosies is!" Op zijn grootst: nog eens maal BT_PIEK.
   const BT_PIEK=0.06, VONK_N=420;
-  const ZAP_BT=3.0;             // v15.88 zo lang blijft een bliksem staan in bullet time (echte tijd)  // vuurballen bij een raketinslag
+  const ZAP_BT=3.0;
+  const LAZ_NA=0.7, LAZ_GEESTEN=4;
+  // v15.89 de rode bullet-time-laser: dunner, en een kronkelende bliksem eromheen
+  const BTL_DIK=0.5, BTL_N=220, BTL_LEN=140, BTL_R=0.32, BTL_WINDING=0.55, BTL_DRAAI=14;   // v15.89 zo lang dooft een laserstraal na, en zoveel tegelijk             // v15.88 zo lang blijft een bliksem staan in bullet time (echte tijd)  // vuurballen bij een raketinslag
   // Sjoerd: "kogels snel maken, instant hit, maar per seconde dezelfde schade."
   // Was 185: op 150 meter bijna een seconde onderweg. Nu zó snel dat een kogel
   // binnen één beurt aankomt. Schade per kogel en vuurtempo blijven gelijk,
@@ -2346,7 +2349,9 @@
   const BEGIN_REM=0.78;         // level 1-2: iets minder, niet half
   const BEGIN_MAX=20;           // en in level 1-2 nooit meer dan zoveel per golf (was 14)
   const RUST_GOLF=0.80;         // elke derde golf is iets rustiger
-  const GOLF_VOOR=2, GOLF_NA=0.4, GROEP_NA=0.3, COMBO_BEREIK=140;   // v15.79 golven strak achter elkaar
+  // v15.89 Sjoerd: "de waves kwamen eerst te laat, nu heel vroeg - beetje
+  // gemiddelde." Was (v15.78) 0 / 1,8 / 0,9 en (v15.79) 2 / 0,4 / 0,3.
+  const GOLF_VOOR=1, GOLF_NA=1.0, GROEP_NA=0.6, COMBO_BEREIK=140;   // v15.79 golven strak achter elkaar
   const GOLF_DAK=17;            // level 3-4 rekent hiermee: *1.7
   const GOLF_BODEM=9;           // ...en minstens zoveel: geen halve golven
   // v15.32, Sjoerd: "lvl 1 + 2 iets meer vijanden per wave. Niet in 1x in beeld
@@ -2878,7 +2883,7 @@
   // het moet lijken of IK sneller ga - strepen, een gloed langs de rand, de
   // wereld iets valer (ontploffingen blijven fel), woosh en hartslag, geen tekst.
   const BT_ELK=50, BT_DUUR=10, BT_SNEL=0.12, BT_RAMP=0.5, BT_STREEP=1.0, BT_STREPEN=70;
-  const BT_GRIJS=0x9aa3ad, BT_HART=1.25;
+  const BT_GRIJS=0x9aa3ad, BT_HART=1.25, BT_HEMELGRIJS=0.9;
   // v15.84 MULTI-KILL met de laser: n kills in één schot = n x n in je combo
   const MULTI_NAAM=['','','DOUBLE KILL','TRIPLE KILL','QUAD KILL','PENTA KILL'];
   const EXPL_TEMPO=0.6;         // v15.85 een scheepsklap speelt op 60% af
@@ -3562,6 +3567,7 @@
       // gaat er nog maar een smalle rand naar de punten.
       // v14.96: de uitrekking van v14.95 is eruit — Sjoerd vond het niet mooi.
       // De plaat ligt weer gewoon over de bol, zoals het altijd was.
+      this.grijsMat(sterMat);                         // v15.89 bullet time: de hemel kan grijs
       this.hemel=new THREE.Mesh(new THREE.SphereGeometry(300,96,56),sterMat);
       // ---- DE PLAAT RECHT OP DE BOL (v15.46) ----
       // Sjoerd: "nu buigt de bovenste/midden plaat naar boven. Als er een
@@ -3841,6 +3847,7 @@
       this.level=1; this.plan=null; this.planT=0; this.zaad=7919; this.beurt=0;
       this.rij=[]; this.veldMax=0; this.gi=0; this.groepT=0;
       this.baas=null; this.baasTrio=null; this.baasWeg=false; this.zwermBeurt=0; this.baasBalkUit();
+      if(this.btT>0) this.btWapenTerug();
       this.btT=0; this.btStap=0; this.btF=1;      // v15.84 bullet time uit
       this.melding=0; this.meldC=0; this.wave=0; this.golfT=0; this.state='wacht';
       this.ults=M().ult; this.ultPt=0; this.combo=0; this.laatst=-9; this.beste=0;
@@ -6357,6 +6364,15 @@
 
     btStart:function(){
       this.btT=BT_DUUR; this.btHartT=0.2;
+      // v15.89 Sjoerd: "tijdens slow motion krijg je als vaste gun je laser.
+      // Speciale rode straal. Soort verplichte lasershow." Beide handen worden
+      // een volle laser (trap 8, onbeperkt); na afloop krijg je je eigen terug.
+      // (eerst ALLES vastleggen, dan pas omzetten: de handen kunnen hun mag en
+      // lvlT delen - GEMETEN: de tweede hand legde anders al 9999 vast)
+      const hids=Object.keys(this.wep).filter(k=>this.wep[k]&&!this.wep[k].btOud);
+      hids.forEach(k=>{ const W=this.wep[k]; W.lvlT=W.lvlT||{}; W.mag=W.mag||{};
+        W.btOud={t:W.t,lvl:W.lvl,mag:W.mag[3],lv:W.lvlT[3]}; });
+      hids.forEach(k=>{ const W=this.wep[k]; W.t=3; W.lvlT[3]=8; W.lvl=8; W.mag[3]=9999; W.laz=null; });
       SND.btWoosh&&SND.btWoosh(false);
       // DE STREPEN: sterren die uitrekken en langs je heen schieten
       if(!this.btS){ this.btS=[];
@@ -6369,11 +6385,14 @@
       const kijk=this.kijkRicht(new THREE.Vector3());
       const up=new THREE.Vector3(0,1,0), zij=new THREE.Vector3().crossVectors(kijk,up).normalize();
       const op=new THREE.Vector3().crossVectors(zij,kijk).normalize();
+      // v15.89 Sjoerd: "de strepen komen nu diagonaal, van achter naar voren is
+      // mooier." Ze beginnen nu ACHTER je, in een ring om je heen, en schieten
+      // evenwijdig aan je blik naar voren weg - nooit door je gezicht.
       for(let i=0;i<this.btS.length;i++){ const S=this.btS[i];
-        const a=Math.random()*6.283, hk=(0.10+Math.random()*0.9);      // niet recht door je gezicht
-        const dir=kijk.clone().addScaledVector(zij,Math.cos(a)*hk).addScaledVector(op,Math.sin(a)*hk*0.75).normalize();
-        S.p.copy(this.kop).addScaledVector(dir,25+Math.random()*60);
-        S.v.copy(dir).multiplyScalar(-(90+Math.random()*70));
+        const a=Math.random()*6.283, ring=2.5+Math.random()*14;
+        S.p.copy(this.kop).addScaledVector(kijk,-(8+Math.random()*25))
+          .addScaledVector(zij,Math.cos(a)*ring).addScaledVector(op,Math.sin(a)*ring*0.8);
+        S.v.copy(kijk).multiplyScalar(110+Math.random()*90);
         S.t=-Math.random()*0.35; S.len=6+Math.random()*10;
         S.m.visible=false; } },
 
@@ -6407,15 +6426,38 @@
       const k=Math.max(0,Math.min(1,gedaan/BT_RAMP,this.btT/BT_RAMP));
       this.btF=1-(1-BT_SNEL)*k;
       if(this.btRand){ this.btRand.visible=true; this.btRand.material.uniforms.op.value=0.55*k; }
-      this.btKleur(true);
+      this.btK=k; this.btKleur(true);
       // de hartslag
       this.btHartT-=sE; if(this.btHartT<=0&&this.btT>0.6){ this.btHartT=BT_HART; SND.btHart&&SND.btHart(); }
-      if(this.btT<=0){ this.btT=0; this.btF=1; this.btKleur(false);
+      if(this.btT<=0){ this.btT=0; this.btF=1; this.btKleur(false); this.btWapenTerug();
         if(this.btRand) this.btRand.visible=false; SND.btWoosh&&SND.btWoosh(true); return 1; }
       return this.btF; },
 
     // de wereld iets valer: de schepen grijzer; ontploffingen en jouw wapens blijven fel
+    btWapenTerug:function(){
+      const hids=Object.keys(this.wep).reverse();     // omgekeerd: de eerste hand heeft het echte oude getal
+      for(const hid of hids){ const W=this.wep[hid]; if(!W||!W.btOud) continue;
+        const O=W.btOud; W.btOud=null;
+        W.t=O.t; W.lvl=O.lvl; W.mag[3]=O.mag; W.lvlT[3]=O.lv; if(W.laz) this.lazUit(hid); W.laz=null; } },
+
+    // v15.89 een materiaal dat grijs kan worden (één gedeelde knop, this.GRIJS)
+    grijsMat:function(mat){
+      if(!mat||mat.__grijs) return; mat.__grijs=1;
+      const U=this.GRIJS||(this.GRIJS={value:0});
+      const oud=mat.onBeforeCompile;
+      mat.onBeforeCompile=function(sh){ if(oud) oud(sh);
+        sh.uniforms.grijs=U;
+        sh.fragmentShader='uniform float grijs;\n'+sh.fragmentShader.replace('#include <map_fragment>',
+          '#include <map_fragment>\n{ float gg=dot(diffuseColor.rgb,vec3(0.299,0.587,0.114));'+
+          ' diffuseColor.rgb=mix(diffuseColor.rgb,vec3(gg*0.75),grijs); }'); };
+      mat.needsUpdate=true; },
+
     btKleur:function(aan){
+      // v15.89 Sjoerd: "tijdens slow motion graag de ACHTERGROND greyed out in
+      // plaats van de vliegtuigen, zodat je ze en je wapens nog beter ziet."
+      // De schepen houden dus hun kleur; de hemel en zijn planeten worden grijs.
+      if(this.GRIJS) this.GRIJS.value=aan?BT_HEMELGRIJS*(this.btK||1):0;
+      if(true) return;
       const kl=aan?BT_GRIJS:0xffffff;
       for(let i=0;i<this.enemies.length;i++){ const e=this.enemies[i];
         if(e.bb&&e.bb.m&&e.bb.m.material&&e.bb.m.material.color&&(aan||e.btGrijs)){
@@ -7079,6 +7121,9 @@
       M.scale.set(dik,dik,LASBEREIK);
       M.material.opacity=0.35+f*0.6;
       M.material.color.setHex(f>0.6?0xffffff:WCOL[3]);
+      // v15.89 BULLET-TIME-LASER: dun, fel rood, met een bliksem eromheen
+      if(L.rood){ M.scale.x*=BTL_DIK; M.scale.y*=BTL_DIK; M.material.color.setHex(f>0.7?0xff9aa6:0xff1e34);
+        M.material.opacity=0.55+f*0.45; }
       // en de kern erin
       if(M.__kern){ const K=M.__kern;
         const kd=dik*(L.kern||0.3);
@@ -7088,7 +7133,9 @@
         // hoe hoger de trap, hoe witter en vaster de kern staat
         const lv2=Math.max(1,Math.min(8,L.lv||1));
         K.material.color.setHex((lv2>=7)?0xffffff:((lv2>=4)?0xeafaff:0xcfeeff));
-        K.material.opacity=Math.min(1,0.45+f*0.55+lv2*0.02); }
+        K.material.opacity=Math.min(1,0.45+f*0.55+lv2*0.02);
+        if(L.rood){ K.scale.x*=BTL_DIK; K.scale.y*=BTL_DIK; K.material.color.setHex(0xffe4e8); K.material.opacity=1; } }
+      this.lazSpiraal(hid,ori,dir,L,f);
       // WIE RAAKT HIJ? Afstand van elk schip tot de lijn.
       // v15.55 ÉÉN TREFFERMOMENT: alleen in de eerste beurt. Daarvoor liep
       // deze scan elke beurt door, dus pikte de balk ook alles op dat er in de
@@ -7149,10 +7196,66 @@
     // v15.48: zonder hid (of met een hid die hier niet bestaat) gaan ZE ALLEMAAL
     // uit. Dat is de veilige kant: een laserbalk die blijft staan is additief
     // licht dwars door alles heen.
+    // v15.89 Sjoerd: "laser vertraagd laten verdwijnen. Soms heb je dan 2 shots
+    // in beeld: een nieuwe en een die vertraagd fade." Als een straal stopt (of
+    // een nieuwe hem vervangt) neemt een SCHIM zijn plek over en dooft langzaam.
+    lazGeest:function(hid){
+      const M=this.lazM&&this.lazM[hid]; if(!M||!M.visible) return;
+      if(!this.lazG) this.lazG=[];
+      let G=this.lazG.find(function(q){ return q.t<=0; });
+      if(!G){ if(this.lazG.length>=LAZ_GEESTEN) G=this.lazG[0];
+        else { const a=M.clone(), b=M.__kern.clone();
+          a.material=M.material.clone(); b.material=M.__kern.material.clone();
+          a.__kern=null; this.par.add(a); this.par.add(b);
+          G={m:a,k:b,t:0,o1:1,o2:1}; this.lazG.push(G); } }
+      G.m.position.copy(M.position); G.m.quaternion.copy(M.quaternion); G.m.scale.copy(M.scale);
+      G.k.position.copy(M.__kern.position); G.k.quaternion.copy(M.__kern.quaternion); G.k.scale.copy(M.__kern.scale);
+      G.m.material.color.copy(M.material.color); G.k.material.color.copy(M.__kern.material.color);
+      G.o1=Math.max(0.35,M.material.opacity); G.o2=Math.max(0.45,M.__kern.material.opacity);
+      G.d1=G.m.scale.x; G.d2=G.k.scale.x;
+      G.t=LAZ_NA; G.m.visible=G.k.visible=true; },
+
+    // de kronkelende bliksem om de rode laser
+    lazSpiraal:function(hid,ori,dir,L,f){
+      if(!this.lazH) this.lazH={};
+      let H=this.lazH[hid];
+      if(!L.rood){ if(H) H.visible=false; return; }
+      if(!H){ const g=new THREE.BufferGeometry();
+        g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(BTL_N*3),3));
+        H=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xff5a6a,transparent:true,opacity:1,
+          blending:THREE.AdditiveBlending,depthWrite:false}));
+        H.frustumCulled=false; H.renderOrder=11; this.par.add(H); this.lazH[hid]=H; }
+      const u=this.LU||(this.LU=new THREE.Vector3()), w=this.LW||(this.LW=new THREE.Vector3());
+      u.set(0,1,0); if(Math.abs(dir.y)>0.9) u.set(1,0,0);
+      w.crossVectors(dir,u).normalize(); u.crossVectors(w,dir).normalize();
+      const A=H.geometry.attributes.position, len=Math.min(LASBEREIK,BTL_LEN);
+      const t0=this.T*BTL_DRAAI;
+      for(let i=0;i<BTL_N;i++){ const z=len*i/(BTL_N-1);
+        const a=i*BTL_WINDING+t0, rr=BTL_R*(0.75+Math.random()*0.5);
+        const j=(Math.random()-0.5)*BTL_R*0.5;
+        A.setXYZ(i, ori.x+dir.x*z+(u.x*Math.cos(a)+w.x*Math.sin(a))*rr+j,
+                    ori.y+dir.y*z+(u.y*Math.cos(a)+w.y*Math.sin(a))*rr+j,
+                    ori.z+dir.z*z+(u.z*Math.cos(a)+w.z*Math.sin(a))*rr); }
+      A.needsUpdate=true;
+      H.material.color.setHex(Math.random()<0.25?0xffffff:0xff4a5a);
+      H.material.opacity=Math.max(0,f)*0.95+0.05;
+      H.visible=true; },
+
+    lazGeestTick:function(sP){
+      if(!this.lazG) return;
+      for(let i=0;i<this.lazG.length;i++){ const G=this.lazG[i]; if(G.t<=0) continue;
+        G.t-=sP; const k=Math.max(0,G.t/LAZ_NA);
+        G.m.material.opacity=G.o1*k*k; G.k.material.opacity=G.o2*k;
+        G.m.scale.x=G.m.scale.y=G.d1*(0.6+0.4*k); G.k.scale.x=G.k.scale.y=G.d2*(0.5+0.5*k);
+        if(G.t<=0){ G.m.visible=false; G.k.visible=false; } } },
+
     lazUit:function(hid){
       if(!this.lazM) return;
+      if(hid) this.lazGeest(hid); else for(const k in this.lazM) this.lazGeest(k);
       const uit=function(M){ if(!M) return;
         M.visible=false; if(M.__kern) M.__kern.visible=false; };
+      if(this.lazH){ if(hid&&this.lazH[hid]) this.lazH[hid].visible=false;
+        else if(!hid) for(const k in this.lazH) this.lazH[k].visible=false; }
       if(hid&&this.lazM[hid]) uit(this.lazM[hid]);
       else for(const k in this.lazM) uit(this.lazM[k]); },
 
@@ -7384,6 +7487,7 @@
 
     // Rechtstreeks een wapen kiezen. Heb je het niet, dan verandert er niets.
     kiesWapen:function(h,w){
+      if(this.btT>0) return;                          // v15.89 in bullet time: verplicht de rode laser
       if(window.TUT&&this.tutLees){ if(this.tutLeesKlik()&&this.tutLees) return; }   // v15.80 weg + gewoon kiezen
       if(window.PHASE!=='game'||window.PAUSED) return;
       // Sjoerd v14.45: "beide handen werken hetzelfde, en dan krijg je dat
@@ -7553,7 +7657,9 @@
         // lightsaber besturen." Klopt: de beurt las elke frame opnieuw waar je
         // hand stond, dus zwaaide de balk met je mee en raakte alles wat je
         // onderweg kruiste. Nu leggen we stand en richting HIER vast, één keer.
-        W.laz={t:0, duur:LT.duur, tel:LT.tel, up:W.up?1:0, aan:0, geraakt:{},
+        { const hidL=Object.keys(this.wep).find(k=>this.wep[k]===W);   // v15.89 de oude straal dooft na
+          if(W.laz&&hidL) this.lazGeest(hidL); }
+        W.laz={t:0, duur:LT.duur, tel:LT.tel, up:W.up?1:0, aan:0, geraakt:{}, rood:(this.btT>0)?1:0,
                dmg:LT.dmg, brand:LT.brand, sz:LT.sz, kern:LT.kern||0.3, lv:lv,
                o:this.ori.clone(), d:this.dir.clone().normalize(), gedaan:0};
         SND.boom(this.dir.x*0.3); }
@@ -13624,6 +13730,7 @@
         if(L.t>=L.duur){ this.lazUit(hid); W.laz=null; }
         if(L.k>=L.n) W.laz=null; }
 
+      this.lazGeestTick(sP);
       this.objTick(s); this.sleepTick(s);
       if(window.DEMO) this.demoTick(s);
 
@@ -15731,6 +15838,7 @@
         // de naam bewaren, zodat LEVELS.html kan tonen welke prop waar staat
         m.userData.naam=t.__naam||'?';
         m.userData.planeet=planeet?1:0;
+        if(m.material) self.grijsMat(m.material);
         self.par.add(m); self.skyObjs.push(m); });
       this.objZet(); },
 
