@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.91';
+  const VERSIE='v15.92';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2225,7 +2225,7 @@
   const BT_PIEK=0.06, VONK_N=420;
   const BAL_BT=0.6;             // v15.90 vuurbal en flits in bullet time: 60% van echte tijd, ze doven dus gewoon uit
   const ZAP_BT=3.0;
-  const LAZ_NA=0.7, LAZ_GEESTEN=4;
+  const LAZ_NA=0.7, LAZ_NA_GEWOON=0.2, LAZ_GEESTEN=4;   // nagloeien: in bullet time, en gewoon
   // v15.89 de rode bullet-time-laser: dunner, en een kronkelende bliksem eromheen
   const BTL_DIK=0.5, BTL_N=220, BTL_LEN=140, BTL_R=0.32, BTL_WINDING=0.55, BTL_DRAAI=14;   // v15.89 zo lang dooft een laserstraal na, en zoveel tegelijk             // v15.88 zo lang blijft een bliksem staan in bullet time (echte tijd)  // vuurballen bij een raketinslag
   // Sjoerd: "kogels snel maken, instant hit, maar per seconde dezelfde schade."
@@ -7222,7 +7222,9 @@
       G.m.material.color.copy(M.material.color); G.k.material.color.copy(M.__kern.material.color);
       G.o1=Math.max(0.35,M.material.opacity); G.o2=Math.max(0.45,M.__kern.material.opacity);
       G.d1=G.m.scale.x; G.d2=G.k.scale.x;
-      G.t=LAZ_NA; G.m.visible=G.k.visible=true; },
+      // v15.92 Sjoerd: "in normale gameplay niet zoveel nagloeien, dat is meer voor
+      // slow motion. Klein beetje mag."
+      G.t0=(this.btT>0)?LAZ_NA:LAZ_NA_GEWOON; G.t=G.t0; G.m.visible=G.k.visible=true; },
 
     // de kronkelende bliksem om de rode laser
     lazSpiraal:function(hid,ori,dir,L,f){
@@ -7253,7 +7255,7 @@
     lazGeestTick:function(sP){
       if(!this.lazG) return;
       for(let i=0;i<this.lazG.length;i++){ const G=this.lazG[i]; if(G.t<=0) continue;
-        G.t-=sP; const k=Math.max(0,G.t/LAZ_NA);
+        G.t-=sP; const k=Math.max(0,G.t/(G.t0||LAZ_NA));
         G.m.material.opacity=G.o1*k*k; G.k.material.opacity=G.o2*k;
         G.m.scale.x=G.m.scale.y=G.d1*(0.6+0.4*k); G.k.scale.x=G.k.scale.y=G.d2*(0.5+0.5*k);
         if(G.t<=0){ G.m.visible=false; G.k.visible=false; } } },
