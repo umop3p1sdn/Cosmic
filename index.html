@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.92';
+  const VERSIE='v15.93';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -1738,6 +1738,7 @@
   //  HET SPEL
   // =========================================================
   const WCOL=[0x9fe4f5,0xff8a3d,0xfff2c0,0x66f0ff,0xc07dff,0xffe45c];   // 0 basis 1 raket 2 hagel 3 kanon 4 electro 5 mg
+  const MG_TOP=3;               // hoogste level van de machine gun
   const RECHTS_DONKER=0.78;     // v15.08: de rechterhand schiet een tintje donkerder
   const WNAAM=['','ROCKET','SHOTGUN','LASER','ELECTRO','MACHINE GUN'];
   // Sjoerd v14.45: in level 1 krijg je bij de EERSTE doos van elke soort uitleg.
@@ -7555,7 +7556,7 @@
           if(W.t===k) this.toonWissel(W); else this.toonZak(k,W);
           SND.boom(0); return true; }
         const k=D.k;
-        if(k===5){ W.lvlT[5]=Math.min(3,(W.lvlT[5]||1)+1);
+        if(k===5){ W.lvlT[5]=Math.min(MG_TOP,(W.lvlT[5]||1)+1);
           if(W.t===5) W.lvl=W.lvlT[5];
           this.toonZak(5,W); SND.boom(0); return true; }
         const had=((W.mag[k]||0)>0)||(W.lvlT[k]>=1);
@@ -13543,7 +13544,10 @@
       for(let i=0;i<this.dozen.length;i++){ const D=this.dozen[i]; if(D.live) continue;
         const r=Math.random();
         D.ult=(r<0.10)?1:0; D.ammo=(!D.ult&&r<0.40)?1:0;
-        D.k=D.ult?0:(D.ammo?0:(1+Math.floor(Math.random()*5)));
+        // v15.93 Sjoerd: "na level 3 hoeven er geen gele dozen meer te komen voor
+        // je gun." Staat de machine gun in ELKE hand op zijn top, dan alleen 1-4.
+        const mgVol=Object.keys(this.wep).every(k=>{ const W=this.wep[k]; return W&&W.lvlT&&(W.lvlT[5]||1)>=MG_TOP; });
+        D.k=D.ult?0:(D.ammo?0:(1+Math.floor(Math.random()*(mgVol?4:5))));
         const col=D.ult?0xffe45c:(D.ammo?0x6ce2a0:WCOL[D.k]);
         D.kern.material.color.setHex(col); D.ring.material.color.setHex(col);
         D.gloed.material.color.setHex(col);
