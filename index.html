@@ -76,7 +76,7 @@
 <script>
 (function(){
   'use strict';
-  const VERSIE='v15.94';
+  const VERSIE='v15.95';
   const $=function(s){ return document.querySelector(s); };
   document.getElementById('ver').textContent=VERSIE;
   { const v=document.getElementById('vLaad'); if(v) v.textContent=VERSIE; }
@@ -2028,6 +2028,37 @@
                ['Hope you enjoyed the game','#9fe4f5'],
                ['You are a true champion!','#6cf08a']];
   const FELIC_T=3.0;            // seconden per regel
+  // v15.95 Sjoerd: "einde van het spel mag wel iets mooier in beeld. Na de
+  // laatste baas een mooi verhaal over hoe je de wereld hebt gered, scrolt voor
+  // je voorbij. Mooie letters. Dan game made by... En dan pas enjoy parade,
+  // countdown. Einde, Game Over. En dan pas naam invullen."
+  // Volgorde: aarde komt in beeld -> verhaal (schuin wegrollend) -> aftiteling
+  // (recht omhoog) -> 10 tot 0 -> parade -> THE END / GAME OVER -> eindscherm.
+  // De trigger ingedrukt houden = EIND_SNEL keer zo snel.
+  const EIND_VERHAAL=['For eleven sectors, the armada came.','',
+    'Dreadnoughts. Wardens.','The Wheel. The Eyes.','',
+    'One by one, they fell.','',
+    'At the edge of the dark,','their last hope burned.','',
+    'The skies of Earth are quiet now.','No more signals. No more sirens.','',
+    'Eight billion people','look up at the stars,','and never know your name.','',
+    'But the stars remember.','','',
+    'Pilot\u2026','you saved the world.'];
+  const EIND_ROLLEN=['Producer','Executive Producer','Lead Programmer','Game Design',
+    'Storyboard','Level Design','Boss Design','Enemy AI','Weapon Design','Visual Effects',
+    'Slow Motion Design','Gameplay Balancing','Sound & Voice Direction','Quality Assurance',
+    'Parade Direction'];
+  const EIND_NAAM='Sjoerd v Room';
+  const EIND_REST=[['Code Assistant','Claude AI'],['Music','All free from copyright'],
+    ['','Made in half a year'],['Source on GitHub','github.com/umop3p1sdn/Cosmic'],
+    ['More games and apps','umop3p1sdn.github.io']];
+  const EIND_SNEL=4;            // trigger vast: zo veel sneller
+  const EIND_AARDE_IN=3.0;      // zo lang komt de aarde op voor het verhaal begint
+  const VERHAAL_V=0.62;         // m/s waarmee het verhaal wegrolt
+  const CREDITS_V=0.30;         // m/s waarmee de aftiteling omhoog rolt
+  const CREDITS_STIL=3.0;       // THANK YOU FOR PLAYING blijft zo lang staan
+  const EIND_UIT=1.6;           // uitfaden aan het eind van een deel
+  const EIND_HEMEL=0.3;         // de hemel dimt, zodat het verhaal en de aarde eruit springen
+  const THE_END_T=4.5;          // zo lang staat THE END / GAME OVER voor het eindscherm
   // alle onderdelen van de HUD BEHALVE #hudC: die blijft, want daar staan de
   // namen van de schepen in de parade op.
   const HUD_DEEL=['#mBaasNaam','#mBaasWaar','#baasBalkA','#baasBalkB','#baasBalkS',
@@ -2062,7 +2093,8 @@
   // COMPLETE. Nu eerst een lege hemel met vuurwerk, dan de tekst.
   // v15.71 Sjoerd: "parade op het eind even inluiden: Game made by Sjoerd v Room,
   // Music all free from copyright." Twee kaarten, elk zo lang in beeld.
-  const PARADE_INTRO=[['GAME MADE BY\nSJOERD V ROOM','#ffe45c'],['MUSIC\nALL FREE FROM COPYRIGHT','#9fe4f5']];
+  // v15.95 deze twee kaarten staan nu in de aftiteling; voor de parade alleen nog 10 tot 0
+  const PARADE_INTRO=[];
   const PARADE_KAART=3.5;
   // en dan: "Then 10 to 0. Enjoy the parade." Met stem, net als het aftellen na de tutorial.
   const PARADE_TEL=10, PARADE_ENJOY=2.5;
@@ -3487,7 +3519,8 @@
   const VOORPROEF={2:[2], 3:[8], 4:[18], 5:[13], 6:[25], 7:[15,31], 8:[5,16], 9:[27], 10:[29]};
 
   const LEVELS=NIVEAU.length;
-  const DOOS_VAKER=1.2;         // v14.44: wapendozen 1,2x zo vaak
+  const DOOS_VAKER=1.2;
+  const AMMO_ALLES=20;          // v15.95 de groene doos: zoveel erbij voor ELK wapen dat je hebt         // v14.44: wapendozen 1,2x zo vaak
   const LES_TWEEDE=5.5;         // hoe lang het tweede lesscherm blijft staan
   const LES_FADE=1.0;           // in één seconde naar volledig zwart en terug
   const MIK_R=3.4;              // hoe groot de doelring om een lesdoos is
@@ -7552,9 +7585,17 @@
         if(D.ult){ this.ults++; SND.zeg('Extra ult'); this.toonMelding('EXTRA ULT','#ffe45c'); return true; }
         if(!W.lvlT) W.lvlT={};
         if(D.ammo){                                               // ammo-doos: puur bijvullen, nooit wisselen
-          const k=(W.t>=1&&W.t<=4)?W.t:(W.vorig||(1+Math.floor(Math.random()*4)));
-          W.mag[k]=(W.mag[k]||0)+Math.round(((W.t===k)?10:20)*M().mag);
-          if(W.t===k) this.toonWissel(W); else this.toonZak(k,W);
+          // v15.95 Sjoerd: "is er ook een ammo box met ammo for all guns? Ik kom
+          // vaak ammo te kort." De tutorial belooft AMMO FOR ALL WEAPONS, maar de
+          // doos vulde er maar een (+10 of +20). Nu +AMMO_ALLES voor elk wapen dat
+          // je hebt. Heb je er nog geen een, dan je vorige of een willekeurige.
+          let n=0;
+          for(let k=1;k<=4;k++) if((W.lvlT[k]||0)>=1||(W.mag[k]||0)>0){
+            W.mag[k]=(W.mag[k]||0)+Math.round(AMMO_ALLES*M().mag); n++; }
+          if(!n){ const k=W.vorig||(1+Math.floor(Math.random()*4));
+            W.mag[k]=(W.mag[k]||0)+Math.round(AMMO_ALLES*M().mag); }
+          if(W.t>=1&&W.t<=4) this.toonWissel(W);
+          if(!window.TUT) this.toonMelding('AMMO FOR ALL WEAPONS','#6ce2a0');   // niet over de lestekst heen
           SND.boom(0); return true; }
         const k=D.k;
         if(k===5){ W.lvlT[5]=Math.min(MG_TOP,(W.lvlT[5]||1)+1);
@@ -7590,6 +7631,7 @@
       // rondkijkt, de doos zoekt en hem raakt — dat is juist de manier om verder
       // te gaan. Zonder deze uitzondering kun je de les nooit afmaken.
       if(window.PHASE!=='game'||window.PAUSED) return;
+      if(this.state==='felic') return;                   // v15.95 het einde: de trigger versnelt alleen
       const W=this.wp(h), now=performance.now();
       const snel=((W.t===5||W.t===0)?(1/(1+0.12*this.kr(W))):1);
       // De laser vuurt een reeks flitsen af. Begon je opnieuw terwijl die nog
@@ -13162,7 +13204,7 @@
         D.mik.visible=true;
         D.p.set((Math.random()-0.5)*9,this.kop.y+2+Math.random()*3,-TUT_DOOSAF);
         D.g.position.copy(D.p); D.g.visible=true; D.live=true;
-        D.sp=TUT_DOOSSNEL; return D; }
+        D.sp=TUT_DOOSSNEL; D.dir=null; return D; }
       return null; },
 
     // Sjoerd v14.55: "letters kun je niet lezen, en ik wil vijanden kunnen
@@ -13575,7 +13617,15 @@
           D.g.add(r); D.mik=r; }
         if(D.mik) D.mik.visible=!!bov;
         D.live=true; D.t=0; D.g.visible=true;
-        D.p.set((Math.random()-0.5)*34,1.6+(Math.random()*9-3),-62);
+        // v15.95 Sjoerd: "zie hem namelijk niet." Een doos kwam altijd van
+        // dezelfde vaste kant (-z), ook als je net de andere kant op stond te
+        // vechten. Nu komt hij voor je KIJKRICHTING aanvliegen (horizontaal),
+        // met dezelfde spreiding als vroeger: 34 m breed, -3 tot +6 m hoog.
+        const kr=this.kijkRicht(new THREE.Vector3()); kr.y=0;
+        if(kr.lengthSq()<1e-4) kr.set(0,0,-1); kr.normalize();
+        D.dir=kr.clone();
+        const zij=(Math.random()-0.5)*34;
+        D.p.set(this.kop.x+kr.x*62-kr.z*zij, 1.6+(Math.random()*9-3), this.kop.z+kr.z*62+kr.x*zij);
         D.g.position.copy(D.p); return; } },
 
     // =====================================================
@@ -14601,7 +14651,10 @@
       // v15.75 in de tutorial geen losse dozen: alleen de doos die bij de les hoort
       if(this.doosT<=0&&!window.TUT){ this.doosT=(26+Math.random()*10)/(M().doos*DOOS_VAKER); this.doosSpawn(); }
       for(let i=0;i<this.dozen.length;i++){ const D=this.dozen[i]; if(!D.live) continue;
-        D.t+=s; D.p.z+=D.sp*s;
+        D.t+=s;
+        if(D.dir){ D.p.addScaledVector(D.dir,-D.sp*s);             // v15.95 naar je toe, vanuit je kijkrichting
+          if((D.p.x-this.kop.x)*D.dir.x+(D.p.z-this.kop.z)*D.dir.z<-14){ D.live=false; D.g.visible=false; } }
+        else D.p.z+=D.sp*s;
         D.g.position.copy(D.p);
         D.kern.rotation.y+=s*1.6; D.kern.rotation.x+=s*0.9;
         D.ring.rotation.x=D.t*1.2; D.ring.rotation.y=D.t*0.7;
@@ -14611,11 +14664,11 @@
           D.mik.material.opacity=0.75+Math.sin(D.t*3.4)*0.22; }
         D.gloed.lookAt(eye);
         D.gloed.material.opacity=0.55+Math.sin(D.t*4)*0.2;
-        if(D.p.z>14){ D.live=false; D.g.visible=false; } }
+        if(!D.dir&&D.p.z>14){ D.live=false; D.g.visible=false; } }
 
       // ---- golvenmachine ----
       if(this.state==='parade'){ this.paradeTick(s); }
-      if(this.state==='felic'){ this.felicTick(s); }
+      if(this.state==='felic'){ this.felicTick(sP); }   // v15.95 op echte tijd
       if(this.state==='eind'){ this.eindTick(s); }
       else if(this.state==='rust'){ this.rustTick(s); }
       else if(this.state==='baaswacht'){ this.golfT-=s;
@@ -16347,24 +16400,177 @@
                                     g:this.gedood,b:this.beste};
       this.veldLeeg();
       try{ this.baasBalkUit(); }catch(q){}
-      this.fel={i:-1,t:FELIC_T};
+      // v15.95 bullet time netjes laten uitlopen, en de HUD meteen weg
+      if(this.btT>0) this.btT=Math.min(this.btT,BT_RAMP);
+      this.hudWeg(1); this.paradeTxt('','');
+      if(this.skyObjs) this.skyObjs.forEach(function(m){ m.visible=false; });
+      this.fel={fase:'aarde',t:0,S:0,uit:0};
+      this.eindBouw();
       this.state='felic'; window.PAUSED=false;
       SND.zeg('Mission complete'); },
 
-    felicTick:function(s){
+    // ---- v15.95 HET EINDE: aarde, verhaal, aftiteling ----
+    // Een tekst op een canvas. Elke regel: [tekst, px, kleur, dik, ruimte erna, spatie].
+    eindCanvas:function(W,regels){
+      const c=document.createElement('canvas'), g=c.getContext('2d');
+      const font=function(px,dik){ return (dik?'700 ':'400 ')+px+'px "Trebuchet MS", "Segoe UI", sans-serif'; };
+      // eerst de regels die te breed zijn knippen
+      const uit=[];
+      for(const R of regels){ g.font=font(R[1],R[3]);
+        if(!R[0]){ uit.push(R); continue; }
+        const woorden=R[0].split(' '); let rg='';
+        for(const w of woorden){ const prob=rg?rg+' '+w:w;
+          if(g.measureText(prob).width>W*0.9&&rg){ uit.push([rg].concat(R.slice(1))); rg=w; } else rg=prob; }
+        uit.push([rg].concat(R.slice(1))); }
+      let H=40; for(const R of uit) H+=R[1]*1.25+(R[4]||0);
+      H=Math.min(4096,Math.ceil(H+40));
+      c.width=W; c.height=H;
+      g.textAlign='center'; g.textBaseline='top';
+      let y=40; const regelY=[];
+      for(const R of uit){
+        g.font=font(R[1],R[3]);
+        try{ g.letterSpacing=(R[5]||0)+'px'; }catch(q){}
+        if(R[0]){
+          g.lineJoin='round'; g.lineWidth=Math.max(3,R[1]*0.12);   // donkere rand: leesbaar op elke hemel
+          g.strokeStyle='rgba(0,0,0,0.55)'; g.strokeText(R[0],W/2,y);
+          g.shadowColor=R[2]; g.shadowBlur=R[1]*0.35;      // de gloed
+          g.fillStyle=R[2]; g.fillText(R[0],W/2,y);
+          g.shadowBlur=0; g.fillStyle='rgba(255,255,255,0.35)'; g.fillText(R[0],W/2,y); }  // een heldere kern
+        regelY.push(y+R[1]*0.6); y+=R[1]*1.25+(R[4]||0); }
+      const t=new THREE.CanvasTexture(c);
+      t.minFilter=THREE.LinearMipmapLinearFilter; t.anisotropy=8; t.needsUpdate=true;
+      return {tex:t,W:W,H:H,laatste:regelY[regelY.length-1]||H}; },
+
+    // Een vlak dat een stuk van die canvas laat zien. uS schuift de tekst door.
+    // Onderaan komt een regel binnen, bovenaan vaagt hij weg.
+    eindVlak:function(T,wM,lM,onder,boven){
+      const mat=new THREE.ShaderMaterial({transparent:true,depthWrite:false,
+        uniforms:{map:{value:T.tex},uS:{value:0},uW:{value:(T.W*lM/wM)/T.H},
+                  uOp:{value:1},uB:{value:onder},uT:{value:boven}},
+        vertexShader:'varying vec2 vU; void main(){ vU=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+        fragmentShader:'uniform sampler2D map; uniform float uS,uW,uOp,uB,uT; varying vec2 vU;'+
+          'void main(){ float tv=1.0-uS+vU.y*uW; if(tv<0.0||tv>1.0) discard;'+
+          ' vec4 c=texture2D(map,vec2(vU.x,tv));'+
+          ' float a=c.a*uOp*smoothstep(0.0,uB,vU.y)*smoothstep(1.0,1.0-uT,vU.y);'+
+          ' if(a<0.004) discard; gl_FragColor=vec4(c.rgb,a); }'});
+      const geo=new THREE.PlaneGeometry(wM,lM); geo.translate(0,lM/2,0);
+      const m=new THREE.Mesh(geo,mat); m.renderOrder=90; m.frustumCulled=false;
+      m.userData.rij=T.W*lM/wM;           // zoveel canvasrijen beslaat het vlak
+      m.userData.H=T.H; m.userData.laatste=T.laatste;
+      return m; },
+
+    eindBouw:function(){
+      this.eindWeg();
+      const sc=this.par;                                  // de wereld van het spel, net als de hemelobjecten
+      const kr=this.kijkRicht(new THREE.Vector3()); kr.y=0;
+      if(kr.lengthSq()<1e-4) kr.set(0,0,-1); kr.normalize();
+      const yaw=Math.atan2(-kr.x,-kr.z);
+      const G=new THREE.Group(); G.position.copy(this.kop); G.rotation.y=yaw; sc.add(G);
+      this.eindG=G;
+      // DE AARDE: het plaatje uit de art als dat er is, anders zelf getekend
+      let tex=null;
+      const objs=(window.ART&&window.ART.objs)||[];
+      for(const nm of ['aarde']) for(const t of objs){
+        const t2=(t.__klein||t);
+        if(!tex&&t.__lijst&&t.__lijst.naam===nm&&t2.image&&(t2.image.width||t2.image.naturalWidth)) tex=t2; }
+      if(!tex){ const c=document.createElement('canvas'); c.width=c.height=512; const g=c.getContext('2d');
+        const gr=g.createRadialGradient(200,190,20,256,256,250);
+        gr.addColorStop(0,'#9fd8ff'); gr.addColorStop(0.45,'#2f7fd0'); gr.addColorStop(0.85,'#123e7a'); gr.addColorStop(1,'#061530');
+        g.fillStyle=gr; g.beginPath(); g.arc(256,256,250,0,6.2832); g.fill();
+        g.fillStyle='rgba(70,150,80,0.75)';
+        [[180,200,70,40],[300,300,90,55],[330,170,50,30],[200,340,45,35]].forEach(function(q){
+          g.beginPath(); g.ellipse(q[0],q[1],q[2],q[3],0.5,0,6.2832); g.fill(); });
+        tex=new THREE.CanvasTexture(c); }
+      const ar=(tex.image&&tex.image.width&&tex.image.height)?tex.image.width/tex.image.height:1;
+      const aarde=new THREE.Mesh(new THREE.PlaneGeometry(ar,1),
+        new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false,opacity:0}));
+      aarde.renderOrder=-12; aarde.frustumCulled=false; G.add(aarde);
+      // de gloed van een zonsopgang achter de rand
+      const c2=document.createElement('canvas'); c2.width=c2.height=256; const g2=c2.getContext('2d');
+      const gr2=g2.createRadialGradient(128,128,40,128,128,128);
+      gr2.addColorStop(0,'rgba(255,220,150,0.9)'); gr2.addColorStop(0.45,'rgba(255,150,70,0.45)');
+      gr2.addColorStop(1,'rgba(255,90,40,0)');
+      g2.fillStyle=gr2; g2.fillRect(0,0,256,256);
+      const gloed=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
+        new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c2),transparent:true,depthWrite:false,
+          blending:THREE.AdditiveBlending,opacity:0}));
+      gloed.renderOrder=-13; gloed.frustumCulled=false; G.add(gloed);
+      this.eindAarde={m:aarde,gl:gloed};
+      // HET VERHAAL: schuin weglopend vlak, 5,5 m breed en 26 m lang
+      const VR=EIND_VERHAAL.map(function(t){ return [t,112,'#ffe08a',1,t?28:56,2]; });
+      const ver=this.eindVlak(this.eindCanvas(2048,VR),4.6,22,0.06,0.35);
+      ver.position.set(0,-1.3,-3.6); ver.rotation.x=-0.98; ver.visible=false; G.add(ver);
+      // DE AFTITELING: recht vlak, 3 m breed en 3,6 m hoog
+      const CR=[['GAME MADE BY',44,'#ffd24a',1,6,8],[EIND_NAAM.toUpperCase(),88,'#ffffff',1,140,4]];
+      EIND_ROLLEN.forEach(function(rl){ CR.push([rl.toUpperCase(),34,'#ffc94a',1,8,6]); CR.push([EIND_NAAM,56,'#ffffff',0,64,1]); });
+      CR[CR.length-1][4]=150;
+      EIND_REST.forEach(function(q){ if(q[0]) CR.push([q[0].toUpperCase(),34,'#ffc94a',1,8,6]);
+        CR.push([q[1],q[0]?48:56,'#ffffff',0,64,1]); });
+      CR[CR.length-1][4]=200;
+      CR.push(['THANK YOU FOR PLAYING',72,'#6cf08a',1,0,5]);
+      const cre=this.eindVlak(this.eindCanvas(1024,CR),2.8,3.4,0.16,0.16);
+      cre.position.set(0,-1.6,-4.6); cre.visible=false; G.add(cre);
+      this.eindVer=ver; this.eindCre=cre; },
+
+    eindHemel:function(k){
+      const ms=[]; if(this.hemel&&this.hemel.material) ms.push(this.hemel.material);
+      if(this.skyObjs) this.skyObjs.forEach(function(o){ if(o&&o.material) ms.push(o.material); });
+      ms.forEach(function(m){ if(m.color) m.color.setScalar(k); }); },
+
+    eindWeg:function(){
+      if(!this.eindG) return;
+      this.eindG.traverse(function(o){ if(o.geometry) o.geometry.dispose();
+        if(o.material){ if(o.material.uniforms&&o.material.uniforms.map) o.material.uniforms.map.value.dispose();
+          o.material.dispose(); } });
+      if(this.eindG.parent) this.eindG.parent.remove(this.eindG);
+      this.eindG=null; this.eindVer=null; this.eindCre=null; this.eindAarde=null; },
+
+    felicTick:function(sE){
       const F=this.fel;
-      if(!F){ this.hudWeg(1); this.paradeTxt('',''); this.paradeStart(true); return; }
-      F.t+=s;
-      if(F.t>=FELIC_T){
-        F.t=0; F.i++;
-        if(F.i>=FELIC.length){
-          this.fel=null;
-          this.hudWeg(1);                              // "dan verdwijnt je hele Hud"
-          this.paradeTxt('','');
-          this.paradeStart(true); return; }
-        this.paradeTxt(FELIC[F.i][0],FELIC[F.i][1]); }
-      this.meldC=9;                                    // de regel mag niet wegvagen
-      },
+      if(!F||!this.eindG){ this.eindWeg(); this.fel=null; this.hudWeg(1); this.paradeTxt('',''); this.paradeStart(true); return; }
+      const snel=(this.held&&this.held.length)?EIND_SNEL:1;
+      const s=sE*snel;
+      F.t+=s; F.totT=(F.totT||0)+s;
+      // de aarde komt op en groeit langzaam, de hele tijd door
+      const A=this.eindAarde;
+      if(A){ const k=Math.min(1,F.totT/EIND_AARDE_IN), g=Math.min(1,F.totT/90);
+        const op=k*(F.fase==='weg'?Math.max(0,1-F.t/EIND_UIT):1);
+        const maat=80+g*60, d=235, x=120, y=-95+g*45;    // rechtsonder, en hij komt langzaam op
+        A.m.position.set(x,y,-d); A.m.lookAt(this.kop);
+        A.m.scale.set(maat,maat,1); A.m.material.opacity=op;
+        A.gl.position.set(x,y,-d-4); A.gl.lookAt(this.kop); A.gl.scale.set(maat*1.45,maat*1.45,1);
+        A.gl.material.opacity=op*0.4; }
+      // de hemel dimt (kleur, niet doorzichtig: achter de hemel zit geen zwart),
+      // en gaat aan het eind weer open voor de parade
+      const hk=(F.fase==='weg')?1:EIND_HEMEL;
+      F.hk=(F.hk===undefined)?1:F.hk+Math.max(-sE/1.5,Math.min(sE/1.5,hk-F.hk));
+      this.eindHemel(F.hk);
+      // een beetje vuurwerk opzij, niet door de letters
+      if(F.fase==='credits'){ F.vwT=(F.vwT||0)-s;
+        if(F.vwT<=0){ F.vwT=2.6+Math.random()*2.2;
+          if((this.vonkVrij||0)>VUUR_VRIJ){
+            const zij=(Math.random()<0.5?-1:1)*(0.75+Math.random()*0.6), r=55+Math.random()*40;
+            const v=new THREE.Vector3(Math.sin(zij)*r,14+Math.random()*26,-Math.cos(zij)*r)
+              .applyAxisAngle(new THREE.Vector3(0,1,0),this.eindG.rotation.y).add(this.kop);
+            this.vuurBom(v.x,v.y,v.z); } } }
+      const V=this.eindVer, C2=this.eindCre;
+      if(F.fase==='aarde'){ if(F.t>=EIND_AARDE_IN*0.8){ F.fase='verhaal'; F.t=0; F.S=0; V.visible=true; } }
+      else if(F.fase==='verhaal'){
+        const u=V.userData; F.S+=s*VERHAAL_V*u.rij/22;
+        V.material.uniforms.uS.value=F.S/u.H;
+        const eind=u.H+0.8*u.rij;
+        if(F.S>=eind-u.rij*0.1) V.material.uniforms.uOp.value=Math.max(0,(eind-F.S)/(u.rij*0.1));
+        if(F.S>=eind){ V.visible=false; F.fase='credits'; F.t=0; F.S=0; C2.visible=true; } }
+      else if(F.fase==='credits'){
+        const u=C2.userData, stop=u.laatste+0.5*u.rij;
+        F.S=Math.min(stop,F.S+s*CREDITS_V*u.rij/3.4);
+        C2.material.uniforms.uS.value=F.S/u.H;
+        if(F.S>=stop){ F.stil=(F.stil||0)+s; if(F.stil>=CREDITS_STIL){ F.fase='weg'; F.t=0; } } }
+      else if(F.fase==='weg'){
+        C2.material.uniforms.uOp.value=Math.max(0,1-F.t/EIND_UIT);
+        if(F.t>=EIND_UIT){ this.eindWeg(); this.fel=null; this.eindHemel(1);
+          this.paradeTxt(''); this.paradeStart(true); return; } }
+      this.meldC=9; },
 
     // De HUD aan of uit, zonder #hudC: die draagt in de parade de scheepsnamen.
     // LET OP: niet alles in deze lijst hoort straks weer AAN te gaan. De
@@ -16843,11 +17049,13 @@
       // v15.26: HET ECHTE EINDE. Heb je het spel uitgespeeld, dan is de parade je
       // ereronde en komt daarna je naam — niet GAME OVER en terug naar het menu.
       if(P.eind){
+        // v15.95 Sjoerd: "Einde. Game Over. En dan pas naam invullen."
         const ec=document.querySelector('#hudC');
-        if(!ec||ec.getAttribute('value')!=='MISSION COMPLETE')
-          this.paradeTxt('MISSION COMPLETE','#6cf08a');
+        if(!ec||ec.getAttribute('value')!=='THE END\nGAME OVER'){
+          this.paradeTxt('THE END\nGAME OVER','#ffe45c');
+          if(!P.eindZeg){ P.eindZeg=1; SND.zeg('The end. Game over.'); } }
         this.meldC=9;
-        if(P.klaarT>2&&!P.naamGedaan){
+        if(P.klaarT>THE_END_T&&!P.naamGedaan){
           P.naamGedaan=1;
           // v15.27: eerst de telling, en daarna pas je naam
           this.eindStart(); }
